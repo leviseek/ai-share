@@ -14,7 +14,7 @@ function stripJsonc(text: string): string {
   let escaped = false;
 
   for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
+    const char = text[index] ?? "";
     const next = text[index + 1];
 
     if (inLineComment) {

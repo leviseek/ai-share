@@ -6,12 +6,19 @@
   "scripts": {
     "check:ai": "node ./scripts/run-bun.mjs ./src/check-ai.ts",
     "dev": "node ./scripts/run-bun.mjs --watch ./src/index.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
     "share": "node ./scripts/run-bun.mjs ./src/share.ts",
     "start": "node ./scripts/run-bun.mjs ./src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/bun": "latest",
-    "typescript": "latest"
+    "eslint": "^10.2.1",
+    "prettier": "latest",
+    "typescript": "latest",
+    "typescript-eslint": "^8.59.0"
   }
 }
