@@ -22,16 +22,16 @@ bun install
 检查当前 AI 配置：
 
 ```sh
-bun run check:ai -- --check
+bun run ai:check -- --check
 ```
 
 交互式修改模型提供商、`baseURL`、API Key 环境变量名、API Key 环境变量值、默认模型、模型列表：
 
 ```sh
-bun run check:ai
+bun run ai:check
 ```
 
-`check:ai` 不会把真实 API Key 写入 `opencode.jsonc`，配置文件只保存 `{env:变量名}` 引用。
+`ai:check` 不会把真实 API Key 写入 `opencode.jsonc`，配置文件只保存 `{env:变量名}` 引用。
 
 通用 AI 协作规范在 `AI_GUIDELINES.md`，已由 `opencode.jsonc` 自动加载。
 

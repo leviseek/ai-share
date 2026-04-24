@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check:ai": "node ./scripts/run-bun.mjs ./src/check-ai.ts",
+    "ai:check": "node ./scripts/run-bun.mjs ./src/check-ai.ts",
     "dev": "node ./scripts/run-bun.mjs --watch ./src/index.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

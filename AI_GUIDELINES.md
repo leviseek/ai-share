@@ -50,7 +50,7 @@
 - 共享模型提供商、模型列表和默认模型应维护在本仓库的 `opencode.jsonc`。
 - 每个具体项目可以放置自己的 `opencode.jsonc` 做少量覆盖。
 - API Key 只通过环境变量引用，例如 `{env:DEEPSEEK_API_KEY}`。
-- 变更模型提供商、`baseURL`、API Key 环境变量名或模型列表时，优先使用 `bun run check:ai`。
+- 变更模型提供商、`baseURL`、API Key 环境变量名或模型列表时，优先使用 `bun run ai:check`。
 - 将共享配置安装到当前电脑时，优先使用 `bun run share`。
 
 ## 输出风格
