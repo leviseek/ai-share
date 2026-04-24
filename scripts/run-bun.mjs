@@ -13,7 +13,7 @@ const candidates = [
 const bun = candidates.find((candidate) => candidate === "bun" || existsSync(candidate));
 
 if (!bun) {
-  console.error("Cannot find Bun executable.");
+  console.error("找不到 Bun 可执行文件。");
   process.exit(1);
 }
 

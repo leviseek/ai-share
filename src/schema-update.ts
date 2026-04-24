@@ -12,13 +12,13 @@ const schema = createWorkspaceSchema(officialSchema);
 await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, `${JSON.stringify(schema, null, 2)}\n`);
 
-console.log(`Updated ${outputPath}`);
-console.log(`Source: ${officialSchemaUrl}`);
+console.log(`已更新 ${outputPath}`);
+console.log(`来源：${officialSchemaUrl}`);
 
 async function fetchOfficialSchema(): Promise<unknown> {
   const response = await fetch(officialSchemaUrl);
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${officialSchemaUrl}: ${response.status} ${response.statusText}`);
+    throw new Error(`获取 ${officialSchemaUrl} 失败：${response.status} ${response.statusText}`);
   }
 
   return response.json();
