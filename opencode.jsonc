@@ -5,7 +5,7 @@
   "model": "codexapis/gpt-5.5",
   "small_model": "codexapis/gpt-5.4-mini",
   "instructions": ["AI_GUIDELINES.md"],
-  "plugin": ["oh-my-openagent"],
+  "plugin": ["oh-my-openagent@3.17.5"],
 
   "agent": {
     "build": {
