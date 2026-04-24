@@ -1,0 +1,17 @@
+{
+  "name": "ai-share",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check:ai": "node ./scripts/run-bun.mjs ./src/check-ai.ts",
+    "dev": "node ./scripts/run-bun.mjs --watch ./src/index.ts",
+    "share": "node ./scripts/run-bun.mjs ./src/share.ts",
+    "start": "node ./scripts/run-bun.mjs ./src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "latest"
+  }
+}
