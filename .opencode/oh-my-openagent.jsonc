@@ -1,0 +1,112 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+
+  "model_fallback": true,
+
+  "agents": {
+    "sisyphus": {
+      "model": "codexapis/gpt-5.5",
+      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+    },
+    "hephaestus": {
+      "model": "codexapis/gpt-5.5",
+      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-max"]
+    },
+    "prometheus": {
+      "model": "codexapis/gpt-5.5",
+      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+    },
+    "oracle": {
+      "model": "codexapis/gpt-5.5",
+      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+    },
+    "momus": {
+      "model": "codexapis/gpt-5.5",
+      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+    },
+    "metis": {
+      "model": "codexapis/gpt-5.5",
+      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+    },
+    "atlas": {
+      "model": "codexapis/gpt-5.5",
+      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-high"]
+    },
+    "sisyphus-junior": {
+      "model": "codexapis/gpt-5.5",
+      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-high"]
+    },
+    "explore": {
+      "model": "codexapis/gpt-5.4-mini",
+      "fallback_models": ["deepseek/deepseek-v4-flash", "codexapis/gpt-5.4-openai-compact"]
+    },
+    "librarian": {
+      "model": "codexapis/gpt-5.4-mini",
+      "fallback_models": ["deepseek/deepseek-v4-flash", "codexapis/gpt-5.4-openai-compact"]
+    },
+    "multimodal-looker": {
+      "model": "codexapis/gpt-5.5",
+      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-high"]
+    }
+  },
+
+  "categories": {
+    "ultrabrain": {
+      "model": "codexapis/gpt-5.5",
+      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+    },
+    "deep": {
+      "model": "codexapis/gpt-5.5",
+      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-high"]
+    },
+    "quick": {
+      "model": "codexapis/gpt-5.4-mini",
+      "fallback_models": ["deepseek/deepseek-v4-flash", "codexapis/gpt-5.4-openai-compact"]
+    },
+    "unspecified-low": {
+      "model": "codexapis/gpt-5.4",
+      "fallback_models": ["codexapis/gpt-5.4-mini", "deepseek/deepseek-v4-pro"]
+    },
+    "unspecified-high": {
+      "model": "codexapis/gpt-5.5",
+      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+    },
+    "writing": {
+      "model": "codexapis/gpt-5.5",
+      "fallback_models": ["deepseek/deepseek-v4-flash", "codexapis/gpt-5.4-mini"]
+    },
+    "visual-engineering": {
+      "model": "codexapis/gpt-5.5",
+      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-high"]
+    },
+    "artistry": {
+      "model": "codexapis/gpt-5.5",
+      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-high"]
+    }
+  },
+
+  "runtime_fallback": {
+    "enabled": true,
+    "retry_on_errors": [400, 429, 503, 529],
+    "max_fallback_attempts": 3,
+    "cooldown_seconds": 60,
+    "timeout_seconds": 30,
+    "notify_on_fallback": true
+  },
+
+  "background_task": {
+    "providerConcurrency": {
+      "codexapis": 3,
+      "deepseek": 3
+    },
+    "modelConcurrency": {
+      "codexapis/gpt-5.5": 2,
+      "codexapis/gpt-5.4-mini": 6,
+      "deepseek/deepseek-v4-flash": 6
+    }
+  },
+
+  "tmux": {
+    "enabled": false
+  }
+}

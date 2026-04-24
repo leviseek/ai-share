@@ -5,6 +5,42 @@
   "model": "codexapis/gpt-5.5",
   "small_model": "codexapis/gpt-5.4-mini",
   "instructions": ["AI_GUIDELINES.md"],
+  "plugin": ["oh-my-openagent"],
+
+  "agent": {
+    "build": {
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5"
+    },
+    "plan": {
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+      "permission": {
+        "edit": "deny",
+        "bash": "ask"
+      }
+    },
+    "general": {
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.5"
+    },
+    "explore": {
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny"
+      }
+    },
+    "compaction": {
+      "model": "codexapis/gpt-5.4-mini"
+    },
+    "title": {
+      "model": "codexapis/gpt-5.4-mini"
+    },
+    "summary": {
+      "model": "codexapis/gpt-5.4-mini"
+    }
+  },
 
   "provider": {
     "codexapis": {
