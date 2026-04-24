@@ -14,22 +14,22 @@
         "baseURL": "https://www.codexapis.com/v1",
         "apiKey": "{env:CODEXAPIS_API_KEY}",
         "timeout": 600000,
-        "chunkTimeout": 30000,
+        "chunkTimeout": 30000
       },
       "models": {
         "gpt-5.5": {
-          "name": "GPT-5.5",
+          "name": "GPT-5.5"
         },
         "gpt-5.4": {
-          "name": "GPT-5.4",
+          "name": "GPT-5.4"
         },
         "gpt-5.4-mini": {
-          "name": "GPT-5.4 Mini",
+          "name": "GPT-5.4 Mini"
         },
         "gpt-5.3-codex": {
-          "name": "GPT-5.3 Codex",
-        },
-      },
+          "name": "GPT-5.3 Codex"
+        }
+      }
     },
 
     "deepseek": {
@@ -39,66 +39,66 @@
         "baseURL": "https://api.deepseek.com",
         "apiKey": "{env:DEEPSEEK_API_KEY}",
         "timeout": 600000,
-        "chunkTimeout": 30000,
+        "chunkTimeout": 30000
       },
       "models": {
         "deepseek-v4-flash": {
           "name": "DeepSeek V4 Flash (no thinking)",
           "options": {
             "thinking": {
-              "type": "disabled",
-            },
-          },
+              "type": "disabled"
+            }
+          }
         },
         "deepseek-v4-flash-think-high": {
           "id": "deepseek-v4-flash",
           "name": "DeepSeek V4 Flash (thinking high)",
           "options": {
             "thinking": {
-              "type": "enabled",
+              "type": "enabled"
             },
-            "reasoning_effort": "high",
-          },
+            "reasoning_effort": "high"
+          }
         },
         "deepseek-v4-flash-think-max": {
           "id": "deepseek-v4-flash",
           "name": "DeepSeek V4 Flash (thinking max)",
           "options": {
             "thinking": {
-              "type": "enabled",
+              "type": "enabled"
             },
-            "reasoning_effort": "max",
-          },
+            "reasoning_effort": "max"
+          }
         },
         "deepseek-v4-pro": {
           "name": "DeepSeek V4 Pro (no thinking)",
           "options": {
             "thinking": {
-              "type": "disabled",
-            },
-          },
+              "type": "disabled"
+            }
+          }
         },
         "deepseek-v4-pro-think-high": {
           "id": "deepseek-v4-pro",
           "name": "DeepSeek V4 Pro (thinking high)",
           "options": {
             "thinking": {
-              "type": "enabled",
+              "type": "enabled"
             },
-            "reasoning_effort": "high",
-          },
+            "reasoning_effort": "high"
+          }
         },
         "deepseek-v4-pro-think-max": {
           "id": "deepseek-v4-pro",
           "name": "DeepSeek V4 Pro (thinking max)",
           "options": {
             "thinking": {
-              "type": "enabled",
+              "type": "enabled"
             },
-            "reasoning_effort": "max",
-          },
-        },
-      },
-    },
-  },
+            "reasoning_effort": "max"
+          }
+        }
+      }
+    }
+  }
 }
