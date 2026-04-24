@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenCode Workspace Config",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "model": {
+      "$ref": "#/$defs/modelRef"
+    },
+    "small_model": {
+      "$ref": "#/$defs/modelRef"
+    },
+    "instructions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/provider"
+      }
+    }
+  },
+  "$defs": {
+    "modelRef": {
+      "type": "string",
+      "pattern": "^[^/]+/.+$",
+      "description": "OpenCode model reference in provider/model format. Custom providers like codexapis are allowed."
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "npm": {
+          "type": "string"
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "baseURL": {
+              "type": "string"
+            },
+            "apiKey": {
+              "type": "string"
+            },
+            "timeout": {
+              "type": ["number", "boolean"]
+            },
+            "chunkTimeout": {
+              "type": "number"
+            }
+          }
+        },
+        "models": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/model"
+          }
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

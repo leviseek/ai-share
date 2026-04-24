@@ -1,5 +1,5 @@
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "./.vscode/opencode.schema.json",
 
   // Default shared models. Per-project opencode.jsonc files can override these.
   "model": "codexapis/gpt-5.5",
