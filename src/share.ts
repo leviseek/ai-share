@@ -34,7 +34,12 @@ async function ensureReadable(path: string): Promise<void> {
   }
 }
 
-async function installConfig(source: string, target: string, requestedMode: ShareMode, overwrite: boolean): Promise<ShareMode | "already-linked" | "already-copied"> {
+async function installConfig(
+  source: string,
+  target: string,
+  requestedMode: ShareMode,
+  overwrite: boolean,
+): Promise<ShareMode | "already-linked" | "already-copied"> {
   const existing = await getExistingTarget(target);
 
   if (existing) {

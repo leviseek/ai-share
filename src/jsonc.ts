@@ -39,13 +39,13 @@ function stripJsonc(text: string): string {
         escaped = false;
       } else if (char === "\\") {
         escaped = true;
-      } else if (char === "\"") {
+      } else if (char === '"') {
         inString = false;
       }
       continue;
     }
 
-    if (char === "\"") {
+    if (char === '"') {
       inString = true;
       output += char;
       continue;

@@ -84,8 +84,8 @@ export DEEPSEEK_API_KEY="your-key"
 
 ```jsonc
 {
-    "$schema": "https://opencode.ai/config.json",
-    "model": "deepseek/deepseek-v4-pro-think-max",
+  "$schema": "https://opencode.ai/config.json",
+  "model": "deepseek/deepseek-v4-pro-think-max",
 }
 ```
 

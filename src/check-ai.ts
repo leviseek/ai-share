@@ -115,12 +115,16 @@ function printReport(config: Config): { hasUnsafeApiKey: boolean } {
     if (apiKey && !envName) hasUnsafeApiKey = true;
     console.log(`- ${id} (${provider.name ?? id})`);
     console.log(`  baseURL: ${provider.options?.baseURL ?? "not set"}`);
-    console.log(`  apiKey: ${envName ? apiKey : apiKeyStatus}${envName ? `, env ${envName}=${Bun.env[envName] ? "set" : "missing"}` : ""}`);
+    console.log(
+      `  apiKey: ${envName ? apiKey : apiKeyStatus}${envName ? `, env ${envName}=${Bun.env[envName] ? "set" : "missing"}` : ""}`,
+    );
     console.log(`  models: ${models.length === 0 ? "none" : models.join(", ")}`);
   }
 
   if (hasUnsafeApiKey) {
-    console.log("\nUnsafe apiKey detected. opencode.jsonc only allows {env:VARIABLE_NAME}; never store real keys in config.");
+    console.log(
+      "\nUnsafe apiKey detected. opencode.jsonc only allows {env:VARIABLE_NAME}; never store real keys in config.",
+    );
   }
 
   return { hasUnsafeApiKey };
@@ -246,7 +250,10 @@ function chooseProvider(config: Config): { id: string; value: Provider } | undef
     return undefined;
   }
 
-  const id = promptMenu("Choose provider", entries.map(([providerId]) => providerId));
+  const id = promptMenu(
+    "Choose provider",
+    entries.map(([providerId]) => providerId),
+  );
   const value = config.provider?.[id];
   return value ? { id, value } : undefined;
 }
@@ -314,7 +321,9 @@ function validateNoPlainApiKeys(config: Config): void {
   for (const [providerId, provider] of Object.entries(config.provider ?? {})) {
     const apiKey = provider.options?.apiKey;
     if (apiKey && !getEnvName(apiKey)) {
-      throw new Error(`Provider ${providerId} has a plain apiKey. Only {env:VARIABLE_NAME} is allowed in opencode.jsonc.`);
+      throw new Error(
+        `Provider ${providerId} has a plain apiKey. Only {env:VARIABLE_NAME} is allowed in opencode.jsonc.`,
+      );
     }
   }
 }
@@ -323,7 +332,11 @@ function setUserEnvironmentVariable(name: string, value: string): void {
   if (process.platform === "win32") {
     const result = spawnSync(
       "powershell.exe",
-      ["-NoProfile", "-Command", `[Environment]::SetEnvironmentVariable('${escapePowerShell(name)}', $env:AI_SHARE_API_KEY_VALUE, 'User')`],
+      [
+        "-NoProfile",
+        "-Command",
+        `[Environment]::SetEnvironmentVariable('${escapePowerShell(name)}', $env:AI_SHARE_API_KEY_VALUE, 'User')`,
+      ],
       { env: { ...process.env, AI_SHARE_API_KEY_VALUE: value }, stdio: "pipe", encoding: "utf8" },
     );
 
@@ -334,7 +347,7 @@ function setUserEnvironmentVariable(name: string, value: string): void {
   }
 
   console.log("Persistent environment update is not automatic on this platform.");
-  console.log(`Add this to your shell profile: export ${name}="${value.replaceAll("\"", "\\\"")}"`);
+  console.log(`Add this to your shell profile: export ${name}="${value.replaceAll('"', '\\"')}"`);
 }
 
 function escapePowerShell(value: string): string {
