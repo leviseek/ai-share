@@ -1,0 +1,9 @@
+{
+  "workbench.trustedDomains": ["https://opencode.ai"],
+  "json.schemas": [
+    {
+      "fileMatch": ["/opencode.jsonc"],
+      "url": "https://opencode.ai/config.json"
+    }
+  ]
+}
