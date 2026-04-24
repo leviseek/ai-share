@@ -6,82 +6,91 @@
   "agents": {
     "sisyphus": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"],
+      "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
     },
     "hephaestus": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-max"]
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"],
+      "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
     },
     "prometheus": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"],
+      "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
     },
     "oracle": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"],
+      "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
     },
     "momus": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"],
+      "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
     },
     "metis": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"],
+      "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
     },
     "atlas": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-high"]
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"],
+      "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
     },
     "sisyphus-junior": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-high"]
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"],
+      "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
     },
     "explore": {
       "model": "codexapis/gpt-5.4-mini",
-      "fallback_models": ["deepseek/deepseek-v4-flash", "codexapis/gpt-5.4-openai-compact"]
+      "fallback_models": ["codexapis/gpt-5.4-openai-compact", "codexapis/gpt-5.4"]
     },
     "librarian": {
       "model": "codexapis/gpt-5.4-mini",
-      "fallback_models": ["deepseek/deepseek-v4-flash", "codexapis/gpt-5.4-openai-compact"]
+      "fallback_models": ["codexapis/gpt-5.4-openai-compact", "codexapis/gpt-5.4"]
     },
     "multimodal-looker": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-high"]
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
     }
   },
 
   "categories": {
     "ultrabrain": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-max"]
     },
     "deep": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-high"]
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
     },
     "quick": {
       "model": "codexapis/gpt-5.4-mini",
-      "fallback_models": ["deepseek/deepseek-v4-flash", "codexapis/gpt-5.4-openai-compact"]
+      "fallback_models": ["codexapis/gpt-5.4-openai-compact", "codexapis/gpt-5.4"]
     },
     "unspecified-low": {
       "model": "codexapis/gpt-5.4",
-      "fallback_models": ["codexapis/gpt-5.4-mini", "deepseek/deepseek-v4-pro"]
+      "fallback_models": ["codexapis/gpt-5.4-mini", "codexapis/gpt-5.4-openai-compact"]
     },
     "unspecified-high": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
     },
     "writing": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["deepseek/deepseek-v4-flash", "codexapis/gpt-5.4-mini"]
+      "fallback_models": ["codexapis/gpt-5.4-mini", "codexapis/gpt-5.4-openai-compact"],
+      "prompt_append": "默认使用简体中文写作、润色和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
     },
     "visual-engineering": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-high"]
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
     },
     "artistry": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-high"]
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
     }
   },
 
@@ -97,12 +106,12 @@
   "background_task": {
     "providerConcurrency": {
       "codexapis": 3,
-      "deepseek": 3
+      "deepseek": 1
     },
     "modelConcurrency": {
       "codexapis/gpt-5.5": 2,
       "codexapis/gpt-5.4-mini": 6,
-      "deepseek/deepseek-v4-flash": 6
+      "deepseek/deepseek-v4-pro-think-max": 1
     }
   },
 
