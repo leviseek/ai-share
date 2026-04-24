@@ -5,4 +5,3 @@ dist/
 *.tsbuildinfo
 
 bun.lock
-opencode.jsonc
