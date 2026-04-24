@@ -37,7 +37,7 @@ bun run ai:check
 
 Git 提交规范在 `GIT_COMMIT_GUIDELINES.md`，提交信息使用 `option: 中文描述` 格式。
 
-把本仓库的 `opencode.jsonc` 共享到当前电脑的 OpenCode 全局配置：
+把本仓库的 `opencode.jsonc` 和 `.opencode/oh-my-openagent.jsonc` 共享到当前电脑的 OpenCode 全局配置：
 
 ```sh
 bun run share
@@ -54,6 +54,10 @@ bun run share -- --force
 ```sh
 bun run share -- --copy --force
 ```
+
+Windows 创建符号链接需要管理员终端或启用开发者模式。如果 `bun run share` 没有符号链接权限，脚本会提示原因，并询问是否改用复制模式。
+
+如果全局目录同时存在 `oh-my-openagent.json` 和 `oh-my-openagent.jsonc`，`.jsonc` 通常优先，但保留两个同名配置会增加排查成本。`bun run share` 会提示旧 `.json` 文件，确认 `.jsonc` 生效后建议手动备份或移除旧文件。
 
 ## 环境变量
 
@@ -90,3 +94,5 @@ export DEEPSEEK_API_KEY="your-key"
 ```
 
 OpenCode 会合并全局配置和项目配置，项目配置优先。
+
+oh-my-openagent 的项目级覆盖文件可放在 `.opencode/oh-my-openagent.jsonc`，它会覆盖全局插件配置。
