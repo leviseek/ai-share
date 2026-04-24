@@ -9,6 +9,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
+    "schema:update": "node ./scripts/run-bun.mjs ./src/schema-update.ts",
     "share": "node ./scripts/run-bun.mjs ./src/share.ts",
     "start": "node ./scripts/run-bun.mjs ./src/index.ts",
     "typecheck": "tsc --noEmit"

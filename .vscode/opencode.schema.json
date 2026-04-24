@@ -1,6 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "OpenCode Workspace Config",
+  "description": "Workspace-local OpenCode schema generated from the official schema, with custom providers and models allowed for VS Code.",
+  "x-ai-share-source": "https://opencode.ai/config.json",
   "type": "object",
   "additionalProperties": true,
   "properties": {
