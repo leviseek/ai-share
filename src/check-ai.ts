@@ -2,6 +2,7 @@
 
 import { access, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 import { parseJsonc, stringifyJsonc } from "./jsonc.ts";
 
 type Config = {
@@ -37,9 +38,10 @@ const readOnly = new Set(Bun.argv.slice(2)).has("--check");
 await ensureConfigExists(configPath);
 const config = asConfig(parseJsonc(await readFile(configPath, "utf8")));
 
-printReport(config);
+const report = printReport(config);
 
 if (readOnly) {
+  if (report.hasUnsafeApiKey) process.exit(1);
   process.exit(0);
 }
 
@@ -48,6 +50,7 @@ while (true) {
     "Set default model",
     "Update provider baseURL",
     "Update provider API key env var",
+    "Set provider API key value",
     "Add provider",
     "Remove provider",
     "Add model to provider",
@@ -59,11 +62,13 @@ while (true) {
   if (action === "Set default model") setDefaultModel(config);
   if (action === "Update provider baseURL") updateProviderBaseUrl(config);
   if (action === "Update provider API key env var") updateProviderApiKey(config);
+  if (action === "Set provider API key value") setProviderApiKeyValue(config);
   if (action === "Add provider") addProvider(config);
   if (action === "Remove provider") removeProvider(config);
   if (action === "Add model to provider") addModel(config);
   if (action === "Remove model from provider") removeModel(config);
   if (action === "Save and exit") {
+    validateNoPlainApiKeys(config);
     await writeFile(configPath, stringifyJsonc(config));
     console.log(`Saved ${configPath}`);
     break;
@@ -88,16 +93,17 @@ function asConfig(value: unknown): Config {
   return configValue;
 }
 
-function printReport(config: Config): void {
+function printReport(config: Config): { hasUnsafeApiKey: boolean } {
   console.log("\nAI config report");
   console.log(`Config: ${configPath}`);
   console.log(`Default model: ${config.model ?? "not set"}`);
   console.log(`Small model: ${config.small_model ?? "not set"}`);
 
   const providers = Object.entries(config.provider ?? {});
+  let hasUnsafeApiKey = false;
   if (providers.length === 0) {
     console.log("Providers: none");
-    return;
+    return { hasUnsafeApiKey };
   }
 
   console.log("Providers:");
@@ -105,11 +111,19 @@ function printReport(config: Config): void {
     const models = Object.keys(provider.models ?? {});
     const apiKey = provider.options?.apiKey;
     const envName = getEnvName(apiKey);
+    const apiKeyStatus = apiKey && !envName ? "unsafe plain value" : (apiKey ?? "not set");
+    if (apiKey && !envName) hasUnsafeApiKey = true;
     console.log(`- ${id} (${provider.name ?? id})`);
     console.log(`  baseURL: ${provider.options?.baseURL ?? "not set"}`);
-    console.log(`  apiKey: ${apiKey ?? "not set"}${envName ? `, env ${envName}=${Bun.env[envName] ? "set" : "missing"}` : ""}`);
+    console.log(`  apiKey: ${envName ? apiKey : apiKeyStatus}${envName ? `, env ${envName}=${Bun.env[envName] ? "set" : "missing"}` : ""}`);
     console.log(`  models: ${models.length === 0 ? "none" : models.join(", ")}`);
   }
+
+  if (hasUnsafeApiKey) {
+    console.log("\nUnsafe apiKey detected. opencode.jsonc only allows {env:VARIABLE_NAME}; never store real keys in config.");
+  }
+
+  return { hasUnsafeApiKey };
 }
 
 function setDefaultModel(config: Config): void {
@@ -132,8 +146,31 @@ function updateProviderApiKey(config: Config): void {
   if (!provider) return;
   const current = getEnvName(provider.value.options?.apiKey) ?? suggestedEnvName(provider.id);
   const envName = promptText(`API key env var for ${provider.id}`, current);
+  assertEnvName(envName);
   provider.value.options ??= {};
   provider.value.options.apiKey = `{env:${envName}}`;
+}
+
+function setProviderApiKeyValue(config: Config): void {
+  const provider = chooseProvider(config);
+  if (!provider) return;
+
+  const envName = getEnvName(provider.value.options?.apiKey) ?? suggestedEnvName(provider.id);
+  assertEnvName(envName);
+
+  provider.value.options ??= {};
+  provider.value.options.apiKey = `{env:${envName}}`;
+
+  const apiKey = promptSecret(`API key value for ${envName}`);
+  if (!apiKey) {
+    console.log("Skipped empty API key value.");
+    return;
+  }
+
+  Bun.env[envName] = apiKey;
+  setUserEnvironmentVariable(envName, apiKey);
+  console.log(`Saved API key to user environment variable: ${envName}`);
+  console.log(`Config keeps only this reference: {env:${envName}}`);
 }
 
 function addProvider(config: Config): void {
@@ -144,6 +181,7 @@ function addProvider(config: Config): void {
   const name = promptText("Provider display name", id);
   const baseURL = promptText("Provider baseURL", "https://api.example.com/v1");
   const envName = promptText("API key env var", suggestedEnvName(id));
+  assertEnvName(envName);
   const firstModel = promptText("First model id", "model-id");
   const firstModelName = promptText("First model display name", firstModel);
 
@@ -242,7 +280,15 @@ function promptMenu<T extends string>(title: string, choices: readonly T[]): T {
 function promptText(label: string, defaultValue: string): string {
   const suffix = defaultValue ? ` (${defaultValue})` : "";
   const answer = prompt(`${label}${suffix}:`)?.trim();
-  return answer || defaultValue;
+  // Empty input means accepting the displayed default value.
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+  return answer ? answer : defaultValue;
+}
+
+function promptSecret(label: string): string {
+  // Bun's prompt does not support hidden input consistently across platforms.
+  // The value is never written to opencode.jsonc, but it may be visible in the terminal while typing.
+  return prompt(`${label}:`)?.trim() ?? "";
 }
 
 function confirmYes(label: string): boolean {
@@ -256,4 +302,41 @@ function getEnvName(apiKey: string | undefined): string | undefined {
 
 function suggestedEnvName(providerId: string): string {
   return `${providerId.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_API_KEY`;
+}
+
+function assertEnvName(envName: string): void {
+  if (!/^[A-Z][A-Z0-9_]*$/.test(envName)) {
+    throw new Error(`Invalid env var name: ${envName}. Use uppercase letters, numbers, and underscores only.`);
+  }
+}
+
+function validateNoPlainApiKeys(config: Config): void {
+  for (const [providerId, provider] of Object.entries(config.provider ?? {})) {
+    const apiKey = provider.options?.apiKey;
+    if (apiKey && !getEnvName(apiKey)) {
+      throw new Error(`Provider ${providerId} has a plain apiKey. Only {env:VARIABLE_NAME} is allowed in opencode.jsonc.`);
+    }
+  }
+}
+
+function setUserEnvironmentVariable(name: string, value: string): void {
+  if (process.platform === "win32") {
+    const result = spawnSync(
+      "powershell.exe",
+      ["-NoProfile", "-Command", `[Environment]::SetEnvironmentVariable('${escapePowerShell(name)}', $env:AI_SHARE_API_KEY_VALUE, 'User')`],
+      { env: { ...process.env, AI_SHARE_API_KEY_VALUE: value }, stdio: "pipe", encoding: "utf8" },
+    );
+
+    if (result.status !== 0) {
+      throw new Error(result.stderr.trim() || "Failed to set Windows user environment variable.");
+    }
+    return;
+  }
+
+  console.log("Persistent environment update is not automatic on this platform.");
+  console.log(`Add this to your shell profile: export ${name}="${value.replaceAll("\"", "\\\"")}"`);
+}
+
+function escapePowerShell(value: string): string {
+  return value.replaceAll("'", "''");
 }
