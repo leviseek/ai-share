@@ -1,20 +1,30 @@
 {
   "$schema": "./.vscode/opencode.schema.json",
 
-  // Default shared models. Per-project opencode.jsonc files can override these.
+  // 默认模型
   "model": "codexapis/gpt-5.5",
   "small_model": "codexapis/gpt-5.4-mini",
   "instructions": ["AI_GUIDELINES.md"],
   "plugin": ["oh-my-openagent@3.17.5"],
 
+  // 🔧 新增自动压缩，防止无限膨胀
+  "compaction": {
+    "enabled": true,
+    "threshold": 80000, // 80K token 时自动总结
+    "model": "codexapis/gpt-5.4-mini",
+    "max_input_tokens": 120000 // 硬限制，超过截断旧消息
+  },
+
   "agent": {
     "build": {
       "mode": "primary",
-      "model": "codexapis/gpt-5.5"
+      "model": "codexapis/gpt-5.5",
+      "max_tokens": 8192 // 🔧 限制输出
     },
     "plan": {
       "mode": "primary",
       "model": "codexapis/gpt-5.5",
+      "max_tokens": 4096,
       "permission": {
         "edit": "deny",
         "bash": "ask"
@@ -22,11 +32,13 @@
     },
     "general": {
       "mode": "subagent",
-      "model": "codexapis/gpt-5.5"
+      "model": "codexapis/gpt-5.5",
+      "max_tokens": 4096 // 🔧 限制子代理输出
     },
     "explore": {
       "mode": "subagent",
       "model": "codexapis/gpt-5.4-mini",
+      "max_tokens": 2048, // 🔧 限制探索输出
       "permission": {
         "edit": "deny"
       }

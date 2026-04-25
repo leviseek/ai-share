@@ -7,46 +7,42 @@
     "sisyphus": {
       "model": "codexapis/gpt-5.5",
       "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"],
+      // 🔧 中文提示集中到主代理，其他代理不再重复追加（避免循环膨胀）
       "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
     },
     "hephaestus": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"],
-      "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
     },
     "prometheus": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"],
-      "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
     },
     "oracle": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"],
-      "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
     },
     "momus": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"],
-      "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
     },
     "metis": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"],
-      "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
     },
     "atlas": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"],
-      "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
     },
     "sisyphus-junior": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"],
-      "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
     },
-    "explore": {
+    // 🔧 原 "explore" 重命名为 "explorer"，避免覆盖核心只读子代理
+    "explorer": {
       "model": "codexapis/gpt-5.4-mini",
-      "fallback_models": ["codexapis/gpt-5.4-openai-compact", "codexapis/gpt-5.4"]
+      "fallback_models": ["codexapis/gpt-5.4-openai-compact", "codexapis/gpt-5.4"],
+      "permission": { "edit": "deny" } // 保持只读
     },
     "librarian": {
       "model": "codexapis/gpt-5.4-mini",
@@ -94,13 +90,19 @@
     }
   },
 
+  // 🔧 修改回退策略，避免上下文超限模型重试
   "runtime_fallback": {
     "enabled": true,
-    "retry_on_errors": [400, 429, 503, 529],
-    "max_fallback_attempts": 3,
+    "retry_on_errors": [429, 503, 529], // 移除 400（上下文超限不再重试）
+    "max_fallback_attempts": 1, // 减少重试次数
     "cooldown_seconds": 60,
     "timeout_seconds": 30,
-    "notify_on_fallback": true
+    "notify_on_fallback": true,
+    "model_whitelist": [
+      // 仅大窗口模型间回退
+      "codexapis/gpt-5.5",
+      "codexapis/gpt-5.4"
+    ]
   },
 
   "background_task": {
