@@ -6,87 +6,87 @@
   "agents": {
     "sisyphus": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"],
+      "fallback_models": ["codexapis/gpt-5.4"],
       // 🔧 中文提示集中到主代理，其他代理不再重复追加（避免循环膨胀）
       "prompt_append": "默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
     },
     "hephaestus": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
+      "fallback_models": ["codexapis/gpt-5.4"]
     },
     "prometheus": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
+      "fallback_models": ["codexapis/gpt-5.4"]
     },
     "oracle": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+      "fallback_models": ["codexapis/gpt-5.4"]
     },
     "momus": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["deepseek/deepseek-v4-pro-think-max", "codexapis/gpt-5.4"]
+      "fallback_models": ["codexapis/gpt-5.4"]
     },
     "metis": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
+      "fallback_models": ["codexapis/gpt-5.4"]
     },
     "atlas": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
+      "fallback_models": ["codexapis/gpt-5.4"]
     },
     "sisyphus-junior": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
+      "fallback_models": ["codexapis/gpt-5.4"]
     },
     // 🔧 原 "explore" 重命名为 "explorer"，避免覆盖核心只读子代理
     "explorer": {
       "model": "codexapis/gpt-5.4-mini",
-      "fallback_models": ["codexapis/gpt-5.4-openai-compact", "codexapis/gpt-5.4"],
+      "fallback_models": ["codexapis/gpt-5.4"],
       "permission": { "edit": "deny" } // 保持只读
     },
     "librarian": {
       "model": "codexapis/gpt-5.4-mini",
-      "fallback_models": ["codexapis/gpt-5.4-openai-compact", "codexapis/gpt-5.4"]
+      "fallback_models": ["codexapis/gpt-5.4"]
     },
     "multimodal-looker": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
+      "fallback_models": ["codexapis/gpt-5.4"]
     }
   },
 
   "categories": {
     "ultrabrain": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "deepseek/deepseek-v4-pro-think-max"]
+      "fallback_models": ["codexapis/gpt-5.4"]
     },
     "deep": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
+      "fallback_models": ["codexapis/gpt-5.4"]
     },
     "quick": {
       "model": "codexapis/gpt-5.4-mini",
-      "fallback_models": ["codexapis/gpt-5.4-openai-compact", "codexapis/gpt-5.4"]
+      "fallback_models": ["codexapis/gpt-5.4"]
     },
     "unspecified-low": {
       "model": "codexapis/gpt-5.4",
-      "fallback_models": ["codexapis/gpt-5.4-mini", "codexapis/gpt-5.4-openai-compact"]
+      "fallback_models": ["codexapis/gpt-5.4-mini"]
     },
     "unspecified-high": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
+      "fallback_models": ["codexapis/gpt-5.4"]
     },
     "writing": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4-mini", "codexapis/gpt-5.4-openai-compact"],
+      "fallback_models": ["codexapis/gpt-5.4-mini"],
       "prompt_append": "默认使用简体中文写作、润色和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
     },
     "visual-engineering": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
+      "fallback_models": ["codexapis/gpt-5.4"]
     },
     "artistry": {
       "model": "codexapis/gpt-5.5",
-      "fallback_models": ["codexapis/gpt-5.4", "codexapis/gpt-5.4-openai-compact"]
+      "fallback_models": ["codexapis/gpt-5.4"]
     }
   },
 

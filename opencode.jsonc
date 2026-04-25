@@ -65,20 +65,8 @@
         "chunkTimeout": 30000
       },
       "models": {
-        "gpt-5.2": {
-          "name": "GPT-5.2"
-        },
-        "gpt-5.2-codex": {
-          "name": "GPT-5.2 Codex"
-        },
-        "gpt-5.2-pro": {
-          "name": "GPT-5.2 Pro"
-        },
         "gpt-5.3-codex": {
           "name": "GPT-5.3 Codex"
-        },
-        "gpt-5.3-codex-spark": {
-          "name": "GPT-5.3 Codex Spark"
         },
         "gpt-5.4": {
           "name": "GPT-5.4"
@@ -86,14 +74,8 @@
         "gpt-5.4-mini": {
           "name": "GPT-5.4 Mini"
         },
-        "gpt-5.4-openai-compact": {
-          "name": "GPT-5.4 OpenAI Compact"
-        },
         "gpt-5.5": {
           "name": "GPT-5.5"
-        },
-        "gpt-5.5-openai-compact": {
-          "name": "GPT-5.5 OpenAI Compact"
         }
       }
     },
