@@ -29,7 +29,12 @@ if (result.error) {
   process.exit(1);
 }
 
-process.exit(result.status ?? 0);
+if (result.signal) {
+  console.error(`Bun 进程被信号 ${result.signal} 终止。`);
+  process.exit(1);
+}
+
+process.exit(result.status ?? 1);
 
 function executable(name) {
   return process.platform === "win32" ? `${name}.cmd` : name;
