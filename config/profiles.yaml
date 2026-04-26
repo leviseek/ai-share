@@ -1,0 +1,16 @@
+profiles:
+
+  oc:
+    runtime: opencode
+    modules:
+      - build
+      - plan
+
+  omo:
+    runtime: openagent
+    agents:
+      - planner
+      - coder
+      - reviewer
+      - optimizer
+    strategy: sequential

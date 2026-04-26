@@ -1,0 +1,17 @@
+routing:
+
+  default: openagent_4x
+
+  rules:
+
+    - when: task.type == "quick_fix"
+      use: opencode_native
+
+    - when: task.type == "architecture"
+      use: openagent_4x
+
+    - when: task.cost_budget < 0.01
+      use: opencode_native
+
+    - when: task.complexity > 0.7
+      use: openagent_4x

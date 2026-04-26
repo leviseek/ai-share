@@ -1,0 +1,23 @@
+default_profile: oc
+
+env:
+  mode: dev            # dev / staging / prod
+  log_level: info      # debug / info / warn / error
+
+features:
+  auto_router: true
+  memory: true
+  fallback: true
+  cost_tracking: true
+
+runtime:
+  timeout_ms: 120000
+  max_retries: 2
+
+context:
+  max_tokens: 120000
+  strategy: truncate   # truncate / summarize / split
+
+# telemetry:
+#   enabled: true
+#   endpoint: http://localhost:3000/log

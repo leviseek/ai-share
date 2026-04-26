@@ -1,0 +1,207 @@
+# ============================================================
+# Multi-Agent 编排配置
+# 各角色按照 “规划 → 编码 → 评审 → 优化 → 测试 → 文档 → 安全” 顺序协作
+# 模型选择基于现有 models.yaml 资源：GPT-5.5, GPT-5.4, GPT-5.4-mini,
+# GPT-5.3-codex, deepseek-v4-pro-think-max, deepseek-v4-pro-think,
+# deepseek-v4-flash
+# ============================================================
+
+agents:
+
+  # ----------------------------------------------------------
+  # 1. 规划者（Planner）
+  # 职责：拆解复杂任务，生成结构化执行计划
+  # 选型理由：deepseek-v4-pro-think-max 拥有最长上下文（256k）和最强推理能力，
+  #           可处理大型代码库，且启用“思考模式”(reasoning_effort: max) 能产生更严谨的计划。
+  # ----------------------------------------------------------
+  planner:
+    role: planner
+    description: 将复杂任务拆解为清晰可执行的步骤
+    model: deepseek-v4-pro-think-max      # 最强推理 + 超大上下文 + 思考模式
+
+    prompt:
+      system: |
+        你是一名资深软件架构师。
+        你的职责是将复杂任务分解成清晰的步骤。
+
+    params:
+      temperature: 0.2      # 低温度，保证计划稳定、一致
+      max_tokens: 4000
+
+    context:
+      use_history: true     # 保留对话历史，更好理解整体需求
+      max_tokens: 30000
+
+    tools:
+      - search             # 可搜索相关知识
+      - repo_reader        # 可读取代码仓库
+
+    output:
+      format: plan          # 输出结构化的计划
+      schema: plan_v1
+
+  # ----------------------------------------------------------
+  # 2. 编码者（Coder）
+  # 职责：根据规划者给出的计划编写实现代码
+  # 选型理由：gpt-5.3-codex 专门针对代码生成优化，速度快且代码质量高，成本适中
+  # ----------------------------------------------------------
+  coder:
+    role: coder
+    description: 根据计划编写代码实现
+    model: gpt-5.3-codex                # 专用代码模型，比通用模型更懂编程
+
+    prompt:
+      system: |
+        你是一名专家级程序员。编写干净、高效、可维护的代码。
+
+    params:
+      temperature: 0.1                  # 低温度，确保代码逻辑正确，减少幻觉
+
+    context:
+      use_history: false                # 不依赖过多历史，只关注计划
+      inject_from: planner              # 输入来自 planner 的输出
+
+    tools:
+      - code_executor                   # 可执行代码进行验证
+
+    output:
+      format: code
+
+  # ----------------------------------------------------------
+  # 3. 评审者（Reviewer）
+  # 职责：严格审查代码，找出 bug、安全隐患、设计问题
+  # 选型理由：gpt-5.5 拥有 GPT 系列最强的逻辑分析能力，适合做严格的静态审查，
+  #           温度 0.0 保证每次输出一致、不遗漏问题。
+  # ----------------------------------------------------------
+  reviewer:
+    role: reviewer
+    description: 严格审查代码质量，提出改进意见
+    model: gpt-5.5                       # 最强 GPT 模型，适合深度评审
+
+    prompt:
+      system: |
+        你是一名严格的代码评审者。必须找出所有潜在的问题、错误和可优化的点。
+
+    params:
+      temperature: 0.0                   # 确定性输出，每次评审标准一致
+
+    context:
+      inject_from:
+        - planner                        # 需要了解原计划
+        - coder                          # 需要审查生成的代码
+
+    output:
+      format: review                     # 输出评审意见
+
+  # ----------------------------------------------------------
+  # 4. 优化者（Optimizer）
+  # 职责：根据评审意见对代码进行性能、结构、可读性优化
+  # 选型理由：deepseek-v4-flash 极快、极便宜，且具备编码能力，适合快速迭代优化；
+  #           温度 0.3 允许一定灵活性，不会过度改变逻辑。
+  # ----------------------------------------------------------
+  optimizer:
+    role: optimizer
+    description: 根据评审意见优化代码性能和结构
+    model: deepseek-v4-flash             # 快速、低成本，适合多次尝试
+
+    params:
+      temperature: 0.3                   # 略微增加多样性，避免优化过于保守
+
+    context:
+      inject_from: reviewer              # 主要输入是评审意见
+
+    output:
+      format: optimized_code
+
+  # ----------------------------------------------------------
+  # 5. 测试者（Tester）
+  # 职责：设计单元测试、集成测试，并执行（可由工具配合）
+  # 选型理由：完全匹配原设计 —— deepseek-v4-pro-think-max + 思考模式 max，
+  #           可生成高覆盖率、边界情况的测试用例，并能模拟复杂场景。
+  # ----------------------------------------------------------
+  tester:
+    role: tester
+    description: 生成并执行测试用例（边界条件、回归测试等）
+    model: deepseek-v4-pro-think-max      # 和 planner 同一档最强推理模型，用于测试设计
+    parameters:
+      thinking:
+        type: enabled                     # 启用思考模式（deepseek 原生支持）
+      reasoning_effort: max               # 最大推理深度，设计出最完善的测试
+
+    prompt:
+      system: |
+        你是一名 QA 工程师。设计全面的测试套件，包括边界条件、负面测试和回归测试。
+
+    params:
+      temperature: 0.1                    # 低温度，测试用例准确
+      max_tokens: 4096
+
+    context:
+      use_history: false                  # 不依赖对话历史，只基于优化后的代码
+      inject_from:
+        - optimizer                       # 基于优化后的代码
+        - coder                           # 也可参考原始代码
+
+    tools:
+      - test_runner                       # 可执行测试的工具
+
+    output:
+      format: test_code
+
+  # ----------------------------------------------------------
+  # 6. 文档撰写者（Documenter）
+  # 职责：根据最终代码生成清晰的 API 文档、使用说明
+  # 选型理由：gpt-5.4 平衡成本与文档质量，GPT 风格的自然语言更友好，
+  #           温度 0.2 保证文档风格一致且专业。
+  # ----------------------------------------------------------
+  documenter:
+    role: documenter
+    description: 为代码生成结构化的技术文档
+    model: gpt-5.4                        # 性价比高的 GPT 模型，适合文档生成
+
+    prompt:
+      system: |
+        你是一名技术文档撰写者。输出清晰、结构化的文档，包含 API 参考、使用示例和安装说明。
+
+    params:
+      temperature: 0.2
+      max_tokens: 3000
+
+    context:
+      inject_from:
+        - optimizer                       # 最终优化后的代码
+        - tester                          # 测试用例可作为示例参考
+
+    output:
+      format: markdown
+
+  # ----------------------------------------------------------
+  # 7. 安全审计员（Security Auditor）
+  # 职责：检查常见漏洞（OWASP Top 10）、硬编码密钥、不安全反序列化等
+  # 选型理由：deepseek-v4-pro-think 开启思考模式（high effort），安全审查不需要最高成本，
+  #           但需要深度的推理能力，比 flash 更可靠，比 max 更经济。
+  # ----------------------------------------------------------
+  security_auditor:
+    role: security_auditor
+    description: 审计代码中的安全漏洞和合规问题
+    model: deepseek-v4-pro-think          # 思考模式 high，足够发现大多数安全问题
+    parameters:
+      thinking:
+        type: enabled
+      reasoning_effort: high              # 高推理，但比 max 更便宜
+
+    prompt:
+      system: |
+        你是一名安全专家。检查 OWASP Top 10 漏洞、注入风险、硬编码密钥和不安全的反序列化。
+
+    params:
+      temperature: 0.0                    # 必须严格、确定，不能模糊判断
+
+    context:
+      inject_from: optimizer              # 审计优化后的最终代码
+
+    tools:
+      - static_analyzer                   # 可配合静态分析工具
+
+    output:
+      format: security_report

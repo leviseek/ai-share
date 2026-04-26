@@ -1,0 +1,145 @@
+# ==================== codexapis 提供的 GPT 模型 ====================
+gpt-5.5:
+  provider: codexapis
+  model_name: gpt-5.5
+  capabilities:
+    - reasoning
+    - planning
+    - long_context
+  cost:
+    input: 0.01
+    output: 0.03
+  limits:
+    context_window: 200000
+    max_output: 8192
+  temperature: 0.2
+  fallback:
+    - gpt-5.4
+
+gpt-5.4:
+  provider: codexapis
+  model_name: gpt-5.4
+  capabilities:
+    - reasoning
+    - planning
+    - long_context
+  cost:
+    input: 0.008
+    output: 0.025
+  limits:
+    context_window: 160000
+    max_output: 8192
+  temperature: 0.2
+  fallback:
+    - gpt-5.4-mini
+
+gpt-5.4-mini:
+  provider: codexapis
+  model_name: gpt-5.4-mini
+  capabilities:
+    - cheap
+    - fast
+    - general
+  cost:
+    input: 0.0012
+    output: 0.0024
+  limits:
+    context_window: 128000
+    max_output: 4096
+  temperature: 0.2
+
+gpt-5.3-codex:
+  provider: codexapis
+  model_name: gpt-5.3-codex
+  capabilities:
+    - coding
+    - reasoning
+  cost:
+    input: 0.007
+    output: 0.021
+  limits:
+    context_window: 128000
+    max_output: 8192
+  temperature: 0.1
+
+# ==================== deepseek 提供的原生模型 ====================
+deepseek-v4-pro-think-max:
+  provider: deepseek
+  model_name: deepseek-v4-pro
+  capabilities:
+    - reasoning
+    - planning
+    - long_context
+    - coding
+  cost:
+    input: 0.005
+    output: 0.012
+  limits:
+    context_window: 256000
+    max_output: 16384
+  temperature: 0.1
+  parameters:
+    thinking:
+      type: enabled
+    reasoning_effort: max
+  fallback:
+    - deepseek-v4-pro-think
+    - deepseek-v4-flash-think
+
+deepseek-v4-pro-think:
+  provider: deepseek
+  model_name: deepseek-v4-pro
+  capabilities:
+    - reasoning
+    - planning
+    - long_context
+  cost:
+    input: 0.003
+    output: 0.006
+  limits:
+    context_window: 128000
+    max_output: 8192
+  temperature: 0.2
+  parameters:
+    thinking:
+      type: enabled
+    reasoning_effort: high
+  fallback:
+    - deepseek-v4-flash-think
+
+deepseek-v4-flash-think:
+  provider: deepseek
+  model_name: deepseek-v4-flash
+  capabilities:
+    - reasoning
+    - planning
+    - long_context
+  cost:
+    input: 0.003
+    output: 0.006
+  limits:
+    context_window: 128000
+    max_output: 8192
+  temperature: 0.2
+  parameters:
+    thinking:
+      type: enabled
+    reasoning_effort: high
+  fallback:
+    - deepseek-v4-flash
+
+deepseek-v4-flash:
+  provider: deepseek
+  model_name: deepseek-v4-flash
+  capabilities:
+    - fast
+    - cheap
+    - coding
+    - general
+  cost:
+    input: 0.0008
+    output: 0.0016
+  limits:
+    context_window: 64000
+    max_output: 4096
+  temperature: 0.1
