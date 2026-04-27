@@ -66,6 +66,7 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 
 ```text
 ~/.config/opencode/opencode.json
+~/.config/opencode/tui.json
 ~/.config/opencode/opencode.lite.json
 ~/.config/opencode/opencode.cheap.json
 ~/.config/opencode/opencode.balanced.json
@@ -82,6 +83,9 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.config/opencode/oh-my-openagent.writing.json
 ~/.config/opencode/oh-my-openagent.max.json
 ~/.config/opencode/.omo-profiles.json
+~/.config/opencode/plugins/omo-agent-monitor/package.json
+~/.config/opencode/plugins/omo-agent-monitor/server.js
+~/.config/opencode/plugins/omo-agent-monitor/tui.js
 ```
 
 同时会安装启动命令到用户级 bin 目录：
@@ -179,6 +183,29 @@ aioc run --agent build "请说明当前项目结构"
 
 `aioc` 不切换 OMO 编排级别，会直接使用当前生效的 `opencode.json`；如果之前运行过 `aiomo lite` / `aiomo max` 等命令，`aioc` 会沿用最后一次切换后的 OpenCode 基础配置和 compaction 策略。
 
+## OMO 状态监控
+
+生成配置后，`aiomo` 会加载一个极简 OMO agents 状态监控插件：
+
+```text
+~/.config/opencode/plugins/omo-agent-monitor/
+```
+
+在 OpenCode TUI 中打开命令面板，执行 `OMO agents monitor`，或输入 slash 命令：
+
+```text
+/omo-monitor
+```
+
+监控浮窗会显示：
+
+- 规划任务总数、完成进度、进行中任务和待处理任务。
+- 当前进行中的规划任务内容。
+- agents 列表，按运行中、重试、异常、空闲、未知排序。
+- 每个 agent 的状态、已执行任务数、平均执行时长和总执行时长。
+
+指标由本地插件基于 OpenCode `tool.execute.before/after` 与 `todo.updated` 事件统计：同一个插件通过 `opencode.json` 提供采集器，通过 `tui.json` 提供浮窗入口。状态缓存写入当前用户配置目录的 `omo-agent-monitor-state.json`，不会写入仓库，也不会包含 API Key。
+
 如果不想配置函数，也可以直接使用原始命令：
 
 ```sh
@@ -234,7 +261,7 @@ balanced:
 当前保留 YAML 生成路线：
 
 ```text
-config/global.yaml    -> 全局运行、OpenCode 插件、默认 profile、默认/小模型和 compaction 策略
+config/global.yaml    -> 全局运行、OpenCode/TUI 插件、默认 profile、默认/小模型和 compaction 策略
 config/provider.yaml  -> 模型提供商、baseURL、API Key 环境变量名
 config/models.yaml    -> 模型列表、provider/provider_group、上游模型名、参数、fallback
 config/profiles.yaml  -> OMO 编排级别和模型角色映射；默认级别由 global.yaml 的 default_profile 指定
