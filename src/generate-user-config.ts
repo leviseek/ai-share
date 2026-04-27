@@ -397,7 +397,7 @@ async function writeJson(path: string, value: unknown): Promise<void> {
   }
 
   if (!force && (await pathExists(path))) {
-    throw new Error(`目标已存在：${path}\n如需覆盖，请运行：bun run gen:cfg -- --force`);
+    throw new Error(`目标已存在：${path}\n如需覆盖，请运行：bun run ai:gen -- --force`);
   }
 
   await writeFile(path, content);

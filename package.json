@@ -7,7 +7,7 @@
     "ai:check": "bun run ./src/generate-user-config.ts --dry-run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "gen:cfg": "bun run ./src/generate-user-config.ts",
+    "ai:gen": "bun run ./src/generate-user-config.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
