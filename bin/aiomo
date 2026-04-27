@@ -1,12 +1,60 @@
 #!/usr/bin/env sh
 set -eu
 
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+manifest="$config_dir/.omo-profiles.json"
+
 profile="balanced"
+profiles="lite balanced max"
+if [ -f "$manifest" ]; then
+  profile="$(node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log(data.default_profile || 'balanced')" "$manifest")"
+  profiles="$(node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log((data.profiles || []).join(' '))" "$manifest")"
+fi
+
+is_profile() {
+  for item in $profiles; do
+    if [ "$item" = "$1" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+show_help() {
+  printf '%s\n' "用法：aiomo [编排级别] [opencode 参数...]"
+  printf '%s\n' "      aiomo --omo-profile=<编排级别> [opencode 参数...]"
+  printf '%s\n' "      aiomo --omo-profile <编排级别> [opencode 参数...]"
+  printf '%s\n' ""
+  printf '%s\n' "说明：启动 oh-my-openagent 多 agents 编排模式，并在启动前切换对应 OMO 配置。"
+  printf '%s\n' "默认级别：$profile"
+  printf '%s\n' "可用级别：$(printf '%s' "$profiles" | tr ' ' '、')"
+  printf '%s\n' ""
+  printf '%s\n' "示例："
+  printf '%s\n' "  aiomo"
+  printf '%s\n' "  aiomo coding"
+  printf '%s\n' "  aiomo --omo-profile=research run \"请分析当前项目\""
+  printf '%s\n' "  aiomo -h"
+}
+
 case "${1:-}" in
-  lite|balanced|max)
-    profile="$1"
-    shift
+  -h|--help)
+    show_help
+    exit 0
     ;;
+esac
+
+case "${1:-}" in
+  "") ;;
+  *)
+    if is_profile "$1"; then
+      profile="$1"
+      shift
+    fi
+    ;;
+esac
+
+case "${1:-}" in
+  "") ;;
   --omo-profile=*)
     profile="${1#--omo-profile=}"
     shift
@@ -21,16 +69,12 @@ case "${1:-}" in
     ;;
 esac
 
-case "$profile" in
-  lite|balanced|max) ;;
-  *)
-    printf '%s\n' "不支持的 OMO 编排级别：$profile" >&2
-    printf '%s\n' "可用级别：lite、balanced、max" >&2
-    exit 2
-    ;;
-esac
+if ! is_profile "$profile"; then
+  printf '%s\n' "不支持的 OMO 编排级别：$profile" >&2
+  printf '%s\n' "可用级别：$(printf '%s' "$profiles" | tr ' ' '、')" >&2
+  exit 2
+fi
 
-config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 profile_config="$config_dir/oh-my-openagent.$profile.json"
 active_config="$config_dir/oh-my-openagent.json"
 

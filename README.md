@@ -68,8 +68,13 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.config/opencode/opencode.json
 ~/.config/opencode/oh-my-openagent.json
 ~/.config/opencode/oh-my-openagent.lite.json
+~/.config/opencode/oh-my-openagent.cheap.json
 ~/.config/opencode/oh-my-openagent.balanced.json
+~/.config/opencode/oh-my-openagent.coding.json
+~/.config/opencode/oh-my-openagent.research.json
+~/.config/opencode/oh-my-openagent.writing.json
 ~/.config/opencode/oh-my-openagent.max.json
+~/.config/opencode/.omo-profiles.json
 ```
 
 同时会安装启动命令到用户级 bin 目录：
@@ -140,9 +145,16 @@ export PATH="$HOME/.local/bin:$PATH"
 # OMO 编排模式：Tab 通常切换 Sisyphus / Hephaestus / Prometheus / Atlas
 aiomo
 
+# 查看 OMO 启动器帮助、默认级别和可用级别
+aiomo -h
+
 # 选择 OMO 编排级别；默认等价于 aiomo balanced
 aiomo lite
+aiomo cheap
 aiomo balanced
+aiomo coding
+aiomo research
+aiomo writing
 aiomo max
 
 # 也支持显式参数形式，后续参数继续透传给 opencode
@@ -165,19 +177,29 @@ opencode --pure
 
 OpenCode 原生 agent 模式由生成的 `opencode.json` 中的 `agent` 配置决定。
 
-oh-my-openagent 多 agents 编排模式通过生成的 `opencode.json` 中的插件配置启用：
+oh-my-openagent 多 agents 编排模式通过生成的 `opencode.json` 中的插件配置启用，插件列表来自 `config/global.yaml` 的 `opencode.plugins`：
 
-```json
-"plugin": ["oh-my-openagent@3.17.5"]
+```yaml
+opencode:
+  plugins:
+    - oh-my-openagent@3.17.5
 ```
 
-对应的 agents/categories/fallback/background task 等配置来自生成的 `oh-my-openagent.json`。`aiomo` 启动时会先把所选级别的 `oh-my-openagent.<profile>.json` 复制为当前生效的 `oh-my-openagent.json`。
+升级 OMO 插件时，只需要修改这里的版本号，然后重新运行 `bun run ai:gen -- --force`。
 
-当前内置 3 个 OMO 编排级别，每个级别固定使用 3 个模型角色：
+对应的 agents/categories/fallback/background task 等配置来自生成的 `oh-my-openagent.json`。`aiomo` 启动时会先读取 `.omo-profiles.json` 中的默认级别和可用级别清单，再把所选级别的 `oh-my-openagent.<profile>.json` 复制为当前生效的 `oh-my-openagent.json`。
+
+默认 OMO 编排级别由 `config/global.yaml` 的 `default_profile` 控制。当前默认值为 `balanced`，因此直接运行 `aiomo` 等价于 `aiomo balanced`。如果修改 `default_profile`，需要重新运行 `bun run ai:gen -- --force` 生成 `.omo-profiles.json` 后才会影响启动器默认行为。
+
+当前内置 7 个 OMO 编排级别，每个级别固定使用 3 个模型角色：
 
 ```text
 lite：primary=gpt-5.4，reasoning=deepseek-v4-flash-think，fast=gpt-5.4-mini
+cheap：primary=gpt-5.4-mini，reasoning=deepseek-v4-flash-think，fast=gpt-5.4-mini
 balanced：primary=gpt-5.5，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-mini
+coding：primary=gpt-5.3-codex，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-mini
+research：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4-mini
+writing：primary=gpt-5.5，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-mini
 max：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4
 ```
 
@@ -188,10 +210,10 @@ max：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4
 当前保留 YAML 生成路线：
 
 ```text
-config/global.yaml    -> 全局运行和上下文参数
+config/global.yaml    -> 全局运行、OpenCode 插件、默认 profile、默认/小模型和 compaction 策略
 config/provider.yaml  -> 模型提供商、baseURL、API Key 环境变量名
 config/models.yaml    -> 模型列表、provider/provider_group、上游模型名、参数、fallback
-config/profiles.yaml  -> OMO 编排级别和模型角色映射
+config/profiles.yaml  -> OMO 编排级别和模型角色映射；默认级别由 global.yaml 的 default_profile 指定
 config/agents.yaml    -> oh-my-openagent agents/categories/runtime_fallback/background_task
 ```
 

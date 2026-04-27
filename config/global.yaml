@@ -1,4 +1,4 @@
-default_profile: oc
+default_profile: balanced
 
 env:
   mode: dev # dev / staging / prod
@@ -14,10 +14,21 @@ runtime:
   timeout_ms: 120000
   max_retries: 2
 
+opencode:
+  plugins:
+    - oh-my-openagent@3.17.5
+
+models:
+  default: gpt-5.5
+  small: gpt-5.4-mini
+
 context:
   max_tokens: 120000
   strategy: truncate # truncate / summarize / split
 
+compaction:
+  enabled: true
+  threshold: 80000
 
 # telemetry:
 #   enabled: true

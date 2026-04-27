@@ -11,8 +11,36 @@ lite:
     reasoning: deepseek-v4-flash-think
     fast: gpt-5.4-mini
 
+cheap:
+  name: 极低成本日常模式
+  models:
+    primary: gpt-5.4-mini
+    reasoning: deepseek-v4-flash-think
+    fast: gpt-5.4-mini
+
 balanced:
   name: 均衡编排
+  models:
+    primary: gpt-5.5
+    reasoning: deepseek-v4-pro-think
+    fast: gpt-5.4-mini
+
+coding:
+  name: 代码实施优先模式
+  models:
+    primary: gpt-5.3-codex
+    reasoning: deepseek-v4-pro-think
+    fast: gpt-5.4-mini
+
+research:
+  name: 深度研究模式
+  models:
+    primary: gpt-5.5
+    reasoning: deepseek-v4-pro-think-max
+    fast: gpt-5.4-mini
+
+writing:
+  name: 写作润色模式
   models:
     primary: gpt-5.5
     reasoning: deepseek-v4-pro-think

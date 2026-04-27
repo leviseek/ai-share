@@ -76,11 +76,25 @@ type BackgroundTaskSource = {
 };
 
 type GlobalYaml = {
+  default_profile?: string;
+  opencode?: {
+    plugins?: string[];
+  };
+  models?: {
+    default?: string;
+    small?: string;
+  };
   runtime?: {
     timeout_ms?: number;
   };
   context?: {
     max_tokens?: number;
+  };
+  compaction?: {
+    enabled?: boolean;
+    threshold?: number;
+    model?: string;
+    max_input_tokens?: number;
   };
 };
 
@@ -167,6 +181,7 @@ const homeDir = resolve(Bun.env.HOME ?? Bun.env.USERPROFILE ?? "");
 const targetConfigDir = resolve(homeDir, ".config", "opencode");
 const targetOpenCode = resolve(targetConfigDir, "opencode.json");
 const targetOhMyOpenAgent = resolve(targetConfigDir, "oh-my-openagent.json");
+const targetProfileManifest = resolve(targetConfigDir, ".omo-profiles.json");
 const targetBinDir = resolve(homeDir, ".local", "bin");
 
 if (!targetConfigDir.startsWith(homeDir)) {
@@ -183,10 +198,11 @@ const [globalConfig, providersConfig, modelsConfig, profilesConfig, agentsConfig
 
 const providers = providersConfig.providers ?? {};
 const models = applyProviderGroups(modelsConfig, providers, providerGroups);
-const defaultModel = modelRef(pickDefaultModel(models), models);
-const smallModel = modelRef(pickSmallModel(models), models);
+const defaultModel = modelRef(pickDefaultModel(globalConfig, models), models);
+const smallModel = modelRef(pickSmallModel(globalConfig, models), models);
 const openCodeConfig = buildOpenCodeConfig(globalConfig, providers, models, defaultModel, smallModel);
 const ohMyOpenAgentConfigs = buildOhMyOpenAgentConfigs(models, profilesConfig, agentsConfig);
+const selectedDefaultProfileId = defaultProfileId(globalConfig, profilesConfig);
 
 if (checkOnly) {
   const missingApiKeys = missingProviderApiKeyEnvNames(providers);
@@ -195,6 +211,7 @@ if (checkOnly) {
   console.log(`已配置 provider 数量：${Object.keys(providers).length}`);
   console.log(`模型分组：${modelProviderGroups(modelsConfig).join(" / ")}`);
   console.log(`OMO 编排级别：${Object.keys(ohMyOpenAgentConfigs).join(" / ")}`);
+  console.log(`默认 OMO 编排级别：${selectedDefaultProfileId}`);
   console.log(
     `模型组提供商：${Object.entries(providerGroups)
       .map(([groupId, providerId]) => `${groupId}=${providerId}`)
@@ -213,14 +230,13 @@ await writeJson(targetOpenCode, openCodeConfig);
 for (const [profileId, ohMyOpenAgentConfig] of Object.entries(ohMyOpenAgentConfigs)) {
   await writeJson(profileOhMyOpenAgentPath(profileId), ohMyOpenAgentConfig);
 }
-await writeJson(
-  targetOhMyOpenAgent,
-  requireValue(ohMyOpenAgentConfigs[defaultProfileId(profilesConfig)], "默认 OMO profile"),
-);
+await writeJson(targetOhMyOpenAgent, requireValue(ohMyOpenAgentConfigs[selectedDefaultProfileId], "默认 OMO profile"));
+await writeJson(targetProfileManifest, buildProfileManifest(profilesConfig, selectedDefaultProfileId));
 await installLaunchers();
 
 console.log(`${dryRun ? "将生成" : "已生成"} OpenCode 配置：${targetOpenCode}`);
 console.log(`${dryRun ? "将生成" : "已生成"} oh-my-openagent 默认配置：${targetOhMyOpenAgent}`);
+console.log(`${dryRun ? "将生成" : "已生成"} OMO 级别清单：${targetProfileManifest}`);
 console.log(
   `${dryRun ? "将生成" : "已生成"} OMO 级别配置：${Object.keys(ohMyOpenAgentConfigs)
     .map((profileId) => `aiomo ${profileId}`)
@@ -235,7 +251,7 @@ console.log(
     .map(([groupId, providerId]) => `${groupId}=${providerId}`)
     .join(" / ")}`,
 );
-console.log("启动命令：aiomo [lite|balanced|max] = OMO 编排模式，aioc = OpenCode 原生 Build/Plan 模式。");
+console.log("启动命令：aiomo [profile] = OMO 编排模式，aioc = OpenCode 原生 Build/Plan 模式。");
 
 async function loadYaml<T extends object>(fileName: string): Promise<T> {
   const value = parseYamlObject(await readFile(resolve(configDir, fileName), "utf8"));
@@ -335,13 +351,8 @@ function buildOpenCodeConfig(
     model: defaultModelRef,
     small_model: smallModelRef,
     instructions: [resolve(projectRoot, "AI_GUIDELINES.md")],
-    plugin: ["oh-my-openagent@3.17.5"],
-    compaction: {
-      enabled: true,
-      threshold: Math.min(globalConfig.context?.max_tokens ?? 120000, 80000),
-      model: smallModelRef,
-      max_input_tokens: globalConfig.context?.max_tokens ?? 120000,
-    },
+    plugin: globalConfig.opencode?.plugins ?? ["oh-my-openagent@3.17.5"],
+    compaction: buildCompactionConfig(globalConfig, modelSources, smallModelRef),
     agent: {
       build: { mode: "primary", model: defaultModelRef, max_tokens: 8192 },
       plan: {
@@ -357,6 +368,20 @@ function buildOpenCodeConfig(
       summary: { model: smallModelRef },
     },
     provider: buildProviders(providerSources, modelSources),
+  };
+}
+
+function buildCompactionConfig(
+  globalConfig: GlobalYaml,
+  modelSources: ModelsYaml,
+  smallModelRef: string,
+): OpenCodeConfig["compaction"] {
+  const maxInputTokens = globalConfig.compaction?.max_input_tokens ?? globalConfig.context?.max_tokens ?? 120000;
+  return {
+    enabled: globalConfig.compaction?.enabled ?? true,
+    threshold: globalConfig.compaction?.threshold ?? Math.min(globalConfig.context?.max_tokens ?? 120000, 80000),
+    model: globalConfig.compaction?.model ? modelRef(globalConfig.compaction.model, modelSources) : smallModelRef,
+    max_input_tokens: maxInputTokens,
   };
 }
 
@@ -535,16 +560,18 @@ function modelFallbackRefs(model: string, modelSources: ModelsYaml): string[] {
   return fallback.map((fallbackModel) => modelRef(fallbackModel, modelSources));
 }
 
-function pickDefaultModel(modelSources: ModelsYaml): string {
+function pickDefaultModel(globalConfig: GlobalYaml, modelSources: ModelsYaml): string {
+  if (globalConfig.models?.default) return globalConfig.models.default;
   if (modelSources["gpt-5.5"]) return "gpt-5.5";
   return requireString(Object.keys(modelSources)[0], "models 首个模型");
 }
 
-function pickSmallModel(modelSources: ModelsYaml): string {
+function pickSmallModel(globalConfig: GlobalYaml, modelSources: ModelsYaml): string {
+  if (globalConfig.models?.small) return globalConfig.models.small;
   const modelId = Object.entries(modelSources).find(
     ([, model]) => model.capabilities?.includes("cheap") ?? model.capabilities?.includes("fast") ?? false,
   )?.[0];
-  return modelId ?? pickDefaultModel(modelSources);
+  return modelId ?? pickDefaultModel(globalConfig, modelSources);
 }
 
 function modelRef(modelId: string, modelSources: ModelsYaml, profileModels: Record<string, string> = {}): string {
@@ -558,9 +585,25 @@ function modelRef(modelId: string, modelSources: ModelsYaml, profileModels: Reco
   return `${provider}/${resolvedModelId}`;
 }
 
-function defaultProfileId(profilesConfig: ProfilesYaml): string {
-  if (profilesConfig.balanced) return "balanced";
-  return requireString(Object.keys(requireRecord(profilesConfig, "profiles"))[0], "profiles 首个配置");
+function buildProfileManifest(profilesConfig: ProfilesYaml, selectedDefaultProfileId: string): object {
+  return {
+    default_profile: selectedDefaultProfileId,
+    profiles: Object.keys(requireRecord(profilesConfig, "profiles")),
+  };
+}
+
+function defaultProfileId(globalConfig: GlobalYaml, profilesConfig: ProfilesYaml): string {
+  const profiles = requireRecord(profilesConfig, "profiles");
+  const configuredDefaultProfile = globalConfig.default_profile;
+  if (configuredDefaultProfile) {
+    if (!profiles[configuredDefaultProfile]) {
+      throw new Error(`global.default_profile 指向未定义 OMO profile：${configuredDefaultProfile}`);
+    }
+    return configuredDefaultProfile;
+  }
+
+  if (profiles.balanced) return "balanced";
+  return requireString(Object.keys(profiles)[0], "profiles 首个配置");
 }
 
 function profileOhMyOpenAgentPath(profileId: string): string {
