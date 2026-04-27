@@ -450,10 +450,7 @@ function modelRef(modelId: string, modelSources: ModelsYaml, profileModels: Mode
   return `${provider}/${resolvedModelId}`;
 }
 
-function buildProfileManifest(
-  profilesConfig: ProfilesYaml,
-  selectedDefaultProfileId: string,
-): OmoProfileManifest {
+function buildProfileManifest(profilesConfig: ProfilesYaml, selectedDefaultProfileId: string): OmoProfileManifest {
   return {
     default_profile: selectedDefaultProfileId,
     profiles: Object.keys(requireRecord(profilesConfig, "profiles")),
