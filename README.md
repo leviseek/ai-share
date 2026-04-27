@@ -197,6 +197,15 @@ aioc run --agent build "请说明当前项目结构"
 /omo-monitor
 ```
 
+监控浮窗使用紧凑玻璃风面板展示，并提供辅助命令用于折叠区块和滑动 agent 列表：
+
+```text
+/omo-monitor-toggle-todos
+/omo-monitor-toggle-agents
+/omo-monitor-prev
+/omo-monitor-next
+```
+
 监控浮窗会显示：
 
 - 规划任务总数、完成进度、进行中任务和待处理任务。
