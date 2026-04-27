@@ -1,2 +1,44 @@
 #!/usr/bin/env sh
+set -eu
+
+profile="balanced"
+case "${1:-}" in
+  lite|balanced|max)
+    profile="$1"
+    shift
+    ;;
+  --omo-profile=*)
+    profile="${1#--omo-profile=}"
+    shift
+    ;;
+  --omo-profile)
+    profile="${2:-}"
+    if [ "$#" -ge 2 ]; then
+      shift 2
+    else
+      shift
+    fi
+    ;;
+esac
+
+case "$profile" in
+  lite|balanced|max) ;;
+  *)
+    printf '%s\n' "不支持的 OMO 编排级别：$profile" >&2
+    printf '%s\n' "可用级别：lite、balanced、max" >&2
+    exit 2
+    ;;
+esac
+
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+profile_config="$config_dir/oh-my-openagent.$profile.json"
+active_config="$config_dir/oh-my-openagent.json"
+
+if [ ! -f "$profile_config" ]; then
+  printf '%s\n' "缺少 OMO 编排级别配置：$profile_config" >&2
+  printf '%s\n' "请先运行：bun run ai:gen -- --force" >&2
+  exit 1
+fi
+
+cp "$profile_config" "$active_config"
 exec opencode "$@"

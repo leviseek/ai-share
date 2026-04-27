@@ -33,6 +33,7 @@ type ModelSource = {
 
 type AgentsYaml = {
   model_fallback?: boolean;
+  profiles?: Record<string, AgentProfileSource>;
   agents?: Record<string, AgentSource>;
   categories?: Record<string, AgentSource>;
   runtime_fallback?: RuntimeFallbackSource;
@@ -40,6 +41,11 @@ type AgentsYaml = {
   tmux?: {
     enabled?: boolean;
   };
+};
+
+type AgentProfileSource = {
+  name?: string;
+  models?: Record<string, string>;
 };
 
 type AgentSource = {
@@ -174,18 +180,29 @@ const models = modelsConfig;
 const defaultModel = modelRef(pickDefaultModel(models), models);
 const smallModel = modelRef(pickSmallModel(models), models);
 const openCodeConfig = buildOpenCodeConfig(globalConfig, providers, models, defaultModel, smallModel);
-const ohMyOpenAgentConfig = buildOhMyOpenAgentConfig(models, agentsConfig);
+const ohMyOpenAgentConfigs = buildOhMyOpenAgentConfigs(models, agentsConfig);
 
 if (!dryRun) await mkdir(targetConfigDir, { recursive: true });
 await writeJson(targetOpenCode, openCodeConfig);
-await writeJson(targetOhMyOpenAgent, ohMyOpenAgentConfig);
+for (const [profileId, ohMyOpenAgentConfig] of Object.entries(ohMyOpenAgentConfigs)) {
+  await writeJson(profileOhMyOpenAgentPath(profileId), ohMyOpenAgentConfig);
+}
+await writeJson(
+  targetOhMyOpenAgent,
+  requireValue(ohMyOpenAgentConfigs[defaultProfileId(agentsConfig)], "默认 OMO profile"),
+);
 await installLaunchers();
 
 console.log(`${dryRun ? "将生成" : "已生成"} OpenCode 配置：${targetOpenCode}`);
-console.log(`${dryRun ? "将生成" : "已生成"} oh-my-openagent 配置：${targetOhMyOpenAgent}`);
+console.log(`${dryRun ? "将生成" : "已生成"} oh-my-openagent 默认配置：${targetOhMyOpenAgent}`);
+console.log(
+  `${dryRun ? "将生成" : "已生成"} OMO 级别配置：${Object.keys(ohMyOpenAgentConfigs)
+    .map((profileId) => `aiomo ${profileId}`)
+    .join(" / ")}`,
+);
 console.log(`${dryRun ? "将安装" : "已安装"} 启动命令目录：${targetBinDir}`);
 console.log("说明：provider/model/agents/categories/runtime_fallback/background_task/tmux 均来自 config/*.yaml。");
-console.log("启动命令：aiomo = OMO 编排模式，aioc = OpenCode 原生 Build/Plan 模式。");
+console.log("启动命令：aiomo [lite|balanced|max] = OMO 编排模式，aioc = OpenCode 原生 Build/Plan 模式。");
 
 async function loadYaml<T extends object>(fileName: string): Promise<T> {
   const value = parseYamlObject(await readFile(resolve(configDir, fileName), "utf8"));
@@ -229,17 +246,44 @@ function buildOpenCodeConfig(
   };
 }
 
-function buildOhMyOpenAgentConfig(modelSources: ModelsYaml, agentsConfig: AgentsYaml): OhMyOpenAgentConfig {
+function buildOhMyOpenAgentConfigs(
+  modelSources: ModelsYaml,
+  agentsConfig: AgentsYaml,
+): Record<string, OhMyOpenAgentConfig> {
+  return Object.fromEntries(
+    Object.keys(requireRecord(agentsConfig.profiles, "profiles")).map((profileId) => [
+      profileId,
+      buildOhMyOpenAgentConfig(modelSources, agentsConfig, profileId),
+    ]),
+  );
+}
+
+function buildOhMyOpenAgentConfig(
+  modelSources: ModelsYaml,
+  agentsConfig: AgentsYaml,
+  profileId: string,
+): OhMyOpenAgentConfig {
+  const profileModels = requireRecord(agentsConfig.profiles?.[profileId]?.models, `profiles.${profileId}.models`);
+
   return {
     $schema: "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
     model_fallback: agentsConfig.model_fallback ?? true,
-    agents: buildConfiguredAgents(requireRecord(agentsConfig.agents, "agents"), modelSources),
-    categories: buildConfiguredAgents(requireRecord(agentsConfig.categories, "categories"), modelSources),
+    agents: buildConfiguredAgents(requireRecord(agentsConfig.agents, "agents"), modelSources, profileModels),
+    categories: buildConfiguredAgents(
+      requireRecord(agentsConfig.categories, "categories"),
+      modelSources,
+      profileModels,
+    ),
     runtime_fallback: buildRuntimeFallback(
       requireValue(agentsConfig.runtime_fallback, "runtime_fallback"),
       modelSources,
+      profileModels,
     ),
-    background_task: buildBackgroundTask(requireValue(agentsConfig.background_task, "background_task"), modelSources),
+    background_task: buildBackgroundTask(
+      requireValue(agentsConfig.background_task, "background_task"),
+      modelSources,
+      profileModels,
+    ),
     tmux: { enabled: agentsConfig.tmux?.enabled ?? false },
   };
 }
@@ -283,6 +327,7 @@ function buildProviderModels(providerId: string, modelSources: ModelsYaml): Reco
 function buildConfiguredAgents(
   agentSources: Record<string, AgentSource>,
   modelSources: ModelsYaml,
+  profileModels: Record<string, string>,
 ): Record<string, OhMyAgent> {
   return Object.fromEntries(
     Object.entries(agentSources).map(([agentId, agent]) => {
@@ -294,7 +339,7 @@ function buildConfiguredAgents(
       return [
         agentId,
         withFallback(
-          modelRef(requireString(agent.model, `agents.${agentId}.model`), modelSources),
+          modelRef(requireString(agent.model, `agents.${agentId}.model`), modelSources, profileModels),
           modelSources,
           extra,
         ),
@@ -306,6 +351,7 @@ function buildConfiguredAgents(
 function buildRuntimeFallback(
   source: RuntimeFallbackSource,
   modelSources: ModelsYaml,
+  profileModels: Record<string, string>,
 ): OhMyOpenAgentConfig["runtime_fallback"] {
   return {
     enabled: source.enabled ?? true,
@@ -314,19 +360,22 @@ function buildRuntimeFallback(
     cooldown_seconds: source.cooldown_seconds ?? 60,
     timeout_seconds: source.timeout_seconds ?? 30,
     notify_on_fallback: source.notify_on_fallback ?? true,
-    model_whitelist: (source.model_whitelist ?? []).map((modelId) => modelRef(modelId, modelSources)),
+    model_whitelist: unique(
+      (source.model_whitelist ?? []).map((modelId) => modelRef(modelId, modelSources, profileModels)),
+    ),
   };
 }
 
 function buildBackgroundTask(
   source: BackgroundTaskSource,
   modelSources: ModelsYaml,
+  profileModels: Record<string, string>,
 ): OhMyOpenAgentConfig["background_task"] {
   return {
     providerConcurrency: source.providerConcurrency ?? {},
     modelConcurrency: Object.fromEntries(
       Object.entries(source.modelConcurrency ?? {}).map(([modelId, concurrency]) => [
-        modelRef(modelId, modelSources),
+        modelRef(modelId, modelSources, profileModels),
         concurrency,
       ]),
     ),
@@ -360,10 +409,28 @@ function pickSmallModel(modelSources: ModelsYaml): string {
   return modelId ?? pickDefaultModel(modelSources);
 }
 
-function modelRef(modelId: string, modelSources: ModelsYaml): string {
-  const provider = modelSources[modelId]?.provider;
-  if (!provider) throw new Error(`模型缺少 provider 或未定义：${modelId}`);
-  return `${provider}/${modelId}`;
+function modelRef(modelId: string, modelSources: ModelsYaml, profileModels: Record<string, string> = {}): string {
+  const resolvedModelId = profileModels[modelId] ?? modelId;
+  if (profileModels[resolvedModelId]) {
+    throw new Error(`profile 模型别名不能递归引用：${modelId}`);
+  }
+
+  const provider = modelSources[resolvedModelId]?.provider;
+  if (!provider) throw new Error(`模型缺少 provider 或未定义：${resolvedModelId}`);
+  return `${provider}/${resolvedModelId}`;
+}
+
+function defaultProfileId(agentsConfig: AgentsYaml): string {
+  if (agentsConfig.profiles?.balanced) return "balanced";
+  return requireString(Object.keys(requireRecord(agentsConfig.profiles, "profiles"))[0], "profiles 首个配置");
+}
+
+function profileOhMyOpenAgentPath(profileId: string): string {
+  return resolve(targetConfigDir, `oh-my-openagent.${profileId}.json`);
+}
+
+function unique<T>(values: T[]): T[] {
+  return [...new Set(values)];
 }
 
 function formatApiKey(value: string): string {
@@ -410,7 +477,7 @@ async function writeJson(path: string, value: unknown): Promise<void> {
 }
 
 async function installLaunchers(): Promise<void> {
-  const launcherFiles = process.platform === "win32" ? ["aiomo.cmd", "aioc.cmd"] : ["aiomo", "aioc"];
+  const launcherFiles = process.platform === "win32" ? ["aiomo.cmd", "aiomo.ps1", "aioc.cmd"] : ["aiomo", "aioc"];
   if (dryRun) {
     for (const fileName of launcherFiles) {
       console.log(`将安装启动命令：${resolve(targetBinDir, fileName)}`);

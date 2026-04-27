@@ -6,72 +6,94 @@
 
 model_fallback: true
 
+profiles:
+  lite:
+    name: 轻量编排
+    models:
+      primary: gpt-5.4
+      reasoning: deepseek-v4-flash-think
+      fast: gpt-5.4-mini
+
+  balanced:
+    name: 均衡编排
+    models:
+      primary: gpt-5.5
+      reasoning: deepseek-v4-pro-think
+      fast: gpt-5.4-mini
+
+  max:
+    name: 强力编排
+    models:
+      primary: gpt-5.5
+      reasoning: deepseek-v4-pro-think-max
+      fast: gpt-5.4
+
 agents:
   sisyphus:
-    model: gpt-5.5
+    model: primary
     prompt:
       append: |
         默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。
 
   hephaestus:
-    model: gpt-5.5
+    model: primary
 
   prometheus:
-    model: gpt-5.5
+    model: reasoning
 
   oracle:
-    model: gpt-5.5
+    model: reasoning
 
   momus:
-    model: gpt-5.5
+    model: fast
 
   metis:
-    model: gpt-5.5
+    model: reasoning
 
   atlas:
-    model: gpt-5.5
+    model: primary
 
   sisyphus-junior:
-    model: gpt-5.5
+    model: fast
 
   explorer:
-    model: gpt-5.4-mini
+    model: fast
     permission:
       edit: deny
 
   librarian:
-    model: gpt-5.4-mini
+    model: fast
 
   multimodal-looker:
-    model: gpt-5.5
+    model: primary
 
 categories:
   ultrabrain:
-    model: gpt-5.5
+    model: reasoning
 
   deep:
-    model: gpt-5.5
+    model: reasoning
 
   quick:
-    model: gpt-5.4-mini
+    model: fast
 
   unspecified-low:
-    model: gpt-5.4
+    model: fast
 
   unspecified-high:
-    model: gpt-5.5
+    model: primary
 
   writing:
-    model: gpt-5.5
+    model: primary
     prompt:
       append: |
         默认使用简体中文写作、润色和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。
 
   visual-engineering:
-    model: gpt-5.5
+    model: primary
 
   artistry:
-    model: gpt-5.5
+    model: primary
 
 runtime_fallback:
   enabled: true
@@ -84,17 +106,18 @@ runtime_fallback:
   timeout_seconds: 30
   notify_on_fallback: true
   model_whitelist:
-    - gpt-5.5
-    - gpt-5.4
+    - primary
+    - reasoning
+    - fast
 
 background_task:
   providerConcurrency:
     codexapis: 3
     deepseek: 1
   modelConcurrency:
-    gpt-5.5: 2
-    gpt-5.4-mini: 6
-    deepseek-v4-pro-think-max: 1
+    primary: 2
+    reasoning: 1
+    fast: 6
 
 tmux:
   enabled: false

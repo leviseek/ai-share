@@ -47,6 +47,9 @@ bun run ai:gen -- --force
 ```text
 ~/.config/opencode/opencode.json
 ~/.config/opencode/oh-my-openagent.json
+~/.config/opencode/oh-my-openagent.lite.json
+~/.config/opencode/oh-my-openagent.balanced.json
+~/.config/opencode/oh-my-openagent.max.json
 ```
 
 同时会安装启动命令到用户级 bin 目录：
@@ -60,6 +63,7 @@ Windows 下对应为：
 
 ```text
 %USERPROFILE%\.local\bin\aiomo.cmd
+%USERPROFILE%\.local\bin\aiomo.ps1
 %USERPROFILE%\.local\bin\aioc.cmd
 ```
 
@@ -90,9 +94,10 @@ opencode --pure
 为了减少记忆成本，同时避免和常见开发工具命名重合，不建议使用 `oc`（OpenShift 常用）、`code`（VS Code）、`op`（1Password）这类短名。本仓库会安装 `aiomo` / `aioc` 启动包装器：
 
 ```text
-bin/aiomo      -> opencode
+bin/aiomo      -> opencode，并可选择 OMO 编排级别
 bin/aioc       -> opencode --pure
-bin/aiomo.cmd  -> opencode
+bin/aiomo.cmd  -> opencode，并可选择 OMO 编排级别
+bin/aiomo.ps1  -> aiomo.cmd 使用的 PowerShell 启动逻辑
 bin/aioc.cmd   -> opencode --pure
 ```
 
@@ -114,6 +119,14 @@ export PATH="$HOME/.local/bin:$PATH"
 ```sh
 # OMO 编排模式：Tab 通常切换 Sisyphus / Hephaestus / Prometheus / Atlas
 aiomo
+
+# 选择 OMO 编排级别；默认等价于 aiomo balanced
+aiomo lite
+aiomo balanced
+aiomo max
+
+# 也支持显式参数形式，后续参数继续透传给 opencode
+aiomo --omo-profile=max run "请分析当前项目"
 
 # 原生模式：Tab 切换 OpenCode 原生 Build / Plan
 aioc
@@ -138,7 +151,17 @@ oh-my-openagent 多 agents 编排模式通过生成的 `opencode.json` 中的插
 "plugin": ["oh-my-openagent@3.17.5"]
 ```
 
-对应的 agents/categories/fallback/background task 等配置来自生成的 `oh-my-openagent.json`。
+对应的 agents/categories/fallback/background task 等配置来自生成的 `oh-my-openagent.json`。`aiomo` 启动时会先把所选级别的 `oh-my-openagent.<profile>.json` 复制为当前生效的 `oh-my-openagent.json`。
+
+当前内置 3 个 OMO 编排级别，每个级别固定使用 3 个模型角色：
+
+```text
+lite：primary=gpt-5.4，reasoning=deepseek-v4-flash-think，fast=gpt-5.4-mini
+balanced：primary=gpt-5.5，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-mini
+max：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4
+```
+
+`config/agents.yaml` 中的 agents/categories 引用 `primary`、`reasoning`、`fast` 这 3 个中间层角色；具体模型由 `profiles` 决定。
 
 ## 配置源
 
@@ -148,7 +171,7 @@ oh-my-openagent 多 agents 编排模式通过生成的 `opencode.json` 中的插
 config/global.yaml    -> 全局运行和上下文参数
 config/provider.yaml  -> 模型提供商、baseURL、API Key 环境变量名
 config/models.yaml    -> 模型列表、上游模型名、参数、fallback
-config/agents.yaml    -> oh-my-openagent agents/categories/runtime_fallback/background_task
+config/agents.yaml    -> oh-my-openagent profiles/agents/categories/runtime_fallback/background_task
 ```
 
 修改这些 YAML 后，运行：
