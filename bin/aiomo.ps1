@@ -82,5 +82,6 @@ if (-not (Test-Path -LiteralPath $ProfileConfig -PathType Leaf)) {
 }
 
 Copy-Item -LiteralPath $ProfileConfig -Destination $ActiveConfig -Force
-& opencode @OpenCodeArgs
+$OpenCode = Get-Command opencode.exe -CommandType Application -ErrorAction Stop
+& $OpenCode.Source @OpenCodeArgs
 exit $LASTEXITCODE
