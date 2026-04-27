@@ -28,7 +28,7 @@ providers:
   deepseek:
     name: DeepSeek
     short_name: DeepSeek
-    npm: "@ai-sdk/openai"
+    npm: "@ai-sdk/openai-compatible"
     base_url: https://api.deepseek.com
     api_key: ${DEEPSEEK_API_KEY}
     timeout: 600000
