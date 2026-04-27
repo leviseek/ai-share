@@ -12,6 +12,7 @@ type ProviderYaml = {
 
 type ProviderSource = {
   name?: string;
+  short_name?: string;
   base_url?: string;
   api_key?: string;
   timeout?: number;
@@ -409,7 +410,8 @@ function buildProviders(
 ): Record<string, OpenCodeProvider> {
   const output: Record<string, OpenCodeProvider> = {};
   for (const [providerId, provider] of Object.entries(providerSources)) {
-    const models = buildProviderModels(providerId, modelSources);
+    const providerName = provider.name ?? formatName(providerId);
+    const models = buildProviderModels(providerId, provider.short_name ?? providerId, modelSources);
     if (Object.keys(models).length === 0) continue;
 
     const options: OpenCodeProvider["options"] = {
@@ -420,7 +422,7 @@ function buildProviders(
     if (provider.chunkTimeout !== undefined) options.chunkTimeout = provider.chunkTimeout;
 
     output[providerId] = {
-      name: provider.name ?? formatName(providerId),
+      name: providerName,
       npm: "@ai-sdk/openai-compatible",
       options,
       models,
@@ -429,13 +431,17 @@ function buildProviders(
   return output;
 }
 
-function buildProviderModels(providerId: string, modelSources: ModelsYaml): Record<string, OpenCodeModel> {
+function buildProviderModels(
+  providerId: string,
+  providerShortName: string,
+  modelSources: ModelsYaml,
+): Record<string, OpenCodeModel> {
   const output: Record<string, OpenCodeModel> = {};
   for (const [modelId, model] of Object.entries(modelSources)) {
     if (model.provider !== providerId) continue;
     output[modelId] = {
       ...(model.model_name && model.model_name !== modelId ? { id: model.model_name } : {}),
-      name: formatName(modelId),
+      name: `${formatName(modelId)} (${providerShortName})`,
       ...(model.parameters ? { options: model.parameters } : {}),
     };
   }
