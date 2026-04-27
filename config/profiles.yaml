@@ -10,6 +10,11 @@ lite:
     primary: gpt-5.4
     reasoning: deepseek-v4-flash-think
     fast: gpt-5.4-mini
+  compaction:
+    enabled: true
+    threshold: 50000
+    model: fast
+    max_input_tokens: 80000
 
 cheap:
   name: 极低成本日常模式
@@ -17,6 +22,11 @@ cheap:
     primary: gpt-5.4-mini
     reasoning: deepseek-v4-flash-think
     fast: gpt-5.4-mini
+  compaction:
+    enabled: true
+    threshold: 45000
+    model: fast
+    max_input_tokens: 80000
 
 balanced:
   name: 均衡编排
@@ -24,6 +34,11 @@ balanced:
     primary: gpt-5.5
     reasoning: deepseek-v4-pro-think
     fast: gpt-5.4-mini
+  compaction:
+    enabled: true
+    threshold: 80000
+    model: fast
+    max_input_tokens: 120000
 
 coding:
   name: 代码实施优先模式
@@ -31,6 +46,11 @@ coding:
     primary: gpt-5.3-codex
     reasoning: deepseek-v4-pro-think
     fast: gpt-5.4-mini
+  compaction:
+    enabled: true
+    threshold: 85000
+    model: fast
+    max_input_tokens: 120000
 
 research:
   name: 深度研究模式
@@ -38,6 +58,11 @@ research:
     primary: gpt-5.5
     reasoning: deepseek-v4-pro-think-max
     fast: gpt-5.4-mini
+  compaction:
+    enabled: true
+    threshold: 110000
+    model: reasoning
+    max_input_tokens: 160000
 
 writing:
   name: 写作润色模式
@@ -45,6 +70,11 @@ writing:
     primary: gpt-5.5
     reasoning: deepseek-v4-pro-think
     fast: gpt-5.4-mini
+  compaction:
+    enabled: true
+    threshold: 90000
+    model: reasoning
+    max_input_tokens: 120000
 
 max:
   name: 强力编排
@@ -52,3 +82,8 @@ max:
     primary: gpt-5.5
     reasoning: deepseek-v4-pro-think-max
     fast: gpt-5.4
+  compaction:
+    enabled: true
+    threshold: 130000
+    model: reasoning
+    max_input_tokens: 180000

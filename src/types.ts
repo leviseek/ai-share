@@ -122,6 +122,7 @@ export type ProfilesYaml = Record<string, AgentProfileSource>;
 export type AgentProfileSource = {
   name?: string;
   models?: ModelRoleMap;
+  compaction?: GlobalCompaction;
 };
 
 export type RuntimeFallbackSource = {

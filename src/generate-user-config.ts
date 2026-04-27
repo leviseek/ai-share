@@ -54,14 +54,15 @@ const providers = providersConfig.providers ?? {};
 const models = applyProviderGroups(modelsConfig, providers, providerGroups);
 const defaultModel = modelRef(pickDefaultModel(globalConfig, models), models);
 const smallModel = modelRef(pickSmallModel(globalConfig, models), models);
-const openCodeConfig = buildOpenCodeConfig(globalConfig, providers, models, defaultModel, smallModel);
+const openCodeConfigs = buildOpenCodeConfigs(globalConfig, providers, models, profilesConfig, defaultModel, smallModel);
 const ohMyOpenAgentConfigs = buildOhMyOpenAgentConfigs(models, profilesConfig, agentsConfig);
 const selectedDefaultProfileId = defaultProfileId(globalConfig, profilesConfig);
+const selectedOpenCodeConfig = requireValue(openCodeConfigs[selectedDefaultProfileId], "默认 OpenCode profile");
 
 if (checkOnly) {
   const missingApiKeys = missingProviderApiKeyEnvNames(providers);
   console.log("配置检查通过。");
-  console.log(`OpenCode provider 数量：${Object.keys(openCodeConfig.provider).length}`);
+  console.log(`OpenCode provider 数量：${Object.keys(selectedOpenCodeConfig.provider).length}`);
   console.log(`已配置 provider 数量：${Object.keys(providers).length}`);
   console.log(`模型分组：${modelProviderGroups(modelsConfig).join(" / ")}`);
   console.log(`OMO 编排级别：${Object.keys(ohMyOpenAgentConfigs).join(" / ")}`);
@@ -81,7 +82,10 @@ if (checkOnly) {
 }
 
 if (!dryRun) await mkdir(targetConfigDir, { recursive: true });
-await writeJson(targetOpenCode, openCodeConfig);
+for (const [profileId, openCodeConfig] of Object.entries(openCodeConfigs)) {
+  await writeJson(profileOpenCodePath(profileId), openCodeConfig);
+}
+await writeJson(targetOpenCode, selectedOpenCodeConfig);
 for (const [profileId, ohMyOpenAgentConfig] of Object.entries(ohMyOpenAgentConfigs)) {
   await writeJson(profileOhMyOpenAgentPath(profileId), ohMyOpenAgentConfig);
 }
@@ -90,6 +94,11 @@ await writeJson(targetProfileManifest, buildProfileManifest(profilesConfig, sele
 await installLaunchers();
 
 console.log(`${dryRun ? "将生成" : "已生成"} OpenCode 配置：${targetOpenCode}`);
+console.log(
+  `${dryRun ? "将生成" : "已生成"} OpenCode 级别配置：${Object.keys(openCodeConfigs)
+    .map((profileId) => `aiomo ${profileId}`)
+    .join(" / ")}`,
+);
 console.log(`${dryRun ? "将生成" : "已生成"} oh-my-openagent 默认配置：${targetOhMyOpenAgent}`);
 console.log(`${dryRun ? "将生成" : "已生成"} OMO 级别清单：${targetProfileManifest}`);
 console.log(
@@ -204,20 +213,54 @@ function apiKeyEnvName(value: string): string | undefined {
   return /^\{env:([A-Z0-9_]+)\}$/.exec(value)?.[1];
 }
 
+function buildOpenCodeConfigs(
+  globalConfig: GlobalYaml,
+  providerSources: Record<string, ProviderSource>,
+  modelSources: ModelsYaml,
+  profilesConfig: ProfilesYaml,
+  defaultModelRef: string,
+  smallModelRef: string,
+): Record<string, OpenCodeConfig> {
+  return Object.fromEntries(
+    Object.keys(requireRecord(profilesConfig, "profiles")).map((profileId) => [
+      profileId,
+      buildOpenCodeConfig(
+        globalConfig,
+        providerSources,
+        modelSources,
+        profilesConfig,
+        profileId,
+        defaultModelRef,
+        smallModelRef,
+      ),
+    ]),
+  );
+}
+
 function buildOpenCodeConfig(
   globalConfig: GlobalYaml,
   providerSources: Record<string, ProviderSource>,
   modelSources: ModelsYaml,
+  profilesConfig: ProfilesYaml,
+  profileId: string,
   defaultModelRef: string,
   smallModelRef: string,
 ): OpenCodeConfig {
+  const profileModels = requireRecord(profilesConfig[profileId]?.models, `profiles.${profileId}.models`);
+
   return {
     $schema: "https://opencode.ai/config.json",
     model: defaultModelRef,
     small_model: smallModelRef,
     instructions: [resolve(projectRoot, "AI_GUIDELINES.md")],
     plugin: globalConfig.opencode?.plugins ?? ["oh-my-openagent@3.17.5"],
-    compaction: buildCompactionConfig(globalConfig, modelSources, smallModelRef),
+    compaction: buildCompactionConfig(
+      globalConfig,
+      modelSources,
+      profileModels,
+      profilesConfig[profileId]?.compaction,
+      smallModelRef,
+    ),
     agent: {
       build: { mode: "primary", model: defaultModelRef, max_tokens: 8192 },
       plan: {
@@ -239,13 +282,16 @@ function buildOpenCodeConfig(
 function buildCompactionConfig(
   globalConfig: GlobalYaml,
   modelSources: ModelsYaml,
+  profileModels: ModelRoleMap,
+  profileCompaction: GlobalYaml["compaction"],
   smallModelRef: string,
 ): OpenCodeConfig["compaction"] {
-  const maxInputTokens = globalConfig.compaction?.max_input_tokens ?? globalConfig.context?.max_tokens ?? 120000;
+  const source = { ...globalConfig.compaction, ...profileCompaction };
+  const maxInputTokens = source.max_input_tokens ?? globalConfig.context?.max_tokens ?? 120000;
   return {
-    enabled: globalConfig.compaction?.enabled ?? true,
-    threshold: globalConfig.compaction?.threshold ?? Math.min(globalConfig.context?.max_tokens ?? 120000, 80000),
-    model: globalConfig.compaction?.model ? modelRef(globalConfig.compaction.model, modelSources) : smallModelRef,
+    enabled: source.enabled ?? true,
+    threshold: source.threshold ?? Math.min(globalConfig.context?.max_tokens ?? 120000, 80000),
+    model: source.model ? modelRef(source.model, modelSources, profileModels) : smallModelRef,
     max_input_tokens: maxInputTokens,
   };
 }
@@ -473,6 +519,10 @@ function defaultProfileId(globalConfig: GlobalYaml, profilesConfig: ProfilesYaml
 
 function profileOhMyOpenAgentPath(profileId: string): string {
   return resolve(targetConfigDir, `oh-my-openagent.${profileId}.json`);
+}
+
+function profileOpenCodePath(profileId: string): string {
+  return resolve(targetConfigDir, `opencode.${profileId}.json`);
 }
 
 function unique<T>(values: T[]): T[] {
