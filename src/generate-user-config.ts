@@ -13,6 +13,7 @@ type ProviderYaml = {
 type ProviderSource = {
   name?: string;
   short_name?: string;
+  npm?: string;
   base_url?: string;
   api_key?: string;
   timeout?: number;
@@ -449,7 +450,7 @@ function buildProviders(
 
     output[providerId] = {
       name: providerName,
-      npm: "@ai-sdk/openai-compatible",
+      npm: provider.npm ?? "@ai-sdk/openai-compatible",
       options,
       models,
     };
