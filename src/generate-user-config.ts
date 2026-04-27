@@ -219,6 +219,7 @@ if (checkOnly) {
   );
   if (missingApiKeys.length > 0) {
     console.warn(`API Key 环境变量未设置：${missingApiKeys.join(" / ")}`);
+    process.exit(1);
   } else {
     console.log("API Key 环境变量已设置。");
   }
