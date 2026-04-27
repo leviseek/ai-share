@@ -1,8 +1,8 @@
 default_profile: oc
 
 env:
-  mode: dev            # dev / staging / prod
-  log_level: info      # debug / info / warn / error
+  mode: dev # dev / staging / prod
+  log_level: info # debug / info / warn / error
 
 features:
   auto_router: true
@@ -16,7 +16,8 @@ runtime:
 
 context:
   max_tokens: 120000
-  strategy: truncate   # truncate / summarize / split
+  strategy: truncate # truncate / summarize / split
+
 
 # telemetry:
 #   enabled: true
