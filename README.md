@@ -90,6 +90,7 @@ Windows 下对应为：
 %USERPROFILE%\.local\bin\aiomo.cmd
 %USERPROFILE%\.local\bin\aiomo.ps1
 %USERPROFILE%\.local\bin\aioc.cmd
+%USERPROFILE%\.local\bin\aioc.ps1
 ```
 
 Windows 会自动把该目录加入用户级 PATH。已经打开的终端可能需要重启后才能直接使用 `aiomo` / `aioc`。
@@ -124,6 +125,7 @@ bin/aioc       -> opencode --pure
 bin/aiomo.cmd  -> opencode，并可选择 OMO 编排级别
 bin/aiomo.ps1  -> aiomo.cmd 使用的 PowerShell 启动逻辑
 bin/aioc.cmd   -> opencode --pure
+bin/aioc.ps1   -> PowerShell 原生 opencode --pure 启动逻辑
 ```
 
 macOS/Linux shell PATH 示例：
