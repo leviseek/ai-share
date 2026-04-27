@@ -4,14 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "ai:check": "node ./scripts/run-bun.mjs ./src/check-ai.ts",
-    "dev": "node ./scripts/run-bun.mjs --watch ./src/index.ts",
+    "ai:check": "bun run ./src/generate-user-config.ts --dry-run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "gen:cfg": "bun run ./src/generate-user-config.ts",
     "lint": "eslint .",
-    "schema:update": "node ./scripts/run-bun.mjs ./src/schema-update.ts",
-    "share": "node ./scripts/run-bun.mjs ./src/share.ts",
-    "start": "node ./scripts/run-bun.mjs ./src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
@@ -20,6 +17,7 @@
     "eslint": "^10.2.1",
     "prettier": "latest",
     "typescript": "latest",
-    "typescript-eslint": "^8.59.0"
+    "typescript-eslint": "^8.59.0",
+    "typescript-language-server": "^5.1.3"
   }
 }
