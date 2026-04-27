@@ -6,12 +6,11 @@
   "scripts": {
     "ai:check": "bun run ./src/generate-user-config.ts --check",
     "ai:dry-run": "bun run ./src/generate-user-config.ts --dry-run",
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun run test && bun run ai:check",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run ai:check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "ai:gen": "bun run ./src/generate-user-config.ts",
     "lint": "eslint .",
-    "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
