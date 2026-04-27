@@ -6,28 +6,6 @@
 
 model_fallback: true
 
-profiles:
-  lite:
-    name: 轻量编排
-    models:
-      primary: gpt-5.4
-      reasoning: deepseek-v4-flash-think
-      fast: gpt-5.4-mini
-
-  balanced:
-    name: 均衡编排
-    models:
-      primary: gpt-5.5
-      reasoning: deepseek-v4-pro-think
-      fast: gpt-5.4-mini
-
-  max:
-    name: 强力编排
-    models:
-      primary: gpt-5.5
-      reasoning: deepseek-v4-pro-think-max
-      fast: gpt-5.4
-
 agents:
   sisyphus:
     model: primary

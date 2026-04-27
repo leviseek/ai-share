@@ -161,7 +161,7 @@ balanced：primary=gpt-5.5，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-mini
 max：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4
 ```
 
-`config/agents.yaml` 中的 agents/categories 引用 `primary`、`reasoning`、`fast` 这 3 个中间层角色；具体模型由 `profiles` 决定。
+`config/agents.yaml` 中的 agents/categories 引用 `primary`、`reasoning`、`fast` 这 3 个中间层角色；具体模型由 `config/profiles.yaml` 决定。
 
 ## 配置源
 
@@ -171,7 +171,8 @@ max：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4
 config/global.yaml    -> 全局运行和上下文参数
 config/provider.yaml  -> 模型提供商、baseURL、API Key 环境变量名
 config/models.yaml    -> 模型列表、上游模型名、参数、fallback
-config/agents.yaml    -> oh-my-openagent profiles/agents/categories/runtime_fallback/background_task
+config/profiles.yaml  -> OMO 编排级别和模型角色映射
+config/agents.yaml    -> oh-my-openagent agents/categories/runtime_fallback/background_task
 ```
 
 修改这些 YAML 后，运行：

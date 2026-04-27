@@ -1,0 +1,26 @@
+# ============================================================
+# OMO 编排级别配置
+# profiles 提供 primary / reasoning / fast 三个模型角色映射。
+# agents.yaml 中的 agents/categories/runtime_fallback/background_task 引用这些角色。
+# ============================================================
+
+lite:
+  name: 轻量编排
+  models:
+    primary: gpt-5.4
+    reasoning: deepseek-v4-flash-think
+    fast: gpt-5.4-mini
+
+balanced:
+  name: 均衡编排
+  models:
+    primary: gpt-5.5
+    reasoning: deepseek-v4-pro-think
+    fast: gpt-5.4-mini
+
+max:
+  name: 强力编排
+  models:
+    primary: gpt-5.5
+    reasoning: deepseek-v4-pro-think-max
+    fast: gpt-5.4

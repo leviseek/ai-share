@@ -33,7 +33,6 @@ type ModelSource = {
 
 type AgentsYaml = {
   model_fallback?: boolean;
-  profiles?: Record<string, AgentProfileSource>;
   agents?: Record<string, AgentSource>;
   categories?: Record<string, AgentSource>;
   runtime_fallback?: RuntimeFallbackSource;
@@ -42,6 +41,8 @@ type AgentsYaml = {
     enabled?: boolean;
   };
 };
+
+type ProfilesYaml = Record<string, AgentProfileSource>;
 
 type AgentProfileSource = {
   name?: string;
@@ -168,10 +169,11 @@ if (!targetConfigDir.startsWith(homeDir)) {
   throw new Error("无法解析用户级 OpenCode 配置目录。请检查 HOME 或 USERPROFILE 环境变量。");
 }
 
-const [globalConfig, providersConfig, modelsConfig, agentsConfig] = await Promise.all([
+const [globalConfig, providersConfig, modelsConfig, profilesConfig, agentsConfig] = await Promise.all([
   loadYaml<GlobalYaml>("global.yaml"),
   loadYaml<ProviderYaml>("provider.yaml"),
   loadYaml<ModelsYaml>("models.yaml"),
+  loadYaml<ProfilesYaml>("profiles.yaml"),
   loadYaml<AgentsYaml>("agents.yaml"),
 ]);
 
@@ -180,7 +182,7 @@ const models = modelsConfig;
 const defaultModel = modelRef(pickDefaultModel(models), models);
 const smallModel = modelRef(pickSmallModel(models), models);
 const openCodeConfig = buildOpenCodeConfig(globalConfig, providers, models, defaultModel, smallModel);
-const ohMyOpenAgentConfigs = buildOhMyOpenAgentConfigs(models, agentsConfig);
+const ohMyOpenAgentConfigs = buildOhMyOpenAgentConfigs(models, profilesConfig, agentsConfig);
 
 if (!dryRun) await mkdir(targetConfigDir, { recursive: true });
 await writeJson(targetOpenCode, openCodeConfig);
@@ -189,7 +191,7 @@ for (const [profileId, ohMyOpenAgentConfig] of Object.entries(ohMyOpenAgentConfi
 }
 await writeJson(
   targetOhMyOpenAgent,
-  requireValue(ohMyOpenAgentConfigs[defaultProfileId(agentsConfig)], "默认 OMO profile"),
+  requireValue(ohMyOpenAgentConfigs[defaultProfileId(profilesConfig)], "默认 OMO profile"),
 );
 await installLaunchers();
 
@@ -201,7 +203,9 @@ console.log(
     .join(" / ")}`,
 );
 console.log(`${dryRun ? "将安装" : "已安装"} 启动命令目录：${targetBinDir}`);
-console.log("说明：provider/model/agents/categories/runtime_fallback/background_task/tmux 均来自 config/*.yaml。");
+console.log(
+  "说明：provider/model/profiles/agents/categories/runtime_fallback/background_task/tmux 均来自 config/*.yaml。",
+);
 console.log("启动命令：aiomo [lite|balanced|max] = OMO 编排模式，aioc = OpenCode 原生 Build/Plan 模式。");
 
 async function loadYaml<T extends object>(fileName: string): Promise<T> {
@@ -248,22 +252,24 @@ function buildOpenCodeConfig(
 
 function buildOhMyOpenAgentConfigs(
   modelSources: ModelsYaml,
+  profilesConfig: ProfilesYaml,
   agentsConfig: AgentsYaml,
 ): Record<string, OhMyOpenAgentConfig> {
   return Object.fromEntries(
-    Object.keys(requireRecord(agentsConfig.profiles, "profiles")).map((profileId) => [
+    Object.keys(requireRecord(profilesConfig, "profiles")).map((profileId) => [
       profileId,
-      buildOhMyOpenAgentConfig(modelSources, agentsConfig, profileId),
+      buildOhMyOpenAgentConfig(modelSources, profilesConfig, agentsConfig, profileId),
     ]),
   );
 }
 
 function buildOhMyOpenAgentConfig(
   modelSources: ModelsYaml,
+  profilesConfig: ProfilesYaml,
   agentsConfig: AgentsYaml,
   profileId: string,
 ): OhMyOpenAgentConfig {
-  const profileModels = requireRecord(agentsConfig.profiles?.[profileId]?.models, `profiles.${profileId}.models`);
+  const profileModels = requireRecord(profilesConfig[profileId]?.models, `profiles.${profileId}.models`);
 
   return {
     $schema: "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
@@ -420,9 +426,9 @@ function modelRef(modelId: string, modelSources: ModelsYaml, profileModels: Reco
   return `${provider}/${resolvedModelId}`;
 }
 
-function defaultProfileId(agentsConfig: AgentsYaml): string {
-  if (agentsConfig.profiles?.balanced) return "balanced";
-  return requireString(Object.keys(requireRecord(agentsConfig.profiles, "profiles"))[0], "profiles 首个配置");
+function defaultProfileId(profilesConfig: ProfilesYaml): string {
+  if (profilesConfig.balanced) return "balanced";
+  return requireString(Object.keys(requireRecord(profilesConfig, "profiles"))[0], "profiles 首个配置");
 }
 
 function profileOhMyOpenAgentPath(profileId: string): string {
