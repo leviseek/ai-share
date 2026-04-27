@@ -66,6 +66,13 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 
 ```text
 ~/.config/opencode/opencode.json
+~/.config/opencode/opencode.lite.json
+~/.config/opencode/opencode.cheap.json
+~/.config/opencode/opencode.balanced.json
+~/.config/opencode/opencode.coding.json
+~/.config/opencode/opencode.research.json
+~/.config/opencode/opencode.writing.json
+~/.config/opencode/opencode.max.json
 ~/.config/opencode/oh-my-openagent.json
 ~/.config/opencode/oh-my-openagent.lite.json
 ~/.config/opencode/oh-my-openagent.cheap.json
@@ -170,6 +177,8 @@ aioc run --agent plan "请只输出计划，不要修改文件"
 aioc run --agent build "请说明当前项目结构"
 ```
 
+`aioc` 不切换 OMO 编排级别，会直接使用当前生效的 `opencode.json`；如果之前运行过 `aiomo lite` / `aiomo max` 等命令，`aioc` 会沿用最后一次切换后的 OpenCode 基础配置和 compaction 策略。
+
 如果不想配置函数，也可以直接使用原始命令：
 
 ```sh
@@ -189,7 +198,7 @@ opencode:
 
 升级 OMO 插件时，只需要修改这里的版本号，然后重新运行 `bun run ai:gen -- --force`。
 
-对应的 agents/categories/fallback/background task 等配置来自生成的 `oh-my-openagent.json`。`aiomo` 启动时会先读取 `.omo-profiles.json` 中的默认级别和可用级别清单，再把所选级别的 `oh-my-openagent.<profile>.json` 复制为当前生效的 `oh-my-openagent.json`。
+对应的 agents/categories/fallback/background task 等配置来自生成的 `oh-my-openagent.json`。`aiomo` 启动时会先读取 `.omo-profiles.json` 中的默认级别和可用级别清单，再把所选级别的 `opencode.<profile>.json` 和 `oh-my-openagent.<profile>.json` 分别复制为当前生效的 `opencode.json` 与 `oh-my-openagent.json`。
 
 默认 OMO 编排级别由 `config/global.yaml` 的 `default_profile` 控制。当前默认值为 `balanced`，因此直接运行 `aiomo` 等价于 `aiomo balanced`。如果修改 `default_profile`，需要重新运行 `bun run ai:gen -- --force` 生成 `.omo-profiles.json` 后才会影响启动器默认行为。
 
@@ -206,6 +215,19 @@ max：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4
 ```
 
 `config/agents.yaml` 中的 agents/categories 引用 `primary`、`reasoning`、`fast` 这 3 个中间层角色；具体模型由 `config/profiles.yaml` 决定。
+
+`config/profiles.yaml` 中的每个 OMO 编排级别也可以覆盖 OpenCode `compaction`，用于按模式调节上下文智能压缩策略：
+
+```yaml
+balanced:
+  compaction:
+    enabled: true
+    threshold: 80000
+    model: fast
+    max_input_tokens: 120000
+```
+
+其中 `model` 可以直接写模型 ID，也可以写 `primary`、`reasoning`、`fast` 这类 profile 模型角色。未在 profile 中声明的字段会回退到 `config/global.yaml` 的 `compaction` 默认值。
 
 ## 配置源
 
