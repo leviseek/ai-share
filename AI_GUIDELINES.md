@@ -55,7 +55,7 @@
 
 - 本仓库以 `config/*.yaml` 作为唯一权威配置源，不再维护根目录静态 `opencode.jsonc` 或 `.opencode/oh-my-openagent.jsonc`。
 - 共享模型提供商、模型列表、默认模型和 oh-my-openagent agents/categories 应维护在 `config/provider.yaml`、`config/models.yaml`、`config/agents.yaml` 中。
-- 生成用户级 OpenCode 配置时，优先使用已封装好的 `bun run gen:cfg` 脚本入口。
+- 生成用户级 OpenCode 配置时，优先使用已封装好的 `bun run ai:gen` 脚本入口。
 - `bun run ai:check` 只做 dry-run 预览，不写入用户配置。
 - 生成结果位于用户 OpenCode 配置目录，例如 `~/.config/opencode/opencode.json` 和 `~/.config/opencode/oh-my-openagent.json`。
 - 每个具体项目可以放置自己的 `opencode.jsonc` 或 `opencode.json` 做少量覆盖。

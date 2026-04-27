@@ -27,19 +27,19 @@ bun run ai:check
 或直接运行生成脚本的 dry-run：
 
 ```sh
-bun run gen:cfg -- --dry-run
+bun run ai:gen -- --dry-run
 ```
 
 生成 OpenCode 与 oh-my-openagent 用户级配置：
 
 ```sh
-bun run gen:cfg
+bun run ai:gen
 ```
 
 如果目标文件已存在并确认要覆盖：
 
 ```sh
-bun run gen:cfg -- --force
+bun run ai:gen -- --force
 ```
 
 生成结果位于当前用户的 OpenCode 配置目录：
@@ -87,8 +87,8 @@ config/agents.yaml    -> oh-my-openagent agents/categories/runtime_fallback/back
 修改这些 YAML 后，运行：
 
 ```sh
-bun run gen:cfg -- --dry-run
-bun run gen:cfg -- --force
+bun run ai:gen -- --dry-run
+bun run ai:gen -- --force
 ```
 
 ## 环境变量
