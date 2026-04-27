@@ -57,7 +57,9 @@
 - 共享模型提供商、模型列表、默认模型和 oh-my-openagent agents/categories 应维护在 `config/provider.yaml`、`config/models.yaml`、`config/agents.yaml` 中。
 - 生成用户级 OpenCode 配置时，优先使用已封装好的 `bun run ai:gen` 脚本入口。
 - `bun run ai:check` 只做 dry-run 预览，不写入用户配置。
-- 生成结果位于用户 OpenCode 配置目录，例如 `~/.config/opencode/opencode.json` 和 `~/.config/opencode/oh-my-openagent.json`。
+- 生成结果位于用户 OpenCode 配置目录，例如 `~/.config/opencode/opencode.json` 和 `~/.config/opencode/oh-my-openagent.json`；同时会安装 `aiomo` / `aioc` 到用户级 bin 目录。
+- 启动时默认 `opencode` 加载 oh-my-openagent 编排模式；需要 OpenCode 原生 Build / Plan 模式时使用 `opencode --pure`。
+- 推荐启动命令名：`aiomo` 表示 OMO 编排模式，`aioc` 表示 OpenCode 原生模式；本仓库在 `bin/` 目录提供对应包装器，避免使用 `oc`、`code`、`op` 等常见工具名。
 - 每个具体项目可以放置自己的 `opencode.jsonc` 或 `opencode.json` 做少量覆盖。
 - API Key 只通过环境变量引用，例如 `{env:DEEPSEEK_API_KEY}`。
 
