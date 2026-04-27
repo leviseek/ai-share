@@ -35,8 +35,7 @@
 
 - 执行破坏性命令前必须获得明确授权，例如强制删除、强制推送、硬重置等。
 - 在 Windows 环境下，执行终端命令时必须使用 `pwsh` 作为 shell 或命令执行工具。
-- 执行 Bun 相关仓库脚本时，必须通过 `node ./scripts/run-bun.mjs` 间接调用 Bun，不在新增或修改的脚本中直接裸跑 `bun`。
-- 执行 `bunx` 相关仓库脚本时，必须通过 `node ./scripts/run-bunx.mjs` 间接调用；该脚本统一转发到 `run-bun.mjs` 执行 `bun x`，避免依赖不同系统中的 `bunx` 可执行文件位置。
+- Bun 相关仓库脚本可以直接通过 `bun run ...` 执行。
 - 不主动提交 Git，除非用户明确要求。
 - 不在仓库内生成或提交本地密钥文件，例如 `.env`、凭据 JSON、私钥等。
 - 修改配置时优先使用环境变量引用敏感值。
@@ -54,12 +53,13 @@
 
 ## AI 配置约定
 
-- OpenCode 主配置使用 `opencode.jsonc`，不使用 YAML 作为直接加载配置。
-- 共享模型提供商、模型列表和默认模型应维护在本仓库的 `opencode.jsonc`。
-- 每个具体项目可以放置自己的 `opencode.jsonc` 做少量覆盖。
+- 本仓库以 `config/*.yaml` 作为唯一权威配置源，不再维护根目录静态 `opencode.jsonc` 或 `.opencode/oh-my-openagent.jsonc`。
+- 共享模型提供商、模型列表、默认模型和 oh-my-openagent agents/categories 应维护在 `config/provider.yaml`、`config/models.yaml`、`config/agents.yaml` 中。
+- 生成用户级 OpenCode 配置时，优先使用已封装好的 `bun run gen:cfg` 脚本入口。
+- `bun run ai:check` 只做 dry-run 预览，不写入用户配置。
+- 生成结果位于用户 OpenCode 配置目录，例如 `~/.config/opencode/opencode.json` 和 `~/.config/opencode/oh-my-openagent.json`。
+- 每个具体项目可以放置自己的 `opencode.jsonc` 或 `opencode.json` 做少量覆盖。
 - API Key 只通过环境变量引用，例如 `{env:DEEPSEEK_API_KEY}`。
-- 变更模型提供商、`baseURL`、API Key 环境变量名或模型列表时，优先使用 `node ./scripts/run-bun.mjs ./src/check-ai.ts`，或使用已封装好的 `bun run ai:check` 脚本入口。
-- 将共享配置安装到当前电脑时，优先使用 `node ./scripts/run-bun.mjs ./src/share.ts`，或使用已封装好的 `bun run share` 脚本入口。
 
 ## 输出风格
 
