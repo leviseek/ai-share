@@ -72,16 +72,25 @@ if ($AvailableProfiles -notcontains $ProfileName) {
   exit 2
 }
 
-$ProfileConfig = Join-Path $ConfigDir "oh-my-openagent.$ProfileName.json"
-$ActiveConfig = Join-Path $ConfigDir "oh-my-openagent.json"
+$OpenCodeProfileConfig = Join-Path $ConfigDir "opencode.$ProfileName.json"
+$OpenCodeActiveConfig = Join-Path $ConfigDir "opencode.json"
+$OmoProfileConfig = Join-Path $ConfigDir "oh-my-openagent.$ProfileName.json"
+$OmoActiveConfig = Join-Path $ConfigDir "oh-my-openagent.json"
 
-if (-not (Test-Path -LiteralPath $ProfileConfig -PathType Leaf)) {
-  Write-Error ((U @(32570, 23569, 32, 79, 77, 79, 32, 32534, 25490, 32423, 21035, 37197, 32622, 65306)) + $ProfileConfig)
+if (-not (Test-Path -LiteralPath $OpenCodeProfileConfig -PathType Leaf)) {
+  Write-Error ((U @(32570, 23569, 32, 79, 112, 101, 110, 67, 111, 100, 101, 32, 32534, 25490, 32423, 21035, 37197, 32622, 65306)) + $OpenCodeProfileConfig)
   Write-Error (U @(35831, 20808, 36816, 34892, 65306, 98, 117, 110, 32, 114, 117, 110, 32, 97, 105, 58, 103, 101, 110, 32, 45, 45, 32, 45, 45, 102, 111, 114, 99, 101))
   exit 1
 }
 
-Copy-Item -LiteralPath $ProfileConfig -Destination $ActiveConfig -Force
+if (-not (Test-Path -LiteralPath $OmoProfileConfig -PathType Leaf)) {
+  Write-Error ((U @(32570, 23569, 32, 79, 77, 79, 32, 32534, 25490, 32423, 21035, 37197, 32622, 65306)) + $OmoProfileConfig)
+  Write-Error (U @(35831, 20808, 36816, 34892, 65306, 98, 117, 110, 32, 114, 117, 110, 32, 97, 105, 58, 103, 101, 110, 32, 45, 45, 32, 45, 45, 102, 111, 114, 99, 101))
+  exit 1
+}
+
+Copy-Item -LiteralPath $OpenCodeProfileConfig -Destination $OpenCodeActiveConfig -Force
+Copy-Item -LiteralPath $OmoProfileConfig -Destination $OmoActiveConfig -Force
 $OpenCode = Get-Command opencode.exe -CommandType Application -ErrorAction Stop
 & $OpenCode.Source @OpenCodeArgs
 exit $LASTEXITCODE

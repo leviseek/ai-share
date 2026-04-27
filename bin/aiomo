@@ -75,14 +75,23 @@ if ! is_profile "$profile"; then
   exit 2
 fi
 
-profile_config="$config_dir/oh-my-openagent.$profile.json"
-active_config="$config_dir/oh-my-openagent.json"
+opencode_profile_config="$config_dir/opencode.$profile.json"
+opencode_active_config="$config_dir/opencode.json"
+omo_profile_config="$config_dir/oh-my-openagent.$profile.json"
+omo_active_config="$config_dir/oh-my-openagent.json"
 
-if [ ! -f "$profile_config" ]; then
-  printf '%s\n' "缺少 OMO 编排级别配置：$profile_config" >&2
+if [ ! -f "$opencode_profile_config" ]; then
+  printf '%s\n' "缺少 OpenCode 编排级别配置：$opencode_profile_config" >&2
   printf '%s\n' "请先运行：bun run ai:gen -- --force" >&2
   exit 1
 fi
 
-cp "$profile_config" "$active_config"
+if [ ! -f "$omo_profile_config" ]; then
+  printf '%s\n' "缺少 OMO 编排级别配置：$omo_profile_config" >&2
+  printf '%s\n' "请先运行：bun run ai:gen -- --force" >&2
+  exit 1
+fi
+
+cp "$opencode_profile_config" "$opencode_active_config"
+cp "$omo_profile_config" "$omo_active_config"
 exec opencode "$@"
