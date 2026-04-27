@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 
+import { spawnSync } from "node:child_process";
 import { constants } from "node:fs";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseYamlObject } from "./yaml.ts";
 
@@ -150,10 +151,12 @@ const force = args.has("--force");
 const dryRun = args.has("--dry-run");
 const projectRoot = resolve(import.meta.dir, "..");
 const configDir = resolve(projectRoot, "config");
+const binDir = resolve(projectRoot, "bin");
 const homeDir = resolve(Bun.env.HOME ?? Bun.env.USERPROFILE ?? "");
 const targetConfigDir = resolve(homeDir, ".config", "opencode");
 const targetOpenCode = resolve(targetConfigDir, "opencode.json");
 const targetOhMyOpenAgent = resolve(targetConfigDir, "oh-my-openagent.json");
+const targetBinDir = resolve(homeDir, ".local", "bin");
 
 if (!targetConfigDir.startsWith(homeDir)) {
   throw new Error("无法解析用户级 OpenCode 配置目录。请检查 HOME 或 USERPROFILE 环境变量。");
@@ -176,10 +179,13 @@ const ohMyOpenAgentConfig = buildOhMyOpenAgentConfig(models, agentsConfig);
 if (!dryRun) await mkdir(targetConfigDir, { recursive: true });
 await writeJson(targetOpenCode, openCodeConfig);
 await writeJson(targetOhMyOpenAgent, ohMyOpenAgentConfig);
+await installLaunchers();
 
 console.log(`${dryRun ? "将生成" : "已生成"} OpenCode 配置：${targetOpenCode}`);
 console.log(`${dryRun ? "将生成" : "已生成"} oh-my-openagent 配置：${targetOhMyOpenAgent}`);
+console.log(`${dryRun ? "将安装" : "已安装"} 启动命令目录：${targetBinDir}`);
 console.log("说明：provider/model/agents/categories/runtime_fallback/background_task/tmux 均来自 config/*.yaml。");
+console.log("启动命令：aiomo = OMO 编排模式，aioc = OpenCode 原生 Build/Plan 模式。");
 
 async function loadYaml<T extends object>(fileName: string): Promise<T> {
   const value = parseYamlObject(await readFile(resolve(configDir, fileName), "utf8"));
@@ -401,6 +407,65 @@ async function writeJson(path: string, value: unknown): Promise<void> {
   }
 
   await writeFile(path, content);
+}
+
+async function installLaunchers(): Promise<void> {
+  const launcherFiles = process.platform === "win32" ? ["aiomo.cmd", "aioc.cmd"] : ["aiomo", "aioc"];
+  if (dryRun) {
+    for (const fileName of launcherFiles) {
+      console.log(`将安装启动命令：${resolve(targetBinDir, fileName)}`);
+    }
+    if (process.platform === "win32") {
+      console.log(`将确保用户 PATH 包含：${targetBinDir}`);
+    } else {
+      console.log(`请确保 shell PATH 包含：${targetBinDir}`);
+    }
+    return;
+  }
+
+  await mkdir(targetBinDir, { recursive: true });
+  for (const fileName of launcherFiles) {
+    await copyFile(resolve(binDir, fileName), resolve(targetBinDir, fileName));
+  }
+
+  if (process.platform === "win32") {
+    ensureWindowsUserPath(targetBinDir);
+  } else {
+    console.log(`请确保 shell PATH 包含：${targetBinDir}`);
+  }
+}
+
+function ensureWindowsUserPath(path: string): void {
+  const currentPath = process.env.Path ?? process.env.PATH ?? "";
+  if (pathListIncludes(currentPath, path)) return;
+
+  const result = spawnSync(
+    "powershell.exe",
+    [
+      "-NoProfile",
+      "-Command",
+      "$pathToAdd = $env:AI_SHARE_BIN_DIR; " +
+        "$current = [Environment]::GetEnvironmentVariable('Path', 'User'); " +
+        "if (-not $current) { $current = '' }; " +
+        "$parts = $current -split ';' | Where-Object { $_ }; " +
+        "if ($parts -notcontains $pathToAdd) { " +
+        "  $newPath = (@($parts) + $pathToAdd) -join ';'; " +
+        "  [Environment]::SetEnvironmentVariable('Path', $newPath, 'User') " +
+        "}",
+    ],
+    { env: { ...process.env, AI_SHARE_BIN_DIR: path }, stdio: "pipe", encoding: "utf8" },
+  );
+
+  if (result.status !== 0) {
+    throw new Error(result.stderr.trim() || "更新 Windows 用户 PATH 失败。");
+  }
+}
+
+function pathListIncludes(pathList: string, expectedPath: string): boolean {
+  return pathList
+    .split(process.platform === "win32" ? ";" : ":")
+    .filter(Boolean)
+    .some((entry) => resolve(entry).toLowerCase() === resolve(expectedPath).toLowerCase());
 }
 
 async function pathExists(path: string): Promise<boolean> {
