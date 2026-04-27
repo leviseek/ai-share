@@ -50,6 +50,7 @@ describe("generate-user-config", () => {
       const stdout = new TextDecoder().decode(result.stdout);
       expect(stdout).toContain("将生成 OpenCode 配置");
       expect(stdout).toContain("将安装 启动命令目录");
+      if (process.platform === "win32") expect(stdout).toContain("aioc.ps1");
       expect(await Bun.file(resolve(homeDir, ".config", "opencode")).exists()).toBe(false);
     } finally {
       await rm(homeDir, { force: true, recursive: true });
