@@ -4,177 +4,30 @@ import { spawnSync } from "node:child_process";
 import { constants } from "node:fs";
 import { access, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import type {
+  AgentsYaml,
+  AgentSource,
+  BackgroundTaskSource,
+  CliOptions,
+  GlobalYaml,
+  ModelRoleMap,
+  ModelsYaml,
+  OmoProfileManifest,
+  OhMyAgent,
+  OhMyOpenAgentConfig,
+  OpenCodeConfig,
+  OpenCodeModel,
+  OpenCodeProvider,
+  ProfilesYaml,
+  ProviderGroupMap,
+  ProviderSource,
+  ProviderYaml,
+  RuntimeFallbackSource,
+} from "./types.ts";
 import { parseYamlObject } from "./yaml.ts";
 
-type ProviderYaml = {
-  providers?: Record<string, ProviderSource>;
-};
-
-type ProviderSource = {
-  name?: string;
-  short_name?: string;
-  npm?: string;
-  base_url?: string;
-  api_key?: string;
-  timeout?: number;
-  chunkTimeout?: number;
-};
-
-type ModelsYaml = Record<string, ModelSource>;
-
-type ModelSource = {
-  provider?: string;
-  provider_group?: string;
-  model_name?: string;
-  capabilities?: string[];
-  limits?: {
-    max_output?: number;
-  };
-  parameters?: Record<string, unknown>;
-  fallback?: string[];
-};
-
-type AgentsYaml = {
-  model_fallback?: boolean;
-  agents?: Record<string, AgentSource>;
-  categories?: Record<string, AgentSource>;
-  runtime_fallback?: RuntimeFallbackSource;
-  background_task?: BackgroundTaskSource;
-  tmux?: {
-    enabled?: boolean;
-  };
-};
-
-type ProfilesYaml = Record<string, AgentProfileSource>;
-
-type AgentProfileSource = {
-  name?: string;
-  models?: Record<string, string>;
-};
-
-type AgentSource = {
-  model?: string;
-  prompt?: {
-    system?: string;
-    append?: string;
-  };
-  permission?: Record<string, string>;
-};
-
-type RuntimeFallbackSource = {
-  enabled?: boolean;
-  retry_on_errors?: number[];
-  max_fallback_attempts?: number;
-  cooldown_seconds?: number;
-  timeout_seconds?: number;
-  notify_on_fallback?: boolean;
-  model_whitelist?: string[];
-};
-
-type BackgroundTaskSource = {
-  providerConcurrency?: Record<string, number>;
-  modelConcurrency?: Record<string, number>;
-};
-
-type GlobalYaml = {
-  default_profile?: string;
-  opencode?: {
-    plugins?: string[];
-  };
-  models?: {
-    default?: string;
-    small?: string;
-  };
-  runtime?: {
-    timeout_ms?: number;
-  };
-  context?: {
-    max_tokens?: number;
-  };
-  compaction?: {
-    enabled?: boolean;
-    threshold?: number;
-    model?: string;
-    max_input_tokens?: number;
-  };
-};
-
-type OpenCodeConfig = {
-  $schema: string;
-  model: string;
-  small_model: string;
-  instructions: string[];
-  plugin: string[];
-  compaction: {
-    enabled: boolean;
-    threshold: number;
-    model: string;
-    max_input_tokens: number;
-  };
-  agent: Record<string, OpenCodeAgent>;
-  provider: Record<string, OpenCodeProvider>;
-};
-
-type OpenCodeAgent = {
-  mode?: "primary" | "subagent";
-  model: string;
-  max_tokens?: number;
-  permission?: Record<string, string>;
-};
-
-type OpenCodeProvider = {
-  name: string;
-  npm: string;
-  options: {
-    baseURL: string;
-    apiKey: string;
-    timeout?: number;
-    chunkTimeout?: number;
-  };
-  models: Record<string, OpenCodeModel>;
-};
-
-type OpenCodeModel = {
-  id?: string;
-  name: string;
-  options?: Record<string, unknown>;
-};
-
-type OhMyOpenAgentConfig = {
-  $schema: string;
-  model_fallback: boolean;
-  agents: Record<string, OhMyAgent>;
-  categories: Record<string, OhMyAgent>;
-  runtime_fallback: {
-    enabled: boolean;
-    retry_on_errors: number[];
-    max_fallback_attempts: number;
-    cooldown_seconds: number;
-    timeout_seconds: number;
-    notify_on_fallback: boolean;
-    model_whitelist: string[];
-  };
-  background_task: {
-    providerConcurrency: Record<string, number>;
-    modelConcurrency: Record<string, number>;
-  };
-  tmux: {
-    enabled: boolean;
-  };
-};
-
-type OhMyAgent = {
-  model: string;
-  fallback_models?: string[];
-  prompt_append?: string;
-  permission?: Record<string, string>;
-};
-
-const args = new Set(Bun.argv.slice(2));
-const force = args.has("--force");
-const dryRun = args.has("--dry-run");
-const checkOnly = args.has("--check");
-const providerGroups = parseProviderGroups();
+const cliOptions = parseCliOptions();
+const { force, dryRun, checkOnly, providerGroups } = cliOptions;
 const projectRoot = resolve(import.meta.dir, "..");
 const configDir = resolve(projectRoot, "config");
 const binDir = resolve(projectRoot, "bin");
@@ -260,6 +113,16 @@ async function loadYaml<T extends object>(fileName: string): Promise<T> {
   return value as T;
 }
 
+function parseCliOptions(): CliOptions {
+  const args = new Set(Bun.argv.slice(2));
+  return {
+    force: args.has("--force"),
+    dryRun: args.has("--dry-run"),
+    checkOnly: args.has("--check"),
+    providerGroups: parseProviderGroups(),
+  };
+}
+
 function parseOption(name: string): string | undefined {
   const values = Bun.argv.slice(2);
   for (let index = 0; index < values.length; index += 1) {
@@ -270,7 +133,7 @@ function parseOption(name: string): string | undefined {
   return undefined;
 }
 
-function parseProviderGroups(): Record<string, string> {
+function parseProviderGroups(): ProviderGroupMap {
   return {
     gpt: parseOption("--gpt-provider") ?? Bun.env.AI_SHARE_GPT_PROVIDER ?? "codexapis",
     deepseek: Bun.env.AI_SHARE_DEEPSEEK_PROVIDER ?? "deepseek",
@@ -278,8 +141,8 @@ function parseProviderGroups(): Record<string, string> {
   };
 }
 
-function parseProviderGroupOptions(): Record<string, string> {
-  const output: Record<string, string> = {};
+function parseProviderGroupOptions(): ProviderGroupMap {
+  const output: ProviderGroupMap = {};
   for (const value of parseOptions("--provider-group")) {
     const separatorIndex = value.indexOf("=");
     if (separatorIndex <= 0 || separatorIndex === value.length - 1) {
@@ -308,7 +171,7 @@ function parseOptions(name: string): string[] {
 function applyProviderGroups(
   modelSources: ModelsYaml,
   providerSources: Record<string, ProviderSource>,
-  providerGroups: Record<string, string>,
+  providerGroups: ProviderGroupMap,
 ): ModelsYaml {
   for (const [groupId, providerId] of Object.entries(providerGroups)) {
     if (!providerSources[providerId]) throw new Error(`模型组 ${groupId} 指向未定义提供商：${providerId}`);
@@ -322,7 +185,7 @@ function applyProviderGroups(
   );
 }
 
-function requireProviderGroup(groupId: string, providerGroups: Record<string, string>): string {
+function requireProviderGroup(groupId: string, providerGroups: ProviderGroupMap): string {
   return requireString(providerGroups[groupId], `provider_group.${groupId}`);
 }
 
@@ -478,7 +341,7 @@ function buildProviderModels(
 function buildConfiguredAgents(
   agentSources: Record<string, AgentSource>,
   modelSources: ModelsYaml,
-  profileModels: Record<string, string>,
+  profileModels: ModelRoleMap,
 ): Record<string, OhMyAgent> {
   return Object.fromEntries(
     Object.entries(agentSources).map(([agentId, agent]) => {
@@ -502,7 +365,7 @@ function buildConfiguredAgents(
 function buildRuntimeFallback(
   source: RuntimeFallbackSource,
   modelSources: ModelsYaml,
-  profileModels: Record<string, string>,
+  profileModels: ModelRoleMap,
 ): OhMyOpenAgentConfig["runtime_fallback"] {
   return {
     enabled: source.enabled ?? true,
@@ -520,7 +383,7 @@ function buildRuntimeFallback(
 function buildBackgroundTask(
   source: BackgroundTaskSource,
   modelSources: ModelsYaml,
-  profileModels: Record<string, string>,
+  profileModels: ModelRoleMap,
 ): OhMyOpenAgentConfig["background_task"] {
   return {
     providerConcurrency: buildProviderConcurrency(source.providerConcurrency ?? {}, modelSources),
@@ -576,7 +439,7 @@ function pickSmallModel(globalConfig: GlobalYaml, modelSources: ModelsYaml): str
   return modelId ?? pickDefaultModel(globalConfig, modelSources);
 }
 
-function modelRef(modelId: string, modelSources: ModelsYaml, profileModels: Record<string, string> = {}): string {
+function modelRef(modelId: string, modelSources: ModelsYaml, profileModels: ModelRoleMap = {}): string {
   const resolvedModelId = profileModels[modelId] ?? modelId;
   if (profileModels[resolvedModelId]) {
     throw new Error(`profile 模型别名不能递归引用：${modelId}`);
@@ -587,7 +450,10 @@ function modelRef(modelId: string, modelSources: ModelsYaml, profileModels: Reco
   return `${provider}/${resolvedModelId}`;
 }
 
-function buildProfileManifest(profilesConfig: ProfilesYaml, selectedDefaultProfileId: string): object {
+function buildProfileManifest(
+  profilesConfig: ProfilesYaml,
+  selectedDefaultProfileId: string,
+): OmoProfileManifest {
   return {
     default_profile: selectedDefaultProfileId,
     profiles: Object.keys(requireRecord(profilesConfig, "profiles")),
