@@ -48,6 +48,7 @@ export type GlobalYaml = {
   features?: GlobalFeatures;
   runtime?: GlobalRuntime;
   opencode?: GlobalOpenCode;
+  tui?: GlobalTui;
   models?: GlobalModels;
   context?: GlobalContext;
   compaction?: GlobalCompaction;
@@ -72,6 +73,10 @@ export type GlobalRuntime = {
 };
 
 export type GlobalOpenCode = {
+  plugins?: string[];
+};
+
+export type GlobalTui = {
   plugins?: string[];
 };
 
@@ -153,6 +158,11 @@ export type OpenCodeConfig = {
   compaction: OpenCodeCompaction;
   agent: Record<string, OpenCodeAgent>;
   provider: Record<string, OpenCodeProvider>;
+};
+
+export type TuiConfig = {
+  $schema: string;
+  plugin: string[];
 };
 
 export type OpenCodeCompaction = {

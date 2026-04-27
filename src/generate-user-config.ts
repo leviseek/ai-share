@@ -2,7 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import { constants } from "node:fs";
-import { access, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, cp, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type {
   AgentsYaml,
@@ -23,6 +23,7 @@ import type {
   ProviderSource,
   ProviderYaml,
   RuntimeFallbackSource,
+  TuiConfig,
 } from "./types.ts";
 import { parseYamlObject } from "./yaml.ts";
 
@@ -31,12 +32,15 @@ const { force, dryRun, checkOnly, providerGroups } = cliOptions;
 const projectRoot = resolve(import.meta.dir, "..");
 const configDir = resolve(projectRoot, "config");
 const binDir = resolve(projectRoot, "bin");
+const pluginDir = resolve(projectRoot, "plugins");
 const homeDir = resolve(Bun.env.HOME ?? Bun.env.USERPROFILE ?? "");
 const targetConfigDir = resolve(homeDir, ".config", "opencode");
 const targetOpenCode = resolve(targetConfigDir, "opencode.json");
+const targetTui = resolve(targetConfigDir, "tui.json");
 const targetOhMyOpenAgent = resolve(targetConfigDir, "oh-my-openagent.json");
 const targetProfileManifest = resolve(targetConfigDir, ".omo-profiles.json");
 const targetBinDir = resolve(homeDir, ".local", "bin");
+const targetPluginDir = resolve(targetConfigDir, "plugins");
 
 if (!targetConfigDir.startsWith(homeDir)) {
   throw new Error("无法解析用户级 OpenCode 配置目录。请检查 HOME 或 USERPROFILE 环境变量。");
@@ -55,6 +59,7 @@ const models = applyProviderGroups(modelsConfig, providers, providerGroups);
 const defaultModel = modelRef(pickDefaultModel(globalConfig, models), models);
 const smallModel = modelRef(pickSmallModel(globalConfig, models), models);
 const openCodeConfigs = buildOpenCodeConfigs(globalConfig, providers, models, profilesConfig, defaultModel, smallModel);
+const tuiConfig = buildTuiConfig(globalConfig);
 const ohMyOpenAgentConfigs = buildOhMyOpenAgentConfigs(models, profilesConfig, agentsConfig);
 const selectedDefaultProfileId = defaultProfileId(globalConfig, profilesConfig);
 const selectedOpenCodeConfig = requireValue(openCodeConfigs[selectedDefaultProfileId], "默认 OpenCode profile");
@@ -86,14 +91,17 @@ for (const [profileId, openCodeConfig] of Object.entries(openCodeConfigs)) {
   await writeJson(profileOpenCodePath(profileId), openCodeConfig);
 }
 await writeJson(targetOpenCode, selectedOpenCodeConfig);
+await writeJson(targetTui, tuiConfig);
 for (const [profileId, ohMyOpenAgentConfig] of Object.entries(ohMyOpenAgentConfigs)) {
   await writeJson(profileOhMyOpenAgentPath(profileId), ohMyOpenAgentConfig);
 }
 await writeJson(targetOhMyOpenAgent, requireValue(ohMyOpenAgentConfigs[selectedDefaultProfileId], "默认 OMO profile"));
 await writeJson(targetProfileManifest, buildProfileManifest(profilesConfig, selectedDefaultProfileId));
+await installPlugins();
 await installLaunchers();
 
 console.log(`${dryRun ? "将生成" : "已生成"} OpenCode 配置：${targetOpenCode}`);
+console.log(`${dryRun ? "将生成" : "已生成"} OpenCode TUI 配置：${targetTui}`);
 console.log(
   `${dryRun ? "将生成" : "已生成"} OpenCode 级别配置：${Object.keys(openCodeConfigs)
     .map((profileId) => `aiomo ${profileId}`)
@@ -107,8 +115,9 @@ console.log(
     .join(" / ")}`,
 );
 console.log(`${dryRun ? "将安装" : "已安装"} 启动命令目录：${targetBinDir}`);
+console.log(`${dryRun ? "将安装" : "已安装"} OpenCode 本地插件目录：${targetPluginDir}`);
 console.log(
-  "说明：provider/model/profiles/agents/categories/runtime_fallback/background_task/tmux 均来自 config/*.yaml。",
+  "说明：provider/model/profiles/agents/categories/runtime_fallback/background_task/tmux/plugin 均来自 config/*.yaml。",
 );
 console.log(
   `模型组提供商：${Object.entries(providerGroups)
@@ -276,6 +285,13 @@ function buildOpenCodeConfig(
       summary: { model: smallModelRef },
     },
     provider: buildProviders(providerSources, modelSources),
+  };
+}
+
+function buildTuiConfig(globalConfig: GlobalYaml): TuiConfig {
+  return {
+    $schema: "https://opencode.ai/tui.json",
+    plugin: globalConfig.tui?.plugins ?? [],
   };
 }
 
@@ -596,6 +612,24 @@ async function installLaunchers(): Promise<void> {
     ensureWindowsUserPath(targetBinDir);
   } else {
     console.log(`请确保 shell PATH 包含：${targetBinDir}`);
+  }
+}
+
+async function installPlugins(): Promise<void> {
+  const pluginDirectories = ["omo-agent-monitor"];
+  if (dryRun) {
+    for (const directoryName of pluginDirectories) {
+      console.log(`将安装 OpenCode 本地插件：${resolve(targetPluginDir, directoryName)}`);
+    }
+    return;
+  }
+
+  await mkdir(targetPluginDir, { recursive: true });
+  for (const directoryName of pluginDirectories) {
+    await cp(resolve(pluginDir, directoryName), resolve(targetPluginDir, directoryName), {
+      recursive: true,
+      force: true,
+    });
   }
 }
 

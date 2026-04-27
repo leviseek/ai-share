@@ -17,6 +17,11 @@ runtime:
 opencode:
   plugins:
     - oh-my-openagent@3.17.5
+    - ./plugins/omo-agent-monitor
+
+tui:
+  plugins:
+    - ./plugins/omo-agent-monitor
 
 models:
   default: gpt-5.5
