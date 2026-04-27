@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "ai:check": "bun run ./src/generate-user-config.ts --dry-run",
+    "ai:check": "bun run ./src/generate-user-config.ts --check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "ai:gen": "bun run ./src/generate-user-config.ts",

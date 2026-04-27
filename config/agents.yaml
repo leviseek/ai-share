@@ -90,7 +90,7 @@ runtime_fallback:
 
 background_task:
   providerConcurrency:
-    codexapis: 3
+    gpt: 3
     deepseek: 1
   modelConcurrency:
     primary: 2

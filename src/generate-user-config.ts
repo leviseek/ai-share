@@ -22,6 +22,7 @@ type ModelsYaml = Record<string, ModelSource>;
 
 type ModelSource = {
   provider?: string;
+  provider_group?: string;
   model_name?: string;
   capabilities?: string[];
   limits?: {
@@ -156,6 +157,8 @@ type OhMyAgent = {
 const args = new Set(Bun.argv.slice(2));
 const force = args.has("--force");
 const dryRun = args.has("--dry-run");
+const checkOnly = args.has("--check");
+const providerGroups = parseProviderGroups();
 const projectRoot = resolve(import.meta.dir, "..");
 const configDir = resolve(projectRoot, "config");
 const binDir = resolve(projectRoot, "bin");
@@ -178,11 +181,31 @@ const [globalConfig, providersConfig, modelsConfig, profilesConfig, agentsConfig
 ]);
 
 const providers = providersConfig.providers ?? {};
-const models = modelsConfig;
+const models = applyProviderGroups(modelsConfig, providers, providerGroups);
 const defaultModel = modelRef(pickDefaultModel(models), models);
 const smallModel = modelRef(pickSmallModel(models), models);
 const openCodeConfig = buildOpenCodeConfig(globalConfig, providers, models, defaultModel, smallModel);
 const ohMyOpenAgentConfigs = buildOhMyOpenAgentConfigs(models, profilesConfig, agentsConfig);
+
+if (checkOnly) {
+  const missingApiKeys = missingProviderApiKeyEnvNames(providers);
+  console.log("配置检查通过。");
+  console.log(`OpenCode provider 数量：${Object.keys(openCodeConfig.provider).length}`);
+  console.log(`已配置 provider 数量：${Object.keys(providers).length}`);
+  console.log(`模型分组：${modelProviderGroups(modelsConfig).join(" / ")}`);
+  console.log(`OMO 编排级别：${Object.keys(ohMyOpenAgentConfigs).join(" / ")}`);
+  console.log(
+    `模型组提供商：${Object.entries(providerGroups)
+      .map(([groupId, providerId]) => `${groupId}=${providerId}`)
+      .join(" / ")}`,
+  );
+  if (missingApiKeys.length > 0) {
+    console.warn(`API Key 环境变量未设置：${missingApiKeys.join(" / ")}`);
+  } else {
+    console.log("API Key 环境变量已设置。");
+  }
+  process.exit(0);
+}
 
 if (!dryRun) await mkdir(targetConfigDir, { recursive: true });
 await writeJson(targetOpenCode, openCodeConfig);
@@ -206,11 +229,97 @@ console.log(`${dryRun ? "将安装" : "已安装"} 启动命令目录：${target
 console.log(
   "说明：provider/model/profiles/agents/categories/runtime_fallback/background_task/tmux 均来自 config/*.yaml。",
 );
+console.log(
+  `模型组提供商：${Object.entries(providerGroups)
+    .map(([groupId, providerId]) => `${groupId}=${providerId}`)
+    .join(" / ")}`,
+);
 console.log("启动命令：aiomo [lite|balanced|max] = OMO 编排模式，aioc = OpenCode 原生 Build/Plan 模式。");
 
 async function loadYaml<T extends object>(fileName: string): Promise<T> {
   const value = parseYamlObject(await readFile(resolve(configDir, fileName), "utf8"));
   return value as T;
+}
+
+function parseOption(name: string): string | undefined {
+  const values = Bun.argv.slice(2);
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (value === name) return values[index + 1];
+    if (value?.startsWith(`${name}=`)) return value.slice(name.length + 1);
+  }
+  return undefined;
+}
+
+function parseProviderGroups(): Record<string, string> {
+  return {
+    gpt: parseOption("--gpt-provider") ?? Bun.env.AI_SHARE_GPT_PROVIDER ?? "codexapis",
+    deepseek: Bun.env.AI_SHARE_DEEPSEEK_PROVIDER ?? "deepseek",
+    ...parseProviderGroupOptions(),
+  };
+}
+
+function parseProviderGroupOptions(): Record<string, string> {
+  const output: Record<string, string> = {};
+  for (const value of parseOptions("--provider-group")) {
+    const separatorIndex = value.indexOf("=");
+    if (separatorIndex <= 0 || separatorIndex === value.length - 1) {
+      throw new Error(`--provider-group 必须使用 group=provider 格式：${value}`);
+    }
+    output[value.slice(0, separatorIndex)] = value.slice(separatorIndex + 1);
+  }
+  return output;
+}
+
+function parseOptions(name: string): string[] {
+  const output: string[] = [];
+  const values = Bun.argv.slice(2);
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (value === name) {
+      const nextValue = values[index + 1];
+      if (!nextValue) throw new Error(`缺少参数值：${name}`);
+      output.push(nextValue);
+    }
+    if (value?.startsWith(`${name}=`)) output.push(value.slice(name.length + 1));
+  }
+  return output;
+}
+
+function applyProviderGroups(
+  modelSources: ModelsYaml,
+  providerSources: Record<string, ProviderSource>,
+  providerGroups: Record<string, string>,
+): ModelsYaml {
+  for (const [groupId, providerId] of Object.entries(providerGroups)) {
+    if (!providerSources[providerId]) throw new Error(`模型组 ${groupId} 指向未定义提供商：${providerId}`);
+  }
+
+  return Object.fromEntries(
+    Object.entries(modelSources).map(([modelId, model]) => [
+      modelId,
+      model.provider_group ? { ...model, provider: requireProviderGroup(model.provider_group, providerGroups) } : model,
+    ]),
+  );
+}
+
+function requireProviderGroup(groupId: string, providerGroups: Record<string, string>): string {
+  return requireString(providerGroups[groupId], `provider_group.${groupId}`);
+}
+
+function missingProviderApiKeyEnvNames(providerSources: Record<string, ProviderSource>): string[] {
+  return Object.values(providerSources)
+    .map((provider) => apiKeyEnvName(formatApiKey(requireString(provider.api_key, "providers.*.api_key"))))
+    .filter((envName): envName is string => Boolean(envName))
+    .filter((envName) => !Bun.env[envName]);
+}
+
+function modelProviderGroups(modelSources: ModelsYaml): string[] {
+  return unique(Object.values(modelSources).map((model) => model.provider_group ?? model.provider ?? "未分组"));
+}
+
+function apiKeyEnvName(value: string): string | undefined {
+  return /^\{env:([A-Z0-9_]+)\}$/.exec(value)?.[1];
 }
 
 function buildOpenCodeConfig(
@@ -300,6 +409,9 @@ function buildProviders(
 ): Record<string, OpenCodeProvider> {
   const output: Record<string, OpenCodeProvider> = {};
   for (const [providerId, provider] of Object.entries(providerSources)) {
+    const models = buildProviderModels(providerId, modelSources);
+    if (Object.keys(models).length === 0) continue;
+
     const options: OpenCodeProvider["options"] = {
       baseURL: requireString(provider.base_url, `providers.${providerId}.base_url`),
       apiKey: formatApiKey(requireString(provider.api_key, `providers.${providerId}.api_key`)),
@@ -311,7 +423,7 @@ function buildProviders(
       name: provider.name ?? formatName(providerId),
       npm: "@ai-sdk/openai-compatible",
       options,
-      models: buildProviderModels(providerId, modelSources),
+      models,
     };
   }
   return output;
@@ -378,7 +490,7 @@ function buildBackgroundTask(
   profileModels: Record<string, string>,
 ): OhMyOpenAgentConfig["background_task"] {
   return {
-    providerConcurrency: source.providerConcurrency ?? {},
+    providerConcurrency: buildProviderConcurrency(source.providerConcurrency ?? {}, modelSources),
     modelConcurrency: Object.fromEntries(
       Object.entries(source.modelConcurrency ?? {}).map(([modelId, concurrency]) => [
         modelRef(modelId, modelSources, profileModels),
@@ -386,6 +498,20 @@ function buildBackgroundTask(
       ]),
     ),
   };
+}
+
+function buildProviderConcurrency(source: Record<string, number>, modelSources: ModelsYaml): Record<string, number> {
+  const output: Record<string, number> = {};
+  for (const [providerId, concurrency] of Object.entries(source)) {
+    const resolvedProviderId = resolveProviderId(providerId, modelSources);
+    output[resolvedProviderId] = Math.max(output[resolvedProviderId] ?? 0, concurrency);
+  }
+  return output;
+}
+
+function resolveProviderId(providerId: string, modelSources: ModelsYaml): string {
+  const groupProvider = Object.values(modelSources).find((model) => model.provider_group === providerId)?.provider;
+  return groupProvider ?? providerId;
 }
 
 function withFallback(model: string, modelSources: ModelsYaml, extra: Partial<OhMyAgent> = {}): OhMyAgent {

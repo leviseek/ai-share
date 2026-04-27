@@ -1,6 +1,6 @@
-# ==================== codexapis 提供的 GPT 模型 ====================
+# ==================== GPT 兼容模型组 ====================
 gpt-5.5:
-  provider: codexapis
+  provider_group: gpt
   model_name: gpt-5.5
   capabilities:
     - reasoning
@@ -17,7 +17,7 @@ gpt-5.5:
     - gpt-5.4
 
 gpt-5.4:
-  provider: codexapis
+  provider_group: gpt
   model_name: gpt-5.4
   capabilities:
     - reasoning
@@ -34,7 +34,7 @@ gpt-5.4:
     - gpt-5.4-mini
 
 gpt-5.4-mini:
-  provider: codexapis
+  provider_group: gpt
   model_name: gpt-5.4-mini
   capabilities:
     - cheap
@@ -49,7 +49,7 @@ gpt-5.4-mini:
   temperature: 0.2
 
 gpt-5.3-codex:
-  provider: codexapis
+  provider_group: gpt
   model_name: gpt-5.3-codex
   capabilities:
     - coding
@@ -62,9 +62,9 @@ gpt-5.3-codex:
     max_output: 8192
   temperature: 0.1
 
-# ==================== deepseek 提供的原生模型 ====================
+# ==================== DeepSeek 兼容模型组 ====================
 deepseek-v4-pro-think-max:
-  provider: deepseek
+  provider_group: deepseek
   model_name: deepseek-v4-pro
   capabilities:
     - reasoning
@@ -87,7 +87,7 @@ deepseek-v4-pro-think-max:
     - deepseek-v4-flash-think
 
 deepseek-v4-pro-think:
-  provider: deepseek
+  provider_group: deepseek
   model_name: deepseek-v4-pro
   capabilities:
     - reasoning
@@ -108,7 +108,7 @@ deepseek-v4-pro-think:
     - deepseek-v4-flash-think
 
 deepseek-v4-flash-think:
-  provider: deepseek
+  provider_group: deepseek
   model_name: deepseek-v4-flash
   capabilities:
     - reasoning
@@ -129,7 +129,7 @@ deepseek-v4-flash-think:
     - deepseek-v4-flash
 
 deepseek-v4-flash:
-  provider: deepseek
+  provider_group: deepseek
   model_name: deepseek-v4-flash
   capabilities:
     - fast

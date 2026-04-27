@@ -12,6 +12,13 @@ providers:
     timeout: 600000
     chunkTimeout: 30000
 
+  packyapi:
+    name: Packy API
+    base_url: https://www.packyapi.com/v1
+    api_key: ${PACKYAPI_API_KEY}
+    timeout: 600000
+    chunkTimeout: 30000
+
   deepseek:
     name: DeepSeek
     base_url: https://api.deepseek.com

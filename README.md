@@ -18,13 +18,13 @@
 bun install
 ```
 
-预览将生成的用户级配置：
+检查 YAML 配置和生成逻辑，不写入文件、不安装启动命令：
 
 ```sh
 bun run ai:check
 ```
 
-或直接运行生成脚本的 dry-run：
+预览将生成的用户级配置内容：
 
 ```sh
 bun run ai:gen -- --dry-run
@@ -40,6 +40,26 @@ bun run ai:gen
 
 ```sh
 bun run ai:gen -- --force
+```
+
+默认模型组提供商为 `gpt=codexapis`、`deepseek=deepseek`；如需切换 GPT 模型组到 Packy API：
+
+```sh
+bun run ai:gen -- --gpt-provider packyapi
+bun run ai:gen -- --gpt-provider packyapi --force
+```
+
+也可以用通用模型组参数指定一个或多个分组：
+
+```sh
+bun run ai:gen -- --provider-group gpt=packyapi --provider-group deepseek=packyapi --force
+```
+
+也可以使用环境变量指定：
+
+```sh
+AI_SHARE_GPT_PROVIDER=packyapi bun run ai:gen -- --force
+AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ```
 
 生成结果位于当前用户的 OpenCode 配置目录：
@@ -170,7 +190,7 @@ max：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4
 ```text
 config/global.yaml    -> 全局运行和上下文参数
 config/provider.yaml  -> 模型提供商、baseURL、API Key 环境变量名
-config/models.yaml    -> 模型列表、上游模型名、参数、fallback
+config/models.yaml    -> 模型列表、provider/provider_group、上游模型名、参数、fallback
 config/profiles.yaml  -> OMO 编排级别和模型角色映射
 config/agents.yaml    -> oh-my-openagent agents/categories/runtime_fallback/background_task
 ```
@@ -188,6 +208,7 @@ bun run ai:gen -- --force
 
 ```text
 CODEXAPIS_API_KEY
+PACKYAPI_API_KEY
 DEEPSEEK_API_KEY
 ```
 
@@ -195,6 +216,7 @@ Windows PowerShell 示例：
 
 ```powershell
 [Environment]::SetEnvironmentVariable("CODEXAPIS_API_KEY", "your-key", "User")
+[Environment]::SetEnvironmentVariable("PACKYAPI_API_KEY", "your-key", "User")
 [Environment]::SetEnvironmentVariable("DEEPSEEK_API_KEY", "your-key", "User")
 ```
 
@@ -202,6 +224,7 @@ macOS/Linux 示例：
 
 ```sh
 export CODEXAPIS_API_KEY="your-key"
+export PACKYAPI_API_KEY="your-key"
 export DEEPSEEK_API_KEY="your-key"
 ```
 
