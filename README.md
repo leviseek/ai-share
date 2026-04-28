@@ -93,6 +93,7 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ```text
 ~/.local/bin/aiomo
 ~/.local/bin/aioc
+~/.local/bin/aiomo-monitor
 ```
 
 Windows 下对应为：
@@ -102,9 +103,11 @@ Windows 下对应为：
 %USERPROFILE%\.local\bin\aiomo.ps1
 %USERPROFILE%\.local\bin\aioc.cmd
 %USERPROFILE%\.local\bin\aioc.ps1
+%USERPROFILE%\.local\bin\aiomo-monitor.cmd
+%USERPROFILE%\.local\bin\aiomo-monitor.ps1
 ```
 
-Windows 会自动把该目录加入用户级 PATH。已经打开的终端可能需要重启后才能直接使用 `aiomo` / `aioc`。
+Windows 会自动把该目录加入用户级 PATH。已经打开的终端可能需要重启后才能直接使用 `aiomo` / `aioc` / `aiomo-monitor`。
 
 macOS/Linux 不会自动修改 shell 配置；请确认 `~/.local/bin` 已在 PATH 中。
 
@@ -133,10 +136,13 @@ opencode --pure
 ```text
 bin/aiomo      -> opencode，并可选择 OMO 编排级别
 bin/aioc       -> opencode --pure
+bin/aiomo-monitor -> Windows 桌面独立监控浮窗
 bin/aiomo.cmd  -> opencode，并可选择 OMO 编排级别
 bin/aiomo.ps1  -> aiomo.cmd 使用的 PowerShell 启动逻辑
 bin/aioc.cmd   -> opencode --pure
 bin/aioc.ps1   -> PowerShell 原生 opencode --pure 启动逻辑
+bin/aiomo-monitor.cmd -> aiomo-monitor.ps1 启动包装器
+bin/aiomo-monitor.ps1 -> 桌面独立浮窗逻辑（置顶/拖拽/折叠）
 ```
 
 macOS/Linux shell PATH 示例：
@@ -150,6 +156,7 @@ export PATH="$HOME/.local/bin:$PATH"
 ```sh
 ~/.local/bin/aiomo
 ~/.local/bin/aioc
+~/.local/bin/aiomo-monitor
 ```
 
 之后可以在任意项目目录使用：
@@ -179,6 +186,9 @@ aioc
 # 原生 CLI 指定 agent
 aioc run --agent plan "请只输出计划，不要修改文件"
 aioc run --agent build "请说明当前项目结构"
+
+# 桌面独立监控浮窗（Windows）
+aiomo-monitor
 ```
 
 `aioc` 不切换 OMO 编排级别，会直接使用当前生效的 `opencode.json`；如果之前运行过 `aiomo lite` / `aiomo max` 等命令，`aioc` 会沿用最后一次切换后的 OpenCode 基础配置和 compaction 策略。
@@ -191,27 +201,31 @@ aioc run --agent build "请说明当前项目结构"
 ~/.config/opencode/plugins/omo-agent-monitor/
 ```
 
-在 OpenCode TUI 中打开命令面板，执行 `OMO agents monitor`，或输入 slash 命令：
+在 OpenCode TUI 中打开命令面板，执行 `OMO agents monitor (WebUI)`，或输入 slash 命令：
 
 ```text
 /omo-monitor
 ```
 
-监控浮窗使用紧凑玻璃风面板展示，并提供辅助命令用于折叠区块和滑动 agent 列表：
+命令会在浏览器打开本地 WebUI 浮窗（默认 `127.0.0.1` 随机端口）。
 
-```text
-/omo-monitor-toggle-todos
-/omo-monitor-toggle-agents
-/omo-monitor-prev
-/omo-monitor-next
+如果你希望使用桌面独立窗口（始终置顶、可拖拽、可折叠），可直接执行：
+
+```sh
+aiomo-monitor
 ```
+
+该命令会读取 `~/.config/opencode/omo-agent-monitor-state.json` 并每秒刷新显示。
 
 监控浮窗会显示：
 
 - 规划任务总数、完成进度、进行中任务和待处理任务。
+- 总消耗 token。
+- 已执行时长与空闲持续时长（以进度条和文本同时展示）。
 - 当前进行中的规划任务内容。
 - agents 列表，按运行中、重试、异常、空闲、未知排序。
-- 每个 agent 的状态、已执行任务数、平均执行时长和总执行时长。
+- 每个 agent 的状态、已执行任务数、平均每任务执行周期。
+- 支持拖拽浮窗位置，并支持折叠为仅显示基础信息条。
 
 指标由本地插件基于 OpenCode `tool.execute.before/after` 与 `todo.updated` 事件统计：同一个插件通过 `opencode.json` 提供采集器，通过 `tui.json` 提供浮窗入口。状态缓存写入当前用户配置目录的 `omo-agent-monitor-state.json`，不会写入仓库，也不会包含 API Key。
 

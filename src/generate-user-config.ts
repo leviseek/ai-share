@@ -590,7 +590,9 @@ async function writeJson(path: string, value: unknown): Promise<void> {
 
 async function installLaunchers(): Promise<void> {
   const launcherFiles =
-    process.platform === "win32" ? ["aiomo.cmd", "aiomo.ps1", "aioc.cmd", "aioc.ps1"] : ["aiomo", "aioc"];
+    process.platform === "win32"
+      ? ["aiomo.cmd", "aiomo.ps1", "aioc.cmd", "aioc.ps1", "aiomo-monitor.cmd", "aiomo-monitor.ps1"]
+      : ["aiomo", "aioc", "aiomo-monitor"];
   if (dryRun) {
     for (const fileName of launcherFiles) {
       console.log(`将安装启动命令：${resolve(targetBinDir, fileName)}`);
