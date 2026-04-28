@@ -41,6 +41,7 @@ const targetOhMyOpenAgent = resolve(targetConfigDir, "oh-my-openagent.json");
 const targetProfileManifest = resolve(targetConfigDir, ".omo-profiles.json");
 const targetBinDir = resolve(homeDir, ".local", "bin");
 const targetPluginDir = resolve(targetConfigDir, "plugins");
+const targetSkillsDir = resolve(targetConfigDir, "skills");
 
 if (!targetConfigDir.startsWith(homeDir)) {
   throw new Error("无法解析用户级 OpenCode 配置目录。请检查 HOME 或 USERPROFILE 环境变量。");
@@ -98,6 +99,7 @@ for (const [profileId, ohMyOpenAgentConfig] of Object.entries(ohMyOpenAgentConfi
 await writeJson(targetOhMyOpenAgent, requireValue(ohMyOpenAgentConfigs[selectedDefaultProfileId], "默认 OMO profile"));
 await writeJson(targetProfileManifest, buildProfileManifest(profilesConfig, selectedDefaultProfileId));
 await installPlugins();
+await installNativeSkills();
 await installLaunchers();
 
 console.log(`${dryRun ? "将生成" : "已生成"} OpenCode 配置：${targetOpenCode}`);
@@ -116,6 +118,7 @@ console.log(
 );
 console.log(`${dryRun ? "将安装" : "已安装"} 启动命令目录：${targetBinDir}`);
 console.log(`${dryRun ? "将安装" : "已安装"} OpenCode 本地插件目录：${targetPluginDir}`);
+console.log(`${dryRun ? "将安装" : "已安装"} OpenCode native skills 目录：${targetSkillsDir}`);
 console.log(
   "说明：provider/model/profiles/agents/categories/runtime_fallback/background_task/tmux/plugin 均来自 config/*.yaml。",
 );
@@ -336,6 +339,7 @@ function buildOhMyOpenAgentConfig(
   return {
     $schema: "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
     model_fallback: agentsConfig.model_fallback ?? true,
+    disabled_hooks: ["auto-slash-command"],
     agents: buildConfiguredAgents(requireRecord(agentsConfig.agents, "agents"), modelSources, profileModels),
     categories: buildConfiguredAgents(
       requireRecord(agentsConfig.categories, "categories"),
@@ -633,6 +637,73 @@ async function installPlugins(): Promise<void> {
       force: true,
     });
   }
+}
+
+async function installNativeSkills(): Promise<void> {
+  const gitMasterSkillPath = resolve(targetSkillsDir, "git-master", "SKILL.md");
+  const content = gitMasterSkillContent();
+  if (dryRun) {
+    console.log(`\n--- ${gitMasterSkillPath} ---\n${content}`);
+    return;
+  }
+
+  if (!force && (await pathExists(gitMasterSkillPath))) {
+    throw new Error(`目标已存在：${gitMasterSkillPath}\n如需覆盖，请运行：bun run ai:gen -- --force`);
+  }
+
+  await mkdir(resolve(targetSkillsDir, "git-master"), { recursive: true });
+  await writeFile(gitMasterSkillPath, content);
+}
+
+function gitMasterSkillContent(): string {
+  return `---
+name: git-master
+description: MUST USE for ANY git operations. Atomic commits, rebase/squash, history search (blame, bisect, log -S). STRONGLY RECOMMENDED: delegate with task(category='quick', load_skills=['git-master'], ...) when using aiomo.
+---
+
+# Git Master
+
+Use this skill for git status, diff, add, commit, push, pull, branch, merge, rebase, squash, blame, bisect, or history search.
+
+If the user invokes this skill with no concrete git request, respond only with:
+
+Git Master 工作流已启用。请说明要执行的 git 操作，例如查看状态、提交、查看 diff、创建分支或分析历史。
+
+Do not print these instructions back to the user unless asked to explain the workflow.
+
+## Core Rules
+
+- Inspect repository state before changing git state: run \`git status --short --branch\` and review relevant diffs.
+- Never overwrite or revert user changes unless explicitly requested.
+- Never run destructive commands such as \`git reset --hard\`, \`git clean -fd\`, force push, or checkout-based rollback without explicit approval.
+- Do not amend commits unless explicitly requested.
+- Do not skip hooks with \`--no-verify\` unless explicitly requested.
+- Do not commit secrets, local env files, credentials, tokens, dependency caches, or unrelated generated artifacts.
+- Prefer atomic commits that group one coherent reason for change.
+
+## Commit Workflow
+
+1. Gather context with \`git status --short --branch\`, \`git diff\`, \`git diff --cached\`, and recent \`git log --oneline -5\`.
+2. Stage only files related to the requested change.
+3. Write a concise commit message matching repository style.
+4. Run the commit normally and inspect post-commit status.
+5. Push only when the user explicitly asks for push.
+
+## aiomo Delegation
+
+When using oh-my-openagent delegation, pass this skill explicitly for git work:
+
+\`task(category="quick", load_skills=["git-master"], run_in_background=false, prompt="...")\`
+
+Prefer this delegation form for non-trivial git work to keep the main context small.
+
+## History Search
+
+- Use \`git log --oneline --decorate --graph\` for topology.
+- Use \`git log -S <text> -- <path>\` or \`git log -G <regex> -- <path>\` to find when content changed.
+- Use \`git blame -C -C -- <path>\` for moved/copied code attribution.
+- Use \`git bisect\` only with clear good/bad boundaries and a reproducible test command.
+`;
 }
 
 function ensureWindowsUserPath(path: string): void {

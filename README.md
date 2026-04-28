@@ -86,6 +86,7 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.config/opencode/plugins/omo-agent-monitor/package.json
 ~/.config/opencode/plugins/omo-agent-monitor/server.js
 ~/.config/opencode/plugins/omo-agent-monitor/tui.js
+~/.config/opencode/skills/git-master/SKILL.md
 ```
 
 同时会安装启动命令到用户级 bin 目录：
@@ -114,6 +115,8 @@ macOS/Linux 不会自动修改 shell 配置；请确认 `~/.local/bin` 已在 PA
 生成脚本只会把 API Key 写成 `{env:变量名}` 引用，不会把真实密钥写入配置文件。
 
 通用 AI 协作规范在 `AI_GUIDELINES.md`，生成的 OpenCode 配置会加载该文件。
+
+生成的 oh-my-openagent 配置会禁用 `auto-slash-command` hook，避免 native skills（例如 `/git-master`）被插件二次展开并在 TUI 中显示完整内部提示词。
 
 Git 提交规范在 `GIT_COMMIT_GUIDELINES.md`，提交信息使用 `option: 中文描述` 格式。
 

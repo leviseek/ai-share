@@ -202,6 +202,7 @@ export type OpenCodeModel = {
 export type OhMyOpenAgentConfig = {
   $schema: string;
   model_fallback: boolean;
+  disabled_hooks?: string[];
   agents: Record<string, OhMyAgent>;
   categories: Record<string, OhMyAgent>;
   runtime_fallback: OhMyRuntimeFallback;
