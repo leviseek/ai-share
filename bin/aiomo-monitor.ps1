@@ -2,9 +2,24 @@ $Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding = $Utf8NoBom
 $OutputEncoding = $Utf8NoBom
 
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
-Add-Type @"
+$HomeDir = if ($env:HOME) { $env:HOME } elseif ($env:USERPROFILE) { $env:USERPROFILE } else { [Environment]::GetFolderPath("UserProfile") }
+$StatePath = Join-Path $HomeDir ".config\opencode\omo-agent-monitor-state.json"
+$LaunchLogPath = Join-Path $HomeDir ".config\opencode\omo-agent-monitor-window.log"
+
+function Write-LaunchLog([string]$message) {
+  try {
+    $directory = Split-Path -Parent $LaunchLogPath
+    if (-not [System.IO.Directory]::Exists($directory)) { [System.IO.Directory]::CreateDirectory($directory) | Out-Null }
+    Add-Content -LiteralPath $LaunchLogPath -Value "[$([DateTimeOffset]::Now.ToString('o'))] $message" -Encoding UTF8
+  } catch {}
+}
+
+Write-LaunchLog "bootstrap pid=$PID home=$HomeDir state=$StatePath apartment=$([System.Threading.Thread]::CurrentThread.ApartmentState)"
+
+try {
+  Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+  Add-Type -AssemblyName System.Drawing -ErrorAction Stop
+  Add-Type @"
 using System;
 using System.Runtime.InteropServices;
 public static class NativeWindowDrag {
@@ -14,13 +29,16 @@ public static class NativeWindowDrag {
   public static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 }
 "@
+  Write-LaunchLog "assemblies loaded"
+} catch {
+  Write-LaunchLog "bootstrap error: $($_.Exception.GetType().FullName): $($_.Exception.Message)"
+  throw
+}
 
 $WM_NCLBUTTONDOWN = 0xA1
 $HTCAPTION = 0x2
 $HTBOTTOMRIGHT = 0x11
 
-$HomeDir = if ($env:HOME) { $env:HOME } elseif ($env:USERPROFILE) { $env:USERPROFILE } else { [Environment]::GetFolderPath("UserProfile") }
-$StatePath = Join-Path $HomeDir ".config\opencode\omo-agent-monitor-state.json"
 $DefaultAgentNames = @(
   "main",
   "build",
@@ -311,14 +329,25 @@ $form = New-Object System.Windows.Forms.Form
 $form.Text = "OMO Monitor"
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
 $form.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
-$form.Location = New-Object System.Drawing.Point(120, 120)
 $form.Size = New-Object System.Drawing.Size(860, 560)
 $form.MinimumSize = New-Object System.Drawing.Size(660, 360)
 $form.Padding = New-Object System.Windows.Forms.Padding(1)
 $form.BackColor = [System.Drawing.Color]::FromArgb(82, 78, 70)
 $form.Opacity = 0.95
 $form.TopMost = $true
-$form.Add_Shown({ Set-RoundedFormRegion })
+$form.ShowInTaskbar = $true
+$form.WindowState = [System.Windows.Forms.FormWindowState]::Normal
+$screen = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+$form.Location = New-Object System.Drawing.Point(([Math]::Max($screen.Right - $form.Width - 24, $screen.Left)), ([Math]::Max($screen.Top + 24, $screen.Top)))
+$form.Add_Shown({
+    $form.WindowState = [System.Windows.Forms.FormWindowState]::Normal
+    $form.TopMost = $true
+    $form.ShowInTaskbar = $true
+    $form.BringToFront()
+    $form.Activate()
+    Set-RoundedFormRegion
+    Write-LaunchLog "form shown location=$($form.Location.X),$($form.Location.Y) size=$($form.Width)x$($form.Height) visible=$($form.Visible)"
+  })
 $form.Add_Resize({ Update-FormMaximumSize; Set-RoundedFormRegion })
 $form.Add_Move({ Update-FormMaximumSize })
 
@@ -905,4 +934,11 @@ function Update-SortHeaders {
 $script:forceGridRefresh = $true
 Update-SortHeaders
 $timer.Start()
-[void]$form.ShowDialog()
+Write-LaunchLog "show-dialog begin"
+try {
+  [void]$form.ShowDialog()
+  Write-LaunchLog "show-dialog end"
+} catch {
+  Write-LaunchLog "show-dialog error: $($_.Exception.GetType().FullName): $($_.Exception.Message)"
+  throw
+}

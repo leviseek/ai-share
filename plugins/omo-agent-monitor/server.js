@@ -47,6 +47,7 @@ const state = {
   agents: {},
   activeCalls: {},
   dbTokens: { total: 0, agents: {} },
+  dbExecutions: { agents: {} },
   dbTokenMessageIds: new Set(),
   dbTokenLastRefreshAt: 0,
 };
@@ -245,6 +246,11 @@ async function persist() {
 
 function mergedAgentMetrics() {
   const agents = new Map(Object.entries(state.agents).map(([name, metric]) => [name, { ...metric }]));
+  for (const [name, executed] of Object.entries(state.dbExecutions.agents)) {
+    const metric = agents.get(name) ?? ensureAgent(name);
+    if (metric.status === "unknown") metric.status = "idle";
+    agents.set(name, { ...metric, executed: Math.max(metric.executed ?? 0, executed) });
+  }
   for (const [name, tokens] of Object.entries(state.dbTokens.agents)) {
     const metric = agents.get(name) ?? ensureAgent(name);
     if (metric.status === "unknown") metric.status = "idle";
@@ -266,20 +272,26 @@ async function refreshDbTokenSnapshot(now) {
       )
       .all(state.session.startedAt - 60_000);
     const agents = {};
+    const executions = {};
     let total = 0;
     const messageIds = new Set();
     for (const row of rows) {
       if (state.dbTokenMessageIds.has(row.id)) continue;
       const parsed = parseJson(row.data);
       if (parsed?.role !== "assistant") continue;
-      const tokens = tokenTotal(parsed.tokens);
-      if (tokens <= 0) continue;
       const agent = normalizeStoredAgentName(parsed.agent ?? parsed.mode, row.parent_id);
-      agents[agent] = (agents[agent] ?? 0) + tokens;
-      total += tokens;
+      executions[agent] = (executions[agent] ?? 0) + 1;
+      const tokens = tokenTotal(parsed.tokens);
+      if (tokens > 0) {
+        agents[agent] = (agents[agent] ?? 0) + tokens;
+        total += tokens;
+      }
       messageIds.add(row.id);
     }
     for (const messageId of messageIds) state.dbTokenMessageIds.add(messageId);
+    for (const [agent, executed] of Object.entries(executions)) {
+      state.dbExecutions.agents[agent] = (state.dbExecutions.agents[agent] ?? 0) + executed;
+    }
     for (const [agent, tokens] of Object.entries(agents)) {
       state.dbTokens.agents[agent] = (state.dbTokens.agents[agent] ?? 0) + tokens;
     }
@@ -304,7 +316,9 @@ function normalizeStoredAgentName(name, parentId) {
   if (typeof name !== "string" || name.length === 0) return "main";
   const clean = name.replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
   const lowered = clean.toLowerCase();
-  if (!parentId && (lowered.includes("deep agent") || lowered.includes("hephaestus"))) return "main";
+  if (!parentId && (lowered === "root" || lowered.includes("deep agent") || lowered.includes("hephaestus")))
+    return "main";
+  if (!parentId && mainAgentNames.has(lowered)) return "main";
   for (const known of [...mainAgentNames, ...omoAgentNames, ...omoCategoryNames]) {
     if (lowered === known || lowered.startsWith(`${known} `) || lowered.includes(` ${known} `)) return known;
   }

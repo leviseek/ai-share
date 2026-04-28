@@ -638,7 +638,13 @@ async function installLaunchers(): Promise<void> {
 
   await mkdir(targetBinDir, { recursive: true });
   for (const fileName of launcherFiles) {
-    await copyFile(resolve(binDir, fileName), resolve(targetBinDir, fileName));
+    const sourcePath = resolve(binDir, fileName);
+    const targetPath = resolve(targetBinDir, fileName);
+    if (process.platform === "win32" && fileName.endsWith(".ps1")) {
+      await writeFile(targetPath, withUtf8Bom(await readFile(sourcePath, "utf8")));
+      continue;
+    }
+    await copyFile(sourcePath, targetPath);
   }
 
   if (process.platform === "win32") {
@@ -646,6 +652,10 @@ async function installLaunchers(): Promise<void> {
   } else {
     console.log(`请确保 shell PATH 包含：${targetBinDir}`);
   }
+}
+
+function withUtf8Bom(content: string): string {
+  return content.startsWith("\uFEFF") ? content : `\uFEFF${content}`;
 }
 
 async function installPlugins(): Promise<void> {

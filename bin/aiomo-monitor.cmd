@@ -1,2 +1,2 @@
 @echo off
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0aiomo-monitor.ps1" %*
+start "" powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File "%~dp0aiomo-monitor.ps1" %*

@@ -40,19 +40,22 @@ const plugin = {
   tui: async (api) => {
     api.command.register(() => [
       {
-        title: "OMO agents monitor (WebUI)",
-        value: "omo.agent.monitor.webui",
+        title: "OMO agents monitor",
+        value: "omo.agent.monitor",
         description: "打开 OMO 编排状态 WebUI 浮窗",
         category: "OMO",
+        keybind: "ctrl+shift+o",
         slash: { name: "omo-monitor", aliases: ["omom"] },
-        onSelect: async () => {
-          const url = await ensureWebUi();
-          openBrowser(url);
-        },
+        onSelect: openMonitorCommand,
       },
     ]);
   },
 };
+
+async function openMonitorCommand() {
+  const url = await ensureWebUi();
+  openBrowser(url);
+}
 
 async function ensureWebUi() {
   if (webServer && webPort > 0) return `http://127.0.0.1:${webPort}`;
