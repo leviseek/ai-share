@@ -96,10 +96,9 @@ function buildViewModel() {
   const now = Date.now();
   const agents = sortedAgents(mergeAgents(Array.isArray(state.agents) ? state.agents : []));
   const startedAt = state.session?.startedAt ?? now;
-  const lastActiveAt = state.session?.lastActiveAt ?? startedAt;
   const activeMs = Math.max(state.session?.totalActiveMs ?? 0, 0);
   const elapsedMs = Math.max(now - startedAt, 0);
-  const idleMs = Math.max(now - lastActiveAt, 0);
+  const idleMs = Math.max(elapsedMs - activeMs, 0);
 
   return {
     updatedAt: state.updatedAt ?? now,
