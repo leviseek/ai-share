@@ -37,6 +37,7 @@ const plugin = {
 
     "tool.execute.before": async (input, output) => {
       const agent = agentName(input.tool, output?.args);
+      const operation = operationName(input.tool, output?.args);
       const now = Date.now();
       const metric = ensureAgent(agent);
       if (Object.keys(state.activeCalls).length === 0) {
@@ -44,7 +45,8 @@ const plugin = {
       }
       metric.status = "running";
       metric.activeSince = now;
-      state.activeCalls[input.callID] = { agent, startedAt: now };
+      metric.currentOperation = operation;
+      state.activeCalls[input.callID] = { agent, startedAt: now, operation };
       state.session.lastActiveAt = now;
       persist();
     },
@@ -62,7 +64,12 @@ const plugin = {
       metric.lastCompletedAt = now;
       delete state.activeCalls[input.callID];
       metric.status = hasActiveCall(active.agent) ? "running" : "idle";
-      if (!hasActiveCall(active.agent)) delete metric.activeSince;
+      if (!hasActiveCall(active.agent)) {
+        delete metric.activeSince;
+        delete metric.currentOperation;
+      } else {
+        metric.currentOperation = currentOperationOf(active.agent);
+      }
 
       const tokenDelta = extractTokens(input) + extractTokens(output);
       state.session.totalTokens += tokenDelta;
@@ -82,17 +89,28 @@ function ensureAgent(name) {
     status: "unknown",
     executed: 0,
     totalMs: 0,
+    currentOperation: undefined,
   };
   return state.agents[name];
 }
 
 function agentName(tool, args) {
   if (!isRecord(args)) return tool;
-  return stringField(args, "subagent_type") ?? stringField(args, "category") ?? stringField(args, "agent") ?? tool;
+  return stringField(args, "agent") ?? stringField(args, "subagent_type") ?? stringField(args, "category") ?? "main";
+}
+
+function operationName(tool, args) {
+  if (!isRecord(args)) return tool;
+  return stringField(args, "tool_name") ?? stringField(args, "description") ?? stringField(args, "command") ?? tool;
 }
 
 function hasActiveCall(agent) {
   return Object.values(state.activeCalls).some((call) => call.agent === agent);
+}
+
+function currentOperationOf(agent) {
+  const hit = Object.values(state.activeCalls).find((call) => call.agent === agent);
+  return hit?.operation;
 }
 
 function persist() {

@@ -62,13 +62,15 @@ function New-State {
   }
 }
 
+$LastGoodState = New-State
+
 function Read-State {
-  if (-not (Test-Path -LiteralPath $StatePath -PathType Leaf)) { return New-State }
+  if (-not (Test-Path -LiteralPath $StatePath -PathType Leaf)) { return $script:LastGoodState }
   try {
     $json = Get-Content -LiteralPath $StatePath -Raw -Encoding UTF8 -ErrorAction Stop
-    if (-not $json) { return New-State }
+    if (-not $json) { return $script:LastGoodState }
     $obj = $json | ConvertFrom-Json -ErrorAction Stop
-    return @{
+    $state = @{
       updatedAt = $obj.updatedAt
       session = @{
         status = $obj.session.status
@@ -80,8 +82,10 @@ function Read-State {
       todos = @($obj.todos)
       agents = @($obj.agents)
     }
+    $script:LastGoodState = $state
+    return $state
   } catch {
-    return New-State
+    return $script:LastGoodState
   }
 }
 
@@ -160,14 +164,14 @@ $layout.Dock = [System.Windows.Forms.DockStyle]::Fill
 $layout.ColumnCount = 1
 $layout.RowCount = 8
 $layout.BackColor = [System.Drawing.Color]::Transparent
-$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 34)))
-$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 30)))
-$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 32)))
-$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 32)))
-$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 28)))
-$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 24)))
-$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
-$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 28)))
+[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 34)))
+[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 30)))
+[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 32)))
+[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 32)))
+[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 28)))
+[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 24)))
+[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 28)))
 $content.Controls.Add($layout)
 
 $baseBar = New-Object System.Windows.Forms.Label
@@ -220,8 +224,10 @@ $grid.ReadOnly = $true
 $grid.AllowUserToAddRows = $false
 $grid.AllowUserToDeleteRows = $false
 $grid.AllowUserToResizeRows = $false
+$grid.AllowUserToOrderColumns = $false
+$grid.AllowUserToResizeColumns = $false
 $grid.RowHeadersVisible = $false
-$grid.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::Fill
+$grid.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::None
 $grid.BackgroundColor = [System.Drawing.Color]::FromArgb(49, 52, 57)
 $grid.BorderStyle = [System.Windows.Forms.BorderStyle]::None
 $grid.GridColor = [System.Drawing.Color]::FromArgb(85, 88, 94)
@@ -232,11 +238,23 @@ $grid.DefaultCellStyle.BackColor = [System.Drawing.Color]::FromArgb(56, 59, 64)
 $grid.DefaultCellStyle.ForeColor = [System.Drawing.Color]::FromArgb(233, 237, 244)
 $grid.DefaultCellStyle.SelectionBackColor = [System.Drawing.Color]::FromArgb(112, 115, 121)
 $grid.DefaultCellStyle.SelectionForeColor = [System.Drawing.Color]::White
-$grid.ColumnCount = 4
+$grid.ColumnCount = 5
 $grid.Columns[0].Name = "状态"
 $grid.Columns[1].Name = "Agent"
-$grid.Columns[2].Name = "任务次数"
-$grid.Columns[3].Name = "平均周期"
+$grid.Columns[2].Name = "当前操作/工具/技能"
+$grid.Columns[3].Name = "任务次数"
+$grid.Columns[4].Name = "平均周期"
+$grid.Columns[0].Width = 72
+$grid.Columns[1].Width = 150
+$grid.Columns[2].AutoSizeMode = [System.Windows.Forms.DataGridViewAutoSizeColumnMode]::Fill
+$grid.Columns[2].MinimumWidth = 220
+$grid.Columns[3].Width = 78
+$grid.Columns[4].Width = 92
+$grid.Columns[0].SortMode = [System.Windows.Forms.DataGridViewColumnSortMode]::NotSortable
+$grid.Columns[1].SortMode = [System.Windows.Forms.DataGridViewColumnSortMode]::NotSortable
+$grid.Columns[2].SortMode = [System.Windows.Forms.DataGridViewColumnSortMode]::NotSortable
+$grid.Columns[3].SortMode = [System.Windows.Forms.DataGridViewColumnSortMode]::NotSortable
+$grid.Columns[4].SortMode = [System.Windows.Forms.DataGridViewColumnSortMode]::NotSortable
 $layout.Controls.Add($grid, 0, 6)
 
 $footer = New-Object System.Windows.Forms.Label
@@ -262,6 +280,9 @@ $btnClose.Add_Click({ $form.Close() })
 $expanded = $true
 $expandedHeight = $form.Height
 $collapsedHeight = 96
+$lastGridSignature = ""
+$lastAgentsStamp = 0
+$agentRowIndex = @{}
 
 $snapThreshold = 20
 $isSnapping = $false
@@ -334,23 +355,70 @@ $timer.Add_Tick({
   $timeProgress.Value = $activePct
   $footer.Text = if ($inProgress.Count -gt 0) { "进行中: $($inProgress[0].content)" } else { "进行中: 无 · 待处理: $pending" }
 
-  $grid.Rows.Clear()
-  $ordered = $agents | Sort-Object @{ Expression = {
-      switch ($_.status) {
-        "running" { 0 }
-        "retry" { 1 }
-        "error" { 2 }
-        "idle" { 3 }
-        default { 4 }
-      }
-    } }, @{ Expression = { -1 * [int](Coalesce $_.executed 0) } }, @{ Expression = { [string]$_.name } }
+  $agentsStamp = [double](Coalesce $state.updatedAt 0)
+  if ($agentsStamp -ne $script:lastAgentsStamp) {
+    $script:lastAgentsStamp = $agentsStamp
 
-  foreach ($agent in $ordered) {
-    $executed = [int](Coalesce $agent.executed 0)
-    $totalMs = [double](Coalesce $agent.totalMs 0)
-    $avgMs = if ($executed -gt 0) { [Math]::Round($totalMs / $executed) } else { 0 }
-    $rowIndex = $grid.Rows.Add((Status-Text $agent.status), [string]$agent.name, [string]$executed, (Format-Duration $avgMs))
-    $grid.Rows[$rowIndex].Cells[0].Style.ForeColor = Status-Color $agent.status
+    $ordered = $agents | Sort-Object @{ Expression = { [string]$_.name } }
+
+    $rows = @()
+    foreach ($agent in $ordered) {
+      $executed = [int](Coalesce $agent.executed 0)
+      $totalMs = [double](Coalesce $agent.totalMs 0)
+      $avgMs = if ($executed -gt 0) { [Math]::Round($totalMs / $executed) } else { 0 }
+      $operation = [string](Coalesce $agent.currentOperation "-")
+      $rows += @{
+        statusText = (Status-Text $agent.status)
+        statusColor = (Status-Color $agent.status)
+        name = [string]$agent.name
+        operation = $operation
+        executed = [string]$executed
+        avgText = (Format-Duration $avgMs)
+        statusRaw = [string]$agent.status
+      }
+    }
+
+    $signature = ($rows | ForEach-Object {
+        "$($_.statusRaw)|$($_.name)|$($_.operation)|$($_.executed)|$($_.avgText)"
+      }) -join "`n"
+
+    if ($signature -ne $script:lastGridSignature) {
+      $script:lastGridSignature = $signature
+      $grid.SuspendLayout()
+      $seen = @{}
+      foreach ($row in $rows) {
+        $seen[$row.name] = $true
+        if ($script:agentRowIndex.ContainsKey($row.name)) {
+          $rowIndex = [int]$script:agentRowIndex[$row.name]
+          if ($rowIndex -lt $grid.Rows.Count) {
+            $grid.Rows[$rowIndex].Cells[0].Value = $row.statusText
+            $grid.Rows[$rowIndex].Cells[1].Value = $row.name
+            $grid.Rows[$rowIndex].Cells[2].Value = $row.operation
+            $grid.Rows[$rowIndex].Cells[3].Value = $row.executed
+            $grid.Rows[$rowIndex].Cells[4].Value = $row.avgText
+          }
+        } else {
+          $rowIndex = $grid.Rows.Add($row.statusText, $row.name, $row.operation, $row.executed, $row.avgText)
+          $script:agentRowIndex[$row.name] = $rowIndex
+        }
+        $grid.Rows[$rowIndex].Cells[0].Style.ForeColor = $row.statusColor
+      }
+
+      for ($index = $grid.Rows.Count - 1; $index -ge 0; $index -= 1) {
+        $name = [string]$grid.Rows[$index].Cells[1].Value
+        if (-not $seen.ContainsKey($name)) {
+          $grid.Rows.RemoveAt($index)
+        }
+      }
+
+      $script:agentRowIndex = @{}
+      for ($index = 0; $index -lt $grid.Rows.Count; $index += 1) {
+        $name = [string]$grid.Rows[$index].Cells[1].Value
+        if ($name) { $script:agentRowIndex[$name] = $index }
+      }
+
+      $grid.ResumeLayout()
+    }
   }
 })
 
