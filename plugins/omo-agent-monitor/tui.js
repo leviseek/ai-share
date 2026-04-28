@@ -7,6 +7,19 @@ import { exec } from "node:child_process";
 const pluginDir = dirname(fileURLToPath(import.meta.url));
 const statePath = resolve(pluginDir, "..", "..", "omo-agent-monitor-state.json");
 const statusRank = { running: 0, retry: 1, error: 2, idle: 3, unknown: 4 };
+const defaultAgentNames = [
+  "sisyphus",
+  "hephaestus",
+  "prometheus",
+  "oracle",
+  "momus",
+  "metis",
+  "atlas",
+  "sisyphus-junior",
+  "explorer",
+  "librarian",
+  "multimodal-looker",
+];
 
 let webServer;
 let webPort = 0;
@@ -81,7 +94,7 @@ function buildViewModel() {
   const pending = todos.filter((todo) => todo.status === "pending");
   const progress = todos.length > 0 ? Math.round((done / todos.length) * 100) : 0;
   const now = Date.now();
-  const agents = sortedAgents(Array.isArray(state.agents) ? state.agents : []);
+  const agents = sortedAgents(mergeAgents(Array.isArray(state.agents) ? state.agents : []));
   const startedAt = state.session?.startedAt ?? now;
   const lastActiveAt = state.session?.lastActiveAt ?? startedAt;
   const activeMs = Math.max(state.session?.totalActiveMs ?? 0, 0);
@@ -125,6 +138,16 @@ function sortedAgents(agents) {
     if (statusDiff !== 0) return statusDiff;
     return (right.executed ?? 0) - (left.executed ?? 0) || String(left.name).localeCompare(String(right.name));
   });
+}
+
+function mergeAgents(agents) {
+  const seen = new Set(agents.map((agent) => agent.name).filter((name) => typeof name === "string" && name.length > 0));
+  return [
+    ...agents,
+    ...defaultAgentNames
+      .filter((name) => !seen.has(name))
+      .map((name) => ({ name, status: "idle", executed: 0, totalMs: 0, currentOperation: "-" })),
+  ];
 }
 
 function loadMonitorState() {

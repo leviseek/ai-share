@@ -17,6 +17,19 @@ public static class NativeWindowDrag {
 
 $HomeDir = if ($env:HOME) { $env:HOME } elseif ($env:USERPROFILE) { $env:USERPROFILE } else { [Environment]::GetFolderPath("UserProfile") }
 $StatePath = Join-Path $HomeDir ".config\opencode\omo-agent-monitor-state.json"
+$DefaultAgentNames = @(
+  "sisyphus",
+  "hephaestus",
+  "prometheus",
+  "oracle",
+  "momus",
+  "metis",
+  "atlas",
+  "sisyphus-junior",
+  "explorer",
+  "librarian",
+  "multimodal-looker"
+)
 
 function Coalesce($value, $fallback) {
   if ($null -eq $value) { return $fallback }
@@ -77,6 +90,28 @@ function Should-DeferGridUpdate {
 function Clear-GridSelection {
   if ($null -ne $grid.CurrentCell) { $grid.CurrentCell = $null }
   $grid.ClearSelection()
+}
+
+function Merge-AgentList($agents) {
+  $merged = @($agents)
+  $seen = @{}
+  foreach ($agent in $merged) {
+    $name = [string]$agent.name
+    if ($name) { $seen[$name] = $true }
+  }
+
+  foreach ($name in $script:DefaultAgentNames) {
+    if (-not $seen.ContainsKey($name)) {
+      $merged += [pscustomobject]@{
+        name = $name
+        status = "idle"
+        executed = 0
+        totalMs = 0
+        currentOperation = "-"
+      }
+    }
+  }
+  return $merged
 }
 
 function New-State {
@@ -381,7 +416,7 @@ $timer.Add_Tick({
   $state = Read-State
   $session = $state.session
   $todos = @($state.todos)
-  $agents = @($state.agents)
+  $agents = Merge-AgentList @($state.agents)
 
   $now = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
   $startedAt = [double](Coalesce $session.startedAt $now)
