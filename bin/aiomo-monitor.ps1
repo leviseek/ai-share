@@ -15,6 +15,10 @@ public static class NativeWindowDrag {
 }
 "@
 
+$WM_NCLBUTTONDOWN = 0xA1
+$HTCAPTION = 0x2
+$HTBOTTOMRIGHT = 0x11
+
 $HomeDir = if ($env:HOME) { $env:HOME } elseif ($env:USERPROFILE) { $env:USERPROFILE } else { [Environment]::GetFolderPath("UserProfile") }
 $StatePath = Join-Path $HomeDir ".config\opencode\omo-agent-monitor-state.json"
 $DefaultAgentNames = @(
@@ -168,7 +172,7 @@ function Read-State {
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "OMO Monitor"
-$form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::SizableToolWindow
+$form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
 $form.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
 $form.Location = New-Object System.Drawing.Point(120, 120)
 $form.Size = New-Object System.Drawing.Size(860, 560)
@@ -308,14 +312,17 @@ $timeProgress.Add_Paint({
   $event.Graphics.FillRectangle($activeBrush, 0, $barY, $activeWidth, $barHeight)
   $event.Graphics.FillRectangle($idleBrush, $activeWidth, $barY, $idleWidth, $barHeight)
   $textHeight = [Math]::Max($barY, 16)
-  if ($activeWidth -gt 46) {
-    $activeTextRect = [System.Drawing.RectangleF]::new(0, 0, $activeWidth, $textHeight)
-    $event.Graphics.DrawString($script:activeTimeText, $sender.Font, $textBrush, $activeTextRect, $format)
-  }
-  if ($idleWidth -gt 46) {
-    $idleTextRect = [System.Drawing.RectangleF]::new($activeWidth, 0, $idleWidth, $textHeight)
-    $event.Graphics.DrawString($script:idleTimeText, $sender.Font, $textBrush, $idleTextRect, $format)
-  }
+  $minTextWidth = 120
+  $gap = 8
+  $halfWidth = [int](($rect.Width - $gap) / 2)
+  $activeTextWidth = [Math]::Min([Math]::Max($activeWidth, $minTextWidth), $halfWidth)
+  $idleTextWidth = [Math]::Min([Math]::Max($idleWidth, $minTextWidth), $halfWidth)
+  $activeTextX = [Math]::Min([Math]::Max([int](($activeWidth - $activeTextWidth) / 2), 0), [Math]::Max($rect.Width - $activeTextWidth - $idleTextWidth - $gap, 0))
+  $idleTextX = [Math]::Max([Math]::Min([int]($activeWidth + (($idleWidth - $idleTextWidth) / 2)), $rect.Width - $idleTextWidth), $activeTextX + $activeTextWidth + $gap)
+  $activeTextRect = [System.Drawing.RectangleF]::new($activeTextX, 0, $activeTextWidth, $textHeight)
+  $idleTextRect = [System.Drawing.RectangleF]::new($idleTextX, 0, $idleTextWidth, $textHeight)
+  $event.Graphics.DrawString($script:activeTimeText, $sender.Font, $textBrush, $activeTextRect, $format)
+  $event.Graphics.DrawString($script:idleTimeText, $sender.Font, $textBrush, $idleTextRect, $format)
   $format.Dispose()
   $activeBrush.Dispose()
   $idleBrush.Dispose()
@@ -376,17 +383,40 @@ $footer.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
 $footer.Font = New-Object System.Drawing.Font("Segoe UI", 8.5, [System.Drawing.FontStyle]::Regular)
 $layout.Controls.Add($footer, 0, 7)
 
+$resizeGrip = New-Object System.Windows.Forms.Panel
+$resizeGrip.Size = New-Object System.Drawing.Size(18, 18)
+$resizeGrip.Anchor = [System.Windows.Forms.AnchorStyles]::Right -bor [System.Windows.Forms.AnchorStyles]::Bottom
+$resizeGrip.Cursor = [System.Windows.Forms.Cursors]::SizeNWSE
+$resizeGrip.BackColor = [System.Drawing.Color]::Transparent
+$resizeGrip.Location = New-Object System.Drawing.Point(($form.ClientSize.Width - 20), ($form.ClientSize.Height - 20))
+$resizeGrip.Add_Paint({
+  param($sender, $event)
+  $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(150, 165, 180))
+  $event.Graphics.DrawLine($pen, 6, 16, 16, 6)
+  $event.Graphics.DrawLine($pen, 11, 16, 16, 11)
+  $pen.Dispose()
+})
+$form.Controls.Add($resizeGrip)
+$resizeGrip.BringToFront()
+
 function Start-DragWindow {
   param([System.Windows.Forms.MouseEventArgs]$event)
   if ($event.Button -ne [System.Windows.Forms.MouseButtons]::Left) { return }
   [void][NativeWindowDrag]::ReleaseCapture()
-  # WM_NCLBUTTONDOWN=0xA1, HTCAPTION=0x2
-  [void][NativeWindowDrag]::SendMessage($form.Handle, 0xA1, [IntPtr]2, [IntPtr]::Zero)
+  [void][NativeWindowDrag]::SendMessage($form.Handle, $script:WM_NCLBUTTONDOWN, [IntPtr]$script:HTCAPTION, [IntPtr]::Zero)
+}
+
+function Start-ResizeWindow {
+  param([System.Windows.Forms.MouseEventArgs]$event)
+  if ($event.Button -ne [System.Windows.Forms.MouseButtons]::Left) { return }
+  [void][NativeWindowDrag]::ReleaseCapture()
+  [void][NativeWindowDrag]::SendMessage($form.Handle, $script:WM_NCLBUTTONDOWN, [IntPtr]$script:HTBOTTOMRIGHT, [IntPtr]::Zero)
 }
 
 $header.Add_MouseDown({ param($sender, $event) Start-DragWindow $event })
 $title.Add_MouseDown({ param($sender, $event) Start-DragWindow $event })
 $headerInfo.Add_MouseDown({ param($sender, $event) Start-DragWindow $event })
+$resizeGrip.Add_MouseDown({ param($sender, $event) Start-ResizeWindow $event })
 $btnClose.Add_Click({ $form.Close() })
 
 $expanded = $true
