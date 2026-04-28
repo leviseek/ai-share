@@ -87,79 +87,132 @@ function Read-State {
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "OMO Monitor"
-$form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
+$form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::SizableToolWindow
 $form.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
 $form.Location = New-Object System.Drawing.Point(120, 120)
-$form.Size = New-Object System.Drawing.Size(760, 480)
-$form.BackColor = [System.Drawing.Color]::FromArgb(18, 24, 36)
+$form.Size = New-Object System.Drawing.Size(860, 560)
+$form.MinimumSize = New-Object System.Drawing.Size(660, 360)
+$form.BackColor = [System.Drawing.Color]::FromArgb(28, 30, 34)
 $form.TopMost = $true
 
 $header = New-Object System.Windows.Forms.Panel
 $header.Dock = [System.Windows.Forms.DockStyle]::Top
-$header.Height = 44
-$header.BackColor = [System.Drawing.Color]::FromArgb(27, 39, 62)
+$header.Height = 54
+$header.BackColor = [System.Drawing.Color]::FromArgb(72, 74, 78)
+$header.Add_Paint({
+  param($sender, $event)
+  $rect = $sender.ClientRectangle
+  $brush = New-Object System.Drawing.Drawing2D.LinearGradientBrush($rect, [System.Drawing.Color]::FromArgb(92, 95, 100), [System.Drawing.Color]::FromArgb(56, 58, 62), 90)
+  $event.Graphics.FillRectangle($brush, $rect)
+  $brush.Dispose()
+  $penTop = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(180, 190, 200))
+  $event.Graphics.DrawLine($penTop, 0, 0, $rect.Width, 0)
+  $penTop.Dispose()
+})
 $form.Controls.Add($header)
 
 $title = New-Object System.Windows.Forms.Label
 $title.Text = "OMO Monitor · Desktop"
-$title.ForeColor = [System.Drawing.Color]::FromArgb(232, 242, 255)
+$title.ForeColor = [System.Drawing.Color]::FromArgb(245, 248, 252)
 $title.Font = New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawing.FontStyle]::Bold)
-$title.Location = New-Object System.Drawing.Point(14, 10)
+$title.Location = New-Object System.Drawing.Point(14, 6)
 $title.AutoSize = $true
 $header.Controls.Add($title)
+
+$headerInfo = New-Object System.Windows.Forms.Label
+$headerInfo.Text = "初始化中..."
+$headerInfo.ForeColor = [System.Drawing.Color]::FromArgb(220, 228, 238)
+$headerInfo.Font = New-Object System.Drawing.Font("Segoe UI", 8.5, [System.Drawing.FontStyle]::Regular)
+$headerInfo.Location = New-Object System.Drawing.Point(14, 29)
+$headerInfo.AutoSize = $true
+$header.Controls.Add($headerInfo)
 
 $btnCollapse = New-Object System.Windows.Forms.Button
 $btnCollapse.Text = "折叠"
 $btnCollapse.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
 $btnCollapse.ForeColor = [System.Drawing.Color]::White
-$btnCollapse.BackColor = [System.Drawing.Color]::FromArgb(45, 64, 96)
+$btnCollapse.BackColor = [System.Drawing.Color]::FromArgb(104, 109, 118)
 $btnCollapse.FlatAppearance.BorderSize = 0
 $btnCollapse.Size = New-Object System.Drawing.Size(64, 28)
-$btnCollapse.Location = New-Object System.Drawing.Point(610, 8)
+$btnCollapse.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
+$btnCollapse.Location = New-Object System.Drawing.Point(($form.ClientSize.Width - 138), 12)
 $header.Controls.Add($btnCollapse)
 
 $btnClose = New-Object System.Windows.Forms.Button
 $btnClose.Text = "×"
 $btnClose.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
 $btnClose.ForeColor = [System.Drawing.Color]::White
-$btnClose.BackColor = [System.Drawing.Color]::FromArgb(130, 45, 55)
+$btnClose.BackColor = [System.Drawing.Color]::FromArgb(130, 66, 70)
 $btnClose.FlatAppearance.BorderSize = 0
 $btnClose.Size = New-Object System.Drawing.Size(40, 28)
-$btnClose.Location = New-Object System.Drawing.Point(684, 8)
+$btnClose.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
+$btnClose.Location = New-Object System.Drawing.Point(($form.ClientSize.Width - 66), 12)
 $header.Controls.Add($btnClose)
 
 $content = New-Object System.Windows.Forms.Panel
 $content.Dock = [System.Windows.Forms.DockStyle]::Fill
-$content.Padding = New-Object System.Windows.Forms.Padding(12)
+$content.Padding = New-Object System.Windows.Forms.Padding(10, 62, 10, 10)
+$content.BackColor = [System.Drawing.Color]::FromArgb(40, 42, 46)
 $form.Controls.Add($content)
 
+$layout = New-Object System.Windows.Forms.TableLayoutPanel
+$layout.Dock = [System.Windows.Forms.DockStyle]::Fill
+$layout.ColumnCount = 1
+$layout.RowCount = 8
+$layout.BackColor = [System.Drawing.Color]::Transparent
+$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 34)))
+$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 30)))
+$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 32)))
+$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 32)))
+$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 28)))
+$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 24)))
+$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 28)))
+$content.Controls.Add($layout)
+
 $baseBar = New-Object System.Windows.Forms.Label
-$baseBar.Dock = [System.Windows.Forms.DockStyle]::Top
-$baseBar.Height = 30
-$baseBar.ForeColor = [System.Drawing.Color]::FromArgb(204, 220, 246)
+$baseBar.Dock = [System.Windows.Forms.DockStyle]::Fill
+$baseBar.ForeColor = [System.Drawing.Color]::FromArgb(230, 236, 244)
 $baseBar.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
 $baseBar.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Regular)
-$content.Controls.Add($baseBar)
+$layout.Controls.Add($baseBar, 0, 0)
 
 $tokenLabel = New-Object System.Windows.Forms.Label
-$tokenLabel.Dock = [System.Windows.Forms.DockStyle]::Top
-$tokenLabel.Height = 24
-$tokenLabel.ForeColor = [System.Drawing.Color]::FromArgb(222, 238, 255)
+$tokenLabel.Dock = [System.Windows.Forms.DockStyle]::Fill
+$tokenLabel.ForeColor = [System.Drawing.Color]::FromArgb(245, 248, 252)
 $tokenLabel.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-$content.Controls.Add($tokenLabel)
+$layout.Controls.Add($tokenLabel, 0, 1)
+
+$taskTitle = New-Object System.Windows.Forms.Label
+$taskTitle.Text = "任务进度"
+$taskTitle.Dock = [System.Windows.Forms.DockStyle]::Fill
+$taskTitle.ForeColor = [System.Drawing.Color]::FromArgb(210, 220, 232)
+$taskTitle.Font = New-Object System.Drawing.Font("Segoe UI", 8.5, [System.Drawing.FontStyle]::Regular)
+$taskTitle.TextAlign = [System.Drawing.ContentAlignment]::BottomLeft
+$layout.Controls.Add($taskTitle, 0, 2)
 
 $taskProgress = New-Object System.Windows.Forms.ProgressBar
-$taskProgress.Dock = [System.Windows.Forms.DockStyle]::Top
-$taskProgress.Height = 18
+$taskProgress.Dock = [System.Windows.Forms.DockStyle]::Fill
 $taskProgress.Maximum = 100
-$content.Controls.Add($taskProgress)
+$taskProgress.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
+$taskProgress.ForeColor = [System.Drawing.Color]::FromArgb(214, 167, 76)
+$layout.Controls.Add($taskProgress, 0, 3)
+
+$timeLabel = New-Object System.Windows.Forms.Label
+$timeLabel.Text = "执行/空闲占比"
+$timeLabel.Dock = [System.Windows.Forms.DockStyle]::Fill
+$timeLabel.ForeColor = [System.Drawing.Color]::FromArgb(210, 220, 232)
+$timeLabel.Font = New-Object System.Drawing.Font("Segoe UI", 8.5, [System.Drawing.FontStyle]::Regular)
+$timeLabel.TextAlign = [System.Drawing.ContentAlignment]::BottomLeft
+$layout.Controls.Add($timeLabel, 0, 4)
 
 $timeProgress = New-Object System.Windows.Forms.ProgressBar
 $timeProgress.Dock = [System.Windows.Forms.DockStyle]::Top
 $timeProgress.Height = 18
 $timeProgress.Maximum = 100
 $timeProgress.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
-$content.Controls.Add($timeProgress)
+$timeProgress.ForeColor = [System.Drawing.Color]::FromArgb(164, 173, 187)
+$layout.Controls.Add($timeProgress, 0, 5)
 
 $grid = New-Object System.Windows.Forms.DataGridView
 $grid.Dock = [System.Windows.Forms.DockStyle]::Fill
@@ -169,21 +222,29 @@ $grid.AllowUserToDeleteRows = $false
 $grid.AllowUserToResizeRows = $false
 $grid.RowHeadersVisible = $false
 $grid.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::Fill
-$grid.BackgroundColor = [System.Drawing.Color]::FromArgb(24, 30, 42)
+$grid.BackgroundColor = [System.Drawing.Color]::FromArgb(49, 52, 57)
 $grid.BorderStyle = [System.Windows.Forms.BorderStyle]::None
+$grid.GridColor = [System.Drawing.Color]::FromArgb(85, 88, 94)
+$grid.EnableHeadersVisualStyles = $false
+$grid.ColumnHeadersDefaultCellStyle.BackColor = [System.Drawing.Color]::FromArgb(92, 95, 100)
+$grid.ColumnHeadersDefaultCellStyle.ForeColor = [System.Drawing.Color]::FromArgb(246, 248, 251)
+$grid.DefaultCellStyle.BackColor = [System.Drawing.Color]::FromArgb(56, 59, 64)
+$grid.DefaultCellStyle.ForeColor = [System.Drawing.Color]::FromArgb(233, 237, 244)
+$grid.DefaultCellStyle.SelectionBackColor = [System.Drawing.Color]::FromArgb(112, 115, 121)
+$grid.DefaultCellStyle.SelectionForeColor = [System.Drawing.Color]::White
 $grid.ColumnCount = 4
 $grid.Columns[0].Name = "状态"
 $grid.Columns[1].Name = "Agent"
 $grid.Columns[2].Name = "任务次数"
 $grid.Columns[3].Name = "平均周期"
-$content.Controls.Add($grid)
+$layout.Controls.Add($grid, 0, 6)
 
 $footer = New-Object System.Windows.Forms.Label
-$footer.Dock = [System.Windows.Forms.DockStyle]::Bottom
-$footer.Height = 24
-$footer.ForeColor = [System.Drawing.Color]::FromArgb(150, 170, 200)
+$footer.Dock = [System.Windows.Forms.DockStyle]::Fill
+$footer.ForeColor = [System.Drawing.Color]::FromArgb(214, 222, 232)
 $footer.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
-$content.Controls.Add($footer)
+$footer.Font = New-Object System.Drawing.Font("Segoe UI", 8.5, [System.Drawing.FontStyle]::Regular)
+$layout.Controls.Add($footer, 0, 7)
 
 function Start-DragWindow {
   param([System.Windows.Forms.MouseEventArgs]$event)
@@ -195,23 +256,54 @@ function Start-DragWindow {
 
 $header.Add_MouseDown({ param($sender, $event) Start-DragWindow $event })
 $title.Add_MouseDown({ param($sender, $event) Start-DragWindow $event })
+$headerInfo.Add_MouseDown({ param($sender, $event) Start-DragWindow $event })
 $btnClose.Add_Click({ $form.Close() })
 
 $expanded = $true
-$expandedHeight = 480
-$collapsedHeight = 90
+$expandedHeight = $form.Height
+$collapsedHeight = 96
+
+$snapThreshold = 20
+$isSnapping = $false
+
+function Invoke-SnapToEdge {
+  if ($script:isSnapping) { return }
+  $screen = [System.Windows.Forms.Screen]::FromControl($form).WorkingArea
+  $x = $form.Left
+  $y = $form.Top
+  $targetX = $x
+  $targetY = $y
+
+  if ([Math]::Abs($x - $screen.Left) -le $snapThreshold) { $targetX = $screen.Left }
+  if ([Math]::Abs(($x + $form.Width) - $screen.Right) -le $snapThreshold) { $targetX = $screen.Right - $form.Width }
+  if ([Math]::Abs($y - $screen.Top) -le $snapThreshold) { $targetY = $screen.Top }
+  if ([Math]::Abs(($y + $form.Height) - $screen.Bottom) -le $snapThreshold) { $targetY = $screen.Bottom - $form.Height }
+
+  if ($targetX -ne $x -or $targetY -ne $y) {
+    $script:isSnapping = $true
+    $form.Location = New-Object System.Drawing.Point($targetX, $targetY)
+    $script:isSnapping = $false
+  }
+}
+
+$form.Add_LocationChanged({ Invoke-SnapToEdge })
+$form.Add_ResizeEnd({ Invoke-SnapToEdge })
 
 $btnCollapse.Add_Click({
   $script:expanded = -not $script:expanded
   if ($script:expanded) {
+    $form.MinimumSize = New-Object System.Drawing.Size(660, 360)
     $content.Visible = $true
     $form.Height = $script:expandedHeight
     $btnCollapse.Text = "折叠"
   } else {
+    $script:expandedHeight = [Math]::Max($form.Height, 360)
     $content.Visible = $false
+    $form.MinimumSize = New-Object System.Drawing.Size(520, 96)
     $form.Height = $script:collapsedHeight
     $btnCollapse.Text = "展开"
   }
+  Invoke-SnapToEdge
 })
 
 $timer = New-Object System.Windows.Forms.Timer
@@ -237,6 +329,7 @@ $timer.Add_Tick({
 
   $baseBar.Text = "任务进度 $done/$($todos.Count) ($taskPct%)   |   状态 $(Status-Text $session.status)   |   空闲 $(Format-Duration $idleMs)"
   $tokenLabel.Text = "总消耗 Token: $(Coalesce $session.totalTokens 0)   ·   已执行: $(Format-Duration $activeMs)"
+  $headerInfo.Text = "进度 $taskPct% · Token $(Coalesce $session.totalTokens 0) · 活跃 $(Format-Duration $activeMs) · 空闲 $(Format-Duration $idleMs)"
   $taskProgress.Value = [Math]::Min([Math]::Max($taskPct, 0), 100)
   $timeProgress.Value = $activePct
   $footer.Text = if ($inProgress.Count -gt 0) { "进行中: $($inProgress[0].content)" } else { "进行中: 无 · 待处理: $pending" }
