@@ -22,6 +22,9 @@ $HTBOTTOMRIGHT = 0x11
 $HomeDir = if ($env:HOME) { $env:HOME } elseif ($env:USERPROFILE) { $env:USERPROFILE } else { [Environment]::GetFolderPath("UserProfile") }
 $StatePath = Join-Path $HomeDir ".config\opencode\omo-agent-monitor-state.json"
 $DefaultAgentNames = @(
+  "main",
+  "build",
+  "plan",
   "sisyphus",
   "hephaestus",
   "prometheus",
@@ -32,7 +35,15 @@ $DefaultAgentNames = @(
   "sisyphus-junior",
   "explorer",
   "librarian",
-  "multimodal-looker"
+  "multimodal-looker",
+  "ultrabrain",
+  "deep",
+  "quick",
+  "unspecified-low",
+  "unspecified-high",
+  "writing",
+  "visual-engineering",
+  "artistry"
 )
 
 function Coalesce($value, $fallback) {
@@ -44,7 +55,25 @@ function Format-Duration([double]$milliseconds) {
   $seconds = [Math]::Max([Math]::Round($milliseconds / 1000), 0)
   if ($seconds -lt 60) { return "${seconds}s" }
   $minutes = [Math]::Floor($seconds / 60)
+  if ($minutes -ge 60) {
+    $hours = [Math]::Floor($minutes / 60)
+    $remainingMinutes = [int]($minutes % 60)
+    if ($remainingMinutes -eq 0) { return "${hours}h" }
+    return "${hours}h$(("{0:D2}" -f $remainingMinutes))m"
+  }
   return "${minutes}m$(("{0:D2}" -f ([int]($seconds % 60))))s"
+}
+
+function Format-Token([double]$value) {
+  $token = [Math]::Max($value, 0)
+  if ($token -lt 1000) { return [string][int]$token }
+  if ($token -lt 1000000) { return "$(Format-ShortNumber ($token / 1000))K" }
+  return "$(Format-ShortNumber ($token / 1000000))M"
+}
+
+function Format-ShortNumber([double]$value) {
+  if ($value -ge 10) { return ("{0:0.#}" -f $value) }
+  return ("{0:0.##}" -f $value)
 }
 
 function Status-Text([string]$status) {
@@ -63,12 +92,64 @@ function Status-Color([string]$status) {
   return [System.Drawing.Color]::FromArgb(100, 116, 139)
 }
 
+function Agent-Status($agent) {
+  $status = [string](Coalesce $agent.status "unknown")
+  if ([string]$agent.name -eq "main" -and $status -eq "unknown") { return "idle" }
+  return $status
+}
+
 function Status-Rank([string]$status) {
   if ($status -eq "running") { return 0 }
   if ($status -eq "retry") { return 1 }
   if ($status -eq "error") { return 2 }
   if ($status -eq "idle") { return 3 }
   return 4
+}
+
+function Agent-KindRank($agent) {
+  $kind = [string](Coalesce $agent.kind (Agent-Kind ([string]$agent.name)))
+  if ($kind -eq "main") { return 0 }
+  if ($kind -eq "subagent") { return 1 }
+  if ($kind -eq "category") { return 2 }
+  return 3
+}
+
+function Agent-Kind([string]$name) {
+  if ($name -eq "main" -or $name -eq "build" -or $name -eq "plan") { return "main" }
+  if (@("ultrabrain", "deep", "quick", "unspecified-low", "unspecified-high", "writing", "visual-engineering", "artistry") -contains $name) { return "category" }
+  return "subagent"
+}
+
+function Agent-KindText($agent) {
+  $kind = [string](Coalesce $agent.kind (Agent-Kind ([string]$agent.name)))
+  $prefix = if ($kind -eq "main") { "主" } elseif ($kind -eq "subagent") { "子" } elseif ($kind -eq "category") { "类" } else { "工具" }
+  $background = if ([bool](Coalesce $agent.background $false)) { "/后台" } else { "" }
+  return "$prefix$background"
+}
+
+function Agent-Badge($agent) {
+  $kind = [string](Coalesce $agent.kind (Agent-Kind ([string]$agent.name)))
+  if ($kind -eq "main") { return "【主】" }
+  if ($kind -eq "subagent") {
+    if ([bool](Coalesce $agent.background $false)) { return "【子·后台】" }
+    return "【子】"
+  }
+  if ($kind -eq "category") { return "【类】" }
+  return "【工具】"
+}
+
+function Agent-KindColor($agent) {
+  $kind = [string](Coalesce $agent.kind (Agent-Kind ([string]$agent.name)))
+  if ($kind -eq "main") { return [System.Drawing.Color]::FromArgb(250, 204, 21) }
+  if ($kind -eq "subagent") { return [System.Drawing.Color]::FromArgb(96, 165, 250) }
+  if ($kind -eq "category") { return [System.Drawing.Color]::FromArgb(52, 211, 153) }
+  return [System.Drawing.Color]::FromArgb(192, 132, 252)
+}
+
+function Agent-DisplayName($agent) {
+  $name = [string]$agent.name
+  if ($name -eq "main") { return "Hephaestus（主入口）" }
+  return $name
 }
 
 function Enable-DoubleBuffering($control) {
@@ -172,6 +253,10 @@ function Merge-AgentList($agents) {
         executed = 0
         totalMs = 0
         totalTokens = 0
+        kind = (Agent-Kind $name)
+        source = "fallback"
+        background = $false
+        parentAgent = $null
         currentOperation = "-"
       }
     }
@@ -486,7 +571,7 @@ $grid.Columns[3].Name = "任务次数"
 $grid.Columns[4].Name = "Token"
 $grid.Columns[5].Name = "平均周期"
 $grid.Columns[0].Width = 72
-$grid.Columns[1].Width = 150
+$grid.Columns[1].Width = 220
 $grid.Columns[2].AutoSizeMode = [System.Windows.Forms.DataGridViewAutoSizeColumnMode]::Fill
 $grid.Columns[2].MinimumWidth = 220
 $grid.Columns[3].Width = 78
@@ -561,6 +646,10 @@ $lastAgentsStamp = 0
 $agentRowIndex = @{}
 $gridInteractionFrozen = $false
 $gridUpdating = $false
+$agentSortKey = "default"
+$agentSortAscending = $true
+$forceGridRefresh = $false
+$sortColumnNames = @("状态", "Agent", "当前操作/工具/技能", "任务次数", "Token", "平均周期")
 
 Update-FormMaximumSize
 
@@ -595,6 +684,23 @@ $grid.Add_MouseDown({ $script:gridInteractionFrozen = $true })
 $grid.Add_CellMouseDown({ $script:gridInteractionFrozen = $true })
 $grid.Add_SelectionChanged({ if (-not $script:gridUpdating) { Clear-GridSelection } })
 $grid.Add_Leave({ $script:gridInteractionFrozen = $false })
+$grid.Add_ColumnHeaderMouseClick({
+  param($sender, $event)
+  $keyByColumn = @("status", "agent", "operation", "executed", "tokens", "avg")
+  if ($event.ColumnIndex -lt 0 -or $event.ColumnIndex -ge $keyByColumn.Count) { return }
+  $key = $keyByColumn[$event.ColumnIndex]
+  if ($script:agentSortKey -eq $key) {
+    $script:agentSortAscending = -not $script:agentSortAscending
+  } else {
+    $script:agentSortKey = $key
+    $script:agentSortAscending = Default-SortAscending $key
+  }
+  $script:gridInteractionFrozen = $false
+  $script:forceGridRefresh = $true
+  $script:lastGridStructureSignature = ""
+  $script:lastAgentsStamp = -1
+  Update-SortHeaders
+})
 
 $btnCollapse.Add_Click({
   $script:expanded = -not $script:expanded
@@ -663,8 +769,8 @@ $timer.Add_Tick({
   $footer.Text = if ($inProgress.Count -gt 0) { "进行中: $currentTaskText" } else { "无进行中任务" }
 
   $agentsStamp = [double](Coalesce $state.updatedAt 0)
-  if ($agentsStamp -ne $script:lastAgentsStamp) {
-    $ordered = $agents | Sort-Object @{ Expression = { Status-Rank ([string]$_.status) } }, @{ Expression = { [string]$_.name } }
+  if ($agentsStamp -ne $script:lastAgentsStamp -or $script:forceGridRefresh) {
+    $ordered = $agents
 
     $rows = @()
     foreach ($agent in $ordered) {
@@ -673,23 +779,41 @@ $timer.Add_Tick({
       $totalTokens = [int](Coalesce $agent.totalTokens 0)
       $avgMs = if ($executed -gt 0) { [Math]::Round($totalMs / $executed) } else { 0 }
       $operation = [string](Coalesce $agent.currentOperation "-")
+      $kindText = Agent-KindText $agent
+      $parentAgent = [string](Coalesce $agent.parentAgent "")
+      if ($parentAgent) { $kindText = "$kindText/$parentAgent" }
+      $displayName = "$(Agent-Badge $agent)$(Agent-DisplayName $agent)"
+      $agentColor = Agent-KindColor $agent
+      $statusRaw = Agent-Status $agent
       $rows += @{
-        statusText = (Status-Text $agent.status)
-        statusColor = (Status-Color $agent.status)
-        name = [string]$agent.name
+        statusText = (Status-Text $statusRaw)
+        statusColor = (Status-Color $statusRaw)
+        name = $displayName
+        rawName = [string]$agent.name
+        agentColor = $agentColor
+        kindText = $kindText
         operation = $operation
         executed = [string]$executed
-        tokenText = [string]$totalTokens
+        tokenText = (Format-Token $totalTokens)
         avgText = (Format-Duration $avgMs)
-        statusRaw = [string]$agent.status
+        statusRaw = $statusRaw
+        pinned = ([string]$agent.name -eq "main")
+        sortStatus = (Status-Rank $statusRaw)
+        sortKind = (Agent-KindRank $agent)
+        sortAgent = $displayName
+        sortOperation = $operation
+        sortExecuted = $executed
+        sortTokens = $totalTokens
+        sortAvg = $avgMs
       }
     }
+    $rows = Sort-AgentRows @($rows)
 
     $structureSignature = ($rows | ForEach-Object {
-        "$($_.statusRaw)|$($_.name)"
+        "$($_.statusRaw)|$($_.rawName)"
       }) -join "`n"
     $valueSignature = ($rows | ForEach-Object {
-        "$($_.statusRaw)|$($_.name)|$($_.operation)|$($_.executed)|$($_.tokenText)|$($_.avgText)"
+        "$($_.statusRaw)|$($_.name)|$($_.kindText)|$($_.operation)|$($_.executed)|$($_.tokenText)|$($_.avgText)"
       }) -join "`n"
     $structureChanged = $structureSignature -ne $script:lastGridStructureSignature
     $valueChanged = $valueSignature -ne $script:lastGridValueSignature
@@ -701,41 +825,34 @@ $timer.Add_Tick({
       $script:lastGridStructureSignature = $structureSignature
       $script:lastGridValueSignature = $valueSignature
       $script:lastGridValueRefreshAt = $now
+      $script:forceGridRefresh = $false
       $grid.SuspendLayout()
       Set-GridRedraw $false
       $script:gridUpdating = $true
       try {
-        $seen = @{}
-        foreach ($row in $rows) {
-          $seen[$row.name] = $true
-          if ($script:agentRowIndex.ContainsKey($row.name)) {
-            $rowIndex = [int]$script:agentRowIndex[$row.name]
-            if ($rowIndex -lt $grid.Rows.Count) {
-              Set-GridCellValue $grid.Rows[$rowIndex] 0 $row.statusText
-              Set-GridCellValue $grid.Rows[$rowIndex] 1 $row.name
-              Set-GridCellValue $grid.Rows[$rowIndex] 2 $row.operation
-              Set-GridCellValue $grid.Rows[$rowIndex] 3 $row.executed
-              Set-GridCellValue $grid.Rows[$rowIndex] 4 $row.tokenText
-              Set-GridCellValue $grid.Rows[$rowIndex] 5 $row.avgText
-            }
-          } else {
+        if ($structureChanged) {
+          $grid.Rows.Clear()
+          $script:agentRowIndex = @{}
+          foreach ($row in $rows) {
             $rowIndex = $grid.Rows.Add($row.statusText, $row.name, $row.operation, $row.executed, $row.tokenText, $row.avgText)
-            $script:agentRowIndex[$row.name] = $rowIndex
+            $script:agentRowIndex[$row.rawName] = $rowIndex
+            $grid.Rows[$rowIndex].Cells[0].Style.ForeColor = $row.statusColor
+            $grid.Rows[$rowIndex].Cells[1].Style.ForeColor = $row.agentColor
           }
-          $grid.Rows[$rowIndex].Cells[0].Style.ForeColor = $row.statusColor
-        }
-
-        for ($index = $grid.Rows.Count - 1; $index -ge 0; $index -= 1) {
-          $name = [string]$grid.Rows[$index].Cells[1].Value
-          if (-not $seen.ContainsKey($name)) {
-            $grid.Rows.RemoveAt($index)
+        } else {
+          foreach ($row in $rows) {
+            if (-not $script:agentRowIndex.ContainsKey($row.rawName)) { continue }
+            $rowIndex = [int]$script:agentRowIndex[$row.rawName]
+            if ($rowIndex -ge $grid.Rows.Count) { continue }
+            Set-GridCellValue $grid.Rows[$rowIndex] 0 $row.statusText
+            Set-GridCellValue $grid.Rows[$rowIndex] 1 $row.name
+            Set-GridCellValue $grid.Rows[$rowIndex] 2 $row.operation
+            Set-GridCellValue $grid.Rows[$rowIndex] 3 $row.executed
+            Set-GridCellValue $grid.Rows[$rowIndex] 4 $row.tokenText
+            Set-GridCellValue $grid.Rows[$rowIndex] 5 $row.avgText
+            $grid.Rows[$rowIndex].Cells[0].Style.ForeColor = $row.statusColor
+            $grid.Rows[$rowIndex].Cells[1].Style.ForeColor = $row.agentColor
           }
-        }
-
-        $script:agentRowIndex = @{}
-        for ($index = 0; $index -lt $grid.Rows.Count; $index += 1) {
-          $name = [string]$grid.Rows[$index].Cells[1].Value
-          if ($name) { $script:agentRowIndex[$name] = $index }
         }
         Clear-GridSelection
       } finally {
@@ -749,5 +866,43 @@ $timer.Add_Tick({
   }
 })
 
+function Sort-AgentRows($rows) {
+  $pinnedRows = @($rows | Where-Object { $_.pinned })
+  $sortableRows = @($rows | Where-Object { -not $_.pinned })
+  if ($script:agentSortKey -eq "default") {
+    return @($pinnedRows) + @($sortableRows | Sort-Object @{ Expression = { $_.sortStatus } }, @{ Expression = { $_.sortKind } }, @{ Expression = { $_.sortTokens }; Descending = $true }, @{ Expression = { $_.rawName } })
+  }
+  $descending = -not $script:agentSortAscending
+  if ($script:agentSortKey -eq "status") { return @($pinnedRows) + @($sortableRows | Sort-Object @{ Expression = { $_.sortStatus }; Descending = $descending }, @{ Expression = { $_.sortKind } }, @{ Expression = { $_.sortTokens }; Descending = $true }) }
+  if ($script:agentSortKey -eq "agent") { return @($pinnedRows) + @($sortableRows | Sort-Object @{ Expression = { $_.sortAgent }; Descending = $descending }) }
+  if ($script:agentSortKey -eq "operation") { return @($pinnedRows) + @($sortableRows | Sort-Object @{ Expression = { $_.sortOperation }; Descending = $descending }) }
+  if ($script:agentSortKey -eq "executed") { return @($pinnedRows) + @($sortableRows | Sort-Object @{ Expression = { $_.sortExecuted }; Descending = $descending }) }
+  if ($script:agentSortKey -eq "tokens") { return @($pinnedRows) + @($sortableRows | Sort-Object @{ Expression = { $_.sortTokens }; Descending = $descending }) }
+  if ($script:agentSortKey -eq "avg") { return @($pinnedRows) + @($sortableRows | Sort-Object @{ Expression = { $_.sortAvg }; Descending = $descending }) }
+  return @($pinnedRows) + @($sortableRows)
+}
+
+function Default-SortAscending([string]$key) {
+  return -not ($key -eq "executed" -or $key -eq "tokens" -or $key -eq "avg")
+}
+
+function Update-SortHeaders {
+  for ($index = 0; $index -lt $grid.Columns.Count; $index += 1) {
+    $label = $script:sortColumnNames[$index]
+    $keyByColumn = @("status", "agent", "operation", "executed", "tokens", "avg")
+    if ($script:agentSortKey -eq "default") {
+      $grid.Columns[$index].Name = if ($index -eq 0) { "$label ↑" } else { $label }
+      continue
+    }
+    $grid.Columns[$index].Name = if ($keyByColumn[$index] -eq $script:agentSortKey) {
+      if ($script:agentSortAscending) { "$label ↑" } else { "$label ↓" }
+    } else {
+      $label
+    }
+  }
+}
+
+$script:forceGridRefresh = $true
+Update-SortHeaders
 $timer.Start()
 [void]$form.ShowDialog()

@@ -8,6 +8,9 @@ const pluginDir = dirname(fileURLToPath(import.meta.url));
 const statePath = resolve(pluginDir, "..", "..", "omo-agent-monitor-state.json");
 const statusRank = { running: 0, retry: 1, error: 2, idle: 3, unknown: 4 };
 const defaultAgentNames = [
+  "main",
+  "build",
+  "plan",
   "sisyphus",
   "hephaestus",
   "prometheus",
@@ -19,6 +22,14 @@ const defaultAgentNames = [
   "explorer",
   "librarian",
   "multimodal-looker",
+  "ultrabrain",
+  "deep",
+  "quick",
+  "unspecified-low",
+  "unspecified-high",
+  "writing",
+  "visual-engineering",
+  "artistry",
 ];
 
 let webServer;
@@ -94,7 +105,7 @@ function buildViewModel() {
   const pending = todos.filter((todo) => todo.status === "pending");
   const progress = todos.length > 0 ? Math.round((done / todos.length) * 100) : 0;
   const now = Date.now();
-  const agents = sortedAgents(mergeAgents(Array.isArray(state.agents) ? state.agents : []));
+  const agents = mergeAgents(Array.isArray(state.agents) ? state.agents : []);
   const startedAt = state.session?.startedAt ?? now;
   const activeMs = Math.max(state.session?.totalActiveMs ?? 0, 0);
   const elapsedMs = Math.max(now - startedAt, 0);
@@ -120,9 +131,15 @@ function buildViewModel() {
     agents: agents.map((agent) => {
       const executed = Number(agent.executed ?? 0);
       const totalMs = Number(agent.totalMs ?? 0);
+      const status = agent.name === "main" && agent.status === "unknown" ? "idle" : agent.status;
       return {
         name: agent.name,
-        status: agent.status,
+        displayName: displayAgentName(agent),
+        kind: typeof agent.kind === "string" ? agent.kind : "tool",
+        source: typeof agent.source === "string" ? agent.source : "fallback",
+        background: Boolean(agent.background),
+        parentAgent: typeof agent.parentAgent === "string" ? agent.parentAgent : "",
+        status,
         executed,
         totalTokens: Number(agent.totalTokens ?? 0),
         avgMs: executed > 0 ? Math.round(totalMs / executed) : 0,
@@ -132,22 +149,47 @@ function buildViewModel() {
   };
 }
 
-function sortedAgents(agents) {
-  return [...agents].sort((left, right) => {
-    const statusDiff = (statusRank[left.status] ?? 99) - (statusRank[right.status] ?? 99);
-    if (statusDiff !== 0) return statusDiff;
-    return (right.executed ?? 0) - (left.executed ?? 0) || String(left.name).localeCompare(String(right.name));
-  });
-}
-
 function mergeAgents(agents) {
   const seen = new Set(agents.map((agent) => agent.name).filter((name) => typeof name === "string" && name.length > 0));
   return [
     ...agents,
     ...defaultAgentNames
       .filter((name) => !seen.has(name))
-      .map((name) => ({ name, status: "idle", executed: 0, totalMs: 0, totalTokens: 0, currentOperation: "-" })),
+      .map((name) => ({
+        name,
+        kind: defaultAgentKind(name),
+        source: "fallback",
+        background: false,
+        status: "idle",
+        executed: 0,
+        totalMs: 0,
+        totalTokens: 0,
+        currentOperation: "-",
+      })),
   ];
+}
+
+function defaultAgentKind(name) {
+  if (name === "main" || name === "build" || name === "plan") return "main";
+  if (
+    [
+      "ultrabrain",
+      "deep",
+      "quick",
+      "unspecified-low",
+      "unspecified-high",
+      "writing",
+      "visual-engineering",
+      "artistry",
+    ].includes(name)
+  ) {
+    return "category";
+  }
+  return "subagent";
+}
+
+function displayAgentName(agent) {
+  return agent.name === "main" ? "Hephaestus（主入口）" : agent.name;
 }
 
 function loadMonitorState() {
@@ -199,7 +241,15 @@ function renderHtml() {
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 13px; }
     th { color: var(--sub); font-weight: 500; }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { color: var(--text); }
     .status { font-weight: 700; }
+    .agentName { font-weight: 700; }
+    .kindBadge { margin-right: 6px; font-weight: 800; letter-spacing: .2px; }
+    .kind-main { color: #facc15; }
+    .kind-subagent { color: #60a5fa; }
+    .kind-category { color: #34d399; }
+    .kind-tool { color: #c084fc; }
     .running { color: var(--run); }
     .retry { color: var(--warn); }
     .error { color: var(--err); }
@@ -232,7 +282,7 @@ function renderHtml() {
       <div class="row">
         <div class="caption">Agents</div>
         <table>
-          <thead><tr><th>状态</th><th>Agent</th><th>任务次数</th><th>Token</th><th>平均周期</th></tr></thead>
+          <thead><tr><th class="sortable" data-sort="status">状态</th><th class="sortable" data-sort="agent">Agent</th><th class="sortable" data-sort="executed">任务次数</th><th class="sortable" data-sort="tokens">Token</th><th class="sortable" data-sort="avg">平均周期</th></tr></thead>
           <tbody id="agentsBody"></tbody>
         </table>
       </div>
@@ -247,6 +297,8 @@ function renderHtml() {
     let drag = null;
     let collapsed = false;
     let lastAgentsSignature = '';
+    let sortState = { key: 'default', dir: 'asc' };
+    const statusOrder = { running: 0, retry: 1, error: 2, idle: 3, unknown: 4 };
 
     bar.addEventListener('mousedown', (event) => {
       if (event.target === collapse) return;
@@ -267,11 +319,70 @@ function renderHtml() {
       collapse.textContent = collapsed ? '展开' : '折叠';
     });
 
+    document.addEventListener('click', (event) => {
+      const target = event.target.closest('th.sortable');
+      if (!target) return;
+      const key = target.dataset.sort;
+      sortState = { key, dir: sortState.key === key ? (sortState.dir === 'asc' ? 'desc' : 'asc') : defaultSortDir(key) };
+      lastAgentsSignature = '';
+      refresh();
+    });
+
+    function defaultSortDir(key) {
+      return key === 'executed' || key === 'tokens' || key === 'avg' ? 'desc' : 'asc';
+    }
+
     function fmtMs(ms) {
       const sec = Math.max(Math.round(ms / 1000), 0);
       if (sec < 60) return sec + 's';
       const min = Math.floor(sec / 60);
-      return min + 'm' + String(sec % 60).padStart(2, '0') + 's';
+      if (min < 60) return sec % 60 === 0 ? min + 'm' : min + 'm' + String(sec % 60).padStart(2, '0') + 's';
+      const hour = Math.floor(min / 60);
+      return min % 60 === 0 ? hour + 'h' : hour + 'h' + String(min % 60).padStart(2, '0') + 'm';
+    }
+
+    function fmtToken(value) {
+      const token = Number(value || 0);
+      if (token < 1000) return String(token);
+      if (token < 1000000) return trimFixed(token / 1000) + 'K';
+      return trimFixed(token / 1000000) + 'M';
+    }
+
+    function trimFixed(value) {
+      return value.toFixed(value >= 10 ? 1 : 2).replace(/\.0+$/, '').replace(/(\.\d)0$/, '$1');
+    }
+
+    function kindRank(kind) {
+      if (kind === 'main') return 0;
+      if (kind === 'subagent') return 1;
+      if (kind === 'category') return 2;
+      return 3;
+    }
+
+    function sortedAgents(agents) {
+      const direction = sortState.dir === 'desc' ? -1 : 1;
+      const pinned = agents.filter((agent) => agent.name === 'main');
+      const sortable = agents.filter((agent) => agent.name !== 'main');
+      const sorted = sortState.key === 'default'
+        ? sortable.sort(defaultCompare)
+        : sortable.sort((left, right) => compareByKey(left, right, sortState.key) * direction || defaultCompare(left, right));
+      return [...pinned, ...sorted];
+    }
+
+    function defaultCompare(left, right) {
+      return ((statusOrder[left.status] ?? 99) - (statusOrder[right.status] ?? 99))
+        || (kindRank(left.kind) - kindRank(right.kind))
+        || ((right.totalTokens ?? 0) - (left.totalTokens ?? 0))
+        || String(left.name).localeCompare(String(right.name));
+    }
+
+    function compareByKey(left, right, key) {
+      if (key === 'status') return (statusOrder[left.status] ?? 99) - (statusOrder[right.status] ?? 99);
+      if (key === 'agent') return String(left.displayName).localeCompare(String(right.displayName));
+      if (key === 'executed') return (left.executed ?? 0) - (right.executed ?? 0);
+      if (key === 'tokens') return (left.totalTokens ?? 0) - (right.totalTokens ?? 0);
+      if (key === 'avg') return (left.avgMs ?? 0) - (right.avgMs ?? 0);
+      return 0;
     }
 
     function statusText(status) {
@@ -280,6 +391,28 @@ function renderHtml() {
       if (status === 'error') return '异常';
       if (status === 'idle') return '空闲';
       return '未知';
+    }
+
+    function kindText(agent) {
+      const suffix = agent.background ? ' · 后台' : '';
+      if (agent.kind === 'main') return '主Agent' + suffix;
+      if (agent.kind === 'subagent') return '子Agent' + suffix;
+      if (agent.kind === 'category') return '类别任务' + suffix;
+      return '工具' + suffix;
+    }
+
+    function kindBadge(agent) {
+      if (agent.kind === 'main') return '【主】';
+      if (agent.kind === 'subagent') return agent.background ? '【子·后台】' : '【子】';
+      if (agent.kind === 'category') return '【类】';
+      return '【工具】';
+    }
+
+    function kindClass(agent) {
+      if (agent.kind === 'main') return 'kind-main';
+      if (agent.kind === 'subagent') return 'kind-subagent';
+      if (agent.kind === 'category') return 'kind-category';
+      return 'kind-tool';
     }
 
     function colorByStatus(status) {
@@ -316,24 +449,39 @@ function renderHtml() {
       document.getElementById('timeSummary').textContent = '活跃占比 ' + pct(activeRatio) + '%，空闲占比 ' + pct(idleRatio) + '%';
 
       const body = document.getElementById('agentsBody');
-      const agentsSignature = JSON.stringify(data.agents.map((agent) => [agent.status, agent.name, agent.executed, agent.totalTokens, agent.avgMs]));
+      const agents = sortedAgents(data.agents);
+      const agentsSignature = JSON.stringify([sortState, agents.map((agent) => [agent.status, agent.kind, agent.background, agent.name, agent.executed, agent.totalTokens, agent.avgMs])]);
+      updateSortHeaders();
       if (agentsSignature !== lastAgentsSignature) {
         lastAgentsSignature = agentsSignature;
-        body.innerHTML = data.agents.length === 0
+        body.innerHTML = agents.length === 0
           ? '<tr><td colspan="5">暂无 agent 执行记录</td></tr>'
-          : data.agents.map((agent) => {
+          : agents.map((agent) => {
               const cls = colorByStatus(agent.status);
               return '<tr>' +
                 '<td class="status ' + cls + '">' + statusText(agent.status) + '</td>' +
-                '<td>' + agent.name + '</td>' +
+                '<td><span class="kindBadge ' + kindClass(agent) + '">' + kindBadge(agent) + '</span><span class="agentName">' + agent.displayName + '</span>' +
+                '<br><span class="caption">' + kindText(agent) + (agent.name === 'main' ? ' · 内部名: main' : '') + (agent.parentAgent ? ' · 父: ' + agent.parentAgent : '') + '</span></td>' +
                 '<td>' + agent.executed + '</td>' +
-                '<td>' + agent.totalTokens + '</td>' +
+                '<td title="' + agent.totalTokens + '">' + fmtToken(agent.totalTokens) + '</td>' +
                 '<td>' + fmtMs(agent.avgMs) + '</td>' +
               '</tr>';
             }).join('');
       }
 
       document.getElementById('footer').textContent = '会话状态：' + statusText(data.session.status) + ' · 更新时间：' + new Date(data.updatedAt).toLocaleTimeString();
+    }
+
+    function updateSortHeaders() {
+      document.querySelectorAll('th.sortable').forEach((header) => {
+        const label = header.dataset.label || header.textContent.replace(/[↑↓↕]/g, '').trim();
+        header.dataset.label = label;
+        if (sortState.key === 'default') {
+          header.textContent = header.dataset.sort === 'status' ? label + ' ↑' : label;
+          return;
+        }
+        header.textContent = header.dataset.sort === sortState.key ? label + (sortState.dir === 'asc' ? ' ↑' : ' ↓') : label;
+      });
     }
 
     refresh();
