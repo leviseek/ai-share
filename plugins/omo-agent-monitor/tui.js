@@ -7,7 +7,6 @@ import { exec } from "node:child_process";
 const pluginDir = dirname(fileURLToPath(import.meta.url));
 const statePath = resolve(pluginDir, "..", "..", "omo-agent-monitor-state.json");
 const statusRank = { running: 0, retry: 1, error: 2, idle: 3, unknown: 4 };
-const recentAgentWindowMs = 10 * 60 * 1000;
 
 let webServer;
 let webPort = 0;
@@ -82,9 +81,7 @@ function buildViewModel() {
   const pending = todos.filter((todo) => todo.status === "pending");
   const progress = todos.length > 0 ? Math.round((done / todos.length) * 100) : 0;
   const now = Date.now();
-  const agents = sortedAgents(
-    Array.isArray(state.agents) ? state.agents.filter((agent) => shouldShowAgent(agent, now)) : [],
-  );
+  const agents = sortedAgents(Array.isArray(state.agents) ? state.agents : []);
   const startedAt = state.session?.startedAt ?? now;
   const lastActiveAt = state.session?.lastActiveAt ?? startedAt;
   const activeMs = Math.max(state.session?.totalActiveMs ?? 0, 0);
@@ -120,15 +117,6 @@ function buildViewModel() {
       };
     }),
   };
-}
-
-function shouldShowAgent(agent, now) {
-  const status = typeof agent.status === "string" ? agent.status : "unknown";
-  if (status === "running" || status === "retry" || status === "error") return true;
-  if (agent.activeSince !== undefined) return true;
-  if (typeof agent.currentOperation === "string" && agent.currentOperation.length > 0) return true;
-  const lastCompletedAt = Number(agent.lastCompletedAt ?? 0);
-  return lastCompletedAt > 0 && now - lastCompletedAt <= recentAgentWindowMs;
 }
 
 function sortedAgents(agents) {

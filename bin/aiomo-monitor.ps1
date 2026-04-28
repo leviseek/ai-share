@@ -15,8 +15,6 @@ public static class NativeWindowDrag {
 }
 "@
 
-$RecentAgentWindowMs = 10 * 60 * 1000
-
 $HomeDir = if ($env:HOME) { $env:HOME } elseif ($env:USERPROFILE) { $env:USERPROFILE } else { [Environment]::GetFolderPath("UserProfile") }
 $StatePath = Join-Path $HomeDir ".config\opencode\omo-agent-monitor-state.json"
 
@@ -69,13 +67,7 @@ function Set-GridRedraw([bool]$enabled) {
 }
 
 function Should-ShowAgent($agent, [double]$now) {
-  $status = [string](Coalesce $agent.status "unknown")
-  if ($status -eq "running" -or $status -eq "retry" -or $status -eq "error") { return $true }
-  if ($null -ne $agent.activeSince) { return $true }
-  $operation = [string](Coalesce $agent.currentOperation "")
-  if ($operation.Length -gt 0) { return $true }
-  $lastCompletedAt = [double](Coalesce $agent.lastCompletedAt 0)
-  return $lastCompletedAt -gt 0 -and ($now - $lastCompletedAt) -le $script:RecentAgentWindowMs
+  return $true
 }
 
 function Should-DeferGridUpdate {
@@ -413,7 +405,7 @@ $timer.Add_Tick({
 
   $agentsStamp = [double](Coalesce $state.updatedAt 0)
   if ($agentsStamp -ne $script:lastAgentsStamp) {
-    $ordered = $agents | Where-Object { Should-ShowAgent $_ $now } | Sort-Object @{ Expression = { [string]$_.name } }
+    $ordered = $agents | Sort-Object @{ Expression = { [string]$_.name } }
 
     $rows = @()
     foreach ($agent in $ordered) {
