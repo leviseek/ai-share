@@ -59,6 +59,14 @@ function Status-Color([string]$status) {
   return [System.Drawing.Color]::FromArgb(100, 116, 139)
 }
 
+function Status-Rank([string]$status) {
+  if ($status -eq "running") { return 0 }
+  if ($status -eq "retry") { return 1 }
+  if ($status -eq "error") { return 2 }
+  if ($status -eq "idle") { return 3 }
+  return 4
+}
+
 function Enable-DoubleBuffering($control) {
   $property = [System.Windows.Forms.Control].GetProperty("DoubleBuffered", [System.Reflection.BindingFlags]::Instance -bor [System.Reflection.BindingFlags]::NonPublic)
   $property.SetValue($control, $true, $null)
@@ -107,6 +115,7 @@ function Merge-AgentList($agents) {
         status = "idle"
         executed = 0
         totalMs = 0
+        totalTokens = 0
         currentOperation = "-"
       }
     }
@@ -233,11 +242,11 @@ $layout.ColumnCount = 1
 $layout.RowCount = 8
 $layout.BackColor = [System.Drawing.Color]::Transparent
 [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 34)))
-[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 30)))
-[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 32)))
-[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 32)))
-[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 28)))
 [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 24)))
+[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 20)))
+[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 8)))
+[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 30)))
+[void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 0)))
 [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
 [void]$layout.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 28)))
 $content.Controls.Add($layout)
@@ -263,28 +272,56 @@ $taskTitle.Font = New-Object System.Drawing.Font("Segoe UI", 8.5, [System.Drawin
 $taskTitle.TextAlign = [System.Drawing.ContentAlignment]::BottomLeft
 $layout.Controls.Add($taskTitle, 0, 2)
 
-$taskProgress = New-Object System.Windows.Forms.ProgressBar
+$taskProgress = New-Object System.Windows.Forms.Panel
 $taskProgress.Dock = [System.Windows.Forms.DockStyle]::Fill
-$taskProgress.Maximum = 100
-$taskProgress.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
-$taskProgress.ForeColor = [System.Drawing.Color]::FromArgb(214, 167, 76)
+$taskProgress.BackColor = [System.Drawing.Color]::FromArgb(58, 60, 65)
+$taskProgress.Add_Paint({
+  param($sender, $event)
+  $rect = $sender.ClientRectangle
+  $trackHeight = [Math]::Max([Math]::Min([int]($sender.Height / 3), 5), 3)
+  $trackY = [Math]::Max([int](($sender.Height - $trackHeight) / 2), 0)
+  $trackBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(76, 79, 86))
+  $fillBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(214, 167, 76))
+  $event.Graphics.FillRectangle($trackBrush, 0, $trackY, $rect.Width, $trackHeight)
+  $event.Graphics.FillRectangle($fillBrush, 0, $trackY, [int]($rect.Width * $script:taskPctValue / 100), $trackHeight)
+  $trackBrush.Dispose()
+  $fillBrush.Dispose()
+})
 $layout.Controls.Add($taskProgress, 0, 3)
 
-$timeLabel = New-Object System.Windows.Forms.Label
-$timeLabel.Text = "执行/空闲占比"
-$timeLabel.Dock = [System.Windows.Forms.DockStyle]::Fill
-$timeLabel.ForeColor = [System.Drawing.Color]::FromArgb(210, 220, 232)
-$timeLabel.Font = New-Object System.Drawing.Font("Segoe UI", 8.5, [System.Drawing.FontStyle]::Regular)
-$timeLabel.TextAlign = [System.Drawing.ContentAlignment]::BottomLeft
-$layout.Controls.Add($timeLabel, 0, 4)
-
-$timeProgress = New-Object System.Windows.Forms.ProgressBar
-$timeProgress.Dock = [System.Windows.Forms.DockStyle]::Top
-$timeProgress.Height = 18
-$timeProgress.Maximum = 100
-$timeProgress.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
-$timeProgress.ForeColor = [System.Drawing.Color]::FromArgb(164, 173, 187)
-$layout.Controls.Add($timeProgress, 0, 5)
+$timeProgress = New-Object System.Windows.Forms.Panel
+$timeProgress.Dock = [System.Windows.Forms.DockStyle]::Fill
+$timeProgress.BackColor = [System.Drawing.Color]::FromArgb(45, 47, 52)
+$timeProgress.Add_Paint({
+  param($sender, $event)
+  $rect = $sender.ClientRectangle
+  $activeWidth = [int]($rect.Width * $script:activePctValue / 100)
+  $idleWidth = [Math]::Max($rect.Width - $activeWidth, 0)
+  $barHeight = 6
+  $barY = [Math]::Max($rect.Height - $barHeight - 1, 0)
+  $activeBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(90, 120, 170))
+  $idleBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(110, 113, 120))
+  $textBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(230, 236, 244))
+  $format = New-Object System.Drawing.StringFormat
+  $format.Alignment = [System.Drawing.StringAlignment]::Center
+  $format.LineAlignment = [System.Drawing.StringAlignment]::Center
+  $event.Graphics.FillRectangle($activeBrush, 0, $barY, $activeWidth, $barHeight)
+  $event.Graphics.FillRectangle($idleBrush, $activeWidth, $barY, $idleWidth, $barHeight)
+  $textHeight = [Math]::Max($barY, 16)
+  if ($activeWidth -gt 46) {
+    $activeTextRect = [System.Drawing.RectangleF]::new(0, 0, $activeWidth, $textHeight)
+    $event.Graphics.DrawString($script:activeTimeText, $sender.Font, $textBrush, $activeTextRect, $format)
+  }
+  if ($idleWidth -gt 46) {
+    $idleTextRect = [System.Drawing.RectangleF]::new($activeWidth, 0, $idleWidth, $textHeight)
+    $event.Graphics.DrawString($script:idleTimeText, $sender.Font, $textBrush, $idleTextRect, $format)
+  }
+  $format.Dispose()
+  $activeBrush.Dispose()
+  $idleBrush.Dispose()
+  $textBrush.Dispose()
+})
+$layout.Controls.Add($timeProgress, 0, 4)
 
 $grid = New-Object System.Windows.Forms.DataGridView
 $grid.Dock = [System.Windows.Forms.DockStyle]::Fill
@@ -309,24 +346,27 @@ $grid.DefaultCellStyle.BackColor = [System.Drawing.Color]::FromArgb(56, 59, 64)
 $grid.DefaultCellStyle.ForeColor = [System.Drawing.Color]::FromArgb(233, 237, 244)
 $grid.DefaultCellStyle.SelectionBackColor = [System.Drawing.Color]::FromArgb(112, 115, 121)
 $grid.DefaultCellStyle.SelectionForeColor = [System.Drawing.Color]::White
-$grid.ColumnCount = 5
+$grid.ColumnCount = 6
 Enable-DoubleBuffering $grid
 $grid.Columns[0].Name = "状态"
 $grid.Columns[1].Name = "Agent"
 $grid.Columns[2].Name = "当前操作/工具/技能"
 $grid.Columns[3].Name = "任务次数"
-$grid.Columns[4].Name = "平均周期"
+$grid.Columns[4].Name = "Token"
+$grid.Columns[5].Name = "平均周期"
 $grid.Columns[0].Width = 72
 $grid.Columns[1].Width = 150
 $grid.Columns[2].AutoSizeMode = [System.Windows.Forms.DataGridViewAutoSizeColumnMode]::Fill
 $grid.Columns[2].MinimumWidth = 220
 $grid.Columns[3].Width = 78
 $grid.Columns[4].Width = 92
+$grid.Columns[5].Width = 92
 $grid.Columns[0].SortMode = [System.Windows.Forms.DataGridViewColumnSortMode]::NotSortable
 $grid.Columns[1].SortMode = [System.Windows.Forms.DataGridViewColumnSortMode]::NotSortable
 $grid.Columns[2].SortMode = [System.Windows.Forms.DataGridViewColumnSortMode]::NotSortable
 $grid.Columns[3].SortMode = [System.Windows.Forms.DataGridViewColumnSortMode]::NotSortable
 $grid.Columns[4].SortMode = [System.Windows.Forms.DataGridViewColumnSortMode]::NotSortable
+$grid.Columns[5].SortMode = [System.Windows.Forms.DataGridViewColumnSortMode]::NotSortable
 $layout.Controls.Add($grid, 0, 6)
 
 $footer = New-Object System.Windows.Forms.Label
@@ -353,6 +393,10 @@ $expanded = $true
 $expandedHeight = $form.Height
 $collapsedHeight = 96
 $gridValueRefreshMs = 10 * 1000
+$taskPctValue = 0
+$activePctValue = 0
+$activeTimeText = "执行 0s"
+$idleTimeText = "空闲 0s"
 $lastGridStructureSignature = ""
 $lastGridValueSignature = ""
 $lastGridValueRefreshAt = 0
@@ -431,21 +475,31 @@ $timer.Add_Tick({
   $inProgress = @($todos | Where-Object { $_.status -eq "in_progress" })
   $taskPct = if ($todos.Count -gt 0) { [int][Math]::Round(($done / $todos.Count) * 100) } else { 0 }
 
-  $baseBar.Text = "任务进度 $done/$($todos.Count) ($taskPct%)   |   状态 $(Status-Text $session.status)   |   空闲 $(Format-Duration $idleMs)"
-  $tokenLabel.Text = "总消耗 Token: $(Coalesce $session.totalTokens 0)   ·   已执行: $(Format-Duration $activeMs)"
-  $headerInfo.Text = "进度 $taskPct% · Token $(Coalesce $session.totalTokens 0) · 活跃 $(Format-Duration $activeMs) · 空闲 $(Format-Duration $idleMs)"
-  $taskProgress.Value = [Math]::Min([Math]::Max($taskPct, 0), 100)
-  $timeProgress.Value = $activePct
-  $footer.Text = if ($inProgress.Count -gt 0) { "进行中: $($inProgress[0].content)" } else { "进行中: 无 · 待处理: $pending" }
+  $activeText = Format-Duration $activeMs
+  $idleText = Format-Duration $idleMs
+  $currentTaskText = if ($inProgress.Count -gt 0) { $inProgress[0].content } else { "无" }
+  $script:taskPctValue = [Math]::Min([Math]::Max($taskPct, 0), 100)
+  $script:activePctValue = $activePct
+  $script:activeTimeText = "执行 $activeText"
+  $script:idleTimeText = "空闲 $idleText"
+
+  $baseBar.Text = "任务 $done/$($todos.Count) ($taskPct%) · 待处理 $pending · 当前: $currentTaskText"
+  $tokenLabel.Text = "Token $(Coalesce $session.totalTokens 0) · 执行 $activeText · 空闲 $idleText"
+  $headerInfo.Text = "$(Status-Text $session.status) · 任务 $done/$($todos.Count) · Token $(Coalesce $session.totalTokens 0)"
+  $taskTitle.Text = "任务进度 $taskPct%"
+  $taskProgress.Invalidate()
+  $timeProgress.Invalidate()
+  $footer.Text = if ($inProgress.Count -gt 0) { "进行中: $currentTaskText" } else { "无进行中任务" }
 
   $agentsStamp = [double](Coalesce $state.updatedAt 0)
   if ($agentsStamp -ne $script:lastAgentsStamp) {
-    $ordered = $agents | Sort-Object @{ Expression = { [string]$_.name } }
+    $ordered = $agents | Sort-Object @{ Expression = { Status-Rank ([string]$_.status) } }, @{ Expression = { [string]$_.name } }
 
     $rows = @()
     foreach ($agent in $ordered) {
       $executed = [int](Coalesce $agent.executed 0)
       $totalMs = [double](Coalesce $agent.totalMs 0)
+      $totalTokens = [int](Coalesce $agent.totalTokens 0)
       $avgMs = if ($executed -gt 0) { [Math]::Round($totalMs / $executed) } else { 0 }
       $operation = [string](Coalesce $agent.currentOperation "-")
       $rows += @{
@@ -454,6 +508,7 @@ $timer.Add_Tick({
         name = [string]$agent.name
         operation = $operation
         executed = [string]$executed
+        tokenText = [string]$totalTokens
         avgText = (Format-Duration $avgMs)
         statusRaw = [string]$agent.status
       }
@@ -463,7 +518,7 @@ $timer.Add_Tick({
         "$($_.statusRaw)|$($_.name)"
       }) -join "`n"
     $valueSignature = ($rows | ForEach-Object {
-        "$($_.statusRaw)|$($_.name)|$($_.operation)|$($_.executed)|$($_.avgText)"
+        "$($_.statusRaw)|$($_.name)|$($_.operation)|$($_.executed)|$($_.tokenText)|$($_.avgText)"
       }) -join "`n"
     $structureChanged = $structureSignature -ne $script:lastGridStructureSignature
     $valueChanged = $valueSignature -ne $script:lastGridValueSignature
@@ -489,10 +544,11 @@ $timer.Add_Tick({
               Set-GridCellValue $grid.Rows[$rowIndex] 1 $row.name
               Set-GridCellValue $grid.Rows[$rowIndex] 2 $row.operation
               Set-GridCellValue $grid.Rows[$rowIndex] 3 $row.executed
-              Set-GridCellValue $grid.Rows[$rowIndex] 4 $row.avgText
+              Set-GridCellValue $grid.Rows[$rowIndex] 4 $row.tokenText
+              Set-GridCellValue $grid.Rows[$rowIndex] 5 $row.avgText
             }
           } else {
-            $rowIndex = $grid.Rows.Add($row.statusText, $row.name, $row.operation, $row.executed, $row.avgText)
+            $rowIndex = $grid.Rows.Add($row.statusText, $row.name, $row.operation, $row.executed, $row.tokenText, $row.avgText)
             $script:agentRowIndex[$row.name] = $rowIndex
           }
           $grid.Rows[$rowIndex].Cells[0].Style.ForeColor = $row.statusColor

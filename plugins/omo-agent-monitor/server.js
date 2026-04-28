@@ -73,6 +73,7 @@ const plugin = {
 
       const tokenDelta = extractTokens(input) + extractTokens(output);
       state.session.totalTokens += tokenDelta;
+      metric.totalTokens += tokenDelta;
       state.session.lastActiveAt = now;
       if (Object.keys(state.activeCalls).length === 0 && state.session.activeWindowStart) {
         state.session.totalActiveMs += Math.max(now - state.session.activeWindowStart, 0);
@@ -89,6 +90,7 @@ function ensureAgent(name) {
     status: "unknown",
     executed: 0,
     totalMs: 0,
+    totalTokens: 0,
     currentOperation: undefined,
   };
   return state.agents[name];

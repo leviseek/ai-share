@@ -125,6 +125,7 @@ function buildViewModel() {
         name: agent.name,
         status: agent.status,
         executed,
+        totalTokens: Number(agent.totalTokens ?? 0),
         avgMs: executed > 0 ? Math.round(totalMs / executed) : 0,
         currentOperation: typeof agent.currentOperation === "string" ? agent.currentOperation : "",
       };
@@ -146,7 +147,7 @@ function mergeAgents(agents) {
     ...agents,
     ...defaultAgentNames
       .filter((name) => !seen.has(name))
-      .map((name) => ({ name, status: "idle", executed: 0, totalMs: 0, currentOperation: "-" })),
+      .map((name) => ({ name, status: "idle", executed: 0, totalMs: 0, totalTokens: 0, currentOperation: "-" })),
   ];
 }
 
@@ -232,7 +233,7 @@ function renderHtml() {
       <div class="row">
         <div class="caption">Agents</div>
         <table>
-          <thead><tr><th>状态</th><th>Agent</th><th>任务次数</th><th>平均周期</th></tr></thead>
+          <thead><tr><th>状态</th><th>Agent</th><th>任务次数</th><th>Token</th><th>平均周期</th></tr></thead>
           <tbody id="agentsBody"></tbody>
         </table>
       </div>
@@ -316,17 +317,18 @@ function renderHtml() {
       document.getElementById('timeSummary').textContent = '活跃占比 ' + pct(activeRatio) + '%，空闲占比 ' + pct(idleRatio) + '%';
 
       const body = document.getElementById('agentsBody');
-      const agentsSignature = JSON.stringify(data.agents.map((agent) => [agent.status, agent.name, agent.executed, agent.avgMs]));
+      const agentsSignature = JSON.stringify(data.agents.map((agent) => [agent.status, agent.name, agent.executed, agent.totalTokens, agent.avgMs]));
       if (agentsSignature !== lastAgentsSignature) {
         lastAgentsSignature = agentsSignature;
         body.innerHTML = data.agents.length === 0
-          ? '<tr><td colspan="4">暂无 agent 执行记录</td></tr>'
+          ? '<tr><td colspan="5">暂无 agent 执行记录</td></tr>'
           : data.agents.map((agent) => {
               const cls = colorByStatus(agent.status);
               return '<tr>' +
                 '<td class="status ' + cls + '">' + statusText(agent.status) + '</td>' +
                 '<td>' + agent.name + '</td>' +
                 '<td>' + agent.executed + '</td>' +
+                '<td>' + agent.totalTokens + '</td>' +
                 '<td>' + fmtMs(agent.avgMs) + '</td>' +
               '</tr>';
             }).join('');
