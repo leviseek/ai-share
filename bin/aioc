@@ -4,39 +4,32 @@ set -eu
 config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 opcode_config="$config_dir/opencode.json"
 
-warn_resume_session() {
-  session_id=""
-  prev=""
-  for arg in "$@"; do
-    case "$prev" in
-      -s|--resume) session_id="$arg" ; break ;;
-    esac
-    prev="$arg"
-  done
-  if [ -z "$session_id" ]; then return 0; fi
-
-  if [ ! -f "$opcode_config" ]; then return 0; fi
-
-  max_tokens="$(node -e "const fs=require('fs'); try { const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log(c.compaction?.max_input_tokens || 120000); } catch(e) { console.log(120000); }" "$opcode_config")" || max_tokens=120000
-
+context_guard() {
+  command="$1"
+  shift
   db_path="$HOME/.local/share/opencode/opencode.db"
-  if [ ! -f "$db_path" ]; then return 0; fi
-
-  if command -v sqlite3 > /dev/null 2>&1; then
-    input_tokens="$(sqlite3 "$db_path" "SELECT json_extract(data, '\$.tokens.input') FROM message WHERE session_id = '$session_id' AND json_extract(data, '\$.role') = 'assistant' ORDER BY time_created DESC LIMIT 1;" 2>/dev/null || echo 0)"
-  elif command -v bun > /dev/null 2>&1; then
-    input_tokens="$(AIOMO_DB="$db_path" AIOMO_SID="$session_id" bun -e 'import{Database}from"bun:sqlite";const db=new Database(process.env.AIOMO_DB,{readonly:true});try{const r=db.query("select json_extract(data,\"$.tokens.input\") as input from message where session_id=? and json_extract(data,\"$.role\")=\"assistant\" order by time_created desc limit 1").get(process.env.AIOMO_SID);console.log(r?.input??0)}catch(e){console.log(0)}' 2>/dev/null || echo 0)"
+  guard_script="$(dirname "$0")/opencode-context-guard.mjs"
+  guard_config="$config_dir/context-guard.json"
+  if [ ! -f "$guard_script" ] || ! command -v bun > /dev/null 2>&1; then return 0; fi
+  if [ "$command" = "check" ]; then
+    bun "$guard_script" check aioc "$opcode_config" "$guard_config" "$db_path" -- "$@"
   else
-    return 0
-  fi
-
-  input_tokens="${input_tokens%%[!0-9]*}"
-  input_tokens="${input_tokens:-0}"
-  if [ "$input_tokens" -gt "$max_tokens" ] 2>/dev/null; then
-    printf '\033[33m\n⚠ 旧会话上下文过长：最近输入 token 约 %s，超过 profile max_input_tokens=%s。\n' "$input_tokens" "$max_tokens"
-    printf '  建议新开 aioc 或先对旧会话执行简要之类的压缩后再恢复。\n\033[0m\n'
+    bun "$guard_script" rescue aioc "$1" "$guard_config" "$db_path"
   fi
 }
 
-warn_resume_session "$@"
+case "${1:-}" in
+  rescue)
+    if [ "$#" -lt 2 ]; then printf '%s\n' "用法：aioc rescue <session-id>" >&2; exit 2; fi
+    context_guard rescue "$2"
+    exit "$?"
+    ;;
+esac
+
+set +e
+context_guard check "$@"
+code="$?"
+set -e
+if [ "$code" = "10" ]; then exit 10; fi
+
 exec opencode --pure "$@"

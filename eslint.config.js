@@ -37,10 +37,11 @@ export default tseslint.config(
     },
   },
   {
-    files: ["eslint.config.js"],
+    files: ["eslint.config.js", "bin/**/*.mjs"],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: {
       globals: {
+        Bun: "readonly",
         console: "readonly",
         process: "readonly",
       },

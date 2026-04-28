@@ -39,6 +39,7 @@ const targetOpenCode = resolve(targetConfigDir, "opencode.json");
 const targetTui = resolve(targetConfigDir, "tui.json");
 const targetOhMyOpenAgent = resolve(targetConfigDir, "oh-my-openagent.json");
 const targetProfileManifest = resolve(targetConfigDir, ".omo-profiles.json");
+const targetContextGuard = resolve(targetConfigDir, "context-guard.json");
 const targetBinDir = resolve(homeDir, ".local", "bin");
 const targetPluginDir = resolve(targetConfigDir, "plugins");
 const targetSkillsDir = resolve(targetConfigDir, "skills");
@@ -98,6 +99,7 @@ for (const [profileId, ohMyOpenAgentConfig] of Object.entries(ohMyOpenAgentConfi
 }
 await writeJson(targetOhMyOpenAgent, requireValue(ohMyOpenAgentConfigs[selectedDefaultProfileId], "默认 OMO profile"));
 await writeJson(targetProfileManifest, buildProfileManifest(profilesConfig, selectedDefaultProfileId));
+await writeJson(targetContextGuard, buildContextGuardConfig(globalConfig));
 await installPlugins();
 await installNativeSkills();
 await installLaunchers();
@@ -111,6 +113,7 @@ console.log(
 );
 console.log(`${dryRun ? "将生成" : "已生成"} oh-my-openagent 默认配置：${targetOhMyOpenAgent}`);
 console.log(`${dryRun ? "将生成" : "已生成"} OMO 级别清单：${targetProfileManifest}`);
+console.log(`${dryRun ? "将生成" : "已生成"} 上下文守卫配置：${targetContextGuard}`);
 console.log(
   `${dryRun ? "将生成" : "已生成"} OMO 级别配置：${Object.keys(ohMyOpenAgentConfigs)
     .map((profileId) => `aiomo ${profileId}`)
@@ -265,7 +268,10 @@ function buildOpenCodeConfig(
     model: defaultModelRef,
     small_model: smallModelRef,
     instructions: [resolve(projectRoot, "AI_GUIDELINES.md")],
-    plugin: globalConfig.opencode?.plugins ?? ["oh-my-openagent@3.17.5"],
+    plugin: [
+      ...(globalConfig.opencode?.plugins ?? ["oh-my-openagent@3.17.5"]),
+      ...(globalConfig.opencode?.optional_plugins ?? []),
+    ],
     compaction: buildCompactionConfig(
       globalConfig,
       modelSources,
@@ -288,6 +294,19 @@ function buildOpenCodeConfig(
       summary: { model: smallModelRef },
     },
     provider: buildProviders(providerSources, modelSources),
+  };
+}
+
+function buildContextGuardConfig(globalConfig: GlobalYaml): Required<NonNullable<GlobalYaml["context_guard"]>> {
+  const source = globalConfig.context_guard ?? {};
+  return {
+    enabled: source.enabled ?? true,
+    warn_ratio: source.warn_ratio ?? 0.5,
+    danger_ratio: source.danger_ratio ?? 0.75,
+    block_ratio: source.block_ratio ?? 0.9,
+    absolute_block_tokens: source.absolute_block_tokens ?? 180000,
+    rescue_dir: source.rescue_dir ?? ".opencode-rescue",
+    diagnostics: source.diagnostics ?? true,
   };
 }
 
@@ -595,8 +614,16 @@ async function writeJson(path: string, value: unknown): Promise<void> {
 async function installLaunchers(): Promise<void> {
   const launcherFiles =
     process.platform === "win32"
-      ? ["aiomo.cmd", "aiomo.ps1", "aioc.cmd", "aioc.ps1", "aiomo-monitor.cmd", "aiomo-monitor.ps1"]
-      : ["aiomo", "aioc", "aiomo-monitor"];
+      ? [
+          "aiomo.cmd",
+          "aiomo.ps1",
+          "aioc.cmd",
+          "aioc.ps1",
+          "opencode-context-guard.mjs",
+          "aiomo-monitor.cmd",
+          "aiomo-monitor.ps1",
+        ]
+      : ["aiomo", "aioc", "opencode-context-guard.mjs", "aiomo-monitor"];
   if (dryRun) {
     for (const fileName of launcherFiles) {
       console.log(`将安装启动命令：${resolve(targetBinDir, fileName)}`);

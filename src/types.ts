@@ -51,6 +51,7 @@ export type GlobalYaml = {
   tui?: GlobalTui;
   models?: GlobalModels;
   context?: GlobalContext;
+  context_guard?: GlobalContextGuard;
   compaction?: GlobalCompaction;
   telemetry?: GlobalTelemetry;
 };
@@ -74,6 +75,7 @@ export type GlobalRuntime = {
 
 export type GlobalOpenCode = {
   plugins?: string[];
+  optional_plugins?: string[];
 };
 
 export type GlobalTui = {
@@ -88,6 +90,16 @@ export type GlobalModels = {
 export type GlobalContext = {
   max_tokens?: number;
   strategy?: "truncate" | "summarize" | "split";
+};
+
+export type GlobalContextGuard = {
+  enabled?: boolean;
+  warn_ratio?: number;
+  danger_ratio?: number;
+  block_ratio?: number;
+  absolute_block_tokens?: number;
+  rescue_dir?: string;
+  diagnostics?: boolean;
 };
 
 export type GlobalCompaction = {

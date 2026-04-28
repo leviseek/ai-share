@@ -12,7 +12,7 @@ lite:
     fast: gpt-5.4-mini
   compaction:
     enabled: true
-    threshold: 50000
+    threshold: 40000
     model: fast
     max_input_tokens: 80000
 
@@ -24,7 +24,7 @@ cheap:
     fast: gpt-5.4-mini
   compaction:
     enabled: true
-    threshold: 45000
+    threshold: 40000
     model: fast
     max_input_tokens: 80000
 
@@ -36,7 +36,7 @@ balanced:
     fast: gpt-5.4-mini
   compaction:
     enabled: true
-    threshold: 80000
+    threshold: 65000
     model: fast
     max_input_tokens: 120000
 
@@ -48,7 +48,7 @@ coding:
     fast: gpt-5.4-mini
   compaction:
     enabled: true
-    threshold: 85000
+    threshold: 65000
     model: fast
     max_input_tokens: 120000
 
@@ -60,7 +60,7 @@ research:
     fast: gpt-5.4-mini
   compaction:
     enabled: true
-    threshold: 110000
+    threshold: 85000
     model: reasoning
     max_input_tokens: 160000
 
@@ -72,7 +72,7 @@ writing:
     fast: gpt-5.4-mini
   compaction:
     enabled: true
-    threshold: 90000
+    threshold: 65000
     model: reasoning
     max_input_tokens: 120000
 
@@ -84,6 +84,6 @@ max:
     fast: gpt-5.4
   compaction:
     enabled: true
-    threshold: 130000
+    threshold: 95000
     model: reasoning
     max_input_tokens: 180000
