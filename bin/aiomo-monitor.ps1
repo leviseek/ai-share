@@ -15,6 +15,8 @@ public static class NativeWindowDrag {
 }
 "@
 
+$RecentAgentWindowMs = 10 * 60 * 1000
+
 $HomeDir = if ($env:HOME) { $env:HOME } elseif ($env:USERPROFILE) { $env:USERPROFILE } else { [Environment]::GetFolderPath("UserProfile") }
 $StatePath = Join-Path $HomeDir ".config\opencode\omo-agent-monitor-state.json"
 
@@ -44,6 +46,45 @@ function Status-Color([string]$status) {
   if ($status -eq "error") { return [System.Drawing.Color]::FromArgb(239, 68, 68) }
   if ($status -eq "idle") { return [System.Drawing.Color]::FromArgb(148, 163, 184) }
   return [System.Drawing.Color]::FromArgb(100, 116, 139)
+}
+
+function Enable-DoubleBuffering($control) {
+  $property = [System.Windows.Forms.Control].GetProperty("DoubleBuffered", [System.Reflection.BindingFlags]::Instance -bor [System.Reflection.BindingFlags]::NonPublic)
+  $property.SetValue($control, $true, $null)
+}
+
+function Set-GridCellValue($row, [int]$columnIndex, [string]$value) {
+  $cell = $row.Cells[$columnIndex]
+  if ([string]$cell.Value -ne $value) {
+    $cell.Value = $value
+  }
+}
+
+function Set-GridRedraw([bool]$enabled) {
+  if (-not $grid.IsHandleCreated) { return }
+  $value = if ($enabled) { [IntPtr]1 } else { [IntPtr]::Zero }
+  # WM_SETREDRAW=0x0B
+  [void][NativeWindowDrag]::SendMessage($grid.Handle, 0x0B, $value, [IntPtr]::Zero)
+  if ($enabled) { $grid.Invalidate() }
+}
+
+function Should-ShowAgent($agent, [double]$now) {
+  $status = [string](Coalesce $agent.status "unknown")
+  if ($status -eq "running" -or $status -eq "retry" -or $status -eq "error") { return $true }
+  if ($null -ne $agent.activeSince) { return $true }
+  $operation = [string](Coalesce $agent.currentOperation "")
+  if ($operation.Length -gt 0) { return $true }
+  $lastCompletedAt = [double](Coalesce $agent.lastCompletedAt 0)
+  return $lastCompletedAt -gt 0 -and ($now - $lastCompletedAt) -le $script:RecentAgentWindowMs
+}
+
+function Should-DeferGridUpdate {
+  return $script:gridInteractionFrozen -or $grid.IsCurrentCellInEditMode
+}
+
+function Clear-GridSelection {
+  if ($null -ne $grid.CurrentCell) { $grid.CurrentCell = $null }
+  $grid.ClearSelection()
 }
 
 function New-State {
@@ -221,6 +262,9 @@ $layout.Controls.Add($timeProgress, 0, 5)
 $grid = New-Object System.Windows.Forms.DataGridView
 $grid.Dock = [System.Windows.Forms.DockStyle]::Fill
 $grid.ReadOnly = $true
+$grid.TabStop = $false
+$grid.MultiSelect = $false
+$grid.SelectionMode = [System.Windows.Forms.DataGridViewSelectionMode]::FullRowSelect
 $grid.AllowUserToAddRows = $false
 $grid.AllowUserToDeleteRows = $false
 $grid.AllowUserToResizeRows = $false
@@ -239,6 +283,7 @@ $grid.DefaultCellStyle.ForeColor = [System.Drawing.Color]::FromArgb(233, 237, 24
 $grid.DefaultCellStyle.SelectionBackColor = [System.Drawing.Color]::FromArgb(112, 115, 121)
 $grid.DefaultCellStyle.SelectionForeColor = [System.Drawing.Color]::White
 $grid.ColumnCount = 5
+Enable-DoubleBuffering $grid
 $grid.Columns[0].Name = "状态"
 $grid.Columns[1].Name = "Agent"
 $grid.Columns[2].Name = "当前操作/工具/技能"
@@ -280,9 +325,14 @@ $btnClose.Add_Click({ $form.Close() })
 $expanded = $true
 $expandedHeight = $form.Height
 $collapsedHeight = 96
-$lastGridSignature = ""
+$gridValueRefreshMs = 10 * 1000
+$lastGridStructureSignature = ""
+$lastGridValueSignature = ""
+$lastGridValueRefreshAt = 0
 $lastAgentsStamp = 0
 $agentRowIndex = @{}
+$gridInteractionFrozen = $false
+$gridUpdating = $false
 
 $snapThreshold = 20
 $isSnapping = $false
@@ -309,6 +359,12 @@ function Invoke-SnapToEdge {
 
 $form.Add_LocationChanged({ Invoke-SnapToEdge })
 $form.Add_ResizeEnd({ Invoke-SnapToEdge })
+
+$grid.Add_Enter({ $script:gridInteractionFrozen = $true })
+$grid.Add_MouseDown({ $script:gridInteractionFrozen = $true })
+$grid.Add_CellMouseDown({ $script:gridInteractionFrozen = $true })
+$grid.Add_SelectionChanged({ if (-not $script:gridUpdating) { Clear-GridSelection } })
+$grid.Add_Leave({ $script:gridInteractionFrozen = $false })
 
 $btnCollapse.Add_Click({
   $script:expanded = -not $script:expanded
@@ -357,9 +413,7 @@ $timer.Add_Tick({
 
   $agentsStamp = [double](Coalesce $state.updatedAt 0)
   if ($agentsStamp -ne $script:lastAgentsStamp) {
-    $script:lastAgentsStamp = $agentsStamp
-
-    $ordered = $agents | Sort-Object @{ Expression = { [string]$_.name } }
+    $ordered = $agents | Where-Object { Should-ShowAgent $_ $now } | Sort-Object @{ Expression = { [string]$_.name } }
 
     $rows = @()
     foreach ($agent in $ordered) {
@@ -378,46 +432,65 @@ $timer.Add_Tick({
       }
     }
 
-    $signature = ($rows | ForEach-Object {
+    $structureSignature = ($rows | ForEach-Object {
+        "$($_.statusRaw)|$($_.name)"
+      }) -join "`n"
+    $valueSignature = ($rows | ForEach-Object {
         "$($_.statusRaw)|$($_.name)|$($_.operation)|$($_.executed)|$($_.avgText)"
       }) -join "`n"
+    $structureChanged = $structureSignature -ne $script:lastGridStructureSignature
+    $valueChanged = $valueSignature -ne $script:lastGridValueSignature
+    $valueRefreshDue = ($now - $script:lastGridValueRefreshAt) -ge $script:gridValueRefreshMs
 
-    if ($signature -ne $script:lastGridSignature) {
-      $script:lastGridSignature = $signature
+    if ($structureChanged -or ($valueChanged -and $valueRefreshDue)) {
+      if (Should-DeferGridUpdate) { return }
+      $script:lastAgentsStamp = $agentsStamp
+      $script:lastGridStructureSignature = $structureSignature
+      $script:lastGridValueSignature = $valueSignature
+      $script:lastGridValueRefreshAt = $now
       $grid.SuspendLayout()
-      $seen = @{}
-      foreach ($row in $rows) {
-        $seen[$row.name] = $true
-        if ($script:agentRowIndex.ContainsKey($row.name)) {
-          $rowIndex = [int]$script:agentRowIndex[$row.name]
-          if ($rowIndex -lt $grid.Rows.Count) {
-            $grid.Rows[$rowIndex].Cells[0].Value = $row.statusText
-            $grid.Rows[$rowIndex].Cells[1].Value = $row.name
-            $grid.Rows[$rowIndex].Cells[2].Value = $row.operation
-            $grid.Rows[$rowIndex].Cells[3].Value = $row.executed
-            $grid.Rows[$rowIndex].Cells[4].Value = $row.avgText
+      Set-GridRedraw $false
+      $script:gridUpdating = $true
+      try {
+        $seen = @{}
+        foreach ($row in $rows) {
+          $seen[$row.name] = $true
+          if ($script:agentRowIndex.ContainsKey($row.name)) {
+            $rowIndex = [int]$script:agentRowIndex[$row.name]
+            if ($rowIndex -lt $grid.Rows.Count) {
+              Set-GridCellValue $grid.Rows[$rowIndex] 0 $row.statusText
+              Set-GridCellValue $grid.Rows[$rowIndex] 1 $row.name
+              Set-GridCellValue $grid.Rows[$rowIndex] 2 $row.operation
+              Set-GridCellValue $grid.Rows[$rowIndex] 3 $row.executed
+              Set-GridCellValue $grid.Rows[$rowIndex] 4 $row.avgText
+            }
+          } else {
+            $rowIndex = $grid.Rows.Add($row.statusText, $row.name, $row.operation, $row.executed, $row.avgText)
+            $script:agentRowIndex[$row.name] = $rowIndex
           }
-        } else {
-          $rowIndex = $grid.Rows.Add($row.statusText, $row.name, $row.operation, $row.executed, $row.avgText)
-          $script:agentRowIndex[$row.name] = $rowIndex
+          $grid.Rows[$rowIndex].Cells[0].Style.ForeColor = $row.statusColor
         }
-        $grid.Rows[$rowIndex].Cells[0].Style.ForeColor = $row.statusColor
-      }
 
-      for ($index = $grid.Rows.Count - 1; $index -ge 0; $index -= 1) {
-        $name = [string]$grid.Rows[$index].Cells[1].Value
-        if (-not $seen.ContainsKey($name)) {
-          $grid.Rows.RemoveAt($index)
+        for ($index = $grid.Rows.Count - 1; $index -ge 0; $index -= 1) {
+          $name = [string]$grid.Rows[$index].Cells[1].Value
+          if (-not $seen.ContainsKey($name)) {
+            $grid.Rows.RemoveAt($index)
+          }
         }
-      }
 
-      $script:agentRowIndex = @{}
-      for ($index = 0; $index -lt $grid.Rows.Count; $index += 1) {
-        $name = [string]$grid.Rows[$index].Cells[1].Value
-        if ($name) { $script:agentRowIndex[$name] = $index }
+        $script:agentRowIndex = @{}
+        for ($index = 0; $index -lt $grid.Rows.Count; $index += 1) {
+          $name = [string]$grid.Rows[$index].Cells[1].Value
+          if ($name) { $script:agentRowIndex[$name] = $index }
+        }
+        Clear-GridSelection
+      } finally {
+        $script:gridUpdating = $false
+        Set-GridRedraw $true
+        $grid.ResumeLayout()
       }
-
-      $grid.ResumeLayout()
+    } else {
+      if (-not $valueChanged) { $script:lastAgentsStamp = $agentsStamp }
     }
   }
 })

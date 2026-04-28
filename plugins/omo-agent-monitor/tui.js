@@ -7,6 +7,7 @@ import { exec } from "node:child_process";
 const pluginDir = dirname(fileURLToPath(import.meta.url));
 const statePath = resolve(pluginDir, "..", "..", "omo-agent-monitor-state.json");
 const statusRank = { running: 0, retry: 1, error: 2, idle: 3, unknown: 4 };
+const recentAgentWindowMs = 10 * 60 * 1000;
 
 let webServer;
 let webPort = 0;
@@ -80,8 +81,10 @@ function buildViewModel() {
   const inProgress = todos.filter((todo) => todo.status === "in_progress");
   const pending = todos.filter((todo) => todo.status === "pending");
   const progress = todos.length > 0 ? Math.round((done / todos.length) * 100) : 0;
-  const agents = sortedAgents(Array.isArray(state.agents) ? state.agents : []);
   const now = Date.now();
+  const agents = sortedAgents(
+    Array.isArray(state.agents) ? state.agents.filter((agent) => shouldShowAgent(agent, now)) : [],
+  );
   const startedAt = state.session?.startedAt ?? now;
   const lastActiveAt = state.session?.lastActiveAt ?? startedAt;
   const activeMs = Math.max(state.session?.totalActiveMs ?? 0, 0);
@@ -113,9 +116,19 @@ function buildViewModel() {
         status: agent.status,
         executed,
         avgMs: executed > 0 ? Math.round(totalMs / executed) : 0,
+        currentOperation: typeof agent.currentOperation === "string" ? agent.currentOperation : "",
       };
     }),
   };
+}
+
+function shouldShowAgent(agent, now) {
+  const status = typeof agent.status === "string" ? agent.status : "unknown";
+  if (status === "running" || status === "retry" || status === "error") return true;
+  if (agent.activeSince !== undefined) return true;
+  if (typeof agent.currentOperation === "string" && agent.currentOperation.length > 0) return true;
+  const lastCompletedAt = Number(agent.lastCompletedAt ?? 0);
+  return lastCompletedAt > 0 && now - lastCompletedAt <= recentAgentWindowMs;
 }
 
 function sortedAgents(agents) {
@@ -222,6 +235,7 @@ function renderHtml() {
     const collapse = document.getElementById('collapse');
     let drag = null;
     let collapsed = false;
+    let lastAgentsSignature = '';
 
     bar.addEventListener('mousedown', (event) => {
       if (event.target === collapse) return;
@@ -291,17 +305,21 @@ function renderHtml() {
       document.getElementById('timeSummary').textContent = '活跃占比 ' + pct(activeRatio) + '%，空闲占比 ' + pct(idleRatio) + '%';
 
       const body = document.getElementById('agentsBody');
-      body.innerHTML = data.agents.length === 0
-        ? '<tr><td colspan="4">暂无 agent 执行记录</td></tr>'
-        : data.agents.map((agent) => {
-            const cls = colorByStatus(agent.status);
-            return '<tr>' +
-              '<td class="status ' + cls + '">' + statusText(agent.status) + '</td>' +
-              '<td>' + agent.name + '</td>' +
-              '<td>' + agent.executed + '</td>' +
-              '<td>' + fmtMs(agent.avgMs) + '</td>' +
-            '</tr>';
-          }).join('');
+      const agentsSignature = JSON.stringify(data.agents.map((agent) => [agent.status, agent.name, agent.executed, agent.avgMs]));
+      if (agentsSignature !== lastAgentsSignature) {
+        lastAgentsSignature = agentsSignature;
+        body.innerHTML = data.agents.length === 0
+          ? '<tr><td colspan="4">暂无 agent 执行记录</td></tr>'
+          : data.agents.map((agent) => {
+              const cls = colorByStatus(agent.status);
+              return '<tr>' +
+                '<td class="status ' + cls + '">' + statusText(agent.status) + '</td>' +
+                '<td>' + agent.name + '</td>' +
+                '<td>' + agent.executed + '</td>' +
+                '<td>' + fmtMs(agent.avgMs) + '</td>' +
+              '</tr>';
+            }).join('');
+      }
 
       document.getElementById('footer').textContent = '会话状态：' + statusText(data.session.status) + ' · 更新时间：' + new Date(data.updatedAt).toLocaleTimeString();
     }
