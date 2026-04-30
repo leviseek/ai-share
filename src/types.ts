@@ -110,6 +110,8 @@ export type GlobalCompaction = {
   threshold?: number;
   model?: string;
   max_input_tokens?: number;
+  prune?: boolean;
+  reserved?: number;
 };
 
 export type StrategySource = Record<string, unknown>;
@@ -198,10 +200,9 @@ export type TuiConfig = {
 };
 
 export type OpenCodeCompaction = {
-  enabled: boolean;
-  threshold: number;
-  model: string;
-  max_input_tokens: number;
+  auto: boolean;
+  prune: boolean;
+  reserved: number;
 };
 
 export type OpenCodeAgent = {

@@ -101,7 +101,7 @@ function readGuardConfig(path) {
 
 function readMaxInputTokens(path) {
   const config = readJson(path, {});
-  return Number(config?.compaction?.max_input_tokens) || 120000;
+  return Number(config?.max_input_tokens) || Number(config?.compaction?.max_input_tokens) || 120000;
 }
 
 function findResumeSession(args) {

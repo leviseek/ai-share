@@ -88,6 +88,8 @@ omo_profile_config="$config_dir/oh-my-openagent.$profile.json"
 omo_active_config="$config_dir/oh-my-openagent.json"
 strategy_profile_config="$config_dir/strategy.$profile.json"
 strategy_active_config="$config_dir/strategy.json"
+context_guard_profile_config="$config_dir/context-guard.$profile.json"
+context_guard_active_profile_config="$config_dir/context-guard.profile.json"
 
 if [ ! -f "$opencode_profile_config" ]; then
   printf '%s\n' "缺少 OpenCode 编排级别配置：$opencode_profile_config" >&2
@@ -106,8 +108,15 @@ cp "$omo_profile_config" "$omo_active_config"
 if [ -f "$strategy_profile_config" ]; then
   cp "$strategy_profile_config" "$strategy_active_config"
 fi
+if [ -f "$context_guard_profile_config" ]; then
+  cp "$context_guard_profile_config" "$context_guard_active_profile_config"
+fi
+guard_budget_config="$opencode_profile_config"
+if [ -f "$context_guard_profile_config" ]; then
+  guard_budget_config="$context_guard_profile_config"
+fi
 set +e
-opencode_context_guard check aiomo "$opencode_profile_config" "$config_dir" "$@"
+opencode_context_guard check aiomo "$guard_budget_config" "$config_dir" "$@"
 code="$?"
 set -e
 if [ "$code" = "10" ]; then exit 10; fi

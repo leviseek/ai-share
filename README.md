@@ -277,7 +277,7 @@ max：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4
 
 `config/agents.yaml` 中的 agents/categories 引用 `primary`、`reasoning`、`fast` 这 3 个中间层角色；具体模型由 `config/profiles.yaml` 决定。
 
-`config/profiles.yaml` 中的每个 OMO 编排级别也可以覆盖 OpenCode `compaction`，用于按模式调节上下文智能压缩策略：
+`config/profiles.yaml` 中的每个 OMO 编排级别也可以覆盖 `compaction`，用于按模式调节 OpenCode 自动压缩与启动前上下文守卫预算：
 
 ```yaml
 balanced:
@@ -288,7 +288,7 @@ balanced:
     max_input_tokens: 120000
 ```
 
-其中 `model` 可以直接写模型 ID，也可以写 `primary`、`reasoning`、`fast` 这类 profile 模型角色。未在 profile 中声明的字段会回退到 `config/global.yaml` 的 `compaction` 默认值。
+生成到 OpenCode 顶层 `compaction` 时会使用当前 schema 支持的 `auto` / `prune` / `reserved` 字段；`threshold` 会换算为 `reserved = max_input_tokens - threshold`，`max_input_tokens` 会生成到 `context-guard.<profile>.json` 供 `aiomo` / `aioc` 恢复旧 session 前判断风险。`model` 会生成到 `agent.compaction.model`，可以直接写模型 ID，也可以写 `primary`、`reasoning`、`fast` 这类 profile 模型角色。未在 profile 中声明的字段会回退到 `config/global.yaml` 的 `compaction` 默认值。
 
 同一个 profile 也可以通过 `strategies` 覆盖共享策略。OpenCode 和 oh-my-openagent 的主配置会遵循各自
 schema；DCP / checkpoint / memory 这类共享策略会生成到独立的 `strategy.<profile>.json` sidecar，避免向

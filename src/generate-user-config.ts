@@ -41,6 +41,7 @@ const targetTui = resolve(targetConfigDir, "tui.json");
 const targetOhMyOpenAgent = resolve(targetConfigDir, "oh-my-openagent.json");
 const targetProfileManifest = resolve(targetConfigDir, ".omo-profiles.json");
 const targetContextGuard = resolve(targetConfigDir, "context-guard.json");
+const targetContextGuardProfile = contextGuardProfilePath("profile");
 const targetStrategy = resolve(targetConfigDir, "strategy.json");
 const targetBinDir = resolve(homeDir, ".local", "bin");
 const targetPluginDir = resolve(targetConfigDir, "plugins");
@@ -66,6 +67,7 @@ const openCodeConfigs = buildOpenCodeConfigs(globalConfig, providers, models, pr
 const tuiConfig = buildTuiConfig(globalConfig);
 const ohMyOpenAgentConfigs = buildOhMyOpenAgentConfigs(models, profilesConfig, agentsConfig);
 const strategyConfigs = buildStrategyConfigs(globalConfig, profilesConfig, agentsConfig);
+const contextGuardProfileConfigs = buildContextGuardProfileConfigs(globalConfig, profilesConfig);
 const selectedDefaultProfileId = defaultProfileId(globalConfig, profilesConfig);
 const selectedOpenCodeConfig = requireValue(openCodeConfigs[selectedDefaultProfileId], "默认 OpenCode profile");
 
@@ -105,6 +107,13 @@ for (const [profileId, strategyConfig] of Object.entries(strategyConfigs)) {
   await writeJson(profileStrategyPath(profileId), strategyConfig);
 }
 await writeJson(targetStrategy, requireValue(strategyConfigs[selectedDefaultProfileId], "默认共享策略 profile"));
+for (const [profileId, contextGuardProfileConfig] of Object.entries(contextGuardProfileConfigs)) {
+  await writeJson(profileContextGuardPath(profileId), contextGuardProfileConfig);
+}
+await writeJson(
+  targetContextGuardProfile,
+  requireValue(contextGuardProfileConfigs[selectedDefaultProfileId], "默认 context guard profile"),
+);
 await writeJson(targetProfileManifest, buildProfileManifest(profilesConfig, selectedDefaultProfileId));
 await writeJson(targetContextGuard, buildContextGuardConfig(globalConfig));
 await installPlugins();
@@ -285,13 +294,7 @@ function buildOpenCodeConfig(
       ...(globalConfig.opencode?.plugins ?? ["oh-my-openagent@3.17.5"]),
       ...(globalConfig.opencode?.optional_plugins ?? []),
     ],
-    compaction: buildCompactionConfig(
-      globalConfig,
-      modelSources,
-      profileModels,
-      profilesConfig[profileId]?.compaction,
-      smallModelRef,
-    ),
+    compaction: buildCompactionConfig(globalConfig, profilesConfig[profileId]?.compaction),
     agent: {
       build: { mode: "primary", model: defaultModelRef, max_tokens: 8192 },
       plan: {
@@ -302,7 +305,9 @@ function buildOpenCodeConfig(
       },
       general: { mode: "subagent", model: defaultModelRef, max_tokens: 4096 },
       explore: { mode: "subagent", model: smallModelRef, max_tokens: 2048, permission: { edit: "deny" } },
-      compaction: { model: smallModelRef },
+      compaction: {
+        model: compactionAgentModel(modelSources, profileModels, profilesConfig[profileId]?.compaction, smallModelRef),
+      },
       title: { model: smallModelRef },
       summary: { model: smallModelRef },
     },
@@ -323,6 +328,18 @@ function buildContextGuardConfig(globalConfig: GlobalYaml): Required<NonNullable
   };
 }
 
+function buildContextGuardProfileConfigs(
+  globalConfig: GlobalYaml,
+  profilesConfig: ProfilesYaml,
+): Record<string, { max_input_tokens: number }> {
+  return Object.fromEntries(
+    Object.keys(requireRecord(profilesConfig, "profiles")).map((profileId) => [
+      profileId,
+      { max_input_tokens: maxInputTokensForProfile(globalConfig, profilesConfig[profileId]?.compaction) },
+    ]),
+  );
+}
+
 function buildTuiConfig(globalConfig: GlobalYaml): TuiConfig {
   return {
     $schema: "https://opencode.ai/tui.json",
@@ -332,19 +349,35 @@ function buildTuiConfig(globalConfig: GlobalYaml): TuiConfig {
 
 function buildCompactionConfig(
   globalConfig: GlobalYaml,
+  profileCompaction: GlobalYaml["compaction"],
+): OpenCodeConfig["compaction"] {
+  const source = { ...globalConfig.compaction, ...profileCompaction };
+  return {
+    auto: source.enabled ?? true,
+    prune: source.prune ?? true,
+    reserved: source.reserved ?? compactionReservedTokens(globalConfig, source),
+  };
+}
+
+function compactionAgentModel(
   modelSources: ModelsYaml,
   profileModels: ModelRoleMap,
   profileCompaction: GlobalYaml["compaction"],
   smallModelRef: string,
-): OpenCodeConfig["compaction"] {
+): string {
+  const source = profileCompaction ?? {};
+  return source.model ? modelRef(source.model, modelSources, profileModels) : smallModelRef;
+}
+
+function compactionReservedTokens(globalConfig: GlobalYaml, source: GlobalYaml["compaction"] = {}): number {
+  const maxInputTokens = maxInputTokensForProfile(globalConfig, source);
+  const threshold = source.threshold ?? Math.min(globalConfig.context?.max_tokens ?? 120000, 80000);
+  return Math.max(0, maxInputTokens - threshold);
+}
+
+function maxInputTokensForProfile(globalConfig: GlobalYaml, profileCompaction: GlobalYaml["compaction"]): number {
   const source = { ...globalConfig.compaction, ...profileCompaction };
-  const maxInputTokens = source.max_input_tokens ?? globalConfig.context?.max_tokens ?? 120000;
-  return {
-    enabled: source.enabled ?? true,
-    threshold: source.threshold ?? Math.min(globalConfig.context?.max_tokens ?? 120000, 80000),
-    model: source.model ? modelRef(source.model, modelSources, profileModels) : smallModelRef,
-    max_input_tokens: maxInputTokens,
-  };
+  return source.max_input_tokens ?? globalConfig.context?.max_tokens ?? 120000;
 }
 
 function buildOhMyOpenAgentConfigs(
@@ -636,8 +669,16 @@ function profileStrategyPath(profileId: string): string {
   return resolve(targetConfigDir, `strategy.${profileId}.json`);
 }
 
+function profileContextGuardPath(profileId: string): string {
+  return contextGuardProfilePath(profileId);
+}
+
 function profileOpenCodePath(profileId: string): string {
   return resolve(targetConfigDir, `opencode.${profileId}.json`);
+}
+
+function contextGuardProfilePath(profileId: string): string {
+  return resolve(targetConfigDir, `context-guard.${profileId}.json`);
 }
 
 function unique<T>(values: T[]): T[] {

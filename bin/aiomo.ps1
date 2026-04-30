@@ -82,6 +82,8 @@ $OmoProfileConfig = Join-Path $ConfigDir "oh-my-openagent.$ProfileName.json"
 $OmoActiveConfig = Join-Path $ConfigDir "oh-my-openagent.json"
 $StrategyProfileConfig = Join-Path $ConfigDir "strategy.$ProfileName.json"
 $StrategyActiveConfig = Join-Path $ConfigDir "strategy.json"
+$ContextGuardProfileConfig = Join-Path $ConfigDir "context-guard.$ProfileName.json"
+$ContextGuardActiveProfileConfig = Join-Path $ConfigDir "context-guard.profile.json"
 
 if (-not (Test-Path -LiteralPath $OpenCodeProfileConfig -PathType Leaf)) {
   Write-Error ((U @(32570, 23569, 32, 79, 112, 101, 110, 67, 111, 100, 101, 32, 32534, 25490, 32423, 21035, 37197, 32622, 65306)) + $OpenCodeProfileConfig)
@@ -100,7 +102,11 @@ Copy-Item -LiteralPath $OmoProfileConfig -Destination $OmoActiveConfig -Force
 if (Test-Path -LiteralPath $StrategyProfileConfig -PathType Leaf) {
   Copy-Item -LiteralPath $StrategyProfileConfig -Destination $StrategyActiveConfig -Force
 }
-$GuardExit = Invoke-ContextGuardShared "check" "aiomo" $ConfigDir $OpenCodeProfileConfig $OpenCodeArgs.ToArray()
+if (Test-Path -LiteralPath $ContextGuardProfileConfig -PathType Leaf) {
+  Copy-Item -LiteralPath $ContextGuardProfileConfig -Destination $ContextGuardActiveProfileConfig -Force
+}
+$GuardConfigPath = if (Test-Path -LiteralPath $ContextGuardProfileConfig -PathType Leaf) { $ContextGuardProfileConfig } else { $OpenCodeProfileConfig }
+$GuardExit = Invoke-ContextGuardShared "check" "aiomo" $ConfigDir $GuardConfigPath $OpenCodeArgs.ToArray()
 if ($GuardExit -eq 10) { exit 10 }
 $OpenCode = Get-Command opencode.exe -CommandType Application -ErrorAction Stop
 & $OpenCode.Source @OpenCodeArgs
