@@ -23,8 +23,13 @@ dist/
 ### Local monitor state
 omo-agent-monitor-state.json
 
-### Local OpenCode / aiomo workspace state
-.opencode/
+### Local OpenCode / aiomo runtime state
+.opencode/context-guard-alert.json
+.opencode/context-guard-history/
+.opencode/handoff/
+.opencode/checkpoints/
+.opencode/dcp/
+.opencode/memory/
 .opencode-rescue/
 .sisyphus/evidence/
 .env

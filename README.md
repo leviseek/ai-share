@@ -216,7 +216,7 @@ aiomo doctor gitignore
 aiomo doctor gitignore --apply
 ```
 
-它会按当前项目特征补充规则，例如 `.opencode/`、`.opencode-rescue/`、`.env`、`node_modules/`、`dist/`、`coverage/`、Python 缓存、Rust `target/`、Go/JVM 常见输出目录等。
+它会按当前项目特征补充规则，例如 `.opencode/context-guard-history/`、`.opencode/handoff/`、`.opencode-rescue/`、`.env`、`node_modules/`、`dist/`、`coverage/`、Python 缓存、Rust `target/`、Go/JVM 常见输出目录等。不会忽略整个 `.opencode/`，以便项目级 OpenCode 配置可以入库。
 
 `aioc` 不切换 OMO 编排级别，会直接使用当前生效的 `opencode.json`；如果之前运行过 `aiomo lite` / `aiomo max` 等命令，`aioc` 会沿用最后一次切换后的 OpenCode 基础配置和 compaction 策略。
 

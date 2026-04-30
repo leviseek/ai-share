@@ -80,7 +80,18 @@ function Invoke-GitignoreDoctor {
   }
 
   $Rules = [System.Collections.Generic.List[string]]::new()
-  foreach ($Rule in @(".opencode/", ".opencode-rescue/", ".sisyphus/evidence/", ".env", ".env.*")) { $Rules.Add($Rule) }
+  foreach ($Rule in @(
+    ".opencode/context-guard-alert.json",
+    ".opencode/context-guard-history/",
+    ".opencode/handoff/",
+    ".opencode/checkpoints/",
+    ".opencode/dcp/",
+    ".opencode/memory/",
+    ".opencode-rescue/",
+    ".sisyphus/evidence/",
+    ".env",
+    ".env.*"
+  )) { $Rules.Add($Rule) }
 
   $IsNodeProject = (Test-Path "package.json" -PathType Leaf) -or (Test-Path "bun.lock" -PathType Leaf) -or (Test-Path "pnpm-lock.yaml" -PathType Leaf) -or (Test-Path "yarn.lock" -PathType Leaf)
   if ($IsNodeProject) {

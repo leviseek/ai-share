@@ -106,7 +106,12 @@ gitignore_doctor() {
   fi
 
   gitignore_path=".gitignore"
-  rules=".opencode/"
+  rules=".opencode/context-guard-alert.json"
+  rules=$(add_rule_once ".opencode/context-guard-history/" "$rules")
+  rules=$(add_rule_once ".opencode/handoff/" "$rules")
+  rules=$(add_rule_once ".opencode/checkpoints/" "$rules")
+  rules=$(add_rule_once ".opencode/dcp/" "$rules")
+  rules=$(add_rule_once ".opencode/memory/" "$rules")
   rules=$(add_rule_once ".opencode-rescue/" "$rules")
   rules=$(add_rule_once ".sisyphus/evidence/" "$rules")
   rules=$(add_rule_once ".env" "$rules")

@@ -35,7 +35,12 @@ context:
 workspace:
   ignore:
     - .git/**
-    - .opencode/**
+    - .opencode/context-guard-alert.json
+    - .opencode/context-guard-history/**
+    - .opencode/handoff/**
+    - .opencode/checkpoints/**
+    - .opencode/dcp/**
+    - .opencode/memory/**
     - .opencode-rescue/**
     - .sisyphus/evidence/**
     - node_modules/**
