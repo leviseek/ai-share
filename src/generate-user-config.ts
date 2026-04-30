@@ -35,6 +35,7 @@ const projectRoot = resolve(import.meta.dir, "..");
 const configDir = resolve(projectRoot, "config");
 const binDir = resolve(projectRoot, "bin");
 const pluginDir = resolve(projectRoot, "plugins");
+const distPluginDir = resolve(projectRoot, "dist", "plugins");
 const homeDir = resolve(Bun.env.HOME ?? Bun.env.USERPROFILE ?? "");
 const targetConfigDir = resolve(homeDir, ".config", "opencode");
 const targetOpenCode = resolve(targetConfigDir, "opencode.json");
@@ -365,11 +366,37 @@ async function installPlugins(): Promise<void> {
 
   await mkdir(targetPluginDir, { recursive: true });
   for (const directoryName of pluginDirectories) {
-    await cp(resolve(pluginDir, directoryName), resolve(targetPluginDir, directoryName), {
+    const builtPluginDir = await buildPlugin(directoryName);
+    await cp(builtPluginDir, resolve(targetPluginDir, directoryName), {
       recursive: true,
       force: true,
     });
   }
+}
+
+async function buildPlugin(directoryName: string): Promise<string> {
+  const sourceDir = resolve(pluginDir, directoryName);
+  const outputDir = resolve(distPluginDir, directoryName);
+  const result = spawnSync(
+    "bun",
+    [
+      "build",
+      resolve(sourceDir, "server.ts"),
+      resolve(sourceDir, "tui.ts"),
+      "--target=bun",
+      "--outdir",
+      outputDir,
+      "--external",
+      "bun:sqlite",
+    ],
+    { cwd: projectRoot, stdio: "pipe", encoding: "utf8" },
+  );
+  if (result.status !== 0) {
+    throw new Error(result.stderr.trim() || result.stdout.trim() || `构建插件失败：${directoryName}`);
+  }
+  await copyFile(resolve(sourceDir, "package.json"), resolve(outputDir, "package.json"));
+  await copyFile(resolve(sourceDir, "agents-registry.json"), resolve(outputDir, "agents-registry.json"));
+  return outputDir;
 }
 
 async function installNativeSkills(): Promise<void> {

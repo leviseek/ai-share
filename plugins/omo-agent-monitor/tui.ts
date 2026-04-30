@@ -1,18 +1,56 @@
 import { existsSync, readFileSync } from "node:fs";
-import { createServer } from "node:http";
+import { createServer, type Server } from "node:http";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { exec } from "node:child_process";
-import { defaultAgentKind, defaultAgentNames } from "./shared.js";
+import { defaultAgentKind, defaultAgentNames, type AgentKind } from "./shared.ts";
+
+type AgentStatus = "running" | "retry" | "error" | "idle" | "unknown";
+type MonitorAgent = {
+  name: string;
+  displayName?: string;
+  kind?: AgentKind;
+  source?: string;
+  background?: boolean;
+  parentAgent?: string;
+  status?: AgentStatus;
+  executed?: number;
+  totalMs?: number;
+  totalTokens?: number;
+  avgMs?: number;
+  currentOperation?: string;
+};
+type MonitorState = {
+  updatedAt?: number;
+  session?: { status?: AgentStatus; startedAt?: number; totalActiveMs?: number; totalTokens?: number };
+  todos?: { status?: string; content?: string }[];
+  agents?: MonitorAgent[];
+};
+type ViewAgent = Required<
+  Pick<
+    MonitorAgent,
+    | "name"
+    | "displayName"
+    | "kind"
+    | "source"
+    | "background"
+    | "parentAgent"
+    | "status"
+    | "executed"
+    | "totalTokens"
+    | "avgMs"
+    | "currentOperation"
+  >
+>;
+type Plugin = { id: string; tui(api: { command: { register(callback: () => unknown[]): void } }): Promise<void> };
 
 const pluginDir = dirname(fileURLToPath(import.meta.url));
 const statePath = resolve(pluginDir, "..", "..", "omo-agent-monitor-state.json");
-const statusRank = { running: 0, retry: 1, error: 2, idle: 3, unknown: 4 };
 
-let webServer;
+let webServer: Server | undefined;
 let webPort = 0;
 
-const plugin = {
+const plugin: Plugin = {
   id: "omo-agent-monitor",
   tui: async (api) => {
     api.command.register(() => [
@@ -29,16 +67,16 @@ const plugin = {
   },
 };
 
-async function openMonitorCommand() {
+async function openMonitorCommand(): Promise<void> {
   const url = await ensureWebUi();
   openBrowser(url);
 }
 
-async function ensureWebUi() {
+async function ensureWebUi(): Promise<string> {
   if (webServer && webPort > 0) return `http://127.0.0.1:${webPort}`;
 
   await new Promise((resolveReady, rejectReady) => {
-    webServer = createServer((request, response) => {
+    const server = createServer((request, response) => {
       const url = request.url ?? "/";
       if (url === "/state") {
         response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
@@ -50,9 +88,10 @@ async function ensureWebUi() {
       response.end(renderHtml());
     });
 
-    webServer.once("error", rejectReady);
-    webServer.listen(0, "127.0.0.1", () => {
-      const address = webServer.address();
+    webServer = server;
+    server.once("error", rejectReady);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
       if (typeof address === "object" && address?.port) {
         webPort = address.port;
         resolveReady(undefined);
@@ -65,7 +104,7 @@ async function ensureWebUi() {
   return `http://127.0.0.1:${webPort}`;
 }
 
-function openBrowser(url) {
+function openBrowser(url: string): void {
   if (process.platform === "win32") {
     exec(`start "" "${url}"`);
     return;
@@ -77,7 +116,19 @@ function openBrowser(url) {
   exec(`xdg-open "${url}"`);
 }
 
-function buildViewModel() {
+function buildViewModel(): {
+  updatedAt: number;
+  session: {
+    status: AgentStatus;
+    startedAt: number;
+    elapsedMs: number;
+    activeMs: number;
+    idleMs: number;
+    totalTokens: number;
+  };
+  todos: { total: number; done: number; inProgress: (string | undefined)[]; pending: number; progress: number };
+  agents: ViewAgent[];
+} {
   const state = loadMonitorState();
   const todos = Array.isArray(state.todos) ? state.todos : [];
   const done = todos.filter((todo) => todo.status === "completed").length;
@@ -111,7 +162,7 @@ function buildViewModel() {
     agents: agents.map((agent) => {
       const executed = Number(agent.executed ?? 0);
       const totalMs = Number(agent.totalMs ?? 0);
-      const status = agent.name === "main" && agent.status === "unknown" ? "idle" : agent.status;
+      const status = agent.name === "main" && agent.status === "unknown" ? "idle" : (agent.status ?? "unknown");
       return {
         name: agent.name,
         displayName: displayAgentName(agent),
@@ -129,13 +180,13 @@ function buildViewModel() {
   };
 }
 
-function mergeAgents(agents) {
+function mergeAgents(agents: MonitorAgent[]): MonitorAgent[] {
   const seen = new Set(agents.map((agent) => agent.name).filter((name) => typeof name === "string" && name.length > 0));
   return [
     ...agents,
     ...defaultAgentNames
       .filter((name) => !seen.has(name))
-      .map((name) => ({
+      .map<MonitorAgent>((name) => ({
         name,
         kind: defaultAgentKind(name),
         source: "fallback",
@@ -149,11 +200,11 @@ function mergeAgents(agents) {
   ];
 }
 
-function displayAgentName(agent) {
+function displayAgentName(agent: MonitorAgent): string {
   return agent.name === "main" ? "Hephaestus（主入口）" : agent.name;
 }
 
-function loadMonitorState() {
+function loadMonitorState(): MonitorState {
   if (!existsSync(statePath)) return {};
   try {
     return JSON.parse(readFileSync(statePath, "utf8"));
@@ -162,7 +213,7 @@ function loadMonitorState() {
   }
 }
 
-function renderHtml() {
+function renderHtml(): string {
   return `<!doctype html>
 <html lang="zh-CN">
 <head>

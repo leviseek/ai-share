@@ -1,7 +1,49 @@
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { classifyAgent, mainAgentNames, omoAgentNames, omoCategoryNames } from "./shared.js";
+import { classifyAgent, mainAgentNames, omoAgentNames, omoCategoryNames, type AgentKind } from "./shared.ts";
+
+type AgentSource = "subagent_type" | "agent" | "category" | "main" | "tool" | "fallback";
+type AgentStatus = "unknown" | "running" | "idle";
+type AgentInfo = {
+  name: string;
+  kind: AgentKind;
+  source: AgentSource;
+  parentAgent?: string;
+  sessionId?: string;
+  background: boolean;
+};
+type AgentMetric = AgentInfo & {
+  status: AgentStatus;
+  executed: number;
+  totalMs: number;
+  totalTokens: number;
+  activeSince?: number;
+  lastCompletedAt?: number;
+  currentOperation?: string;
+};
+type ActiveCall = { agent: string; startedAt: number; operation?: string; info: AgentInfo };
+type MonitorState = {
+  updatedAt: number;
+  session: {
+    startedAt: number;
+    lastActiveAt: number;
+    totalActiveMs: number;
+    activeWindowStart?: number;
+    totalTokens: number;
+    status: "idle" | "running" | string;
+  };
+  todos: unknown[];
+  agents: Record<string, AgentMetric>;
+  activeCalls: Record<string, ActiveCall>;
+  dbTokens: { total: number; agents: Record<string, number> };
+  dbExecutions: { agents: Record<string, number> };
+  dbTokenMessageIds: Set<string>;
+  dbTokenLastRefreshAt: number;
+};
+type SqliteRow = { id: string; session_id: string; time_created: number; data: string; parent_id: string | null };
+type SqliteDb = { query(sql: string): { all(...params: unknown[]): SqliteRow[] } };
+type Plugin = { id: string; server(): Promise<Record<string, (...args: any[]) => Promise<void>>> };
 
 const pluginDir = dirname(fileURLToPath(import.meta.url));
 const statePath = resolve(pluginDir, "..", "..", "omo-agent-monitor-state.json");
@@ -10,13 +52,12 @@ const idleThresholdMs = 15_000;
 const tokenDbRefreshMs = 2_000;
 const taskToolNames = new Set(["delegate_task", "task", "call_omo_agent", "background_task"]);
 
-const state = {
+const state: MonitorState = {
   updatedAt: Date.now(),
   session: {
     startedAt: Date.now(),
     lastActiveAt: Date.now(),
     totalActiveMs: 0,
-    activeWindowStart: undefined,
     totalTokens: 0,
     status: "idle",
   },
@@ -29,25 +70,25 @@ const state = {
   dbTokenLastRefreshAt: 0,
 };
 
-let sqliteModulePromise;
-let sqliteDb;
+let sqliteModulePromise: Promise<typeof import("bun:sqlite")> | undefined;
+let sqliteDb: SqliteDb | undefined;
 
-const plugin = {
+const plugin: Plugin = {
   id: "omo-agent-monitor",
   server: async () => ({
-    "session.status": async (event) => {
+    "session.status": async (event: Record<string, any>) => {
       const status = stringField(event?.properties?.status, "type");
       if (status) state.session.status = status;
       await persist();
     },
 
-    "todo.updated": async (event) => {
+    "todo.updated": async (event: Record<string, any>) => {
       const todos = event?.properties?.todos;
       if (Array.isArray(todos)) state.todos = todos;
       await persist();
     },
 
-    "tool.execute.before": async (input, output) => {
+    "tool.execute.before": async (input: Record<string, any>, output: Record<string, any> | undefined) => {
       const args = firstRecord(input.args, output?.args, input, output);
       const info = agentInfo(input.tool, args);
       const operation = operationName(input.tool, args);
@@ -66,7 +107,7 @@ const plugin = {
       await persist();
     },
 
-    "tool.execute.after": async (input, output) => {
+    "tool.execute.after": async (input: Record<string, any>, output: Record<string, any> | undefined) => {
       const args = firstRecord(input.args, output?.args, input, output);
       const info = agentInfo(input.tool, args);
       const active = state.activeCalls[input.callID] ?? {
@@ -87,7 +128,8 @@ const plugin = {
         delete metric.activeSince;
         delete metric.currentOperation;
       } else {
-        metric.currentOperation = currentOperationOf(active.agent);
+        const currentOperation = currentOperationOf(active.agent);
+        if (currentOperation) metric.currentOperation = currentOperation;
       }
 
       const tokenDelta = extractTokens(input) + extractTokens(output);
@@ -96,7 +138,7 @@ const plugin = {
       state.session.lastActiveAt = now;
       if (Object.keys(state.activeCalls).length === 0 && state.session.activeWindowStart) {
         state.session.totalActiveMs += Math.max(now - state.session.activeWindowStart, 0);
-        state.session.activeWindowStart = undefined;
+        delete state.session.activeWindowStart;
         state.session.status = "idle";
       }
       await persist();
@@ -104,7 +146,7 @@ const plugin = {
   }),
 };
 
-function ensureAgent(name) {
+function ensureAgent(name: string): AgentMetric {
   state.agents[name] ??= {
     name,
     status: "unknown",
@@ -113,31 +155,26 @@ function ensureAgent(name) {
     totalTokens: 0,
     kind: classifyAgent(name),
     source: "fallback",
-    parentAgent: undefined,
-    sessionId: undefined,
     background: false,
-    currentOperation: undefined,
   };
   return state.agents[name];
 }
 
-function updateAgentInfo(metric, info) {
+function updateAgentInfo(metric: AgentMetric, info: AgentInfo): void {
   metric.kind = info.kind;
   metric.source = info.source;
   metric.background = info.background;
-  metric.parentAgent = info.parentAgent;
-  metric.sessionId = info.sessionId;
+  setOptionalString(metric, "parentAgent", info.parentAgent);
+  setOptionalString(metric, "sessionId", info.sessionId);
 }
 
-function agentInfo(tool, args) {
+function agentInfo(tool: string, args: unknown): AgentInfo {
   if (!isRecord(args)) {
     const name = taskToolNames.has(tool) ? "main" : tool;
     return {
       name,
       kind: classifyAgent(name),
       source: "tool",
-      parentAgent: undefined,
-      sessionId: undefined,
       background: false,
     };
   }
@@ -156,32 +193,37 @@ function agentInfo(tool, args) {
           ? "main"
           : "tool";
 
-  return {
+  const info: AgentInfo = {
     name,
     kind: source === "category" ? "category" : classifyAgent(name),
     source,
-    parentAgent: stringField(args, "parentAgent") ?? stringField(args, "parent_agent") ?? stringField(args, "parent"),
-    sessionId: readSessionId(args),
     background:
       booleanField(args, "run_in_background") ?? booleanField(args, "runInBackground") ?? tool === "background_task",
   };
+  setOptionalString(
+    info,
+    "parentAgent",
+    stringField(args, "parentAgent") ?? stringField(args, "parent_agent") ?? stringField(args, "parent"),
+  );
+  setOptionalString(info, "sessionId", readSessionId(args));
+  return info;
 }
 
-function operationName(tool, args) {
+function operationName(tool: string, args: unknown): string {
   if (!isRecord(args)) return tool;
   return stringField(args, "tool_name") ?? stringField(args, "description") ?? stringField(args, "command") ?? tool;
 }
 
-function hasActiveCall(agent) {
+function hasActiveCall(agent: string): boolean {
   return Object.values(state.activeCalls).some((call) => call.agent === agent);
 }
 
-function currentOperationOf(agent) {
+function currentOperationOf(agent: string): string | undefined {
   const hit = Object.values(state.activeCalls).find((call) => call.agent === agent);
   return hit?.operation;
 }
 
-async function persist() {
+async function persist(): Promise<void> {
   state.updatedAt = Date.now();
   const now = Date.now();
   await refreshDbTokenSnapshot(now);
@@ -214,7 +256,7 @@ async function persist() {
   renameSync(tempPath, statePath);
 }
 
-function mergedAgentMetrics() {
+function mergedAgentMetrics(): AgentMetric[] {
   const agents = new Map(Object.entries(state.agents).map(([name, metric]) => [name, { ...metric }]));
   for (const [name, executed] of Object.entries(state.dbExecutions.agents)) {
     const metric = agents.get(name) ?? ensureAgent(name);
@@ -229,7 +271,7 @@ function mergedAgentMetrics() {
   return [...agents.values()];
 }
 
-async function refreshDbTokenSnapshot(now) {
+async function refreshDbTokenSnapshot(now: number): Promise<void> {
   if (now - state.dbTokenLastRefreshAt < tokenDbRefreshMs) return;
   state.dbTokenLastRefreshAt = now;
   const db = await openReadonlyDb();
@@ -241,10 +283,10 @@ async function refreshDbTokenSnapshot(now) {
         "SELECT m.id, m.session_id, m.time_created, m.data, s.parent_id FROM message m LEFT JOIN session s ON s.id = m.session_id WHERE m.time_created >= ? ORDER BY m.time_created ASC",
       )
       .all(state.session.startedAt - 60_000);
-    const agents = {};
-    const executions = {};
+    const agents: Record<string, number> = {};
+    const executions: Record<string, number> = {};
     let total = 0;
-    const messageIds = new Set();
+    const messageIds = new Set<string>();
     for (const row of rows) {
       if (state.dbTokenMessageIds.has(row.id)) continue;
       const parsed = parseJson(row.data);
@@ -271,7 +313,7 @@ async function refreshDbTokenSnapshot(now) {
   }
 }
 
-async function openReadonlyDb() {
+async function openReadonlyDb(): Promise<SqliteDb | undefined> {
   try {
     sqliteModulePromise ??= import("bun:sqlite");
     const { Database } = await sqliteModulePromise;
@@ -282,7 +324,7 @@ async function openReadonlyDb() {
   }
 }
 
-function normalizeStoredAgentName(name, parentId) {
+function normalizeStoredAgentName(name: unknown, parentId: string | null): string {
   if (typeof name !== "string" || name.length === 0) return "main";
   const clean = name.replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
   const lowered = clean.toLowerCase();
@@ -295,21 +337,21 @@ function normalizeStoredAgentName(name, parentId) {
   return clean || "main";
 }
 
-function tokenTotal(tokens) {
+function tokenTotal(tokens: unknown): number {
   if (!isRecord(tokens)) return 0;
   const total = numericTokenField(tokens, ["total", "totalTokens", "total_tokens"]);
   if (total !== undefined && total > 0) return total;
   const cache = isRecord(tokens.cache) ? tokens.cache : undefined;
-  return [
+  return sumNumbers([
     numericTokenField(tokens, ["input", "inputTokens", "input_tokens", "promptTokens", "prompt_tokens"]),
     numericTokenField(tokens, ["output", "outputTokens", "output_tokens", "completionTokens", "completion_tokens"]),
     numericTokenField(tokens, ["reasoning", "reasoningTokens", "reasoning_tokens"]),
     cache ? numericTokenField(cache, ["read", "cacheRead", "cache_read_tokens"]) : undefined,
     cache ? numericTokenField(cache, ["write", "cacheWrite", "cache_write_tokens"]) : undefined,
-  ].reduce((sum, value) => sum + (value ?? 0), 0);
+  ]);
 }
 
-function parseJson(value) {
+function parseJson(value: string): Record<string, any> | undefined {
   try {
     return JSON.parse(value);
   } catch {
@@ -317,44 +359,44 @@ function parseJson(value) {
   }
 }
 
-function homeDir() {
+function homeDir(): string {
   return process.env.HOME ?? process.env.USERPROFILE ?? process.cwd();
 }
 
-function isRecord(value) {
+function isRecord(value: unknown): value is Record<string, any> {
   return typeof value === "object" && value !== null;
 }
 
-function stringField(value, key) {
+function stringField(value: unknown, key: string): string | undefined {
   if (!isRecord(value)) return undefined;
   const field = value[key];
   return typeof field === "string" && field.length > 0 ? field : undefined;
 }
 
-function booleanField(value, key) {
+function booleanField(value: unknown, key: string): boolean | undefined {
   if (!isRecord(value)) return undefined;
   const field = value[key];
   return typeof field === "boolean" ? field : undefined;
 }
 
-function firstRecord(...values) {
+function firstRecord(...values: unknown[]): Record<string, any> | undefined {
   return values.find((value) => isRecord(value));
 }
 
-function readSessionId(value) {
+function readSessionId(value: unknown): string | undefined {
   const direct = stringField(value, "sessionId") ?? stringField(value, "sessionID") ?? stringField(value, "session_id");
   if (direct) return direct;
-  const metadata = isRecord(value?.metadata) ? value.metadata : undefined;
+  const metadata = isRecord(value) && isRecord(value.metadata) ? value.metadata : undefined;
   return metadata
     ? (stringField(metadata, "sessionId") ?? stringField(metadata, "sessionID") ?? stringField(metadata, "session_id"))
     : undefined;
 }
 
-function extractTokens(value) {
+function extractTokens(value: unknown): number {
   return scanTokenFields(value, new Set());
 }
 
-function scanTokenFields(value, visited) {
+function scanTokenFields(value: unknown, visited: Set<object>): number {
   if (typeof value !== "object" || value === null) return 0;
   if (visited.has(value)) return 0;
   visited.add(value);
@@ -382,20 +424,37 @@ function scanTokenFields(value, visited) {
   return Math.max(directPair, sum);
 }
 
-function structuredTokenTotal(value) {
-  const tokens = isRecord(value?.tokens) ? value.tokens : isRecord(value?.usage) ? value.usage : undefined;
+function structuredTokenTotal(value: unknown): number {
+  const tokens =
+    isRecord(value) && isRecord(value.tokens)
+      ? value.tokens
+      : isRecord(value) && isRecord(value.usage)
+        ? value.usage
+        : undefined;
   if (!tokens) return 0;
   const cache = isRecord(tokens.cache) ? tokens.cache : undefined;
-  return [
+  return sumNumbers([
     numericTokenField(tokens, ["input", "inputTokens", "promptTokens", "prompt_tokens"]),
     numericTokenField(tokens, ["output", "outputTokens", "completionTokens", "completion_tokens"]),
     numericTokenField(tokens, ["reasoning", "reasoningTokens", "reasoning_tokens"]),
     cache ? numericTokenField(cache, ["read", "cacheRead", "cache_read_tokens"]) : undefined,
     cache ? numericTokenField(cache, ["write", "cacheWrite", "cache_write_tokens"]) : undefined,
-  ].reduce((total, value) => total + (value ?? 0), 0);
+  ]);
 }
 
-function numericTokenField(value, keys) {
+function sumNumbers(values: (number | undefined)[]): number {
+  return values.reduce<number>((total, value) => total + (value ?? 0), 0);
+}
+
+function setOptionalString<T extends object, K extends keyof T>(target: T, key: K, value: string | undefined): void {
+  if (value === undefined) {
+    delete target[key];
+    return;
+  }
+  target[key] = value as T[K];
+}
+
+function numericTokenField(value: Record<string, any>, keys: string[]): number | undefined {
   for (const key of keys) {
     const candidate = value[key];
     if (typeof candidate === "number" && Number.isFinite(candidate)) {

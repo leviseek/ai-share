@@ -23,6 +23,6 @@
     "target": "ESNext",
     "types": ["bun"]
   },
-  "include": ["src/**/*.ts", "bin/**/*.mjs"],
+  "include": ["src/**/*.ts", "plugins/**/*.ts", "bin/**/*.mjs"],
   "exclude": ["node_modules", "dist"]
 }
