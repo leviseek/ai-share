@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OMO Monitor WebUI</title>
+    <style>
+      <!-- OMO_MONITOR_STYLES -->
+    </style>
+  </head>
+  <body>
+    <div id="panel">
+      <div id="bar">
+        <div id="title">OMO Monitor · WebUI</div>
+        <button id="collapse">折叠</button>
+      </div>
+      <div id="content">
+        <div class="grid" id="kpi"></div>
+        <div class="row">
+          <div class="caption">规划任务进度</div>
+          <div class="bar">
+            <div
+              class="fill"
+              id="taskProgress"
+              style="width: 0; background: linear-gradient(90deg, var(--run), var(--ok))"
+            ></div>
+          </div>
+          <div class="tasks"><span id="taskSummary"></span><span id="runningTodo"></span></div>
+        </div>
+        <div class="row">
+          <div class="caption">执行时间 / 空闲时间（跳变进度显示）</div>
+          <div class="bar">
+            <div
+              class="fill"
+              id="activeProgress"
+              style="width: 0; background: linear-gradient(90deg, #22c55e, #0ea5e9)"
+            ></div>
+          </div>
+          <div class="tasks"><span id="timeSummary"></span></div>
+        </div>
+        <div class="row">
+          <div class="caption">Agents</div>
+          <table>
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="status">状态</th>
+                <th class="sortable" data-sort="agent">Agent</th>
+                <th class="sortable" data-sort="executed">任务次数</th>
+                <th class="sortable" data-sort="tokens">Token</th>
+                <th class="sortable" data-sort="avg">平均周期</th>
+              </tr>
+            </thead>
+            <tbody id="agentsBody"></tbody>
+          </table>
+        </div>
+        <div id="footer"></div>
+      </div>
+    </div>
+
+    <script>
+      <!-- OMO_MONITOR_SCRIPT -->
+    </script>
+  </body>
+</html>

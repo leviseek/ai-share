@@ -14,6 +14,7 @@ export default tseslint.config(
         Bun: "readonly",
         console: "readonly",
         process: "readonly",
+        setTimeout: "readonly",
       },
       parserOptions: {
         projectService: true,
@@ -44,6 +45,7 @@ export default tseslint.config(
         Bun: "readonly",
         console: "readonly",
         process: "readonly",
+        setTimeout: "readonly",
       },
     },
   },

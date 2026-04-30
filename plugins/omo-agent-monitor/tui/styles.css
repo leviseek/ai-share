@@ -1,0 +1,209 @@
+:root {
+  color-scheme: dark;
+  --bg: rgba(17, 20, 28, 0.85);
+  --card: rgba(28, 32, 44, 0.85);
+  --line: rgba(255, 255, 255, 0.15);
+  --text: #eaf2ff;
+  --sub: #8ea3c7;
+  --ok: #22c55e;
+  --run: #3b82f6;
+  --warn: #f59e0b;
+  --err: #ef4444;
+  --idle: #94a3b8;
+  --unknown: #64748b;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", "PingFang SC", sans-serif;
+  color: var(--text);
+  background: radial-gradient(circle at 30% -20%, #1f2a44 0%, #0a0d14 55%);
+}
+
+#panel {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  width: 720px;
+  max-width: calc(100vw - 36px);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(14px);
+  border-radius: 14px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+#bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: move;
+  background: linear-gradient(120deg, rgba(59, 130, 246, 0.15), rgba(34, 197, 94, 0.1));
+  border-bottom: 1px solid var(--line);
+  user-select: none;
+}
+
+#title {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+#collapse {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+#content {
+  padding: 12px 14px 14px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.kpi {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.kpi .label {
+  color: var(--sub);
+  font-size: 12px;
+}
+
+.kpi .value {
+  margin-top: 3px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.row {
+  margin-bottom: 12px;
+}
+
+.caption {
+  color: var(--sub);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.bar {
+  width: 100%;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.fill {
+  height: 100%;
+  transition: width 0.25s;
+}
+
+.tasks {
+  display: flex;
+  gap: 12px;
+  color: var(--sub);
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 7px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+}
+
+th {
+  color: var(--sub);
+  font-weight: 500;
+}
+
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+th.sortable:hover {
+  color: var(--text);
+}
+
+.status,
+.agentName {
+  font-weight: 700;
+}
+
+.kindBadge {
+  margin-right: 6px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.kind-main {
+  color: #facc15;
+}
+.kind-subagent {
+  color: #60a5fa;
+}
+.kind-category {
+  color: #34d399;
+}
+.kind-tool {
+  color: #c084fc;
+}
+.running {
+  color: var(--run);
+}
+.retry {
+  color: var(--warn);
+}
+.error {
+  color: var(--err);
+}
+.idle {
+  color: var(--idle);
+}
+.unknown {
+  color: var(--unknown);
+}
+
+.inprogress {
+  margin-top: 8px;
+  color: #c7d7f8;
+  font-size: 13px;
+}
+
+#footer {
+  margin-top: 8px;
+  color: var(--sub);
+  font-size: 12px;
+}
+
+.collapsed #content {
+  display: none;
+}
+
+.collapsed #panel {
+  width: 420px;
+}
