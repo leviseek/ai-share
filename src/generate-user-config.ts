@@ -6,26 +6,30 @@ import { access, cp, copyFile, mkdir, readFile, writeFile } from "node:fs/promis
 import { resolve } from "node:path";
 import type {
   AgentsYaml,
-  AgentSource,
-  BackgroundTaskSource,
   CliOptions,
   GlobalYaml,
-  ModelRoleMap,
   ModelsYaml,
-  OmoProfileManifest,
-  OhMyAgent,
-  OhMyOpenAgentConfig,
-  OpenCodeConfig,
-  OpenCodeModel,
-  OpenCodeProvider,
   ProfilesYaml,
   ProviderGroupMap,
-  ProviderSource,
   ProviderYaml,
-  RuntimeFallbackSource,
-  SharedStrategyConfig,
-  TuiConfig,
 } from "./types.ts";
+import {
+  applyProviderGroups,
+  buildContextGuardConfig,
+  buildContextGuardProfileConfigs,
+  buildOhMyOpenAgentConfigs,
+  buildOpenCodeConfigs,
+  buildProfileManifest,
+  buildStrategyConfigs,
+  buildTuiConfig,
+  defaultProfileId,
+  modelProviderGroups,
+  modelRef,
+  pickDefaultModel,
+  pickSmallModel,
+  requireRecord,
+  requireValue,
+} from "./config-builders.ts";
 import { parseYamlObject } from "./yaml.ts";
 
 const cliOptions = parseCliOptions();
@@ -63,16 +67,25 @@ const providers = providersConfig.providers ?? {};
 const models = applyProviderGroups(modelsConfig, providers, providerGroups);
 const defaultModel = modelRef(pickDefaultModel(globalConfig, models), models);
 const smallModel = modelRef(pickSmallModel(globalConfig, models), models);
-const openCodeConfigs = buildOpenCodeConfigs(globalConfig, providers, models, profilesConfig, defaultModel, smallModel);
+const openCodeConfigs = buildOpenCodeConfigs(
+  projectRoot,
+  globalConfig,
+  providers,
+  models,
+  profilesConfig,
+  defaultModel,
+  smallModel,
+);
 const tuiConfig = buildTuiConfig(globalConfig);
 const ohMyOpenAgentConfigs = buildOhMyOpenAgentConfigs(models, profilesConfig, agentsConfig);
 const strategyConfigs = buildStrategyConfigs(globalConfig, profilesConfig, agentsConfig);
 const contextGuardProfileConfigs = buildContextGuardProfileConfigs(globalConfig, profilesConfig);
 const selectedDefaultProfileId = defaultProfileId(globalConfig, profilesConfig);
 const selectedOpenCodeConfig = requireValue(openCodeConfigs[selectedDefaultProfileId], "默认 OpenCode profile");
+const missingApiKeys = missingProviderApiKeyEnvNames(providers);
+const registryMismatches = await agentRegistryMismatches(agentsConfig);
 
 if (checkOnly) {
-  const missingApiKeys = missingProviderApiKeyEnvNames(providers);
   console.log("配置检查通过。");
   console.log(`OpenCode provider 数量：${Object.keys(selectedOpenCodeConfig.provider).length}`);
   console.log(`已配置 provider 数量：${Object.keys(providers).length}`);
@@ -87,10 +100,17 @@ if (checkOnly) {
   if (missingApiKeys.length > 0) {
     console.warn(`API Key 环境变量未设置：${missingApiKeys.join(" / ")}`);
     process.exit(1);
+  } else if (registryMismatches.length > 0) {
+    console.warn(`OMO monitor agent registry 与 config/agents.yaml 不一致：${registryMismatches.join(" / ")}`);
+    process.exit(1);
   } else {
     console.log("API Key 环境变量已设置。");
   }
   process.exit(0);
+}
+
+if (registryMismatches.length > 0) {
+  throw new Error(`OMO monitor agent registry 与 config/agents.yaml 不一致：${registryMismatches.join(" / ")}`);
 }
 
 if (!dryRun) await mkdir(targetConfigDir, { recursive: true });
@@ -214,451 +234,55 @@ function parseOptions(name: string): string[] {
   return output;
 }
 
-function applyProviderGroups(
-  modelSources: ModelsYaml,
-  providerSources: Record<string, ProviderSource>,
-  providerGroups: ProviderGroupMap,
-): ModelsYaml {
-  for (const [groupId, providerId] of Object.entries(providerGroups)) {
-    if (!providerSources[providerId]) throw new Error(`模型组 ${groupId} 指向未定义提供商：${providerId}`);
-  }
-
-  return Object.fromEntries(
-    Object.entries(modelSources).map(([modelId, model]) => [
-      modelId,
-      model.provider_group ? { ...model, provider: requireProviderGroup(model.provider_group, providerGroups) } : model,
-    ]),
-  );
-}
-
-function requireProviderGroup(groupId: string, providerGroups: ProviderGroupMap): string {
-  return requireString(providerGroups[groupId], `provider_group.${groupId}`);
-}
-
-function missingProviderApiKeyEnvNames(providerSources: Record<string, ProviderSource>): string[] {
-  return Object.values(providerSources)
-    .map((provider) => apiKeyEnvName(formatApiKey(requireString(provider.api_key, "providers.*.api_key"))))
+function missingProviderApiKeyEnvNames(providersConfig: ProviderYaml["providers"] = {}): string[] {
+  return Object.values(providersConfig)
+    .map((provider) => apiKeyEnvName(provider.api_key))
     .filter((envName): envName is string => Boolean(envName))
     .filter((envName) => !Bun.env[envName]);
 }
 
-function modelProviderGroups(modelSources: ModelsYaml): string[] {
-  return unique(Object.values(modelSources).map((model) => model.provider_group ?? model.provider ?? "未分组"));
+function apiKeyEnvName(value: string | undefined): string | undefined {
+  if (!value) throw new Error("缺少必要配置字段：providers.*.api_key");
+  const match = /^\$\{([A-Z0-9_]+)\}$/.exec(value);
+  if (!match?.[1]) throw new Error(`api_key 必须使用 \${"{"}ENV_NAME} 格式：${value}`);
+  return match[1];
 }
 
-function apiKeyEnvName(value: string): string | undefined {
-  return /^\{env:([A-Z0-9_]+)\}$/.exec(value)?.[1];
+async function agentRegistryMismatches(agentsConfig: AgentsYaml): Promise<string[]> {
+  const registry = JSON.parse(
+    await readFile(resolve(pluginDir, "omo-agent-monitor", "agents-registry.json"), "utf8"),
+  ) as Record<string, unknown>;
+  const mainAgents = stringArrayField(registry, "main_agents");
+  const subagents = stringArrayField(registry, "subagents");
+  const categories = stringArrayField(registry, "categories");
+  const expectedMainAgents = ["main", "build", "plan"];
+  const agentNames = Object.keys(requireRecord(agentsConfig.agents, "agents"));
+  const categoryNames = Object.keys(requireRecord(agentsConfig.categories, "categories"));
+
+  return [
+    ...missingValues("main_agents", expectedMainAgents, mainAgents),
+    ...extraValues("main_agents", expectedMainAgents, mainAgents),
+    ...missingValues("subagents", agentNames, subagents),
+    ...extraValues("subagents", agentNames, subagents),
+    ...missingValues("categories", categoryNames, categories),
+    ...extraValues("categories", categoryNames, categories),
+  ];
 }
 
-function buildOpenCodeConfigs(
-  globalConfig: GlobalYaml,
-  providerSources: Record<string, ProviderSource>,
-  modelSources: ModelsYaml,
-  profilesConfig: ProfilesYaml,
-  defaultModelRef: string,
-  smallModelRef: string,
-): Record<string, OpenCodeConfig> {
-  return Object.fromEntries(
-    Object.keys(requireRecord(profilesConfig, "profiles")).map((profileId) => [
-      profileId,
-      buildOpenCodeConfig(
-        globalConfig,
-        providerSources,
-        modelSources,
-        profilesConfig,
-        profileId,
-        defaultModelRef,
-        smallModelRef,
-      ),
-    ]),
-  );
-}
-
-function buildOpenCodeConfig(
-  globalConfig: GlobalYaml,
-  providerSources: Record<string, ProviderSource>,
-  modelSources: ModelsYaml,
-  profilesConfig: ProfilesYaml,
-  profileId: string,
-  defaultModelRef: string,
-  smallModelRef: string,
-): OpenCodeConfig {
-  const profileModels = requireRecord(profilesConfig[profileId]?.models, `profiles.${profileId}.models`);
-
-  return {
-    $schema: "https://opencode.ai/config.json",
-    model: defaultModelRef,
-    small_model: smallModelRef,
-    instructions: [resolve(projectRoot, "AI_GUIDELINES.md")],
-    plugin: [
-      ...(globalConfig.opencode?.plugins ?? ["oh-my-openagent@3.17.5"]),
-      ...(globalConfig.opencode?.optional_plugins ?? []),
-    ],
-    compaction: buildCompactionConfig(globalConfig, profilesConfig[profileId]?.compaction),
-    agent: {
-      build: { mode: "primary", model: defaultModelRef, max_tokens: 8192 },
-      plan: {
-        mode: "primary",
-        model: defaultModelRef,
-        max_tokens: 4096,
-        permission: { edit: "deny", bash: "ask" },
-      },
-      general: { mode: "subagent", model: defaultModelRef, max_tokens: 4096 },
-      explore: { mode: "subagent", model: smallModelRef, max_tokens: 2048, permission: { edit: "deny" } },
-      compaction: {
-        model: compactionAgentModel(modelSources, profileModels, profilesConfig[profileId]?.compaction, smallModelRef),
-      },
-      title: { model: smallModelRef },
-      summary: { model: smallModelRef },
-    },
-    provider: buildProviders(providerSources, modelSources),
-  };
-}
-
-function buildContextGuardConfig(globalConfig: GlobalYaml): Required<NonNullable<GlobalYaml["context_guard"]>> {
-  const source = globalConfig.context_guard ?? {};
-  return {
-    enabled: source.enabled ?? true,
-    warn_ratio: source.warn_ratio ?? 0.5,
-    danger_ratio: source.danger_ratio ?? 0.75,
-    block_ratio: source.block_ratio ?? 0.9,
-    absolute_block_tokens: source.absolute_block_tokens ?? 180000,
-    rescue_dir: source.rescue_dir ?? ".opencode-rescue",
-    diagnostics: source.diagnostics ?? true,
-  };
-}
-
-function buildContextGuardProfileConfigs(
-  globalConfig: GlobalYaml,
-  profilesConfig: ProfilesYaml,
-): Record<string, { max_input_tokens: number }> {
-  return Object.fromEntries(
-    Object.keys(requireRecord(profilesConfig, "profiles")).map((profileId) => [
-      profileId,
-      { max_input_tokens: maxInputTokensForProfile(globalConfig, profilesConfig[profileId]?.compaction) },
-    ]),
-  );
-}
-
-function buildTuiConfig(globalConfig: GlobalYaml): TuiConfig {
-  return {
-    $schema: "https://opencode.ai/tui.json",
-    plugin: globalConfig.tui?.plugins ?? [],
-  };
-}
-
-function buildCompactionConfig(
-  globalConfig: GlobalYaml,
-  profileCompaction: GlobalYaml["compaction"],
-): OpenCodeConfig["compaction"] {
-  const source = { ...globalConfig.compaction, ...profileCompaction };
-  return {
-    auto: source.enabled ?? true,
-    prune: source.prune ?? true,
-    reserved: source.reserved ?? compactionReservedTokens(globalConfig, source),
-  };
-}
-
-function compactionAgentModel(
-  modelSources: ModelsYaml,
-  profileModels: ModelRoleMap,
-  profileCompaction: GlobalYaml["compaction"],
-  smallModelRef: string,
-): string {
-  const source = profileCompaction ?? {};
-  return source.model ? modelRef(source.model, modelSources, profileModels) : smallModelRef;
-}
-
-function compactionReservedTokens(globalConfig: GlobalYaml, source: GlobalYaml["compaction"] = {}): number {
-  const maxInputTokens = maxInputTokensForProfile(globalConfig, source);
-  const threshold = source.threshold ?? Math.min(globalConfig.context?.max_tokens ?? 120000, 80000);
-  return Math.max(0, maxInputTokens - threshold);
-}
-
-function maxInputTokensForProfile(globalConfig: GlobalYaml, profileCompaction: GlobalYaml["compaction"]): number {
-  const source = { ...globalConfig.compaction, ...profileCompaction };
-  return source.max_input_tokens ?? globalConfig.context?.max_tokens ?? 120000;
-}
-
-function buildOhMyOpenAgentConfigs(
-  modelSources: ModelsYaml,
-  profilesConfig: ProfilesYaml,
-  agentsConfig: AgentsYaml,
-): Record<string, OhMyOpenAgentConfig> {
-  return Object.fromEntries(
-    Object.keys(requireRecord(profilesConfig, "profiles")).map((profileId) => [
-      profileId,
-      buildOhMyOpenAgentConfig(modelSources, profilesConfig, agentsConfig, profileId),
-    ]),
-  );
-}
-
-function buildOhMyOpenAgentConfig(
-  modelSources: ModelsYaml,
-  profilesConfig: ProfilesYaml,
-  agentsConfig: AgentsYaml,
-  profileId: string,
-): OhMyOpenAgentConfig {
-  const profileModels = requireRecord(profilesConfig[profileId]?.models, `profiles.${profileId}.models`);
-
-  return {
-    $schema: "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
-    model_fallback: agentsConfig.model_fallback ?? true,
-    disabled_hooks: ["auto-slash-command"],
-    agents: buildConfiguredAgents(requireRecord(agentsConfig.agents, "agents"), modelSources, profileModels),
-    categories: buildConfiguredAgents(
-      requireRecord(agentsConfig.categories, "categories"),
-      modelSources,
-      profileModels,
-    ),
-    runtime_fallback: buildRuntimeFallback(
-      requireValue(agentsConfig.runtime_fallback, "runtime_fallback"),
-      modelSources,
-      profileModels,
-    ),
-    background_task: buildBackgroundTask(
-      requireValue(agentsConfig.background_task, "background_task"),
-      modelSources,
-      profileModels,
-    ),
-    tmux: { enabled: agentsConfig.tmux?.enabled ?? false },
-  };
-}
-
-function buildStrategyConfigs(
-  globalConfig: GlobalYaml,
-  profilesConfig: ProfilesYaml,
-  agentsConfig: AgentsYaml,
-): Record<string, SharedStrategyConfig> {
-  return Object.fromEntries(
-    Object.keys(requireRecord(profilesConfig, "profiles")).map((profileId) => [
-      profileId,
-      buildStrategyConfig(globalConfig, profilesConfig, agentsConfig, profileId),
-    ]),
-  );
-}
-
-function buildStrategyConfig(
-  globalConfig: GlobalYaml,
-  profilesConfig: ProfilesYaml,
-  agentsConfig: AgentsYaml,
-  profileId: string,
-): SharedStrategyConfig {
-  const profileStrategies = profilesConfig[profileId]?.strategies;
-  return {
-    $schema: "https://opencode.ai/ai-share-strategy.json",
-    profile: profileId,
-    opencode: {
-      dcp: mergeStrategy(globalConfig.dcp, profileStrategies?.opencode?.dcp) ?? {},
-      checkpoint: mergeStrategy(globalConfig.checkpoint, profileStrategies?.opencode?.checkpoint) ?? {},
-      memory: mergeStrategy(globalConfig.memory, profileStrategies?.opencode?.memory) ?? {},
-    },
-    oh_my_openagent: {
-      dcp: mergeStrategy(agentsConfig.dcp, profileStrategies?.oh_my_openagent?.dcp) ?? {},
-      checkpoint: mergeStrategy(agentsConfig.checkpoint, profileStrategies?.oh_my_openagent?.checkpoint) ?? {},
-      memory: mergeStrategy(agentsConfig.memory, profileStrategies?.oh_my_openagent?.memory) ?? {},
-    },
-  };
-}
-
-function mergeStrategy(
-  base: Record<string, unknown> | undefined,
-  override: Record<string, unknown> | undefined,
-): Record<string, unknown> | undefined {
-  if (!base) return override;
-  if (!override) return base;
-
-  return deepMerge(base, override);
-}
-
-function deepMerge(base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> {
-  const output: Record<string, unknown> = { ...base };
-  for (const [key, value] of Object.entries(override)) {
-    const baseValue = output[key];
-    output[key] = isPlainObject(baseValue) && isPlainObject(value) ? deepMerge(baseValue, value) : value;
+function stringArrayField(source: Record<string, unknown>, key: string): string[] {
+  const value = source[key];
+  if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
+    throw new Error(`agents-registry.json 字段必须是字符串数组：${key}`);
   }
-  return output;
+  return value;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function missingValues(label: string, expected: string[], actual: string[]): string[] {
+  return expected.filter((value) => !actual.includes(value)).map((value) => `${label} 缺少 ${value}`);
 }
 
-function buildProviders(
-  providerSources: Record<string, ProviderSource>,
-  modelSources: ModelsYaml,
-): Record<string, OpenCodeProvider> {
-  const output: Record<string, OpenCodeProvider> = {};
-  for (const [providerId, provider] of Object.entries(providerSources)) {
-    const providerName = provider.name ?? formatName(providerId);
-    const models = buildProviderModels(providerId, provider.short_name ?? providerId, modelSources);
-    if (Object.keys(models).length === 0) continue;
-
-    const options: OpenCodeProvider["options"] = {
-      baseURL: requireString(provider.base_url, `providers.${providerId}.base_url`),
-      apiKey: formatApiKey(requireString(provider.api_key, `providers.${providerId}.api_key`)),
-    };
-    if (provider.timeout !== undefined) options.timeout = provider.timeout;
-    if (provider.chunkTimeout !== undefined) options.chunkTimeout = provider.chunkTimeout;
-
-    output[providerId] = {
-      name: providerName,
-      npm: provider.npm ?? "@ai-sdk/openai-compatible",
-      options,
-      models,
-    };
-  }
-  return output;
-}
-
-function buildProviderModels(
-  providerId: string,
-  providerShortName: string,
-  modelSources: ModelsYaml,
-): Record<string, OpenCodeModel> {
-  const output: Record<string, OpenCodeModel> = {};
-  for (const [modelId, model] of Object.entries(modelSources)) {
-    if (model.provider !== providerId) continue;
-    output[modelId] = {
-      ...(model.model_name && model.model_name !== modelId ? { id: model.model_name } : {}),
-      name: `${formatName(modelId)} (${providerShortName})`,
-      ...(model.parameters ? { options: model.parameters } : {}),
-    };
-  }
-  return output;
-}
-
-function buildConfiguredAgents(
-  agentSources: Record<string, AgentSource>,
-  modelSources: ModelsYaml,
-  profileModels: ModelRoleMap,
-): Record<string, OhMyAgent> {
-  return Object.fromEntries(
-    Object.entries(agentSources).map(([agentId, agent]) => {
-      const extra: Partial<OhMyAgent> = {};
-      const promptAppend = agent.prompt?.append ?? agent.prompt?.system;
-      if (promptAppend) extra.prompt_append = promptAppend.trim();
-      if (agent.permission) extra.permission = agent.permission;
-
-      return [
-        agentId,
-        withFallback(
-          modelRef(requireString(agent.model, `agents.${agentId}.model`), modelSources, profileModels),
-          modelSources,
-          extra,
-        ),
-      ];
-    }),
-  );
-}
-
-function buildRuntimeFallback(
-  source: RuntimeFallbackSource,
-  modelSources: ModelsYaml,
-  profileModels: ModelRoleMap,
-): OhMyOpenAgentConfig["runtime_fallback"] {
-  return {
-    enabled: source.enabled ?? true,
-    retry_on_errors: source.retry_on_errors ?? [],
-    max_fallback_attempts: source.max_fallback_attempts ?? 1,
-    cooldown_seconds: source.cooldown_seconds ?? 60,
-    timeout_seconds: source.timeout_seconds ?? 30,
-    notify_on_fallback: source.notify_on_fallback ?? true,
-    model_whitelist: unique(
-      (source.model_whitelist ?? []).map((modelId) => modelRef(modelId, modelSources, profileModels)),
-    ),
-  };
-}
-
-function buildBackgroundTask(
-  source: BackgroundTaskSource,
-  modelSources: ModelsYaml,
-  profileModels: ModelRoleMap,
-): OhMyOpenAgentConfig["background_task"] {
-  return {
-    providerConcurrency: buildProviderConcurrency(source.providerConcurrency ?? {}, modelSources),
-    modelConcurrency: Object.fromEntries(
-      Object.entries(source.modelConcurrency ?? {}).map(([modelId, concurrency]) => [
-        modelRef(modelId, modelSources, profileModels),
-        concurrency,
-      ]),
-    ),
-  };
-}
-
-function buildProviderConcurrency(source: Record<string, number>, modelSources: ModelsYaml): Record<string, number> {
-  const output: Record<string, number> = {};
-  for (const [providerId, concurrency] of Object.entries(source)) {
-    const resolvedProviderId = resolveProviderId(providerId, modelSources);
-    output[resolvedProviderId] = Math.max(output[resolvedProviderId] ?? 0, concurrency);
-  }
-  return output;
-}
-
-function resolveProviderId(providerId: string, modelSources: ModelsYaml): string {
-  const groupProvider = Object.values(modelSources).find((model) => model.provider_group === providerId)?.provider;
-  return groupProvider ?? providerId;
-}
-
-function withFallback(model: string, modelSources: ModelsYaml, extra: Partial<OhMyAgent> = {}): OhMyAgent {
-  const fallback_models = modelFallbackRefs(model, modelSources);
-  return {
-    model,
-    ...(fallback_models.length > 0 ? { fallback_models } : {}),
-    ...extra,
-  };
-}
-
-function modelFallbackRefs(model: string, modelSources: ModelsYaml): string[] {
-  const modelId = model.split("/").at(-1) ?? model;
-  const fallback = modelSources[modelId]?.fallback ?? [];
-  return fallback.map((fallbackModel) => modelRef(fallbackModel, modelSources));
-}
-
-function pickDefaultModel(globalConfig: GlobalYaml, modelSources: ModelsYaml): string {
-  if (globalConfig.models?.default) return globalConfig.models.default;
-  if (modelSources["gpt-5.5"]) return "gpt-5.5";
-  return requireString(Object.keys(modelSources)[0], "models 首个模型");
-}
-
-function pickSmallModel(globalConfig: GlobalYaml, modelSources: ModelsYaml): string {
-  if (globalConfig.models?.small) return globalConfig.models.small;
-  const modelId = Object.entries(modelSources).find(
-    ([, model]) => model.capabilities?.includes("cheap") ?? model.capabilities?.includes("fast") ?? false,
-  )?.[0];
-  return modelId ?? pickDefaultModel(globalConfig, modelSources);
-}
-
-function modelRef(modelId: string, modelSources: ModelsYaml, profileModels: ModelRoleMap = {}): string {
-  const resolvedModelId = profileModels[modelId] ?? modelId;
-  if (profileModels[resolvedModelId]) {
-    throw new Error(`profile 模型别名不能递归引用：${modelId}`);
-  }
-
-  const provider = modelSources[resolvedModelId]?.provider;
-  if (!provider) throw new Error(`模型缺少 provider 或未定义：${resolvedModelId}`);
-  return `${provider}/${resolvedModelId}`;
-}
-
-function buildProfileManifest(profilesConfig: ProfilesYaml, selectedDefaultProfileId: string): OmoProfileManifest {
-  return {
-    default_profile: selectedDefaultProfileId,
-    profiles: Object.keys(requireRecord(profilesConfig, "profiles")),
-  };
-}
-
-function defaultProfileId(globalConfig: GlobalYaml, profilesConfig: ProfilesYaml): string {
-  const profiles = requireRecord(profilesConfig, "profiles");
-  const configuredDefaultProfile = globalConfig.default_profile;
-  if (configuredDefaultProfile) {
-    if (!profiles[configuredDefaultProfile]) {
-      throw new Error(`global.default_profile 指向未定义 OMO profile：${configuredDefaultProfile}`);
-    }
-    return configuredDefaultProfile;
-  }
-
-  if (profiles.balanced) return "balanced";
-  return requireString(Object.keys(profiles)[0], "profiles 首个配置");
+function extraValues(label: string, expected: string[], actual: string[]): string[] {
+  return actual.filter((value) => !expected.includes(value)).map((value) => `${label} 多出 ${value}`);
 }
 
 function profileOhMyOpenAgentPath(profileId: string): string {
@@ -679,39 +303,6 @@ function profileOpenCodePath(profileId: string): string {
 
 function contextGuardProfilePath(profileId: string): string {
   return resolve(targetConfigDir, `context-guard.${profileId}.json`);
-}
-
-function unique<T>(values: T[]): T[] {
-  return [...new Set(values)];
-}
-
-function formatApiKey(value: string): string {
-  const match = /^\$\{([A-Z0-9_]+)\}$/.exec(value);
-  if (!match?.[1]) throw new Error(`api_key 必须使用 \${"{"}ENV_NAME} 格式：${value}`);
-  return `{env:${match[1]}}`;
-}
-
-function formatName(value: string): string {
-  return value
-    .split(/[-_]/g)
-    .filter(Boolean)
-    .map((part) => (part.length <= 3 ? part.toUpperCase() : `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}`))
-    .join(" ");
-}
-
-function requireString(value: string | undefined, label: string): string {
-  if (!value) throw new Error(`缺少必要配置字段：${label}`);
-  return value;
-}
-
-function requireRecord<T>(value: Record<string, T> | undefined, label: string): Record<string, T> {
-  if (!value) throw new Error(`缺少必要配置字段：${label}`);
-  return value;
-}
-
-function requireValue<T>(value: T | undefined, label: string): T {
-  if (!value) throw new Error(`缺少必要配置字段：${label}`);
-  return value;
 }
 
 async function writeJson(path: string, value: unknown): Promise<void> {
