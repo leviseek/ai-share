@@ -695,11 +695,12 @@ async function installLaunchers(): Promise<void> {
           "aiomo.ps1",
           "aioc.cmd",
           "aioc.ps1",
+          "opencode-launcher-common.ps1",
           "opencode-context-guard.mjs",
           "aiomo-monitor.cmd",
           "aiomo-monitor.ps1",
         ]
-      : ["aiomo", "aioc", "opencode-context-guard.mjs", "aiomo-monitor"];
+      : ["aiomo", "aioc", "opencode-launcher-common.sh", "opencode-context-guard.mjs", "aiomo-monitor"];
   if (dryRun) {
     for (const fileName of launcherFiles) {
       console.log(`将安装启动命令：${resolve(targetBinDir, fileName)}`);

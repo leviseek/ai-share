@@ -4,6 +4,8 @@ set -eu
 config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 manifest="$config_dir/.omo-profiles.json"
 
+. "$(dirname "$0")/opencode-launcher-common.sh"
+
 profile="balanced"
 profiles="lite balanced max"
 if [ -f "$manifest" ]; then
@@ -36,28 +38,15 @@ show_help() {
   printf '%s\n' "  aiomo -h"
 }
 
-warn_resume_session() {
-  opcode_config="$1"
-  shift
-  db_path="$HOME/.local/share/opencode/opencode.db"
-  guard_script="$(dirname "$0")/opencode-context-guard.mjs"
-  guard_config="$config_dir/context-guard.json"
-  if [ ! -f "$guard_script" ] || ! command -v bun > /dev/null 2>&1; then return 0; fi
-  bun "$guard_script" check aiomo "$opcode_config" "$guard_config" "$db_path" -- "$@"
-}
-
 case "${1:-}" in
   -h|--help)
     show_help
     exit 0
     ;;
   rescue)
-    db_path="$HOME/.local/share/opencode/opencode.db"
-    guard_script="$(dirname "$0")/opencode-context-guard.mjs"
-    guard_config="$config_dir/context-guard.json"
     if [ "$#" -lt 2 ]; then printf '%s\n' "用法：aiomo rescue <session-id>" >&2; exit 2; fi
-    if [ ! -f "$guard_script" ] || ! command -v bun > /dev/null 2>&1; then printf '%s\n' "缺少 bun 或 context guard 脚本。" >&2; exit 1; fi
-    exec bun "$guard_script" rescue aiomo "$2" "$guard_config" "$db_path"
+    opencode_context_guard rescue aiomo "$config_dir/opencode.$profile.json" "$config_dir" "$2"
+    exit "$?"
     ;;
 esac
 
@@ -118,7 +107,7 @@ if [ -f "$strategy_profile_config" ]; then
   cp "$strategy_profile_config" "$strategy_active_config"
 fi
 set +e
-warn_resume_session "$opencode_profile_config" "$@"
+opencode_context_guard check aiomo "$opencode_profile_config" "$config_dir" "$@"
 code="$?"
 set -e
 if [ "$code" = "10" ]; then exit 10; fi

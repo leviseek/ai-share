@@ -1,6 +1,4 @@
-$Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
-[Console]::OutputEncoding = $Utf8NoBom
-$OutputEncoding = $Utf8NoBom
+. (Join-Path $PSScriptRoot "opencode-launcher-common.ps1")
 
 function U($Codes) {
   return -join ($Codes | ForEach-Object { [char]$_ })
@@ -22,21 +20,6 @@ function Show-Help {
   Write-Output "  aiomo -h"
 }
 
-function Invoke-ContextGuard {
-  param([string]$Command, [string]$Launcher, [string]$ConfigPath, [string[]]$ArgsList)
-
-  $GuardScript = Join-Path $PSScriptRoot "opencode-context-guard.mjs"
-  $GuardConfig = Join-Path $ConfigDir "context-guard.json"
-  $DbPath = Join-Path ([Environment]::GetFolderPath("UserProfile")) ".local\share\opencode\opencode.db"
-  if (-not (Test-Path -LiteralPath $GuardScript -PathType Leaf)) { return 0 }
-  if (-not (Get-Command bun -CommandType Application -ErrorAction SilentlyContinue)) { return 0 }
-  if ($Command -eq "check") {
-    & bun $GuardScript check $Launcher $ConfigPath $GuardConfig $DbPath -- @ArgsList
-  } else {
-    & bun $GuardScript rescue $Launcher $ArgsList[0] $GuardConfig $DbPath
-  }
-  return $LASTEXITCODE
-}
 
 $ConfigDir = Join-Path $env:USERPROFILE ".config\opencode"
 $ManifestPath = Join-Path $ConfigDir ".omo-profiles.json"
@@ -59,7 +42,7 @@ if ($args.Count -gt 0 -and ($args[0] -eq "-h" -or $args[0] -eq "--help")) {
 }
 
 if ($args.Count -gt 1 -and $args[0] -eq "rescue") {
-  $Code = Invoke-ContextGuard "rescue" "aiomo" "" @($args[1])
+  $Code = Invoke-ContextGuardShared "rescue" "aiomo" $ConfigDir "" @($args[1])
   exit $Code
 }
 
@@ -117,7 +100,7 @@ Copy-Item -LiteralPath $OmoProfileConfig -Destination $OmoActiveConfig -Force
 if (Test-Path -LiteralPath $StrategyProfileConfig -PathType Leaf) {
   Copy-Item -LiteralPath $StrategyProfileConfig -Destination $StrategyActiveConfig -Force
 }
-$GuardExit = Invoke-ContextGuard "check" "aiomo" $OpenCodeProfileConfig $OpenCodeArgs.ToArray()
+$GuardExit = Invoke-ContextGuardShared "check" "aiomo" $ConfigDir $OpenCodeProfileConfig $OpenCodeArgs.ToArray()
 if ($GuardExit -eq 10) { exit 10 }
 $OpenCode = Get-Command opencode.exe -CommandType Application -ErrorAction Stop
 & $OpenCode.Source @OpenCodeArgs

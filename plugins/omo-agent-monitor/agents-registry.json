@@ -1,0 +1,26 @@
+{
+  "main_agents": ["main", "build", "plan"],
+  "subagents": [
+    "sisyphus",
+    "hephaestus",
+    "prometheus",
+    "oracle",
+    "momus",
+    "metis",
+    "atlas",
+    "sisyphus-junior",
+    "explorer",
+    "librarian",
+    "multimodal-looker"
+  ],
+  "categories": [
+    "ultrabrain",
+    "deep",
+    "quick",
+    "unspecified-low",
+    "unspecified-high",
+    "writing",
+    "visual-engineering",
+    "artistry"
+  ]
+}

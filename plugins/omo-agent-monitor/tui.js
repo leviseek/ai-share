@@ -3,34 +3,11 @@ import { createServer } from "node:http";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { exec } from "node:child_process";
+import { defaultAgentKind, defaultAgentNames } from "./shared.js";
 
 const pluginDir = dirname(fileURLToPath(import.meta.url));
 const statePath = resolve(pluginDir, "..", "..", "omo-agent-monitor-state.json");
 const statusRank = { running: 0, retry: 1, error: 2, idle: 3, unknown: 4 };
-const defaultAgentNames = [
-  "main",
-  "build",
-  "plan",
-  "sisyphus",
-  "hephaestus",
-  "prometheus",
-  "oracle",
-  "momus",
-  "metis",
-  "atlas",
-  "sisyphus-junior",
-  "explorer",
-  "librarian",
-  "multimodal-looker",
-  "ultrabrain",
-  "deep",
-  "quick",
-  "unspecified-low",
-  "unspecified-high",
-  "writing",
-  "visual-engineering",
-  "artistry",
-];
 
 let webServer;
 let webPort = 0;
@@ -170,25 +147,6 @@ function mergeAgents(agents) {
         currentOperation: "-",
       })),
   ];
-}
-
-function defaultAgentKind(name) {
-  if (name === "main" || name === "build" || name === "plan") return "main";
-  if (
-    [
-      "ultrabrain",
-      "deep",
-      "quick",
-      "unspecified-low",
-      "unspecified-high",
-      "writing",
-      "visual-engineering",
-      "artistry",
-    ].includes(name)
-  ) {
-    return "category";
-  }
-  return "subagent";
 }
 
 function displayAgentName(agent) {

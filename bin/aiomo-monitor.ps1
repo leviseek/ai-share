@@ -39,30 +39,59 @@ $WM_NCLBUTTONDOWN = 0xA1
 $HTCAPTION = 0x2
 $HTBOTTOMRIGHT = 0x11
 
-$DefaultAgentNames = @(
-  "main",
-  "build",
-  "plan",
-  "sisyphus",
-  "hephaestus",
-  "prometheus",
-  "oracle",
-  "momus",
-  "metis",
-  "atlas",
-  "sisyphus-junior",
-  "explorer",
-  "librarian",
-  "multimodal-looker",
-  "ultrabrain",
-  "deep",
-  "quick",
-  "unspecified-low",
-  "unspecified-high",
-  "writing",
-  "visual-engineering",
-  "artistry"
-)
+$AgentRegistryPath = Join-Path $HomeDir ".config\opencode\plugins\omo-agent-monitor\agents-registry.json"
+
+function New-AgentRegistryFallback {
+  return @{
+    main_agents = @("main", "build", "plan")
+    subagents = @(
+      "sisyphus",
+      "hephaestus",
+      "prometheus",
+      "oracle",
+      "momus",
+      "metis",
+      "atlas",
+      "sisyphus-junior",
+      "explorer",
+      "librarian",
+      "multimodal-looker"
+    )
+    categories = @(
+      "ultrabrain",
+      "deep",
+      "quick",
+      "unspecified-low",
+      "unspecified-high",
+      "writing",
+      "visual-engineering",
+      "artistry"
+    )
+  }
+}
+
+function Read-AgentRegistry {
+  if (-not (Test-Path -LiteralPath $AgentRegistryPath -PathType Leaf)) {
+    return (New-AgentRegistryFallback)
+  }
+
+  try {
+    $registry = Get-Content -LiteralPath $AgentRegistryPath -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    return @{
+      main_agents = @($registry.main_agents)
+      subagents = @($registry.subagents)
+      categories = @($registry.categories)
+    }
+  } catch {
+    return (New-AgentRegistryFallback)
+  }
+}
+
+$AgentRegistry = Read-AgentRegistry
+$MainAgentNames = @($AgentRegistry.main_agents)
+$SubAgentNames = @($AgentRegistry.subagents)
+$CategoryNames = @($AgentRegistry.categories)
+$DefaultAgentNames = @($MainAgentNames + $SubAgentNames + $CategoryNames)
 
 function Coalesce($value, $fallback) {
   if ($null -eq $value) { return $fallback }
@@ -133,8 +162,8 @@ function Agent-KindRank($agent) {
 }
 
 function Agent-Kind([string]$name) {
-  if ($name -eq "main" -or $name -eq "build" -or $name -eq "plan") { return "main" }
-  if (@("ultrabrain", "deep", "quick", "unspecified-low", "unspecified-high", "writing", "visual-engineering", "artistry") -contains $name) { return "category" }
+  if ($MainAgentNames -contains $name) { return "main" }
+  if ($CategoryNames -contains $name) { return "category" }
   return "subagent"
 }
 

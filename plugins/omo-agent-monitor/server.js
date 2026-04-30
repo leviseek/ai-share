@@ -1,6 +1,7 @@
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { classifyAgent, mainAgentNames, omoAgentNames, omoCategoryNames } from "./shared.js";
 
 const pluginDir = dirname(fileURLToPath(import.meta.url));
 const statePath = resolve(pluginDir, "..", "..", "omo-agent-monitor-state.json");
@@ -8,30 +9,6 @@ const openCodeDbPath = resolve(homeDir(), ".local", "share", "opencode", "openco
 const idleThresholdMs = 15_000;
 const tokenDbRefreshMs = 2_000;
 const taskToolNames = new Set(["delegate_task", "task", "call_omo_agent", "background_task"]);
-const mainAgentNames = new Set(["main", "build", "plan"]);
-const omoAgentNames = new Set([
-  "sisyphus",
-  "hephaestus",
-  "prometheus",
-  "oracle",
-  "momus",
-  "metis",
-  "atlas",
-  "sisyphus-junior",
-  "explorer",
-  "librarian",
-  "multimodal-looker",
-]);
-const omoCategoryNames = new Set([
-  "ultrabrain",
-  "deep",
-  "quick",
-  "unspecified-low",
-  "unspecified-high",
-  "writing",
-  "visual-engineering",
-  "artistry",
-]);
 
 const state = {
   updatedAt: Date.now(),
@@ -188,13 +165,6 @@ function agentInfo(tool, args) {
     background:
       booleanField(args, "run_in_background") ?? booleanField(args, "runInBackground") ?? tool === "background_task",
   };
-}
-
-function classifyAgent(name) {
-  if (mainAgentNames.has(name)) return "main";
-  if (omoCategoryNames.has(name)) return "category";
-  if (omoAgentNames.has(name)) return "subagent";
-  return "tool";
 }
 
 function operationName(tool, args) {

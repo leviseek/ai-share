@@ -4,30 +4,18 @@ set -eu
 config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 opcode_config="$config_dir/opencode.json"
 
-context_guard() {
-  command="$1"
-  shift
-  db_path="$HOME/.local/share/opencode/opencode.db"
-  guard_script="$(dirname "$0")/opencode-context-guard.mjs"
-  guard_config="$config_dir/context-guard.json"
-  if [ ! -f "$guard_script" ] || ! command -v bun > /dev/null 2>&1; then return 0; fi
-  if [ "$command" = "check" ]; then
-    bun "$guard_script" check aioc "$opcode_config" "$guard_config" "$db_path" -- "$@"
-  else
-    bun "$guard_script" rescue aioc "$1" "$guard_config" "$db_path"
-  fi
-}
+. "$(dirname "$0")/opencode-launcher-common.sh"
 
 case "${1:-}" in
   rescue)
     if [ "$#" -lt 2 ]; then printf '%s\n' "用法：aioc rescue <session-id>" >&2; exit 2; fi
-    context_guard rescue "$2"
+    opencode_context_guard rescue aioc "$opcode_config" "$config_dir" "$2"
     exit "$?"
     ;;
 esac
 
 set +e
-context_guard check "$@"
+opencode_context_guard check aioc "$opcode_config" "$config_dir" "$@"
 code="$?"
 set -e
 if [ "$code" = "10" ]; then exit 10; fi
