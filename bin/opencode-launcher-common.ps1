@@ -50,7 +50,8 @@ function Start-ContextGuardWatchShared {
     [string]$Launcher,
     [string]$ConfigDir,
     [string]$ConfigPath,
-    [string]$WorkingDirectory
+    [string]$WorkingDirectory,
+    [int]$WatchPid
   )
 
   $GuardScript = Join-Path $PSScriptRoot "opencode-context-guard.mjs"
@@ -63,6 +64,7 @@ function Start-ContextGuardWatchShared {
 
   $StdoutLogPath = Join-Path $ConfigDir "context-guard-watch.log"
   $StderrLogPath = Join-Path $ConfigDir "context-guard-watch.err.log"
+  Stop-ExistingContextGuardWatchShared $Launcher $WorkingDirectory
   $Arguments = @(
     $GuardScript,
     "watch",
@@ -72,11 +74,33 @@ function Start-ContextGuardWatchShared {
     $StrategyConfig,
     $DbPath,
     $WorkingDirectory,
-    ([string]$PID)
+    ([string]$WatchPid)
   )
   try {
     Start-Process -FilePath "bun" -ArgumentList $Arguments -WindowStyle Hidden -RedirectStandardOutput $StdoutLogPath -RedirectStandardError $StderrLogPath | Out-Null
   } catch {
     try { Add-Content -LiteralPath $StderrLogPath -Value "[$([DateTimeOffset]::Now.ToString('o'))] failed to start watcher: $($_.Exception.Message)" -Encoding UTF8 } catch {}
   }
+}
+
+function Stop-ExistingContextGuardWatchShared {
+  param(
+    [string]$Launcher,
+    [string]$WorkingDirectory
+  )
+
+  $EscapedLauncher = [regex]::Escape($Launcher)
+  $EscapedWorkingDirectory = [regex]::Escape($WorkingDirectory)
+  $CurrentPid = $PID
+  try {
+    Get-CimInstance Win32_Process |
+      Where-Object {
+        $_.ProcessId -ne $CurrentPid -and
+        $_.CommandLine -match "opencode-context-guard\.mjs\s+watch\s+$EscapedLauncher\b" -and
+        $_.CommandLine -match $EscapedWorkingDirectory
+      } |
+      ForEach-Object {
+        try { Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop } catch {}
+      }
+  } catch {}
 }

@@ -322,7 +322,12 @@ if ($ContinueFromSession) {
 $GuardConfigPath = if (Test-Path -LiteralPath $ContextGuardProfileConfig -PathType Leaf) { $ContextGuardProfileConfig } else { $OpenCodeProfileConfig }
 $GuardExit = Invoke-ContextGuardShared "check" "aiomo" $ConfigDir $GuardConfigPath $OpenCodeArgs.ToArray()
 if ($GuardExit -eq 10) { exit 10 }
-Start-ContextGuardWatchShared "aiomo" $ConfigDir $GuardConfigPath $WorkingDirectory
 $OpenCode = Get-Command opencode.exe -CommandType Application -ErrorAction Stop
-& $OpenCode.Source @OpenCodeArgs
-exit $LASTEXITCODE
+$OpenCodeStartInfo = [System.Diagnostics.ProcessStartInfo]::new()
+$OpenCodeStartInfo.FileName = $OpenCode.Source
+$OpenCodeStartInfo.UseShellExecute = $false
+foreach ($Arg in $OpenCodeArgs) { [void]$OpenCodeStartInfo.ArgumentList.Add($Arg) }
+$OpenCodeProcess = [System.Diagnostics.Process]::Start($OpenCodeStartInfo)
+Start-ContextGuardWatchShared "aiomo" $ConfigDir $GuardConfigPath $WorkingDirectory $OpenCodeProcess.Id
+$OpenCodeProcess.WaitForExit()
+exit $OpenCodeProcess.ExitCode

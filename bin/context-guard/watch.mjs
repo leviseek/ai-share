@@ -46,6 +46,7 @@ export async function watch(args) {
         if (shouldAlert) {
           const reason =
             level !== "safe" ? `context-${level}` : zeroLoop.count > 0 ? "zero-output-loop" : "soft-budget";
+          const eventTime = new Date();
           const alert = {
             launcher,
             reason,
@@ -58,7 +59,8 @@ export async function watch(args) {
             strategy_context_budget_tokens: softBudgetTokens,
             zero_output_steps: zeroLoop.count,
             latest_finish: zeroLoop.latestFinish,
-            time: new Date().toISOString(),
+            time: eventTime.toISOString(),
+            local_time: formatLocalTime(eventTime),
             continue_command: `${launcher} ${strategy?.profile ?? "coding"} --relay ${session.id}`,
             recommendation:
               level === "blocked" ||
@@ -83,11 +85,13 @@ export async function watch(args) {
         state.lastSessionId = session.id;
       }
     } catch (error) {
+      const eventTime = new Date();
       writeAlert(alertPath, {
         launcher,
         reason: "watch-error",
         error: error instanceof Error ? error.message : String(error),
-        time: new Date().toISOString(),
+        time: eventTime.toISOString(),
+        local_time: formatLocalTime(eventTime),
       });
     }
     await sleep(intervalMs);
@@ -101,36 +105,58 @@ function writeAlert(path, alert) {
 
 function writeHistory(dir, alert) {
   mkdirSync(dir, { recursive: true });
-  const stamp = alert.time.replace(/[:.]/g, "-");
+  const eventTime = new Date(alert.time);
+  const stamp = `${formatCompactTime(eventTime, true)}-${formatCompactTime(eventTime, false)}`;
   const baseName = `${stamp}_${safeName(alert.reason)}_${safeName(alert.session_id)}`;
-  const jsonPath = join(dir, `${baseName}.json`);
-  const mdPath = join(dir, `${baseName}.md`);
-  writeFileSync(jsonPath, `${JSON.stringify(alert, null, 2)}\n`, "utf8");
-  writeFileSync(mdPath, historyMarkdown(alert), "utf8");
+  const jsoncPath = join(dir, `${baseName}.jsonc`);
+  writeFileSync(jsoncPath, historyJsonc(alert), "utf8");
 }
 
-function historyMarkdown(alert) {
+function historyJsonc(alert) {
+  const record = {
+    session_id: alert.session_id,
+    continue_command: alert.continue_command,
+    reason: alert.reason,
+    local_time: alert.local_time ?? formatLocalTime(new Date(alert.time)),
+    utc_time: alert.time,
+    directory: alert.directory,
+    profile: alert.profile,
+    launcher: alert.launcher,
+    input_tokens: alert.input_tokens,
+    max_input_tokens: alert.max_input_tokens,
+    base_max_input_tokens: alert.base_max_input_tokens,
+    strategy_context_budget_tokens: alert.strategy_context_budget_tokens,
+    zero_output_steps: alert.zero_output_steps,
+    latest_finish: alert.latest_finish,
+    recommendation: alert.recommendation,
+  };
   return (
-    `# Context Guard Event\n\n` +
-    `## Restore\n` +
-    `- session_id: ${alert.session_id}\n` +
-    `- continue_command: ${alert.continue_command}\n\n` +
-    `## Event\n` +
-    `- reason: ${alert.reason}\n` +
-    `- time: ${alert.time}\n` +
-    `- directory: ${alert.directory}\n` +
-    `- profile: ${alert.profile ?? "unknown"}\n\n` +
-    `## Diagnostics\n` +
-    `- input_tokens: ${alert.input_tokens}\n` +
-    `- max_input_tokens: ${alert.max_input_tokens}\n` +
-    `- strategy_context_budget_tokens: ${alert.strategy_context_budget_tokens}\n` +
-    `- zero_output_steps: ${alert.zero_output_steps}\n` +
-    `- latest_finish: ${alert.latest_finish ?? "unknown"}\n\n` +
-    `## Recommendation\n` +
-    `${alert.recommendation}\n`
+    `// Context Guard Event\n` +
+    `// 用于熔断后人工辨认 session，也可供支持 JSONC 的工具解析。\n` +
+    `// 继续命令：${alert.continue_command}\n\n` +
+    `${JSON.stringify(record, null, 2)}\n`
   );
 }
 
 function safeName(value) {
   return String(value || "unknown").replace(/[^A-Za-z0-9_.-]+/g, "_").slice(0, 120);
+}
+
+function formatCompactTime(date, utc = false) {
+  const values = utc
+    ? [
+        date.getUTCFullYear(),
+        date.getUTCMonth() + 1,
+        date.getUTCDate(),
+        date.getUTCHours(),
+        date.getUTCMinutes(),
+        date.getUTCSeconds(),
+      ]
+    : [date.getFullYear(), date.getMonth() + 1, date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()];
+  return `${values[0]}${values.slice(1).map((value) => String(value).padStart(2, "0")).join("")}`;
+}
+
+function formatLocalTime(date) {
+  const compact = formatCompactTime(date, false);
+  return `${compact.slice(0, 4)}-${compact.slice(4, 6)}-${compact.slice(6, 8)} ${compact.slice(8, 10)}:${compact.slice(10, 12)}:${compact.slice(12, 14)}`;
 }

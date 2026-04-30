@@ -360,7 +360,7 @@ context_guard:
 aiomo rescue ses_xxx
 ```
 
-`watch` 会把最近一次风险事件写入 `.opencode/context-guard-alert.json`，其中包含 `session_id` 和建议的 `continue_command`。同时，每次新的风险事件都会在 `.opencode/context-guard-history/` 下追加一组同名 `.md` / `.json` 快照，文件名包含时间、原因和 session id，便于熔断后按会话历史辨认应该从哪个 session 接力。
+`watch` 会把最近一次风险事件写入 `.opencode/context-guard-alert.json`，其中包含 `session_id` 和建议的 `continue_command`。同时，每次新的风险事件都会在 `.opencode/context-guard-history/` 下追加一个 `.jsonc` 快照，文件名使用 `UTC时间-本地时间_原因_session` 格式，例如 `20260430181408-20260501021408_context-warning_ses_xxx.jsonc`，便于熔断后按会话历史辨认应该从哪个 session 接力；JSONC 内容会优先显示本地时间，并用注释标出继续命令。
 
 救援摘要会写入当前目录的 `.opencode-rescue/<session-id>.md`，只做本地规则提取，不调用模型。确认要强制恢复时，可以显式传入 `--force`：
 
