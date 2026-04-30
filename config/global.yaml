@@ -102,6 +102,10 @@ context_guard:
   absolute_block_tokens: 180000
   rescue_dir: .opencode-rescue
   diagnostics: true
+  watch_interval_ms: 5000
+  zero_output_limit: 3
+  watch_action: stop # alert / stop，仅作用于 aiomo/aioc 启动的进程树
+  alert_file: .opencode/context-guard-alert.json
 
 # telemetry:
 #   enabled: true

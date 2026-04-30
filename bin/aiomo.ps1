@@ -47,6 +47,7 @@ if ($args.Count -gt 1 -and $args[0] -eq "rescue") {
 }
 
 $OpenCodeArgs = [System.Collections.Generic.List[string]]::new()
+$ContinueFromSession = ""
 
 for ($Index = 0; $Index -lt $args.Count; $Index += 1) {
   $Arg = $args[$Index]
@@ -64,6 +65,27 @@ for ($Index = 0; $Index -lt $args.Count; $Index += 1) {
 
   if ($Index -eq 0 -and $Arg.StartsWith("--omo-profile=")) {
     $ProfileName = $Arg.Substring("--omo-profile=".Length)
+    continue
+  }
+
+  if ($Arg -eq "--relay" -or $Arg -eq "--continue-from" -or $Arg -eq "--handoff") {
+    $ContinueFromSession = if ($args.Count -gt ($Index + 1)) { [string]$args[$Index + 1] } else { "" }
+    $Index += 1
+    continue
+  }
+
+  if ($Arg.StartsWith("--relay=")) {
+    $ContinueFromSession = $Arg.Substring("--relay=".Length)
+    continue
+  }
+
+  if ($Arg.StartsWith("--continue-from=")) {
+    $ContinueFromSession = $Arg.Substring("--continue-from=".Length)
+    continue
+  }
+
+  if ($Arg.StartsWith("--handoff=")) {
+    $ContinueFromSession = $Arg.Substring("--handoff=".Length)
     continue
   }
 
@@ -105,9 +127,21 @@ if (Test-Path -LiteralPath $StrategyProfileConfig -PathType Leaf) {
 if (Test-Path -LiteralPath $ContextGuardProfileConfig -PathType Leaf) {
   Copy-Item -LiteralPath $ContextGuardProfileConfig -Destination $ContextGuardActiveProfileConfig -Force
 }
+$WorkingDirectory = (Get-Location).Path
+if ($ContinueFromSession) {
+  $HandoffPath = New-ContextGuardHandoffShared "aiomo" $ConfigDir $ContinueFromSession $WorkingDirectory
+  if (-not $HandoffPath) {
+    Write-Error "无法生成 handoff：$ContinueFromSession"
+    exit 1
+  }
+  $Prompt = "请读取 handoff 文件 $HandoffPath，并按其中 Continue Instruction 继续。不要恢复旧 session，不要运行 /start-work。"
+  $OpenCodeArgs.Add("--prompt")
+  $OpenCodeArgs.Add($Prompt)
+}
 $GuardConfigPath = if (Test-Path -LiteralPath $ContextGuardProfileConfig -PathType Leaf) { $ContextGuardProfileConfig } else { $OpenCodeProfileConfig }
 $GuardExit = Invoke-ContextGuardShared "check" "aiomo" $ConfigDir $GuardConfigPath $OpenCodeArgs.ToArray()
 if ($GuardExit -eq 10) { exit 10 }
+Start-ContextGuardWatchShared "aiomo" $ConfigDir $GuardConfigPath $WorkingDirectory
 $OpenCode = Get-Command opencode.exe -CommandType Application -ErrorAction Stop
 & $OpenCode.Source @OpenCodeArgs
 exit $LASTEXITCODE

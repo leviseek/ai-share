@@ -66,6 +66,10 @@ export function buildContextGuardConfig(globalConfig: GlobalYaml): Required<NonN
     absolute_block_tokens: source.absolute_block_tokens ?? 180000,
     rescue_dir: source.rescue_dir ?? ".opencode-rescue",
     diagnostics: source.diagnostics ?? true,
+    watch_interval_ms: source.watch_interval_ms ?? 5000,
+    zero_output_limit: source.zero_output_limit ?? 3,
+    watch_action: source.watch_action ?? "stop",
+    alert_file: source.alert_file ?? ".opencode/context-guard-alert.json",
   };
 }
 

@@ -103,6 +103,10 @@ export type GlobalContextGuard = {
   absolute_block_tokens?: number;
   rescue_dir?: string;
   diagnostics?: boolean;
+  watch_interval_ms?: number;
+  zero_output_limit?: number;
+  watch_action?: "alert" | "stop";
+  alert_file?: string;
 };
 
 export type GlobalCompaction = {
