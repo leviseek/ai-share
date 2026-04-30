@@ -1,28 +1,4 @@
 #!/usr/bin/env sh
 set -eu
 
-config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
-opcode_config="$config_dir/opencode.json"
-context_guard_profile_config="$config_dir/context-guard.profile.json"
-
-. "$(dirname "$0")/opencode-launcher-common.sh"
-
-case "${1:-}" in
-  rescue)
-    if [ "$#" -lt 2 ]; then printf '%s\n' "用法：aioc rescue <session-id>" >&2; exit 2; fi
-    opencode_context_guard rescue aioc "$opcode_config" "$config_dir" "$2"
-    exit "$?"
-    ;;
-esac
-
-set +e
-guard_budget_config="$opcode_config"
-if [ -f "$context_guard_profile_config" ]; then
-  guard_budget_config="$context_guard_profile_config"
-fi
-opencode_context_guard check aioc "$guard_budget_config" "$config_dir" "$@"
-code="$?"
-set -e
-if [ "$code" = "10" ]; then exit 10; fi
-
 exec opencode --pure "$@"

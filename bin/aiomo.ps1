@@ -9,6 +9,7 @@ function Show-Help {
   Write-Output "  aiomo [profile] [opencode args...]"
   Write-Output "  aiomo --omo-profile=<profile> [opencode args...]"
   Write-Output "  aiomo [profile] --relay <session-id>"
+  Write-Output "  aiomo doctor gitignore [--apply]"
   Write-Output "  aiomo rescue <session-id>"
   Write-Output "  aiomo [profile] -h"
   Write-Output ""
@@ -20,6 +21,7 @@ function Show-Help {
   Write-Output "  --relay <session-id>       从旧/卡住的 session 生成交接文件，并新开干净会话继续。"
   Write-Output "  --continue-from <id>       --relay 的别名。"
   Write-Output "  --handoff <id>             --relay 的别名。"
+  Write-Output "  doctor gitignore [--apply] 检查 .gitignore 缺失规则；加 --apply 自动追加。"
   Write-Output "  rescue <session-id>        只生成 rescue 摘要，不启动 OpenCode。"
   Write-Output "  -h, --help                 显示帮助。"
   Write-Output ""
@@ -34,8 +36,105 @@ function Show-Help {
   Write-Output "  aiomo coding"
   Write-Output "  aiomo coding --relay ses_abc123"
   Write-Output "  aiomo max --relay ses_abc123"
+  Write-Output "  aiomo doctor gitignore"
+  Write-Output "  aiomo doctor gitignore --apply"
   Write-Output "  aiomo rescue ses_abc123"
   Write-Output "  aiomo -h"
+}
+
+function Show-DoctorGitignoreHelp {
+  Write-Output "用法："
+  Write-Output "  aiomo doctor gitignore"
+  Write-Output "  aiomo doctor gitignore --apply"
+  Write-Output ""
+  Write-Output "说明："
+  Write-Output "  在当前 Git 仓库检查 .gitignore 缺失规则。"
+  Write-Output "  默认只输出建议，不修改文件；加 --apply 会把缺失规则追加到 .gitignore。"
+}
+
+function Invoke-GitignoreDoctor {
+  param([bool]$Apply = $false)
+  $script:AiomoDoctorExitCode = 0
+
+  $IsGitRepo = $false
+  try {
+    $Result = (& git rev-parse --is-inside-work-tree 2>$null)
+    $IsGitRepo = ($LASTEXITCODE -eq 0 -and "$Result".Trim() -eq "true")
+  } catch {}
+
+  if (-not $IsGitRepo) {
+    Write-Error "当前目录不是 Git 仓库，无法执行 doctor gitignore。"
+    $script:AiomoDoctorExitCode = 2
+    return
+  }
+
+  $GitignorePath = Join-Path (Get-Location).Path ".gitignore"
+  $ExistingLines = @()
+  if (Test-Path -LiteralPath $GitignorePath -PathType Leaf) {
+    $ExistingLines = @((Get-Content -LiteralPath $GitignorePath -Encoding UTF8) | ForEach-Object { [string]$_ })
+  }
+  $ExistingSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+  foreach ($Line in $ExistingLines) {
+    $Norm = $Line.Trim()
+    if ($Norm -and -not $Norm.StartsWith("#")) { [void]$ExistingSet.Add($Norm) }
+  }
+
+  $Rules = [System.Collections.Generic.List[string]]::new()
+  foreach ($Rule in @(".opencode/", ".opencode-rescue/", ".sisyphus/evidence/", ".env", ".env.*")) { $Rules.Add($Rule) }
+
+  $IsNodeProject = (Test-Path "package.json" -PathType Leaf) -or (Test-Path "bun.lock" -PathType Leaf) -or (Test-Path "pnpm-lock.yaml" -PathType Leaf) -or (Test-Path "yarn.lock" -PathType Leaf)
+  if ($IsNodeProject) {
+    foreach ($Rule in @("node_modules/", "dist/", "build/", ".next/", ".nuxt/", ".svelte-kit/", "coverage/", ".turbo/", ".vite/")) { $Rules.Add($Rule) }
+  }
+  $IsPythonProject = (Test-Path "pyproject.toml" -PathType Leaf) -or (Test-Path "requirements.txt" -PathType Leaf) -or (Test-Path ".python-version" -PathType Leaf)
+  if ($IsPythonProject) {
+    foreach ($Rule in @(".venv/", "venv/", "__pycache__/", "*.pyc", ".pytest_cache/", ".mypy_cache/")) { $Rules.Add($Rule) }
+  }
+  if (Test-Path "Cargo.toml" -PathType Leaf) {
+    foreach ($Rule in @("target/")) { $Rules.Add($Rule) }
+  }
+  if (Test-Path "go.mod" -PathType Leaf) {
+    foreach ($Rule in @("bin/", ".coverprofile")) { $Rules.Add($Rule) }
+  }
+  $IsJvmProject = (Test-Path "pom.xml" -PathType Leaf) -or (Test-Path "build.gradle" -PathType Leaf) -or (Test-Path "build.gradle.kts" -PathType Leaf)
+  if ($IsJvmProject) {
+    foreach ($Rule in @("target/", ".gradle/", "out/")) { $Rules.Add($Rule) }
+  }
+
+  $UniqueRules = [System.Collections.Generic.List[string]]::new()
+  $Seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+  foreach ($Rule in $Rules) {
+    if ($Seen.Add($Rule)) { $UniqueRules.Add($Rule) }
+  }
+
+  $Missing = [System.Collections.Generic.List[string]]::new()
+  foreach ($Rule in $UniqueRules) {
+    if (-not $ExistingSet.Contains($Rule)) { $Missing.Add($Rule) }
+  }
+
+  if ($Missing.Count -eq 0) {
+    Write-Output "gitignore doctor：未发现缺失规则。"
+    return
+  }
+
+  Write-Output "gitignore doctor：发现缺失规则："
+  foreach ($Rule in $Missing) { Write-Output "  - $Rule" }
+
+  if (-not $Apply) {
+    Write-Output ""
+    Write-Output "仅建议模式（未修改）。如需写入请运行：aiomo doctor gitignore --apply"
+    return
+  }
+
+  $Append = [System.Collections.Generic.List[string]]::new()
+  if (Test-Path -LiteralPath $GitignorePath -PathType Leaf) {
+    $Last = if ($ExistingLines.Count -gt 0) { [string]$ExistingLines[$ExistingLines.Count - 1] } else { "" }
+    if ($Last.Trim().Length -gt 0) { $Append.Add("") }
+  }
+  $Append.Add("# aiomo doctor gitignore")
+  foreach ($Rule in $Missing) { $Append.Add($Rule) }
+  Add-Content -LiteralPath $GitignorePath -Value $Append -Encoding UTF8
+  Write-Output "已追加到 .gitignore：$GitignorePath"
 }
 
 function Show-RelayHelp {
@@ -83,6 +182,16 @@ if (Test-Path -LiteralPath $ManifestPath -PathType Leaf) {
 if ($args.Count -gt 0 -and ($args[0] -eq "-h" -or $args[0] -eq "--help")) {
   Show-Help
   exit 0
+}
+
+if ($args.Count -gt 1 -and $args[0] -eq "doctor" -and $args[1] -eq "gitignore") {
+  if ($args.Count -gt 2 -and ($args[2] -eq "-h" -or $args[2] -eq "--help")) {
+    Show-DoctorGitignoreHelp
+    exit 0
+  }
+  $Apply = $args -contains "--apply"
+  Invoke-GitignoreDoctor -Apply:$Apply
+  exit $script:AiomoDoctorExitCode
 }
 
 if ($args.Count -gt 1 -and $AvailableProfiles -contains $args[0] -and ($args[1] -eq "-h" -or $args[1] -eq "--help")) {

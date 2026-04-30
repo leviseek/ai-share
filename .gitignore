@@ -22,3 +22,10 @@ dist/
 
 ### Local monitor state
 omo-agent-monitor-state.json
+
+### Local OpenCode / aiomo workspace state
+.opencode/
+.opencode-rescue/
+.sisyphus/evidence/
+.env
+.env.*

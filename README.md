@@ -202,6 +202,22 @@ aioc run --agent build "请说明当前项目结构"
 aiomo-monitor
 ```
 
+### Gitignore Doctor
+
+`aiomo doctor gitignore` 可以在当前 Git 仓库检查常见本地状态、密钥文件、依赖目录和构建产物是否已写入 `.gitignore`。默认只输出建议，不修改文件：
+
+```sh
+aiomo doctor gitignore
+```
+
+确认要自动追加缺失规则时使用：
+
+```sh
+aiomo doctor gitignore --apply
+```
+
+它会按当前项目特征补充规则，例如 `.opencode/`、`.opencode-rescue/`、`.env`、`node_modules/`、`dist/`、`coverage/`、Python 缓存、Rust `target/`、Go/JVM 常见输出目录等。
+
 `aioc` 不切换 OMO 编排级别，会直接使用当前生效的 `opencode.json`；如果之前运行过 `aiomo lite` / `aiomo max` 等命令，`aioc` 会沿用最后一次切换后的 OpenCode 基础配置和 compaction 策略。
 
 ## OMO 状态监控
@@ -291,7 +307,7 @@ balanced:
     max_input_tokens: 120000
 ```
 
-生成到 OpenCode 顶层 `compaction` 时会使用当前 schema 支持的 `auto` / `prune` / `reserved` 字段；`threshold` 会换算为 `reserved = max_input_tokens - threshold`，`max_input_tokens` 会生成到 `context-guard.<profile>.json` 供 `aiomo` / `aioc` 恢复旧 session 前判断风险。`model` 会生成到 `agent.compaction.model`，可以直接写模型 ID，也可以写 `primary`、`reasoning`、`fast` 这类 profile 模型角色。未在 profile 中声明的字段会回退到 `config/global.yaml` 的 `compaction` 默认值。
+生成到 OpenCode 顶层 `compaction` 时会使用当前 schema 支持的 `auto` / `prune` / `reserved` 字段；`threshold` 会换算为 `reserved = max_input_tokens - threshold`，`max_input_tokens` 会生成到 `context-guard.<profile>.json` 供 `aiomo` 恢复旧 session 前判断风险。`model` 会生成到 `agent.compaction.model`，可以直接写模型 ID，也可以写 `primary`、`reasoning`、`fast` 这类 profile 模型角色。未在 profile 中声明的字段会回退到 `config/global.yaml` 的 `compaction` 默认值。
 
 同一个 profile 也可以通过 `strategies` 覆盖共享策略。OpenCode 和 oh-my-openagent 的主配置会遵循各自
 schema；DCP / checkpoint / memory 这类共享策略会生成到独立的 `strategy.<profile>.json` sidecar，避免向
@@ -323,7 +339,7 @@ max:
 
 ### 上下文守卫
 
-生成配置时会额外写入用户级 `context-guard.json`，并安装 `opencode-context-guard.mjs`。`aiomo` 和 `aioc` 在恢复旧 session 前会读取 OpenCode SQLite 记录，按 `input_tokens / max_input_tokens` 做风险分级：
+生成配置时会额外写入用户级 `context-guard.json`，并安装 `opencode-context-guard.mjs`。`aiomo` 在恢复旧 session 前会读取 OpenCode SQLite 记录，按 `input_tokens / max_input_tokens` 做风险分级；`aioc` 是一步一操作的原生模式，不做上下文过长熔断检测。
 
 ```yaml
 context_guard:
@@ -340,14 +356,12 @@ context_guard:
 
 ```sh
 aiomo rescue ses_xxx
-aioc rescue ses_xxx
 ```
 
 救援摘要会写入当前目录的 `.opencode-rescue/<session-id>.md`，只做本地规则提取，不调用模型。确认要强制恢复时，可以显式传入 `--force`：
 
 ```sh
 aiomo -s ses_xxx --force
-aioc -s ses_xxx --force
 ```
 
 ### 可选 OpenCode 插件

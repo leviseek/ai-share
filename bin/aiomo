@@ -23,25 +23,177 @@ is_profile() {
 }
 
 show_help() {
-  printf '%s\n' "用法：aiomo [编排级别] [opencode 参数...]"
-  printf '%s\n' "      aiomo --omo-profile=<编排级别> [opencode 参数...]"
-  printf '%s\n' "      aiomo --omo-profile <编排级别> [opencode 参数...]"
+  printf '%s\n' "用法："
+  printf '%s\n' "  aiomo [编排级别] [opencode 参数...]"
+  printf '%s\n' "  aiomo --omo-profile=<编排级别> [opencode 参数...]"
+  printf '%s\n' "  aiomo --omo-profile <编排级别> [opencode 参数...]"
+  printf '%s\n' "  aiomo doctor gitignore [--apply]"
   printf '%s\n' ""
   printf '%s\n' "说明：启动 oh-my-openagent 多 agents 编排模式，并在启动前切换对应 OMO 配置。"
   printf '%s\n' "默认级别：$profile"
   printf '%s\n' "可用级别：$(printf '%s' "$profiles" | tr ' ' '、')"
   printf '%s\n' ""
+  printf '%s\n' "参数："
+  printf '%s\n' "  doctor gitignore [--apply] 检查 .gitignore 缺失规则；加 --apply 自动追加。"
+  printf '%s\n' ""
   printf '%s\n' "示例："
   printf '%s\n' "  aiomo"
   printf '%s\n' "  aiomo coding"
+  printf '%s\n' "  aiomo doctor gitignore"
+  printf '%s\n' "  aiomo doctor gitignore --apply"
   printf '%s\n' "  aiomo --omo-profile=research run \"请分析当前项目\""
   printf '%s\n' "  aiomo -h"
+}
+
+show_gitignore_doctor_help() {
+  printf '%s\n' "用法："
+  printf '%s\n' "  aiomo doctor gitignore"
+  printf '%s\n' "  aiomo doctor gitignore --apply"
+  printf '%s\n' ""
+  printf '%s\n' "说明："
+  printf '%s\n' "  在当前 Git 仓库检查 .gitignore 缺失规则。"
+  printf '%s\n' "  默认只输出建议，不修改文件；加 --apply 会把缺失规则追加到 .gitignore。"
+}
+
+has_rule() {
+  rule="$1"
+  file="$2"
+  [ -f "$file" ] || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    trimmed=$(printf '%s' "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    case "$trimmed" in
+      ""|\#*) ;;
+      "$rule") return 0 ;;
+    esac
+  done < "$file"
+  return 1
+}
+
+add_rule_once() {
+  rule="$1"
+  rules="$2"
+  case "
+$rules
+" in
+    *"
+$rule
+"*) printf '%s' "$rules" ;;
+    *) printf '%s\n%s' "$rules" "$rule" ;;
+  esac
+}
+
+gitignore_doctor() {
+  apply="false"
+  case "${1:-}" in
+    -h|--help)
+      show_gitignore_doctor_help
+      return 0
+      ;;
+    --apply)
+      apply="true"
+      ;;
+    "") ;;
+    *)
+      printf '%s\n' "不支持的 doctor gitignore 参数：$1" >&2
+      show_gitignore_doctor_help >&2
+      return 2
+      ;;
+  esac
+
+  if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    printf '%s\n' "当前目录不是 Git 仓库，无法执行 doctor gitignore。" >&2
+    return 2
+  fi
+
+  gitignore_path=".gitignore"
+  rules=".opencode/"
+  rules=$(add_rule_once ".opencode-rescue/" "$rules")
+  rules=$(add_rule_once ".sisyphus/evidence/" "$rules")
+  rules=$(add_rule_once ".env" "$rules")
+  rules=$(add_rule_once ".env.*" "$rules")
+
+  if [ -f package.json ] || [ -f bun.lock ] || [ -f pnpm-lock.yaml ] || [ -f yarn.lock ]; then
+    for rule in node_modules/ dist/ build/ .next/ .nuxt/ .svelte-kit/ coverage/ .turbo/ .vite/; do
+      rules=$(add_rule_once "$rule" "$rules")
+    done
+  fi
+  if [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f .python-version ]; then
+    for rule in .venv/ venv/ __pycache__/ '*.pyc' .pytest_cache/ .mypy_cache/; do
+      rules=$(add_rule_once "$rule" "$rules")
+    done
+  fi
+  if [ -f Cargo.toml ]; then
+    rules=$(add_rule_once "target/" "$rules")
+  fi
+  if [ -f go.mod ]; then
+    rules=$(add_rule_once "bin/" "$rules")
+    rules=$(add_rule_once ".coverprofile" "$rules")
+  fi
+  if [ -f pom.xml ] || [ -f build.gradle ] || [ -f build.gradle.kts ]; then
+    rules=$(add_rule_once "target/" "$rules")
+    rules=$(add_rule_once ".gradle/" "$rules")
+    rules=$(add_rule_once "out/" "$rules")
+  fi
+
+  missing=""
+  old_ifs=$IFS
+  IFS='
+'
+  for rule in $rules; do
+    [ -n "$rule" ] || continue
+    if ! has_rule "$rule" "$gitignore_path"; then
+      missing=$(add_rule_once "$rule" "$missing")
+    fi
+  done
+  IFS=$old_ifs
+
+  if [ -z "$missing" ]; then
+    printf '%s\n' "gitignore doctor：未发现缺失规则。"
+    return 0
+  fi
+
+  printf '%s\n' "gitignore doctor：发现缺失规则："
+  IFS='
+'
+  for rule in $missing; do
+    [ -n "$rule" ] && printf '%s\n' "  - $rule"
+  done
+  IFS=$old_ifs
+
+  if [ "$apply" != "true" ]; then
+    printf '%s\n' ""
+    printf '%s\n' "仅建议模式（未修改）。如需写入请运行：aiomo doctor gitignore --apply"
+    return 0
+  fi
+
+  if [ -f "$gitignore_path" ] && [ -s "$gitignore_path" ]; then
+    last_char=$(tail -c 1 "$gitignore_path")
+    [ -n "$last_char" ] && printf '\n' >> "$gitignore_path"
+    last_line=$(tail -n 1 "$gitignore_path")
+    [ -n "$last_line" ] && printf '\n' >> "$gitignore_path"
+  fi
+  printf '%s\n' "# aiomo doctor gitignore" >> "$gitignore_path"
+  IFS='
+'
+  for rule in $missing; do
+    [ -n "$rule" ] && printf '%s\n' "$rule" >> "$gitignore_path"
+  done
+  IFS=$old_ifs
+  printf '%s\n' "已追加到 .gitignore：$gitignore_path"
 }
 
 case "${1:-}" in
   -h|--help)
     show_help
     exit 0
+    ;;
+  doctor)
+    if [ "${2:-}" != "gitignore" ]; then
+      printf '%s\n' "用法：aiomo doctor gitignore [--apply]" >&2
+      exit 2
+    fi
+    gitignore_doctor "${3:-}"
+    exit "$?"
     ;;
   rescue)
     if [ "$#" -lt 2 ]; then printf '%s\n' "用法：aiomo rescue <session-id>" >&2; exit 2; fi
