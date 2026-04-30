@@ -32,6 +32,30 @@ context:
   max_tokens: 120000
   strategy: truncate # truncate / summarize / split
 
+workspace:
+  ignore:
+    - .git/**
+    - .opencode/**
+    - .opencode-rescue/**
+    - .sisyphus/evidence/**
+    - node_modules/**
+    - dist/**
+    - build/**
+    - target/**
+    - .next/**
+    - .nuxt/**
+    - .svelte-kit/**
+    - coverage/**
+    - .cache/**
+    - .turbo/**
+    - .vite/**
+    - bun.lock
+    - package-lock.json
+    - pnpm-lock.yaml
+    - yarn.lock
+    - .env
+    - .env.*
+
 compaction:
   enabled: true
   threshold: 65000

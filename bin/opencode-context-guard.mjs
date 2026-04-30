@@ -146,6 +146,7 @@ function rescue(args) {
   }
 
   const guard = readGuardConfig(guardConfigPath);
+  const strategy = readStrategyConfig(resolve(dirname(guardConfigPath), "strategy.json"));
   const messages = readSessionMessages(dbPath, sessionId);
   if (messages.length === 0) {
     console.error(`未找到 session：${sessionId}`);
@@ -153,7 +154,7 @@ function rescue(args) {
   }
 
   const stats = summarizeMessages(messages);
-  const summary = buildRescueSummary(sessionId, messages, stats);
+  const summary = buildRescueSummary(sessionId, messages, stats, workspaceIgnore(strategy));
   const outputDir = resolve(process.cwd(), guard.rescue_dir || DEFAULT_GUARD.rescue_dir);
   mkdirSync(outputDir, { recursive: true });
   const outputPath = join(outputDir, `${sanitizeFileName(sessionId)}.md`);
@@ -173,6 +174,8 @@ function handoff(args) {
   }
 
   const guard = readGuardConfig(guardConfigPath);
+  const strategy = readStrategyConfig(resolve(dirname(guardConfigPath), "strategy.json"));
+  const ignore = workspaceIgnore(strategy);
   const messages = readSessionMessages(dbPath, sessionId);
   const session = readSession(dbPath, sessionId);
   if (!session && messages.length === 0) {
@@ -187,9 +190,9 @@ function handoff(args) {
   const rescueOutputDir = resolve(cwd, guard.rescue_dir || DEFAULT_GUARD.rescue_dir);
   mkdirSync(rescueOutputDir, { recursive: true });
   const rescueOutputPath = join(rescueOutputDir, `${sanitizeFileName(sessionId)}.md`);
-  const rescueSummary = buildRescueSummary(sessionId, messages, stats);
+  const rescueSummary = buildRescueSummary(sessionId, messages, stats, ignore);
   writeFileSync(rescueOutputPath, rescueSummary, "utf8");
-  writeFileSync(outputPath, buildHandoffSummary(launcher, sessionId, session, stats, cwd, rescueOutputPath), "utf8");
+  writeFileSync(outputPath, buildHandoffSummary(launcher, sessionId, session, stats, cwd, rescueOutputPath, ignore), "utf8");
 
   console.log(outputPath);
   return 0;
@@ -228,6 +231,11 @@ function strategyBudgetTokens(strategy) {
     Number(strategy?.oh_my_openagent?.dcp?.context_budget_tokens) || 0,
   ].filter((value) => value > 0);
   return values.length > 0 ? Math.min(...values) : 0;
+}
+
+function workspaceIgnore(strategy) {
+  const ignore = strategy?.workspace?.ignore;
+  return Array.isArray(ignore) ? ignore.filter((value) => typeof value === "string" && value.length > 0) : [];
 }
 
 function findResumeSession(args) {
@@ -449,7 +457,7 @@ function printDiagnostics(stats) {
   console.warn("");
 }
 
-function buildRescueSummary(sessionId, messages, stats) {
+function buildRescueSummary(sessionId, messages, stats, ignore = []) {
   const entries = messages.map((message) => ({
     role: message.data.role || "unknown",
     text: messageText(message.data),
@@ -473,7 +481,9 @@ function buildRescueSummary(sessionId, messages, stats) {
   ).slice(-30);
   const files = uniqueLines(
     entries.flatMap((entry) => cleanText(entry.text).match(/[A-Za-z]:\\[^\s`"']+|(?:[\w.-]+\/)+[\w.-]+/g) || []),
-  ).slice(-60);
+  )
+    .filter((file) => !isIgnoredPath(file, ignore))
+    .slice(-60);
   const commands = uniqueLines(
     entries
       .flatMap((entry) => cleanText(entry.text).split("\n"))
@@ -502,13 +512,14 @@ function buildRescueSummary(sessionId, messages, stats) {
   );
 }
 
-function buildHandoffSummary(launcher, sessionId, session, stats, cwd, rescuePath) {
+function buildHandoffSummary(launcher, sessionId, session, stats, cwd, rescuePath, ignore = []) {
   const projectStateFiles = [
     ".sisyphus/boulder.json",
     ".sisyphus/plans/ai-workbench-mvp.md",
     ".sisyphus/notepads/ai-workbench-mvp/issues.md",
     ".sisyphus/notepads/ai-workbench-mvp/learnings.md",
   ].filter((file) => existsSync(resolve(cwd, file)));
+  const visibleIgnore = ignore.slice(0, 80);
   const title = session?.title ? String(session.title) : "unknown";
   const directory = session?.directory ? String(session.directory) : cwd;
   return (
@@ -527,9 +538,30 @@ function buildHandoffSummary(launcher, sessionId, session, stats, cwd, rescuePat
     `- rescue_summary: ${rescuePath}\n\n` +
     `## Project State Files\n` +
     `${bulletList(projectStateFiles)}\n\n` +
+    `## Workspace Ignore\n` +
+    `${bulletList(visibleIgnore)}\n\n` +
     `## Continue Instruction\n` +
-    `请不要恢复旧 OpenCode session，也不要读取旧聊天历史。先读取本 handoff 文件和上面的 Project State Files，从 .sisyphus 恢复当前计划进度，按顺序持续推进未完成任务。每完成一个任务都更新状态、笔记和证据；如果上下文明显变长、接近上限、连续失败、验证被环境阻塞、需要重大决策，或者继续会降低质量，就停下来总结。不要运行 /start-work。\n`
+    `请不要恢复旧 OpenCode session，也不要读取旧聊天历史。先读取本 handoff 文件和上面的 Project State Files，从 .sisyphus 恢复当前计划进度，按顺序持续推进未完成任务。读取、搜索和总结项目时遵守 Workspace Ignore，避免把依赖、构建产物、本地状态、证据日志和密钥文件带入上下文。每完成一个任务都更新状态、笔记和证据；如果上下文明显变长、接近上限、连续失败、验证被环境阻塞、需要重大决策，或者继续会降低质量，就停下来总结。不要运行 /start-work。\n`
   );
+}
+
+function isIgnoredPath(path, ignore) {
+  const normalized = normalizePath(path).replace(/^[a-z]:\//, "");
+  return ignore.some((pattern) => globLikeMatch(normalized, normalizePath(pattern)));
+}
+
+function globLikeMatch(path, pattern) {
+  if (!pattern) return false;
+  if (pattern.endsWith("/**")) {
+    const prefix = pattern.slice(0, -3).replace(/\/+$/, "");
+    return path === prefix || path.includes(`/${prefix}/`) || path.startsWith(`${prefix}/`);
+  }
+  if (pattern.startsWith("*.")) return path.endsWith(pattern.slice(1));
+  if (pattern.endsWith("/*")) {
+    const prefix = pattern.slice(0, -2).replace(/\/+$/, "");
+    return path.startsWith(`${prefix}/`) || path.includes(`/${prefix}/`);
+  }
+  return path === pattern || path.endsWith(`/${pattern}`);
 }
 
 function cleanText(value) {

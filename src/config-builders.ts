@@ -275,6 +275,7 @@ function buildStrategyConfig(
   return {
     $schema: "https://opencode.ai/ai-share-strategy.json",
     profile: profileId,
+    workspace: { ignore: globalConfig.workspace?.ignore ?? [] },
     opencode: {
       dcp: mergeStrategy(globalConfig.dcp, profileStrategies?.opencode?.dcp) ?? {},
       checkpoint: mergeStrategy(globalConfig.checkpoint, profileStrategies?.opencode?.checkpoint) ?? {},

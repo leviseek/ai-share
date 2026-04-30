@@ -51,6 +51,7 @@ export type GlobalYaml = {
   tui?: GlobalTui;
   models?: GlobalModels;
   context?: GlobalContext;
+  workspace?: GlobalWorkspace;
   context_guard?: GlobalContextGuard;
   compaction?: GlobalCompaction;
   dcp?: StrategySource;
@@ -93,6 +94,10 @@ export type GlobalModels = {
 export type GlobalContext = {
   max_tokens?: number;
   strategy?: "truncate" | "summarize" | "split";
+};
+
+export type GlobalWorkspace = {
+  ignore?: string[];
 };
 
 export type GlobalContextGuard = {
@@ -250,6 +255,7 @@ export type OhMyOpenAgentConfig = {
 export type SharedStrategyConfig = {
   $schema: string;
   profile: string;
+  workspace: Required<GlobalWorkspace>;
   opencode: Required<StrategyOverrides>;
   oh_my_openagent: Required<StrategyOverrides>;
 };
