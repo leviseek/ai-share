@@ -23,6 +23,7 @@ import type {
   ProviderSource,
   ProviderYaml,
   RuntimeFallbackSource,
+  SharedStrategyConfig,
   TuiConfig,
 } from "./types.ts";
 import { parseYamlObject } from "./yaml.ts";
@@ -40,6 +41,7 @@ const targetTui = resolve(targetConfigDir, "tui.json");
 const targetOhMyOpenAgent = resolve(targetConfigDir, "oh-my-openagent.json");
 const targetProfileManifest = resolve(targetConfigDir, ".omo-profiles.json");
 const targetContextGuard = resolve(targetConfigDir, "context-guard.json");
+const targetStrategy = resolve(targetConfigDir, "strategy.json");
 const targetBinDir = resolve(homeDir, ".local", "bin");
 const targetPluginDir = resolve(targetConfigDir, "plugins");
 const targetSkillsDir = resolve(targetConfigDir, "skills");
@@ -63,6 +65,7 @@ const smallModel = modelRef(pickSmallModel(globalConfig, models), models);
 const openCodeConfigs = buildOpenCodeConfigs(globalConfig, providers, models, profilesConfig, defaultModel, smallModel);
 const tuiConfig = buildTuiConfig(globalConfig);
 const ohMyOpenAgentConfigs = buildOhMyOpenAgentConfigs(models, profilesConfig, agentsConfig);
+const strategyConfigs = buildStrategyConfigs(globalConfig, profilesConfig, agentsConfig);
 const selectedDefaultProfileId = defaultProfileId(globalConfig, profilesConfig);
 const selectedOpenCodeConfig = requireValue(openCodeConfigs[selectedDefaultProfileId], "默认 OpenCode profile");
 
@@ -98,6 +101,10 @@ for (const [profileId, ohMyOpenAgentConfig] of Object.entries(ohMyOpenAgentConfi
   await writeJson(profileOhMyOpenAgentPath(profileId), ohMyOpenAgentConfig);
 }
 await writeJson(targetOhMyOpenAgent, requireValue(ohMyOpenAgentConfigs[selectedDefaultProfileId], "默认 OMO profile"));
+for (const [profileId, strategyConfig] of Object.entries(strategyConfigs)) {
+  await writeJson(profileStrategyPath(profileId), strategyConfig);
+}
+await writeJson(targetStrategy, requireValue(strategyConfigs[selectedDefaultProfileId], "默认共享策略 profile"));
 await writeJson(targetProfileManifest, buildProfileManifest(profilesConfig, selectedDefaultProfileId));
 await writeJson(targetContextGuard, buildContextGuardConfig(globalConfig));
 await installPlugins();
@@ -112,6 +119,7 @@ console.log(
     .join(" / ")}`,
 );
 console.log(`${dryRun ? "将生成" : "已生成"} oh-my-openagent 默认配置：${targetOhMyOpenAgent}`);
+console.log(`${dryRun ? "将生成" : "已生成"} 共享策略默认配置：${targetStrategy}`);
 console.log(`${dryRun ? "将生成" : "已生成"} OMO 级别清单：${targetProfileManifest}`);
 console.log(`${dryRun ? "将生成" : "已生成"} 上下文守卫配置：${targetContextGuard}`);
 console.log(
@@ -119,11 +127,16 @@ console.log(
     .map((profileId) => `aiomo ${profileId}`)
     .join(" / ")}`,
 );
+console.log(
+  `${dryRun ? "将生成" : "已生成"} 共享策略级别配置：${Object.keys(strategyConfigs)
+    .map((profileId) => `aiomo ${profileId}`)
+    .join(" / ")}`,
+);
 console.log(`${dryRun ? "将安装" : "已安装"} 启动命令目录：${targetBinDir}`);
 console.log(`${dryRun ? "将安装" : "已安装"} OpenCode 本地插件目录：${targetPluginDir}`);
 console.log(`${dryRun ? "将安装" : "已安装"} OpenCode native skills 目录：${targetSkillsDir}`);
 console.log(
-  "说明：provider/model/profiles/agents/categories/runtime_fallback/background_task/tmux/plugin 均来自 config/*.yaml。",
+  "说明：provider/model/profiles/agents/categories/runtime_fallback/background_task/tmux/plugin/strategy 均来自 config/*.yaml。",
 );
 console.log(
   `模型组提供商：${Object.entries(providerGroups)
@@ -262,7 +275,6 @@ function buildOpenCodeConfig(
   smallModelRef: string,
 ): OpenCodeConfig {
   const profileModels = requireRecord(profilesConfig[profileId]?.models, `profiles.${profileId}.models`);
-  const strategyOverrides = profilesConfig[profileId]?.strategies?.opencode;
 
   return {
     $schema: "https://opencode.ai/config.json",
@@ -280,9 +292,6 @@ function buildOpenCodeConfig(
       profilesConfig[profileId]?.compaction,
       smallModelRef,
     ),
-    ...optionalStrategy("dcp", mergeStrategy(globalConfig.dcp, strategyOverrides?.dcp)),
-    ...optionalStrategy("checkpoint", mergeStrategy(globalConfig.checkpoint, strategyOverrides?.checkpoint)),
-    ...optionalStrategy("memory", mergeStrategy(globalConfig.memory, strategyOverrides?.memory)),
     agent: {
       build: { mode: "primary", model: defaultModelRef, max_tokens: 8192 },
       plan: {
@@ -358,7 +367,6 @@ function buildOhMyOpenAgentConfig(
   profileId: string,
 ): OhMyOpenAgentConfig {
   const profileModels = requireRecord(profilesConfig[profileId]?.models, `profiles.${profileId}.models`);
-  const strategyOverrides = profilesConfig[profileId]?.strategies?.oh_my_openagent;
 
   return {
     $schema: "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
@@ -380,15 +388,44 @@ function buildOhMyOpenAgentConfig(
       modelSources,
       profileModels,
     ),
-    ...optionalStrategy("dcp", mergeStrategy(agentsConfig.dcp, strategyOverrides?.dcp)),
-    ...optionalStrategy("checkpoint", mergeStrategy(agentsConfig.checkpoint, strategyOverrides?.checkpoint)),
-    ...optionalStrategy("memory", mergeStrategy(agentsConfig.memory, strategyOverrides?.memory)),
     tmux: { enabled: agentsConfig.tmux?.enabled ?? false },
   };
 }
 
-function optionalStrategy<T extends object>(key: string, value: T | undefined): Record<string, T> {
-  return value ? { [key]: value } : {};
+function buildStrategyConfigs(
+  globalConfig: GlobalYaml,
+  profilesConfig: ProfilesYaml,
+  agentsConfig: AgentsYaml,
+): Record<string, SharedStrategyConfig> {
+  return Object.fromEntries(
+    Object.keys(requireRecord(profilesConfig, "profiles")).map((profileId) => [
+      profileId,
+      buildStrategyConfig(globalConfig, profilesConfig, agentsConfig, profileId),
+    ]),
+  );
+}
+
+function buildStrategyConfig(
+  globalConfig: GlobalYaml,
+  profilesConfig: ProfilesYaml,
+  agentsConfig: AgentsYaml,
+  profileId: string,
+): SharedStrategyConfig {
+  const profileStrategies = profilesConfig[profileId]?.strategies;
+  return {
+    $schema: "https://opencode.ai/ai-share-strategy.json",
+    profile: profileId,
+    opencode: {
+      dcp: mergeStrategy(globalConfig.dcp, profileStrategies?.opencode?.dcp) ?? {},
+      checkpoint: mergeStrategy(globalConfig.checkpoint, profileStrategies?.opencode?.checkpoint) ?? {},
+      memory: mergeStrategy(globalConfig.memory, profileStrategies?.opencode?.memory) ?? {},
+    },
+    oh_my_openagent: {
+      dcp: mergeStrategy(agentsConfig.dcp, profileStrategies?.oh_my_openagent?.dcp) ?? {},
+      checkpoint: mergeStrategy(agentsConfig.checkpoint, profileStrategies?.oh_my_openagent?.checkpoint) ?? {},
+      memory: mergeStrategy(agentsConfig.memory, profileStrategies?.oh_my_openagent?.memory) ?? {},
+    },
+  };
 }
 
 function mergeStrategy(
@@ -593,6 +630,10 @@ function defaultProfileId(globalConfig: GlobalYaml, profilesConfig: ProfilesYaml
 
 function profileOhMyOpenAgentPath(profileId: string): string {
   return resolve(targetConfigDir, `oh-my-openagent.${profileId}.json`);
+}
+
+function profileStrategyPath(profileId: string): string {
+  return resolve(targetConfigDir, `strategy.${profileId}.json`);
 }
 
 function profileOpenCodePath(profileId: string): string {

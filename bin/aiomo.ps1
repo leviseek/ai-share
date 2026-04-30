@@ -97,6 +97,8 @@ $OpenCodeProfileConfig = Join-Path $ConfigDir "opencode.$ProfileName.json"
 $OpenCodeActiveConfig = Join-Path $ConfigDir "opencode.json"
 $OmoProfileConfig = Join-Path $ConfigDir "oh-my-openagent.$ProfileName.json"
 $OmoActiveConfig = Join-Path $ConfigDir "oh-my-openagent.json"
+$StrategyProfileConfig = Join-Path $ConfigDir "strategy.$ProfileName.json"
+$StrategyActiveConfig = Join-Path $ConfigDir "strategy.json"
 
 if (-not (Test-Path -LiteralPath $OpenCodeProfileConfig -PathType Leaf)) {
   Write-Error ((U @(32570, 23569, 32, 79, 112, 101, 110, 67, 111, 100, 101, 32, 32534, 25490, 32423, 21035, 37197, 32622, 65306)) + $OpenCodeProfileConfig)
@@ -112,6 +114,9 @@ if (-not (Test-Path -LiteralPath $OmoProfileConfig -PathType Leaf)) {
 
 Copy-Item -LiteralPath $OpenCodeProfileConfig -Destination $OpenCodeActiveConfig -Force
 Copy-Item -LiteralPath $OmoProfileConfig -Destination $OmoActiveConfig -Force
+if (Test-Path -LiteralPath $StrategyProfileConfig -PathType Leaf) {
+  Copy-Item -LiteralPath $StrategyProfileConfig -Destination $StrategyActiveConfig -Force
+}
 $GuardExit = Invoke-ContextGuard "check" "aiomo" $OpenCodeProfileConfig $OpenCodeArgs.ToArray()
 if ($GuardExit -eq 10) { exit 10 }
 $OpenCode = Get-Command opencode.exe -CommandType Application -ErrorAction Stop

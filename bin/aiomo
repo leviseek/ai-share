@@ -97,6 +97,8 @@ opencode_profile_config="$config_dir/opencode.$profile.json"
 opencode_active_config="$config_dir/opencode.json"
 omo_profile_config="$config_dir/oh-my-openagent.$profile.json"
 omo_active_config="$config_dir/oh-my-openagent.json"
+strategy_profile_config="$config_dir/strategy.$profile.json"
+strategy_active_config="$config_dir/strategy.json"
 
 if [ ! -f "$opencode_profile_config" ]; then
   printf '%s\n' "缺少 OpenCode 编排级别配置：$opencode_profile_config" >&2
@@ -112,6 +114,9 @@ fi
 
 cp "$opencode_profile_config" "$opencode_active_config"
 cp "$omo_profile_config" "$omo_active_config"
+if [ -f "$strategy_profile_config" ]; then
+  cp "$strategy_profile_config" "$strategy_active_config"
+fi
 set +e
 warn_resume_session "$opencode_profile_config" "$@"
 code="$?"

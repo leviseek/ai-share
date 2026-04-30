@@ -82,6 +82,14 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.config/opencode/oh-my-openagent.research.json
 ~/.config/opencode/oh-my-openagent.writing.json
 ~/.config/opencode/oh-my-openagent.max.json
+~/.config/opencode/strategy.json
+~/.config/opencode/strategy.lite.json
+~/.config/opencode/strategy.cheap.json
+~/.config/opencode/strategy.balanced.json
+~/.config/opencode/strategy.coding.json
+~/.config/opencode/strategy.research.json
+~/.config/opencode/strategy.writing.json
+~/.config/opencode/strategy.max.json
 ~/.config/opencode/.omo-profiles.json
 ~/.config/opencode/plugins/omo-agent-monitor/package.json
 ~/.config/opencode/plugins/omo-agent-monitor/server.js
@@ -282,9 +290,10 @@ balanced:
 
 其中 `model` 可以直接写模型 ID，也可以写 `primary`、`reasoning`、`fast` 这类 profile 模型角色。未在 profile 中声明的字段会回退到 `config/global.yaml` 的 `compaction` 默认值。
 
-同一个 profile 也可以通过 `strategies` 覆盖共享策略。生成 `opencode.<profile>.json` 时会合并
-`config/global.yaml` 的 `dcp` / `checkpoint` / `memory` 默认策略与
-`profiles.<profile>.strategies.opencode`；生成 `oh-my-openagent.<profile>.json` 时会合并
+同一个 profile 也可以通过 `strategies` 覆盖共享策略。OpenCode 和 oh-my-openagent 的主配置会遵循各自
+schema；DCP / checkpoint / memory 这类共享策略会生成到独立的 `strategy.<profile>.json` sidecar，避免向
+`opencode.json` 写入未知顶层字段。生成 `strategy.<profile>.json` 时会合并 `config/global.yaml` 的
+`dcp` / `checkpoint` / `memory` 默认策略与 `profiles.<profile>.strategies.opencode`，并合并
 `config/agents.yaml` 的默认策略与 `profiles.<profile>.strategies.oh_my_openagent`：
 
 ```yaml
@@ -306,7 +315,8 @@ max:
         strategy: detailed-summary
 ```
 
-这样 `aiomo lite` / `aiomo balanced` / `aiomo max` 切换编排级别时，会同步切换 DCP 上下文预算、checkpoint 保留数量和 memory 摘要粒度。
+这样 `aiomo lite` / `aiomo balanced` / `aiomo max` 切换编排级别时，会同步把对应的
+`strategy.<profile>.json` 复制为当前生效的 `strategy.json`，切换 DCP 上下文预算、checkpoint 保留数量和 memory 摘要粒度。
 
 ### 上下文守卫
 

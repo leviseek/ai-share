@@ -188,9 +188,6 @@ export type OpenCodeConfig = {
   instructions: string[];
   plugin: string[];
   compaction: OpenCodeCompaction;
-  dcp?: StrategySource;
-  checkpoint?: StrategySource;
-  memory?: StrategySource;
   agent: Record<string, OpenCodeAgent>;
   provider: Record<string, OpenCodeProvider>;
 };
@@ -242,10 +239,14 @@ export type OhMyOpenAgentConfig = {
   categories: Record<string, OhMyAgent>;
   runtime_fallback: OhMyRuntimeFallback;
   background_task: OhMyBackgroundTask;
-  dcp?: StrategySource;
-  checkpoint?: StrategySource;
-  memory?: StrategySource;
   tmux: Required<TmuxSource>;
+};
+
+export type SharedStrategyConfig = {
+  $schema: string;
+  profile: string;
+  opencode: Required<StrategyOverrides>;
+  oh_my_openagent: Required<StrategyOverrides>;
 };
 
 export type OhMyRuntimeFallback = {
