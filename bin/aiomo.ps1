@@ -5,19 +5,63 @@ function U($Codes) {
 }
 
 function Show-Help {
-  Write-Output (U @(29992, 27861, 65306, 97, 105, 111, 109, 111, 32, 91, 32534, 25490, 32423, 21035, 93, 32, 91, 111, 112, 101, 110, 99, 111, 100, 101, 32, 21442, 25968, 46, 46, 46, 93))
-  Write-Output (U @(32, 32, 32, 32, 32, 32, 97, 105, 111, 109, 111, 32, 45, 45, 111, 109, 111, 45, 112, 114, 111, 102, 105, 108, 101, 61, 60, 32534, 25490, 32423, 21035, 62, 32, 91, 111, 112, 101, 110, 99, 111, 100, 101, 32, 21442, 25968, 46, 46, 46, 93))
-  Write-Output (U @(32, 32, 32, 32, 32, 32, 97, 105, 111, 109, 111, 32, 45, 45, 111, 109, 111, 45, 112, 114, 111, 102, 105, 108, 101, 32, 60, 32534, 25490, 32423, 21035, 62, 32, 91, 111, 112, 101, 110, 99, 111, 100, 101, 32, 21442, 25968, 46, 46, 46, 93))
+  Write-Output "用法："
+  Write-Output "  aiomo [profile] [opencode args...]"
+  Write-Output "  aiomo --omo-profile=<profile> [opencode args...]"
+  Write-Output "  aiomo [profile] --relay <session-id>"
+  Write-Output "  aiomo rescue <session-id>"
+  Write-Output "  aiomo [profile] -h"
   Write-Output ""
   Write-Output (U @(35828, 26126, 65306, 21551, 21160, 32, 111, 104, 45, 109, 121, 45, 111, 112, 101, 110, 97, 103, 101, 110, 116, 32, 22810, 32, 97, 103, 101, 110, 116, 115, 32, 32534, 25490, 27169, 24335, 65292, 24182, 22312, 21551, 21160, 21069, 20999, 25442, 23545, 24212, 32, 79, 77, 79, 32, 37197, 32622, 12290))
   Write-Output ((U @(40664, 35748, 32423, 21035, 65306)) + $ProfileName)
   Write-Output ((U @(21487, 29992, 32423, 21035, 65306)) + ($AvailableProfiles -join (U @(12289))))
   Write-Output ""
-  Write-Output (U @(31034, 20363, 65306))
+  Write-Output "参数："
+  Write-Output "  --relay <session-id>       从旧/卡住的 session 生成交接文件，并新开干净会话继续。"
+  Write-Output "  --continue-from <id>       --relay 的别名。"
+  Write-Output "  --handoff <id>             --relay 的别名。"
+  Write-Output "  rescue <session-id>        只生成 rescue 摘要，不启动 OpenCode。"
+  Write-Output "  -h, --help                 显示帮助。"
+  Write-Output ""
+  Write-Output "接力行为："
+  Write-Output "  - 不恢复旧聊天历史。"
+  Write-Output "  - 写入 .opencode/handoff/<session-id>.md 和 .opencode-rescue/<session-id>.md。"
+  Write-Output "  - 新开干净的 OpenCode TUI，并注入从 handoff 继续的提示。"
+  Write-Output "  - handoff 会包含共享 workspace.ignore 规则。"
+  Write-Output ""
+  Write-Output "示例："
   Write-Output "  aiomo"
   Write-Output "  aiomo coding"
-  Write-Output (U @(32, 32, 97, 105, 111, 109, 111, 32, 45, 45, 111, 109, 111, 45, 112, 114, 111, 102, 105, 108, 101, 61, 114, 101, 115, 101, 97, 114, 99, 104, 32, 114, 117, 110, 32, 34, 35831, 20998, 26512, 24403, 21069, 39033, 30446, 34))
+  Write-Output "  aiomo coding --relay ses_abc123"
+  Write-Output "  aiomo max --relay ses_abc123"
+  Write-Output "  aiomo rescue ses_abc123"
   Write-Output "  aiomo -h"
+}
+
+function Show-RelayHelp {
+  Write-Output "用法："
+  Write-Output "  aiomo [profile] --relay <session-id>"
+  Write-Output "  aiomo [profile] --relay=<session-id>"
+  Write-Output ""
+  Write-Output "说明："
+  Write-Output "  从旧的或卡住的 session 生成 handoff，并启动一个干净 aiomo 会话继续。"
+  Write-Output "  这不会恢复旧聊天历史。"
+  Write-Output ""
+  Write-Output "会执行："
+  Write-Output "  - 写入 .opencode/handoff/<session-id>.md"
+  Write-Output "  - 写入 .opencode-rescue/<session-id>.md"
+  Write-Output "  - 启动新的 OpenCode TUI 会话"
+  Write-Output "  - 注入从 handoff 继续的提示"
+  Write-Output "  - 带上共享 workspace.ignore 规则"
+  Write-Output ""
+  Write-Output "示例："
+  Write-Output "  aiomo coding --relay ses_abc123"
+  Write-Output "  aiomo max --relay ses_abc123"
+  Write-Output "  aiomo --relay ses_abc123"
+  Write-Output ""
+  Write-Output "别名："
+  Write-Output "  --continue-from <session-id>"
+  Write-Output "  --handoff <session-id>"
 }
 
 
@@ -38,6 +82,23 @@ if (Test-Path -LiteralPath $ManifestPath -PathType Leaf) {
 
 if ($args.Count -gt 0 -and ($args[0] -eq "-h" -or $args[0] -eq "--help")) {
   Show-Help
+  exit 0
+}
+
+if ($args.Count -gt 1 -and $AvailableProfiles -contains $args[0] -and ($args[1] -eq "-h" -or $args[1] -eq "--help")) {
+  $ProfileName = [string]$args[0]
+  Show-Help
+  exit 0
+}
+
+if ($args.Count -gt 1 -and ($args[0] -eq "--relay" -or $args[0] -eq "--continue-from" -or $args[0] -eq "--handoff") -and ($args[1] -eq "-h" -or $args[1] -eq "--help")) {
+  Show-RelayHelp
+  exit 0
+}
+
+if ($args.Count -gt 2 -and $AvailableProfiles -contains $args[0] -and ($args[1] -eq "--relay" -or $args[1] -eq "--continue-from" -or $args[1] -eq "--handoff") -and ($args[2] -eq "-h" -or $args[2] -eq "--help")) {
+  $ProfileName = [string]$args[0]
+  Show-RelayHelp
   exit 0
 }
 
