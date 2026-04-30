@@ -32,6 +32,34 @@ lite:
       memory:
         strategy: compact-summary
 
+economy:
+  name: 激进低成本模式
+  models:
+    primary: deepseek-v4-flash
+    reasoning: deepseek-v4-flash-think
+    fast: deepseek-v4-flash
+  compaction:
+    enabled: true
+    threshold: 30000
+    model: fast
+    max_input_tokens: 64000
+  strategies:
+    opencode:
+      dcp:
+        context_budget_tokens: 6000
+      checkpoint:
+        max_entries: 4
+      memory:
+        retention: session
+        strategy: compact-summary
+    oh_my_openagent:
+      dcp:
+        context_budget_tokens: 6000
+      checkpoint:
+        max_entries: 4
+      memory:
+        strategy: compact-summary
+
 cheap:
   name: 极低成本日常模式
   models:

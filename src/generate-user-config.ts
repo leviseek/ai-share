@@ -24,9 +24,6 @@ import {
   buildTuiConfig,
   defaultProfileId,
   modelProviderGroups,
-  modelRef,
-  pickDefaultModel,
-  pickSmallModel,
   requireRecord,
   requireValue,
 } from "./config-builders.ts";
@@ -65,17 +62,7 @@ const [globalConfig, providersConfig, modelsConfig, profilesConfig, agentsConfig
 
 const providers = providersConfig.providers ?? {};
 const models = applyProviderGroups(modelsConfig, providers, providerGroups);
-const defaultModel = modelRef(pickDefaultModel(globalConfig, models), models);
-const smallModel = modelRef(pickSmallModel(globalConfig, models), models);
-const openCodeConfigs = buildOpenCodeConfigs(
-  projectRoot,
-  globalConfig,
-  providers,
-  models,
-  profilesConfig,
-  defaultModel,
-  smallModel,
-);
+const openCodeConfigs = buildOpenCodeConfigs(projectRoot, globalConfig, providers, models, profilesConfig);
 const tuiConfig = buildTuiConfig(globalConfig);
 const ohMyOpenAgentConfigs = buildOhMyOpenAgentConfigs(models, profilesConfig, agentsConfig);
 const strategyConfigs = buildStrategyConfigs(globalConfig, profilesConfig, agentsConfig);

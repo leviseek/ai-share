@@ -47,22 +47,11 @@ export function buildOpenCodeConfigs(
   providerSources: Record<string, ProviderSource>,
   modelSources: ModelsYaml,
   profilesConfig: ProfilesYaml,
-  defaultModelRef: string,
-  smallModelRef: string,
 ): Record<string, OpenCodeConfig> {
   return Object.fromEntries(
     Object.keys(requireRecord(profilesConfig, "profiles")).map((profileId) => [
       profileId,
-      buildOpenCodeConfig(
-        projectRoot,
-        globalConfig,
-        providerSources,
-        modelSources,
-        profilesConfig,
-        profileId,
-        defaultModelRef,
-        smallModelRef,
-      ),
+      buildOpenCodeConfig(projectRoot, globalConfig, providerSources, modelSources, profilesConfig, profileId),
     ]),
   );
 }
@@ -125,20 +114,6 @@ export function buildStrategyConfigs(
   );
 }
 
-export function pickDefaultModel(globalConfig: GlobalYaml, modelSources: ModelsYaml): string {
-  if (globalConfig.models?.default) return globalConfig.models.default;
-  if (modelSources["gpt-5.5"]) return "gpt-5.5";
-  return requireString(Object.keys(modelSources)[0], "models 首个模型");
-}
-
-export function pickSmallModel(globalConfig: GlobalYaml, modelSources: ModelsYaml): string {
-  if (globalConfig.models?.small) return globalConfig.models.small;
-  const modelId = Object.entries(modelSources).find(
-    ([, model]) => model.capabilities?.includes("cheap") ?? model.capabilities?.includes("fast") ?? false,
-  )?.[0];
-  return modelId ?? pickDefaultModel(globalConfig, modelSources);
-}
-
 export function modelRef(modelId: string, modelSources: ModelsYaml, profileModels: ModelRoleMap = {}): string {
   const resolvedModelId = profileModels[modelId] ?? modelId;
   if (profileModels[resolvedModelId]) {
@@ -181,15 +156,15 @@ function buildOpenCodeConfig(
   modelSources: ModelsYaml,
   profilesConfig: ProfilesYaml,
   profileId: string,
-  defaultModelRef: string,
-  smallModelRef: string,
 ): OpenCodeConfig {
   const profileModels = requireRecord(profilesConfig[profileId]?.models, `profiles.${profileId}.models`);
+  const profilePrimaryModelRef = modelRef("primary", modelSources, profileModels);
+  const profileFastModelRef = modelRef("fast", modelSources, profileModels);
 
   return {
     $schema: "https://opencode.ai/config.json",
-    model: defaultModelRef,
-    small_model: smallModelRef,
+    model: profilePrimaryModelRef,
+    small_model: profileFastModelRef,
     instructions: [resolve(projectRoot, "AI_GUIDELINES.md")],
     plugin: [
       ...(globalConfig.opencode?.plugins ?? ["oh-my-openagent@3.17.5"]),
@@ -197,20 +172,25 @@ function buildOpenCodeConfig(
     ],
     compaction: buildCompactionConfig(globalConfig, profilesConfig[profileId]?.compaction),
     agent: {
-      build: { mode: "primary", model: defaultModelRef, max_tokens: 8192 },
+      build: { mode: "primary", model: profilePrimaryModelRef, max_tokens: 8192 },
       plan: {
         mode: "primary",
-        model: defaultModelRef,
+        model: profilePrimaryModelRef,
         max_tokens: 4096,
         permission: { edit: "deny", bash: "ask" },
       },
-      general: { mode: "subagent", model: defaultModelRef, max_tokens: 4096 },
-      explore: { mode: "subagent", model: smallModelRef, max_tokens: 2048, permission: { edit: "deny" } },
+      general: { mode: "subagent", model: profilePrimaryModelRef, max_tokens: 4096 },
+      explore: { mode: "subagent", model: profileFastModelRef, max_tokens: 2048, permission: { edit: "deny" } },
       compaction: {
-        model: compactionAgentModel(modelSources, profileModels, profilesConfig[profileId]?.compaction, smallModelRef),
+        model: compactionAgentModel(
+          modelSources,
+          profileModels,
+          profilesConfig[profileId]?.compaction,
+          profileFastModelRef,
+        ),
       },
-      title: { model: smallModelRef },
-      summary: { model: smallModelRef },
+      title: { model: profileFastModelRef },
+      summary: { model: profileFastModelRef },
     },
     provider: buildProviders(providerSources, modelSources),
   };

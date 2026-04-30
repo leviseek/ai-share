@@ -263,10 +263,11 @@ opencode:
 
 默认 OMO 编排级别由 `config/global.yaml` 的 `default_profile` 控制。当前默认值为 `balanced`，因此直接运行 `aiomo` 等价于 `aiomo balanced`。如果修改 `default_profile`，需要重新运行 `bun run ai:gen -- --force` 生成 `.omo-profiles.json` 后才会影响启动器默认行为。
 
-当前内置 7 个 OMO 编排级别，每个级别固定使用 3 个模型角色：
+当前内置 8 个 OMO 编排级别，每个级别固定使用 3 个模型角色：
 
 ```text
 lite：primary=gpt-5.4，reasoning=deepseek-v4-flash-think，fast=gpt-5.4-mini
+economy：primary=deepseek-v4-flash，reasoning=deepseek-v4-flash-think，fast=deepseek-v4-flash
 cheap：primary=gpt-5.4-mini，reasoning=deepseek-v4-flash-think，fast=gpt-5.4-mini
 balanced：primary=gpt-5.5，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-mini
 coding：primary=gpt-5.3-codex，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-mini
@@ -276,6 +277,8 @@ max：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4
 ```
 
 `config/agents.yaml` 中的 agents/categories 引用 `primary`、`reasoning`、`fast` 这 3 个中间层角色；具体模型由 `config/profiles.yaml` 决定。
+
+`aiomo` 切换 profile 时，OpenCode 原生 `build` / `plan` / `general` agent 会使用当前 profile 的 `primary`，`explore` / `title` / `summary` 会使用当前 profile 的 `fast`；oh-my-openagent 插件 agents/categories 也使用同一套角色映射。这样原生模式和 OMO 插件模式在同一 profile 下保持模型分工一致。
 
 `config/profiles.yaml` 中的每个 OMO 编排级别也可以覆盖 `compaction`，用于按模式调节 OpenCode 自动压缩与启动前上下文守卫预算：
 
