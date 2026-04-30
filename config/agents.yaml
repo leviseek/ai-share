@@ -97,5 +97,45 @@ background_task:
     reasoning: 1
     fast: 6
 
+dcp:
+  enabled: true
+  mode: shared
+  handoff_policy: summarize-before-delegate
+  context_budget_tokens: 24000
+  share:
+    plans: true
+    decisions: true
+    verification: true
+    secrets: false
+  required_sections:
+    - task
+    - expected_outcome
+    - required_tools
+    - must_do
+    - must_not_do
+    - context
+
+checkpoint:
+  enabled: true
+  mode: agent-session
+  trigger: before-edit-and-before-delegation
+  max_entries: 20
+  require_verification_note: true
+  restore_policy: manual-only
+
+memory:
+  enabled: true
+  mode: shared
+  scope: project
+  strategy: verified-summary
+  write_policy: facts-decisions-and-runbooks-only
+  read_policy: load-before-plan
+  redact:
+    - api_key
+    - token
+    - password
+    - secret
+    - cookie
+
 tmux:
   enabled: false

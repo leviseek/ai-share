@@ -262,6 +262,7 @@ function buildOpenCodeConfig(
   smallModelRef: string,
 ): OpenCodeConfig {
   const profileModels = requireRecord(profilesConfig[profileId]?.models, `profiles.${profileId}.models`);
+  const strategyOverrides = profilesConfig[profileId]?.strategies?.opencode;
 
   return {
     $schema: "https://opencode.ai/config.json",
@@ -279,6 +280,9 @@ function buildOpenCodeConfig(
       profilesConfig[profileId]?.compaction,
       smallModelRef,
     ),
+    ...optionalStrategy("dcp", mergeStrategy(globalConfig.dcp, strategyOverrides?.dcp)),
+    ...optionalStrategy("checkpoint", mergeStrategy(globalConfig.checkpoint, strategyOverrides?.checkpoint)),
+    ...optionalStrategy("memory", mergeStrategy(globalConfig.memory, strategyOverrides?.memory)),
     agent: {
       build: { mode: "primary", model: defaultModelRef, max_tokens: 8192 },
       plan: {
@@ -354,6 +358,7 @@ function buildOhMyOpenAgentConfig(
   profileId: string,
 ): OhMyOpenAgentConfig {
   const profileModels = requireRecord(profilesConfig[profileId]?.models, `profiles.${profileId}.models`);
+  const strategyOverrides = profilesConfig[profileId]?.strategies?.oh_my_openagent;
 
   return {
     $schema: "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
@@ -375,8 +380,38 @@ function buildOhMyOpenAgentConfig(
       modelSources,
       profileModels,
     ),
+    ...optionalStrategy("dcp", mergeStrategy(agentsConfig.dcp, strategyOverrides?.dcp)),
+    ...optionalStrategy("checkpoint", mergeStrategy(agentsConfig.checkpoint, strategyOverrides?.checkpoint)),
+    ...optionalStrategy("memory", mergeStrategy(agentsConfig.memory, strategyOverrides?.memory)),
     tmux: { enabled: agentsConfig.tmux?.enabled ?? false },
   };
+}
+
+function optionalStrategy<T extends object>(key: string, value: T | undefined): Record<string, T> {
+  return value ? { [key]: value } : {};
+}
+
+function mergeStrategy(
+  base: Record<string, unknown> | undefined,
+  override: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!base) return override;
+  if (!override) return base;
+
+  return deepMerge(base, override);
+}
+
+function deepMerge(base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> {
+  const output: Record<string, unknown> = { ...base };
+  for (const [key, value] of Object.entries(override)) {
+    const baseValue = output[key];
+    output[key] = isPlainObject(baseValue) && isPlainObject(value) ? deepMerge(baseValue, value) : value;
+  }
+  return output;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function buildProviders(

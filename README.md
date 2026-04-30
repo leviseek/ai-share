@@ -282,6 +282,32 @@ balanced:
 
 其中 `model` 可以直接写模型 ID，也可以写 `primary`、`reasoning`、`fast` 这类 profile 模型角色。未在 profile 中声明的字段会回退到 `config/global.yaml` 的 `compaction` 默认值。
 
+同一个 profile 也可以通过 `strategies` 覆盖共享策略。生成 `opencode.<profile>.json` 时会合并
+`config/global.yaml` 的 `dcp` / `checkpoint` / `memory` 默认策略与
+`profiles.<profile>.strategies.opencode`；生成 `oh-my-openagent.<profile>.json` 时会合并
+`config/agents.yaml` 的默认策略与 `profiles.<profile>.strategies.oh_my_openagent`：
+
+```yaml
+max:
+  strategies:
+    opencode:
+      dcp:
+        context_budget_tokens: 56000
+      checkpoint:
+        max_entries: 48
+      memory:
+        strategy: detailed-summary
+    oh_my_openagent:
+      dcp:
+        context_budget_tokens: 56000
+      checkpoint:
+        max_entries: 48
+      memory:
+        strategy: detailed-summary
+```
+
+这样 `aiomo lite` / `aiomo balanced` / `aiomo max` 切换编排级别时，会同步切换 DCP 上下文预算、checkpoint 保留数量和 memory 摘要粒度。
+
 ### 上下文守卫
 
 生成配置时会额外写入用户级 `context-guard.json`，并安装 `opencode-context-guard.mjs`。`aiomo` 和 `aioc` 在恢复旧 session 前会读取 OpenCode SQLite 记录，按 `input_tokens / max_input_tokens` 做风险分级：
@@ -329,7 +355,7 @@ opencode:
 config/global.yaml    -> 全局运行、OpenCode/TUI 插件、默认 profile、默认/小模型、compaction 和 context guard 策略
 config/provider.yaml  -> 模型提供商、baseURL、API Key 环境变量名
 config/models.yaml    -> 模型列表、provider/provider_group、上游模型名、参数、fallback
-config/profiles.yaml  -> OMO 编排级别和模型角色映射；默认级别由 global.yaml 的 default_profile 指定
+config/profiles.yaml  -> OMO 编排级别、模型角色映射和 profile 级策略覆盖；默认级别由 global.yaml 的 default_profile 指定
 config/agents.yaml    -> oh-my-openagent agents/categories/runtime_fallback/background_task
 ```
 

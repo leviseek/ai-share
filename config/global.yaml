@@ -36,6 +36,64 @@ compaction:
   enabled: true
   threshold: 65000
 
+dcp:
+  enabled: true
+  mode: shared
+  root: .opencode/dcp
+  strategy: local-first
+  sync: manual
+  include:
+    - AI_GUIDELINES.md
+    - GIT_COMMIT_GUIDELINES.md
+    - README.md
+    - config/*.yaml
+  exclude:
+    - .env
+    - .env.*
+    - node_modules/**
+    - bun.lock
+    - .git/**
+  secrets_policy: env-only
+
+checkpoint:
+  enabled: true
+  mode: session
+  root: .opencode/checkpoints
+  trigger: before-risky-change
+  max_entries: 20
+  include:
+    - config/*.yaml
+    - src/**/*.ts
+    - bin/*
+    - plugins/**
+  exclude:
+    - node_modules/**
+    - .git/**
+    - bun.lock
+  restore_policy: manual-only
+
+memory:
+  enabled: true
+  mode: shared
+  root: .opencode/memory
+  strategy: summary-first
+  retention: project
+  write_policy: verified-facts-only
+  redact:
+    - api_key
+    - token
+    - password
+    - secret
+  include:
+    - AI_GUIDELINES.md
+    - README.md
+    - config/*.yaml
+  exclude:
+    - .env
+    - .env.*
+    - node_modules/**
+    - .git/**
+
 context_guard:
   enabled: true
   warn_ratio: 0.5

@@ -53,6 +53,9 @@ export type GlobalYaml = {
   context?: GlobalContext;
   context_guard?: GlobalContextGuard;
   compaction?: GlobalCompaction;
+  dcp?: StrategySource;
+  checkpoint?: StrategySource;
+  memory?: StrategySource;
   telemetry?: GlobalTelemetry;
 };
 
@@ -109,6 +112,8 @@ export type GlobalCompaction = {
   max_input_tokens?: number;
 };
 
+export type StrategySource = Record<string, unknown>;
+
 export type GlobalTelemetry = {
   enabled?: boolean;
   endpoint?: string;
@@ -131,6 +136,9 @@ export type AgentsYaml = {
   categories?: Record<string, AgentSource>;
   runtime_fallback?: RuntimeFallbackSource;
   background_task?: BackgroundTaskSource;
+  dcp?: StrategySource;
+  checkpoint?: StrategySource;
+  memory?: StrategySource;
   tmux?: TmuxSource;
 };
 
@@ -140,6 +148,18 @@ export type AgentProfileSource = {
   name?: string;
   models?: ModelRoleMap;
   compaction?: GlobalCompaction;
+  strategies?: ProfileStrategies;
+};
+
+export type ProfileStrategies = {
+  opencode?: StrategyOverrides;
+  oh_my_openagent?: StrategyOverrides;
+};
+
+export type StrategyOverrides = {
+  dcp?: StrategySource;
+  checkpoint?: StrategySource;
+  memory?: StrategySource;
 };
 
 export type RuntimeFallbackSource = {
@@ -168,6 +188,9 @@ export type OpenCodeConfig = {
   instructions: string[];
   plugin: string[];
   compaction: OpenCodeCompaction;
+  dcp?: StrategySource;
+  checkpoint?: StrategySource;
+  memory?: StrategySource;
   agent: Record<string, OpenCodeAgent>;
   provider: Record<string, OpenCodeProvider>;
 };
@@ -219,6 +242,9 @@ export type OhMyOpenAgentConfig = {
   categories: Record<string, OhMyAgent>;
   runtime_fallback: OhMyRuntimeFallback;
   background_task: OhMyBackgroundTask;
+  dcp?: StrategySource;
+  checkpoint?: StrategySource;
+  memory?: StrategySource;
   tmux: Required<TmuxSource>;
 };
 
