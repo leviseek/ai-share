@@ -16,6 +16,7 @@ export function buildContextGuardConfig(globalConfig: GlobalYaml): Required<NonN
     zero_output_limit: source.zero_output_limit ?? 3,
     watch_action: source.watch_action ?? "stop",
     alert_file: source.alert_file ?? ".opencode/context-guard-alert.json",
+    history_dir: source.history_dir ?? ".opencode/context-guard-history",
   };
 }
 

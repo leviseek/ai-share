@@ -112,6 +112,7 @@ export type GlobalContextGuard = {
   zero_output_limit?: number;
   watch_action?: "alert" | "stop";
   alert_file?: string;
+  history_dir?: string;
 };
 
 export type GlobalCompaction = {

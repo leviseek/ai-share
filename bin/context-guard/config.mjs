@@ -12,6 +12,7 @@ export const DEFAULT_GUARD = {
   zero_output_limit: 3,
   watch_action: "stop",
   alert_file: ".opencode/context-guard-alert.json",
+  history_dir: ".opencode/context-guard-history",
 };
 
 export function readJson(path, fallback) {

@@ -350,6 +350,8 @@ context_guard:
   absolute_block_tokens: 180000
   rescue_dir: .opencode-rescue
   diagnostics: true
+  alert_file: .opencode/context-guard-alert.json
+  history_dir: .opencode/context-guard-history
 ```
 
 超过阻断线时，启动器默认不会直接恢复旧 session，避免还没来得及 `/compact` 就卡住。推荐先生成本地救援摘要：
@@ -357,6 +359,8 @@ context_guard:
 ```sh
 aiomo rescue ses_xxx
 ```
+
+`watch` 会把最近一次风险事件写入 `.opencode/context-guard-alert.json`，其中包含 `session_id` 和建议的 `continue_command`。同时，每次新的风险事件都会在 `.opencode/context-guard-history/` 下追加一组同名 `.md` / `.json` 快照，文件名包含时间、原因和 session id，便于熔断后按会话历史辨认应该从哪个 session 接力。
 
 救援摘要会写入当前目录的 `.opencode-rescue/<session-id>.md`，只做本地规则提取，不调用模型。确认要强制恢复时，可以显式传入 `--force`：
 

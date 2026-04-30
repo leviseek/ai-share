@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import {
   DEFAULT_GUARD,
   readGuardConfig,
@@ -27,6 +27,7 @@ export async function watch(args) {
   const intervalMs = Math.max(1000, Number(guard.watch_interval_ms) || DEFAULT_GUARD.watch_interval_ms);
   const parentPid = Number(parentPidValue) || 0;
   const alertPath = resolve(cwd, guard.alert_file || DEFAULT_GUARD.alert_file);
+  const historyDir = resolve(cwd, guard.history_dir || DEFAULT_GUARD.history_dir);
   const state = { lastSessionId: undefined, warnedKey: undefined, startedAt: Date.now() };
 
   while (true) {
@@ -69,6 +70,7 @@ export async function watch(args) {
           writeAlert(alertPath, alert);
           if (warningKey !== state.warnedKey) {
             state.warnedKey = warningKey;
+            writeHistory(historyDir, alert);
             console.warn(
               `[context-guard] ${alert.reason}: ${alert.session_id} input=${alert.input_tokens}/${alert.max_input_tokens} zero_output=${alert.zero_output_steps}`,
             );
@@ -95,4 +97,40 @@ export async function watch(args) {
 function writeAlert(path, alert) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(alert, null, 2)}\n`, "utf8");
+}
+
+function writeHistory(dir, alert) {
+  mkdirSync(dir, { recursive: true });
+  const stamp = alert.time.replace(/[:.]/g, "-");
+  const baseName = `${stamp}_${safeName(alert.reason)}_${safeName(alert.session_id)}`;
+  const jsonPath = join(dir, `${baseName}.json`);
+  const mdPath = join(dir, `${baseName}.md`);
+  writeFileSync(jsonPath, `${JSON.stringify(alert, null, 2)}\n`, "utf8");
+  writeFileSync(mdPath, historyMarkdown(alert), "utf8");
+}
+
+function historyMarkdown(alert) {
+  return (
+    `# Context Guard Event\n\n` +
+    `## Restore\n` +
+    `- session_id: ${alert.session_id}\n` +
+    `- continue_command: ${alert.continue_command}\n\n` +
+    `## Event\n` +
+    `- reason: ${alert.reason}\n` +
+    `- time: ${alert.time}\n` +
+    `- directory: ${alert.directory}\n` +
+    `- profile: ${alert.profile ?? "unknown"}\n\n` +
+    `## Diagnostics\n` +
+    `- input_tokens: ${alert.input_tokens}\n` +
+    `- max_input_tokens: ${alert.max_input_tokens}\n` +
+    `- strategy_context_budget_tokens: ${alert.strategy_context_budget_tokens}\n` +
+    `- zero_output_steps: ${alert.zero_output_steps}\n` +
+    `- latest_finish: ${alert.latest_finish ?? "unknown"}\n\n` +
+    `## Recommendation\n` +
+    `${alert.recommendation}\n`
+  );
+}
+
+function safeName(value) {
+  return String(value || "unknown").replace(/[^A-Za-z0-9_.-]+/g, "_").slice(0, 120);
 }
