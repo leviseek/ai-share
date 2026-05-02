@@ -5,6 +5,7 @@ config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 manifest="$config_dir/.omo-profiles.json"
 
 . "$(dirname "$0")/opencode-launcher-common.sh"
+opencode_apply_proxy_env "$config_dir"
 
 profile="balanced"
 profiles="lite balanced max"

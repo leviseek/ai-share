@@ -1,5 +1,38 @@
 #!/usr/bin/env sh
 
+opencode_apply_proxy_env() {
+  config_dir="$1"
+  proxy_config="$config_dir/proxy.json"
+  if [ "${AI_SHARE_PROXY:-}" = "0" ] || [ "${AI_SHARE_PROXY:-}" = "false" ]; then return 0; fi
+  if [ ! -f "$proxy_config" ] || ! command -v bun > /dev/null 2>&1; then return 0; fi
+
+  proxy_url="${AI_SHARE_PROXY_URL:-}"
+  if [ -z "$proxy_url" ]; then
+    proxy_url="$(bun -e "const fs=require('fs'); const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); if (c.enabled === false) process.exit(2); const protocol=process.env.AI_SHARE_PROXY_PROTOCOL || c.protocol || 'http'; const host=process.env.AI_SHARE_PROXY_HOST || c.host || '127.0.0.1'; const port=process.env.AI_SHARE_PROXY_PORT || c.port || 7897; process.stdout.write(protocol + '://' + host + ':' + port);" "$proxy_config" 2>/dev/null || true)"
+  fi
+  [ -n "$proxy_url" ] || return 0
+
+  no_proxy="${AI_SHARE_NO_PROXY:-}"
+  if [ -z "$no_proxy" ]; then
+    no_proxy="$(bun -e "const fs=require('fs'); const c=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); const values=Array.isArray(c.no_proxy) ? c.no_proxy : ['localhost','127.0.0.1','::1']; process.stdout.write(values.join(','));" "$proxy_config" 2>/dev/null || true)"
+  fi
+
+  : "${HTTP_PROXY:=$proxy_url}"
+  : "${HTTPS_PROXY:=$proxy_url}"
+  : "${ALL_PROXY:=$proxy_url}"
+  export HTTP_PROXY HTTPS_PROXY ALL_PROXY
+  : "${http_proxy:=$HTTP_PROXY}"
+  : "${https_proxy:=$HTTPS_PROXY}"
+  : "${all_proxy:=$ALL_PROXY}"
+  export http_proxy https_proxy all_proxy
+  if [ -n "$no_proxy" ]; then
+    : "${NO_PROXY:=$no_proxy}"
+    export NO_PROXY
+    : "${no_proxy:=$NO_PROXY}"
+    export no_proxy
+  fi
+}
+
 opencode_context_guard() {
   command_name="$1"
   launcher="$2"

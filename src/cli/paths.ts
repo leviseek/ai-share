@@ -15,6 +15,7 @@ export type GeneratorPaths = {
   targetProfileManifest: string;
   targetContextGuard: string;
   targetContextGuardProfile: string;
+  targetProxy: string;
   targetStrategy: string;
   targetBinDir: string;
   targetPluginDir: string;
@@ -49,6 +50,7 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
     targetProfileManifest: resolve(targetConfigDir, ".omo-profiles.json"),
     targetContextGuard: resolve(targetConfigDir, "context-guard.json"),
     targetContextGuardProfile: contextGuardProfilePath(targetConfigDir, "profile"),
+    targetProxy: resolve(targetConfigDir, "proxy.json"),
     targetStrategy: resolve(targetConfigDir, "strategy.json"),
     targetBinDir: resolve(homeDir, ".local", "bin"),
     targetPluginDir: resolve(targetConfigDir, "plugins"),

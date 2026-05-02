@@ -1,4 +1,7 @@
+. (Join-Path $PSScriptRoot "opencode-launcher-common.ps1")
+
 $ConfigDir = Join-Path $env:USERPROFILE ".config\opencode"
+Set-OpenCodeProxyEnvShared $ConfigDir
 $ManifestPath = Join-Path $ConfigDir ".omo-profiles.json"
 $ProfileName = "balanced"
 $AvailableProfiles = @("lite", "balanced", "max")

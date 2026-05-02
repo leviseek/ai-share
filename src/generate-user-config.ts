@@ -2,7 +2,7 @@
 
 import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { AgentsYaml, GlobalYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "./types.ts";
+import type { AgentsYaml, GlobalProxy, GlobalYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "./types.ts";
 import {
   applyProviderGroups,
   buildAiocOpenCodeConfigs,
@@ -118,6 +118,7 @@ await writeJson(paths.targetProfileManifest, buildProfileManifest(profilesConfig
   force,
 });
 await writeJson(paths.targetContextGuard, buildContextGuardConfig(globalConfig), { dryRun, force });
+await writeJson(paths.targetProxy, buildProxyConfig(globalConfig), { dryRun, force });
 await installPlugins(paths, dryRun);
 await installNativeSkills(paths, dryRun, force);
 await installLaunchers(paths, dryRun);
@@ -134,4 +135,19 @@ printGenerationSummary({
 async function loadYaml<T extends object>(fileName: string): Promise<T> {
   const value = parseYamlObject(await readFile(resolve(paths.configDir, fileName), "utf8"));
   return value as T;
+}
+
+type ProxyConfig = Required<Pick<GlobalProxy, "enabled" | "host" | "port" | "protocol">> & {
+  no_proxy: string[];
+};
+
+function buildProxyConfig(globalConfig: GlobalYaml): ProxyConfig {
+  const proxy = globalConfig.proxy ?? {};
+  return {
+    enabled: proxy.enabled ?? true,
+    host: proxy.host ?? "127.0.0.1",
+    port: proxy.port ?? 7897,
+    protocol: proxy.protocol ?? "http",
+    no_proxy: proxy.no_proxy ?? ["localhost", "127.0.0.1", "::1"],
+  };
 }

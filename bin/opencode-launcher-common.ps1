@@ -2,6 +2,50 @@ $Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding = $Utf8NoBom
 $OutputEncoding = $Utf8NoBom
 
+function Set-OpenCodeProxyEnvShared {
+  param([string]$ConfigDir)
+
+  if ($env:AI_SHARE_PROXY -eq "0" -or $env:AI_SHARE_PROXY -eq "false") { return }
+  $ProxyConfigPath = Join-Path $ConfigDir "proxy.json"
+  if (-not (Test-Path -LiteralPath $ProxyConfigPath -PathType Leaf)) { return }
+
+  try {
+    $ProxyConfig = Get-Content -LiteralPath $ProxyConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
+  } catch {
+    return
+  }
+  if ($ProxyConfig.enabled -eq $false) { return }
+
+  $ProxyUrl = $env:AI_SHARE_PROXY_URL
+  if (-not $ProxyUrl) {
+    $Protocol = if ($env:AI_SHARE_PROXY_PROTOCOL) { $env:AI_SHARE_PROXY_PROTOCOL } elseif ($ProxyConfig.protocol) { [string]$ProxyConfig.protocol } else { "http" }
+    $HostName = if ($env:AI_SHARE_PROXY_HOST) { $env:AI_SHARE_PROXY_HOST } elseif ($ProxyConfig.host) { [string]$ProxyConfig.host } else { "127.0.0.1" }
+    $Port = if ($env:AI_SHARE_PROXY_PORT) { $env:AI_SHARE_PROXY_PORT } elseif ($ProxyConfig.port) { [string]$ProxyConfig.port } else { "7897" }
+    $ProxyUrl = "${Protocol}://${HostName}:${Port}"
+  }
+  if (-not $ProxyUrl) { return }
+
+  if (-not $env:HTTP_PROXY) { $env:HTTP_PROXY = $ProxyUrl }
+  if (-not $env:HTTPS_PROXY) { $env:HTTPS_PROXY = $ProxyUrl }
+  if (-not $env:ALL_PROXY) { $env:ALL_PROXY = $ProxyUrl }
+  if (-not $env:http_proxy) { $env:http_proxy = $env:HTTP_PROXY }
+  if (-not $env:https_proxy) { $env:https_proxy = $env:HTTPS_PROXY }
+  if (-not $env:all_proxy) { $env:all_proxy = $env:ALL_PROXY }
+
+  $NoProxy = $env:AI_SHARE_NO_PROXY
+  if (-not $NoProxy) {
+    if ($ProxyConfig.no_proxy) {
+      $NoProxy = @($ProxyConfig.no_proxy | ForEach-Object { [string]$_ }) -join ","
+    } else {
+      $NoProxy = "localhost,127.0.0.1,::1"
+    }
+  }
+  if ($NoProxy) {
+    if (-not $env:NO_PROXY) { $env:NO_PROXY = $NoProxy }
+    if (-not $env:no_proxy) { $env:no_proxy = $env:NO_PROXY }
+  }
+}
+
 function Invoke-ContextGuardShared {
   param(
     [string]$Command,

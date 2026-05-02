@@ -14,6 +14,16 @@ runtime:
   timeout_ms: 120000
   max_retries: 2
 
+proxy:
+  enabled: true
+  host: 127.0.0.1
+  port: 7897
+  protocol: http
+  no_proxy:
+    - localhost
+    - 127.0.0.1
+    - ::1
+
 opencode:
   plugins:
     - oh-my-openagent@3.17.5

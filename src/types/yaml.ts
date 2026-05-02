@@ -47,6 +47,7 @@ export type GlobalYaml = {
   env?: GlobalEnvironment;
   features?: GlobalFeatures;
   runtime?: GlobalRuntime;
+  proxy?: GlobalProxy;
   opencode?: GlobalOpenCode;
   tui?: GlobalTui;
   models?: GlobalModels;
@@ -75,6 +76,14 @@ export type GlobalFeatures = {
 export type GlobalRuntime = {
   timeout_ms?: number;
   max_retries?: number;
+};
+
+export type GlobalProxy = {
+  enabled?: boolean;
+  host?: string;
+  port?: number;
+  protocol?: "http" | "https" | "socks5";
+  no_proxy?: string[];
 };
 
 export type GlobalOpenCode = {

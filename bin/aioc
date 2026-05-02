@@ -6,6 +6,9 @@ MANIFEST="$CONFIG_DIR/.omo-profiles.json"
 PROFILE="balanced"
 PROFILES="lite balanced max"
 
+. "$(dirname "$0")/opencode-launcher-common.sh"
+opencode_apply_proxy_env "$CONFIG_DIR"
+
 if [ -f "$MANIFEST" ]; then
   PROFILE="$(node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); process.stdout.write(String(m.default_profile || 'balanced'))" "$MANIFEST")"
   PROFILES="$(node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); process.stdout.write(Array.isArray(m.profiles) ? m.profiles.join(' ') : 'lite balanced max')" "$MANIFEST")"
