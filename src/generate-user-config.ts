@@ -31,6 +31,7 @@ import {
   profileStrategyPath,
 } from "./cli/paths.ts";
 import { agentRegistryMismatches } from "./cli/registry-check.ts";
+import { warmUpSuperpowersPlugin } from "./cli/superpowers.ts";
 import { parseYamlObject } from "./yaml.ts";
 
 const cliOptions = parseCliOptions();
@@ -69,6 +70,7 @@ if (checkOnly) {
     missingApiKeys,
     registryMismatches,
   });
+  process.exit(0);
 }
 
 if (registryMismatches.length > 0) {
@@ -131,6 +133,7 @@ await writeJson(paths.targetProxy, buildProxyConfig(globalConfig), { dryRun, for
 await installPlugins(paths, dryRun);
 await installNativeSkills(paths, dryRun, force);
 await installLaunchers(paths, dryRun);
+if (!dryRun) warmUpSuperpowersPlugin(selectedOpenCodeConfig.plugin);
 
 printGenerationSummary({
   dryRun,

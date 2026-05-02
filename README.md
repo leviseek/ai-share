@@ -112,6 +112,8 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.config/opencode/skills/git-master/SKILL.md
 ```
 
+`git-master` 是本仓库安装的本地 native skill。Superpowers skills（例如 `writing-plans`、`brainstorming`）不复制到 `~/.config/opencode/skills/`；它们由 `superpowers@git+https://github.com/obra/superpowers.git` 插件在 OpenCode 启动时自动安装和注册。
+
 同时会安装启动命令到用户级 bin 目录：
 
 ```text
@@ -230,6 +232,8 @@ aiomo-monitor
 ```
 
 `doctor install` 输出 `OK` / `WARN` / `FAIL`：`OK` 表示该项已安装或配置符合当前模式；`WARN` 表示可能可用但需要关注，例如当前终端 PATH 尚未刷新；`FAIL` 表示缺失或配置不一致，需要重新运行 `bun run ai:gen -- --force` 或修复环境。该检查为轻量级静态/版本探测，不会启动 OpenCode TUI，也不验证插件运行时渲染。
+
+首次安装时需要网络访问以便 OpenCode 拉取插件包。`aiomo doctor install` / `aioc doctor install` 会检查 Superpowers 插件缓存和关键 skills 是否存在；如果缺失，请在网络可用时重启 `aiomo` / `aioc`，或运行一次 `opencode run "Tell me about your superpowers"` 触发插件安装。
 
 ### Gitignore Doctor
 
