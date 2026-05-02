@@ -28,6 +28,22 @@ export function buildOpenCodeConfigs(
   );
 }
 
+export function buildAiocOpenCodeConfigs(
+  openCodeConfigs: Record<string, OpenCodeConfig>,
+  globalConfig: GlobalYaml,
+): Record<string, OpenCodeConfig> {
+  const excludedPlugins = new Set(globalConfig.opencode?.aioc_excluded_plugins ?? ["oh-my-openagent@3.17.5"]);
+  return Object.fromEntries(
+    Object.entries(openCodeConfigs).map(([profileId, openCodeConfig]) => [
+      profileId,
+      {
+        ...openCodeConfig,
+        plugin: openCodeConfig.plugin.filter((plugin) => !excludedPlugins.has(plugin)),
+      },
+    ]),
+  );
+}
+
 export function buildTuiConfig(globalConfig: GlobalYaml): TuiConfig {
   return {
     $schema: "https://opencode.ai/tui.json",

@@ -2,6 +2,7 @@ export { applyProviderGroups, modelProviderGroups, modelRef } from "./config/mod
 export { buildContextGuardConfig, buildContextGuardProfileConfigs } from "./config/builders/context-guard.ts";
 export { buildOhMyOpenAgentConfigs } from "./config/builders/omo.ts";
 export {
+  buildAiocOpenCodeConfigs,
   buildOpenCodeConfigs,
   buildProfileManifest,
   buildTuiConfig,

@@ -17,6 +17,10 @@ runtime:
 opencode:
   plugins:
     - oh-my-openagent@3.17.5
+    - superpowers@git+https://github.com/obra/superpowers.git
+    - ./plugins/omo-agent-monitor
+  aioc_excluded_plugins:
+    - oh-my-openagent@3.17.5
     - ./plugins/omo-agent-monitor
   optional_plugins: [] # 例如确认包名后可加入 opencode-dcp；默认不盲装未知插件
 

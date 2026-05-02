@@ -43,6 +43,7 @@ export function printGenerationSummary(input: {
   console.log(`${prefix} OpenCode 配置：${input.paths.targetOpenCode}`);
   console.log(`${prefix} OpenCode TUI 配置：${input.paths.targetTui}`);
   console.log(`${prefix} OpenCode 级别配置：${formatProfileCommands(input.openCodeProfileIds)}`);
+  console.log(`${prefix} aioc 级别配置：${formatProfileCommands(input.openCodeProfileIds, "aioc")}`);
   console.log(`${prefix} oh-my-openagent 默认配置：${input.paths.targetOhMyOpenAgent}`);
   console.log(`${prefix} 共享策略默认配置：${input.paths.targetStrategy}`);
   console.log(`${prefix} OMO 级别清单：${input.paths.targetProfileManifest}`);
@@ -65,6 +66,6 @@ function formatProviderGroups(providerGroups: ProviderGroupMap): string {
     .join(" / ");
 }
 
-function formatProfileCommands(profileIds: string[]): string {
-  return profileIds.map((profileId) => `aiomo ${profileId}`).join(" / ");
+function formatProfileCommands(profileIds: string[], command: "aiomo" | "aioc" = "aiomo"): string {
+  return profileIds.map((profileId) => `${command} ${profileId}`).join(" / ");
 }

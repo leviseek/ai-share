@@ -69,6 +69,10 @@ export function profileOpenCodePath(targetConfigDir: string, profileId: string):
   return resolve(targetConfigDir, `opencode.${profileId}.json`);
 }
 
+export function profileAiocOpenCodePath(targetConfigDir: string, profileId: string): string {
+  return resolve(targetConfigDir, `opencode.aioc.${profileId}.json`);
+}
+
 function contextGuardProfilePath(targetConfigDir: string, profileId: string): string {
   return resolve(targetConfigDir, `context-guard.${profileId}.json`);
 }

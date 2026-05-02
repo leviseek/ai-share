@@ -68,12 +68,19 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.config/opencode/opencode.json
 ~/.config/opencode/tui.json
 ~/.config/opencode/opencode.lite.json
+~/.config/opencode/opencode.aioc.lite.json
 ~/.config/opencode/opencode.cheap.json
+~/.config/opencode/opencode.aioc.cheap.json
 ~/.config/opencode/opencode.balanced.json
+~/.config/opencode/opencode.aioc.balanced.json
 ~/.config/opencode/opencode.coding.json
+~/.config/opencode/opencode.aioc.coding.json
 ~/.config/opencode/opencode.research.json
+~/.config/opencode/opencode.aioc.research.json
 ~/.config/opencode/opencode.writing.json
+~/.config/opencode/opencode.aioc.writing.json
 ~/.config/opencode/opencode.max.json
+~/.config/opencode/opencode.aioc.max.json
 ~/.config/opencode/oh-my-openagent.json
 ~/.config/opencode/oh-my-openagent.lite.json
 ~/.config/opencode/oh-my-openagent.cheap.json
@@ -135,23 +142,23 @@ Git 提交规范在 `GIT_COMMIT_GUIDELINES.md`，提交信息使用 `option: 中
 当前推荐把启动方式分成两类：
 
 ```sh
-# oh-my-openagent 多 agents 编排模式，加载插件
-opencode
+# oh-my-openagent 多 agents 编排模式，加载完整共享插件
+aiomo
 
-# OpenCode 原生 Build / Plan 模式，不加载外部插件
-opencode --pure
+# OpenCode 原生 Build / Plan 模式，只排除 OMO 插件，保留其他共享插件
+aioc
 ```
 
 为了减少记忆成本，同时避免和常见开发工具命名重合，不建议使用 `oc`（OpenShift 常用）、`code`（VS Code）、`op`（1Password）这类短名。本仓库会安装 `aiomo` / `aioc` 启动包装器：
 
 ```text
 bin/aiomo      -> opencode，并可选择 OMO 编排级别
-bin/aioc       -> opencode --pure
+bin/aioc       -> opencode，并切换到过滤 OMO 插件后的 aioc 配置
 bin/aiomo-monitor -> Windows 桌面独立监控浮窗
 bin/aiomo.cmd  -> opencode，并可选择 OMO 编排级别
 bin/aiomo.ps1  -> aiomo.cmd 使用的 PowerShell 启动逻辑
-bin/aioc.cmd   -> opencode --pure
-bin/aioc.ps1   -> PowerShell 原生 opencode --pure 启动逻辑
+bin/aioc.cmd   -> opencode，并切换到过滤 OMO 插件后的 aioc 配置
+bin/aioc.ps1   -> PowerShell 原生 aioc 配置切换启动逻辑
 bin/aiomo-monitor.cmd -> aiomo-monitor.ps1 启动包装器
 bin/aiomo-monitor.ps1 -> 桌面独立浮窗逻辑（置顶/拖拽/折叠）
 ```
@@ -191,8 +198,12 @@ aiomo max
 # 也支持显式参数形式，后续参数继续透传给 opencode
 aiomo --omo-profile=max run "请分析当前项目"
 
-# 原生模式：Tab 切换 OpenCode 原生 Build / Plan
+# 原生模式：Tab 切换 OpenCode 原生 Build / Plan，默认使用 balanced
 aioc
+
+# 原生模式也支持选择级别，插件会按 opencode.aioc.<profile>.json 生效
+aioc coding
+aioc --profile=max
 
 # 原生 CLI 指定 agent
 aioc run --agent plan "请只输出计划，不要修改文件"
@@ -218,7 +229,7 @@ aiomo doctor gitignore --apply
 
 它会按当前项目特征补充规则，例如 `.opencode/context-guard-history/`、`.opencode/handoff/`、`.opencode-rescue/`、`.env`、`node_modules/`、`dist/`、`coverage/`、Python 缓存、Rust `target/`、Go/JVM 常见输出目录等。不会忽略整个 `.opencode/`，以便项目级 OpenCode 配置可以入库。
 
-`aioc` 不切换 OMO 编排级别，会直接使用当前生效的 `opencode.json`；如果之前运行过 `aiomo lite` / `aiomo max` 等命令，`aioc` 会沿用最后一次切换后的 OpenCode 基础配置和 compaction 策略。
+`aioc` 会把 `opencode.aioc.<profile>.json` 复制为当前生效的 `opencode.json` 后启动 OpenCode。它不使用 `--pure`，因此仍会加载共享插件；默认只通过 `config/global.yaml` 的 `opencode.aioc_excluded_plugins` 排除 `oh-my-openagent` 和 OMO 监控插件。这样 `superpowers` 等非 OMO 插件在 `aioc` 中仍然生效。
 
 ## OMO 状态监控
 
@@ -376,6 +387,15 @@ aiomo -s ses_xxx --force
 opencode:
   optional_plugins:
     - <confirmed-opencode-dcp-package-or-path>
+```
+
+`config/global.yaml` 也支持 `opencode.aioc_excluded_plugins`。生成 `opencode.aioc.<profile>.json` 时会从共享插件列表中移除这些插件，用于让 `aioc` 保持 OpenCode 原生 Build / Plan 体验，同时继续加载 `superpowers` 等其他共享插件：
+
+```yaml
+opencode:
+  aioc_excluded_plugins:
+    - oh-my-openagent@3.17.5
+    - ./plugins/omo-agent-monitor
 ```
 
 ## 配置源

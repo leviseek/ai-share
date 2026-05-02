@@ -80,6 +80,7 @@ export type GlobalRuntime = {
 export type GlobalOpenCode = {
   plugins?: string[];
   optional_plugins?: string[];
+  aioc_excluded_plugins?: string[];
 };
 
 export type GlobalTui = {

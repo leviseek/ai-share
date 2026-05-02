@@ -1,4 +1,60 @@
 #!/usr/bin/env sh
 set -eu
 
-exec opencode --pure "$@"
+CONFIG_DIR="$HOME/.config/opencode"
+MANIFEST="$CONFIG_DIR/.omo-profiles.json"
+PROFILE="balanced"
+PROFILES="lite balanced max"
+
+if [ -f "$MANIFEST" ]; then
+  PROFILE="$(node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); process.stdout.write(String(m.default_profile || 'balanced'))" "$MANIFEST")"
+  PROFILES="$(node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); process.stdout.write(Array.isArray(m.profiles) ? m.profiles.join(' ') : 'lite balanced max')" "$MANIFEST")"
+fi
+
+ARGS=""
+if [ "$#" -gt 0 ]; then
+  case " $PROFILES " in
+    *" $1 "*) PROFILE="$1"; shift ;;
+  esac
+fi
+
+if [ "$#" -gt 0 ]; then
+  case "$1" in
+    --profile)
+      shift
+      PROFILE="${1:-}"
+      [ "$#" -gt 0 ] && shift
+      ;;
+    --profile=*)
+      PROFILE="${1#--profile=}"
+      shift
+      ;;
+  esac
+fi
+
+case " $PROFILES " in
+  *" $PROFILE "*) ;;
+  *)
+    printf '%s\n' "不支持的 aioc 配置级别：$PROFILE" >&2
+    printf '%s\n' "可用级别：$PROFILES" >&2
+    exit 2
+    ;;
+esac
+
+AIOC_CONFIG="$CONFIG_DIR/opencode.aioc.$PROFILE.json"
+ACTIVE_CONFIG="$CONFIG_DIR/opencode.json"
+CONTEXT_GUARD_PROFILE="$CONFIG_DIR/context-guard.$PROFILE.json"
+CONTEXT_GUARD_ACTIVE="$CONFIG_DIR/context-guard.profile.json"
+
+if [ ! -f "$AIOC_CONFIG" ]; then
+  printf '%s\n' "缺少 aioc OpenCode 配置级别配置：$AIOC_CONFIG" >&2
+  printf '%s\n' "请先运行：bun run ai:gen -- --force" >&2
+  exit 1
+fi
+
+cp "$AIOC_CONFIG" "$ACTIVE_CONFIG"
+if [ -f "$CONTEXT_GUARD_PROFILE" ]; then
+  cp "$CONTEXT_GUARD_PROFILE" "$CONTEXT_GUARD_ACTIVE"
+fi
+
+exec opencode "$@"

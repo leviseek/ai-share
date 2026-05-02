@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import type { AgentsYaml, GlobalYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "./types.ts";
 import {
   applyProviderGroups,
+  buildAiocOpenCodeConfigs,
   buildContextGuardConfig,
   buildContextGuardProfileConfigs,
   buildOhMyOpenAgentConfigs,
@@ -24,6 +25,7 @@ import { printCheckSummary, printGenerationSummary } from "./cli/output.ts";
 import {
   buildGeneratorPaths,
   profileContextGuardPath,
+  profileAiocOpenCodePath,
   profileOhMyOpenAgentPath,
   profileOpenCodePath,
   profileStrategyPath,
@@ -46,6 +48,7 @@ const [globalConfig, providersConfig, modelsConfig, profilesConfig, agentsConfig
 const providers = providersConfig.providers ?? {};
 const models = applyProviderGroups(modelsConfig, providers, providerGroups);
 const openCodeConfigs = buildOpenCodeConfigs(paths.projectRoot, globalConfig, providers, models, profilesConfig);
+const aiocOpenCodeConfigs = buildAiocOpenCodeConfigs(openCodeConfigs, globalConfig);
 const tuiConfig = buildTuiConfig(globalConfig);
 const ohMyOpenAgentConfigs = buildOhMyOpenAgentConfigs(models, profilesConfig, agentsConfig);
 const strategyConfigs = buildStrategyConfigs(globalConfig, profilesConfig, agentsConfig);
@@ -75,6 +78,9 @@ if (registryMismatches.length > 0) {
 if (!dryRun) await mkdir(paths.targetConfigDir, { recursive: true });
 for (const [profileId, openCodeConfig] of Object.entries(openCodeConfigs)) {
   await writeJson(profileOpenCodePath(paths.targetConfigDir, profileId), openCodeConfig, { dryRun, force });
+}
+for (const [profileId, aiocOpenCodeConfig] of Object.entries(aiocOpenCodeConfigs)) {
+  await writeJson(profileAiocOpenCodePath(paths.targetConfigDir, profileId), aiocOpenCodeConfig, { dryRun, force });
 }
 await writeJson(paths.targetOpenCode, selectedOpenCodeConfig, { dryRun, force });
 await writeJson(paths.targetTui, tuiConfig, { dryRun, force });
