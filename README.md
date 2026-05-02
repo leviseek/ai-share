@@ -123,6 +123,8 @@ Windows 下对应为：
 %USERPROFILE%\.local\bin\aiomo-monitor.ps1
 ```
 
+`opencode-install-doctor.mjs` 也会安装到同一目录，作为 `aiomo doctor install` / `aioc doctor install` 内部使用的检查脚本；它需要启动器传入参数，不作为普通启动命令直接使用。
+
 Windows 会自动把该目录加入用户级 PATH。已经打开的终端可能需要重启后才能直接使用 `aiomo` / `aioc` / `aiomo-monitor`。
 
 macOS/Linux 不会自动修改 shell 配置；请确认 `~/.local/bin` 已在 PATH 中。
@@ -205,6 +207,10 @@ aioc
 aioc coding
 aioc --profile=max
 
+# 检查共享配置、插件、skills、TUI 插件配置和安装文件是否存在，并核对当前模式的插件配置
+aiomo doctor install
+aioc doctor install
+
 # 原生 CLI 指定 agent
 aioc run --agent plan "请只输出计划，不要修改文件"
 aioc run --agent build "请说明当前项目结构"
@@ -212,6 +218,8 @@ aioc run --agent build "请说明当前项目结构"
 # 桌面独立监控浮窗（Windows）
 aiomo-monitor
 ```
+
+`doctor install` 输出 `OK` / `WARN` / `FAIL`：`OK` 表示该项已安装或配置符合当前模式；`WARN` 表示可能可用但需要关注，例如当前终端 PATH 尚未刷新；`FAIL` 表示缺失或配置不一致，需要重新运行 `bun run ai:gen -- --force` 或修复环境。该检查为轻量级静态/版本探测，不会启动 OpenCode TUI，也不验证插件运行时渲染。
 
 ### Gitignore Doctor
 

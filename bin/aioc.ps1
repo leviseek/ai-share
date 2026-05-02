@@ -13,6 +13,34 @@ if (Test-Path -LiteralPath $ManifestPath -PathType Leaf) {
   }
 }
 
+if ($args.Count -gt 1 -and $args[0] -eq "doctor" -and $args[1] -eq "install") {
+  $DoctorScript = Join-Path $PSScriptRoot "opencode-install-doctor.mjs"
+  if (-not (Test-Path -LiteralPath $DoctorScript -PathType Leaf)) {
+    Write-Error "缺少 install doctor 脚本：$DoctorScript"
+    exit 1
+  }
+  $AiocProfileConfig = Join-Path $ConfigDir "opencode.aioc.$ProfileName.json"
+  $OpenCodeActiveConfig = Join-Path $ConfigDir "opencode.json"
+  $ContextGuardProfileConfig = Join-Path $ConfigDir "context-guard.$ProfileName.json"
+  $ContextGuardActiveProfileConfig = Join-Path $ConfigDir "context-guard.profile.json"
+  if (-not (Test-Path -LiteralPath $AiocProfileConfig -PathType Leaf)) {
+    Write-Error "缺少 aioc OpenCode 配置级别配置：$AiocProfileConfig"
+    Write-Error "请先运行：bun run ai:gen -- --force"
+    exit 1
+  }
+  Copy-Item -LiteralPath $AiocProfileConfig -Destination $OpenCodeActiveConfig -Force
+  if (Test-Path -LiteralPath $ContextGuardProfileConfig -PathType Leaf) {
+    Copy-Item -LiteralPath $ContextGuardProfileConfig -Destination $ContextGuardActiveProfileConfig -Force
+  }
+  $Node = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if (-not $Node) {
+    Write-Error "缺少 node，无法执行 install doctor。"
+    exit 1
+  }
+  & $Node.Source $DoctorScript "aioc" $ProfileName
+  exit $LASTEXITCODE
+}
+
 $OpenCodeArgs = [System.Collections.Generic.List[string]]::new()
 
 for ($Index = 0; $Index -lt $args.Count; $Index += 1) {

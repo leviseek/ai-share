@@ -10,6 +10,7 @@ function Show-Help {
   Write-Output "  aiomo --omo-profile=<profile> [opencode args...]"
   Write-Output "  aiomo [profile] --relay <session-id>"
   Write-Output "  aiomo doctor gitignore [--apply]"
+  Write-Output "  aiomo doctor install"
   Write-Output "  aiomo rescue <session-id>"
   Write-Output "  aiomo [profile] -h"
   Write-Output ""
@@ -22,6 +23,7 @@ function Show-Help {
   Write-Output "  --continue-from <id>       --relay 的别名。"
   Write-Output "  --handoff <id>             --relay 的别名。"
   Write-Output "  doctor gitignore [--apply] 检查 .gitignore 缺失规则；加 --apply 自动追加。"
+  Write-Output "  doctor install            检查共享配置、插件、skills 和 TUI 插件是否安装并可见。"
   Write-Output "  rescue <session-id>        只生成 rescue 摘要，不启动 OpenCode。"
   Write-Output "  -h, --help                 显示帮助。"
   Write-Output ""
@@ -203,6 +205,47 @@ if ($args.Count -gt 1 -and $args[0] -eq "doctor" -and $args[1] -eq "gitignore") 
   $Apply = $args -contains "--apply"
   Invoke-GitignoreDoctor -Apply:$Apply
   exit $script:AiomoDoctorExitCode
+}
+
+if ($args.Count -gt 1 -and $args[0] -eq "doctor" -and $args[1] -eq "install") {
+  $DoctorScript = Join-Path $PSScriptRoot "opencode-install-doctor.mjs"
+  if (-not (Test-Path -LiteralPath $DoctorScript -PathType Leaf)) {
+    Write-Error "缺少 install doctor 脚本：$DoctorScript"
+    exit 1
+  }
+  $OpenCodeProfileConfig = Join-Path $ConfigDir "opencode.$ProfileName.json"
+  $OpenCodeActiveConfig = Join-Path $ConfigDir "opencode.json"
+  $OmoProfileConfig = Join-Path $ConfigDir "oh-my-openagent.$ProfileName.json"
+  $OmoActiveConfig = Join-Path $ConfigDir "oh-my-openagent.json"
+  $StrategyProfileConfig = Join-Path $ConfigDir "strategy.$ProfileName.json"
+  $StrategyActiveConfig = Join-Path $ConfigDir "strategy.json"
+  $ContextGuardProfileConfig = Join-Path $ConfigDir "context-guard.$ProfileName.json"
+  $ContextGuardActiveProfileConfig = Join-Path $ConfigDir "context-guard.profile.json"
+  if (-not (Test-Path -LiteralPath $OpenCodeProfileConfig -PathType Leaf)) {
+    Write-Error ((U @(32570, 23569, 32, 79, 112, 101, 110, 67, 111, 100, 101, 32, 32534, 25490, 32423, 21035, 37197, 32622, 65306)) + $OpenCodeProfileConfig)
+    Write-Error (U @(35831, 20808, 36816, 34892, 65306, 98, 117, 110, 32, 114, 117, 110, 32, 97, 105, 58, 103, 101, 110, 32, 45, 45, 32, 45, 45, 102, 111, 114, 99, 101))
+    exit 1
+  }
+  if (-not (Test-Path -LiteralPath $OmoProfileConfig -PathType Leaf)) {
+    Write-Error ((U @(32570, 23569, 32, 79, 77, 79, 32, 32534, 25490, 32423, 21035, 37197, 32622, 65306)) + $OmoProfileConfig)
+    Write-Error (U @(35831, 20808, 36816, 34892, 65306, 98, 117, 110, 32, 114, 117, 110, 32, 97, 105, 58, 103, 101, 110, 32, 45, 45, 32, 45, 45, 102, 111, 114, 99, 101))
+    exit 1
+  }
+  Copy-Item -LiteralPath $OpenCodeProfileConfig -Destination $OpenCodeActiveConfig -Force
+  Copy-Item -LiteralPath $OmoProfileConfig -Destination $OmoActiveConfig -Force
+  if (Test-Path -LiteralPath $StrategyProfileConfig -PathType Leaf) {
+    Copy-Item -LiteralPath $StrategyProfileConfig -Destination $StrategyActiveConfig -Force
+  }
+  if (Test-Path -LiteralPath $ContextGuardProfileConfig -PathType Leaf) {
+    Copy-Item -LiteralPath $ContextGuardProfileConfig -Destination $ContextGuardActiveProfileConfig -Force
+  }
+  $Node = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if (-not $Node) {
+    Write-Error "缺少 node，无法执行 install doctor。"
+    exit 1
+  }
+  & $Node.Source $DoctorScript "aiomo" $ProfileName
+  exit $LASTEXITCODE
 }
 
 if ($args.Count -gt 1 -and $AvailableProfiles -contains $args[0] -and ($args[1] -eq "-h" -or $args[1] -eq "--help")) {

@@ -28,6 +28,7 @@ show_help() {
   printf '%s\n' "  aiomo --omo-profile=<编排级别> [opencode 参数...]"
   printf '%s\n' "  aiomo --omo-profile <编排级别> [opencode 参数...]"
   printf '%s\n' "  aiomo doctor gitignore [--apply]"
+  printf '%s\n' "  aiomo doctor install"
   printf '%s\n' ""
   printf '%s\n' "说明：启动 oh-my-openagent 多 agents 编排模式，并在启动前切换对应 OMO 配置。"
   printf '%s\n' "默认级别：$profile"
@@ -35,6 +36,7 @@ show_help() {
   printf '%s\n' ""
   printf '%s\n' "参数："
   printf '%s\n' "  doctor gitignore [--apply] 检查 .gitignore 缺失规则；加 --apply 自动追加。"
+  printf '%s\n' "  doctor install            检查共享配置、插件、skills 和 TUI 插件是否安装并可见。"
   printf '%s\n' ""
   printf '%s\n' "示例："
   printf '%s\n' "  aiomo"
@@ -193,12 +195,50 @@ case "${1:-}" in
     exit 0
     ;;
   doctor)
-    if [ "${2:-}" != "gitignore" ]; then
-      printf '%s\n' "用法：aiomo doctor gitignore [--apply]" >&2
-      exit 2
-    fi
-    gitignore_doctor "${3:-}"
-    exit "$?"
+    case "${2:-}" in
+      gitignore)
+        gitignore_doctor "${3:-}"
+        exit "$?"
+        ;;
+      install)
+        doctor_script="$(dirname "$0")/opencode-install-doctor.mjs"
+        if [ ! -f "$doctor_script" ]; then
+          printf '%s\n' "缺少 install doctor 脚本：$doctor_script" >&2
+          exit 1
+        fi
+        if ! command -v node >/dev/null 2>&1; then
+          printf '%s\n' "缺少 node，无法执行 doctor install。" >&2
+          exit 1
+        fi
+        opencode_profile_config="$config_dir/opencode.$profile.json"
+        opencode_active_config="$config_dir/opencode.json"
+        omo_profile_config="$config_dir/oh-my-openagent.$profile.json"
+        omo_active_config="$config_dir/oh-my-openagent.json"
+        strategy_profile_config="$config_dir/strategy.$profile.json"
+        strategy_active_config="$config_dir/strategy.json"
+        context_guard_profile_config="$config_dir/context-guard.$profile.json"
+        context_guard_active_profile_config="$config_dir/context-guard.profile.json"
+        if [ -f "$opencode_profile_config" ]; then
+          cp "$opencode_profile_config" "$opencode_active_config"
+        fi
+        if [ -f "$omo_profile_config" ]; then
+          cp "$omo_profile_config" "$omo_active_config"
+        fi
+        if [ -f "$strategy_profile_config" ]; then
+          cp "$strategy_profile_config" "$strategy_active_config"
+        fi
+        if [ -f "$context_guard_profile_config" ]; then
+          cp "$context_guard_profile_config" "$context_guard_active_profile_config"
+        fi
+        node "$doctor_script" aiomo "$profile"
+        exit "$?"
+        ;;
+      *)
+        printf '%s\n' "用法：aiomo doctor gitignore [--apply]" >&2
+        printf '%s\n' "用法：aiomo doctor install" >&2
+        exit 2
+        ;;
+    esac
     ;;
   rescue)
     if [ "$#" -lt 2 ]; then printf '%s\n' "用法：aiomo rescue <session-id>" >&2; exit 2; fi

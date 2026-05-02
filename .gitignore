@@ -23,6 +23,12 @@ dist/
 ### Local monitor state
 omo-agent-monitor-state.json
 
+### Local worktrees
+.worktrees/
+
+### Local AI planning artifacts
+docs/superpowers/
+
 ### Local OpenCode / aiomo runtime state
 .opencode/context-guard-alert.json
 .opencode/context-guard-history/

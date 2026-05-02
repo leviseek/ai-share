@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-CONFIG_DIR="$HOME/.config/opencode"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 MANIFEST="$CONFIG_DIR/.omo-profiles.json"
 PROFILE="balanced"
 PROFILES="lite balanced max"
@@ -9,6 +9,34 @@ PROFILES="lite balanced max"
 if [ -f "$MANIFEST" ]; then
   PROFILE="$(node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); process.stdout.write(String(m.default_profile || 'balanced'))" "$MANIFEST")"
   PROFILES="$(node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); process.stdout.write(Array.isArray(m.profiles) ? m.profiles.join(' ') : 'lite balanced max')" "$MANIFEST")"
+fi
+
+if [ "${1:-}" = "doctor" ]; then
+  if [ "${2:-}" != "install" ]; then
+    printf '%s\n' "用法：aioc doctor install" >&2
+    exit 2
+  fi
+  doctor_script="$(dirname "$0")/opencode-install-doctor.mjs"
+  if [ ! -f "$doctor_script" ]; then
+    printf '%s\n' "缺少 install doctor 脚本：$doctor_script" >&2
+    exit 1
+  fi
+  if ! command -v node >/dev/null 2>&1; then
+    printf '%s\n' "缺少 node，无法执行 doctor install。" >&2
+    exit 1
+  fi
+  AIOC_CONFIG="$CONFIG_DIR/opencode.aioc.$PROFILE.json"
+  ACTIVE_CONFIG="$CONFIG_DIR/opencode.json"
+  CONTEXT_GUARD_PROFILE="$CONFIG_DIR/context-guard.$PROFILE.json"
+  CONTEXT_GUARD_ACTIVE="$CONFIG_DIR/context-guard.profile.json"
+  if [ -f "$AIOC_CONFIG" ]; then
+    cp "$AIOC_CONFIG" "$ACTIVE_CONFIG"
+  fi
+  if [ -f "$CONTEXT_GUARD_PROFILE" ]; then
+    cp "$CONTEXT_GUARD_PROFILE" "$CONTEXT_GUARD_ACTIVE"
+  fi
+  node "$doctor_script" aioc "$PROFILE"
+  exit "$?"
 fi
 
 ARGS=""
