@@ -1,6 +1,10 @@
-import { DEFAULT_GUARD } from "./config.mjs";
+import { DEFAULT_GUARD, type GuardConfig } from "./config.ts";
+import type { MessageStats } from "./text-summary.ts";
 
-export function riskLevel(inputTokens, maxInputTokens, guard) {
+export type RiskLevel = "safe" | "warning" | "danger" | "blocked";
+export type ZeroOutputLoop = { count: number; latestFinish: unknown };
+
+export function riskLevel(inputTokens: number, maxInputTokens: number, guard: GuardConfig): RiskLevel {
   if (inputTokens >= guard.absolute_block_tokens) return "blocked";
   const ratio = inputTokens / maxInputTokens;
   if (ratio >= guard.block_ratio) return "blocked";
@@ -9,7 +13,14 @@ export function riskLevel(inputTokens, maxInputTokens, guard) {
   return "safe";
 }
 
-export function printRisk(level, launcher, sessionId, stats, maxInputTokens, guard) {
+export function printRisk(
+  level: RiskLevel,
+  launcher: string,
+  sessionId: string,
+  stats: MessageStats,
+  maxInputTokens: number,
+  guard: GuardConfig,
+): void {
   const ratio = Math.round((stats.inputTokens / maxInputTokens) * 100);
   const label = level === "blocked" ? "已阻止直接恢复" : level === "danger" ? "高风险" : "预警";
   console.warn(`\n[context-guard] ${label}：${sessionId}`);
@@ -25,7 +36,7 @@ export function printRisk(level, launcher, sessionId, stats, maxInputTokens, gua
   console.warn("");
 }
 
-export function printDiagnostics(stats) {
+export function printDiagnostics(stats: MessageStats): void {
   console.warn("  上下文风险诊断：");
   console.warn(`    messages: ${stats.messageCount}`);
   console.warn(`    tool_results: ${stats.toolResultCount}`);
@@ -38,8 +49,8 @@ export function printDiagnostics(stats) {
   console.warn("");
 }
 
-export function shouldStop(guard, level, zeroLoop) {
+export function shouldStop(guard: GuardConfig, level: RiskLevel, zeroLoop: ZeroOutputLoop): boolean {
   if ((guard.watch_action || DEFAULT_GUARD.watch_action) !== "stop") return false;
-  const zeroOutputLimit = Number(guard.zero_output_limit) || DEFAULT_GUARD.zero_output_limit;
+  const zeroOutputLimit = guard.zero_output_limit || DEFAULT_GUARD.zero_output_limit;
   return level === "blocked" || zeroLoop.count >= zeroOutputLimit;
 }

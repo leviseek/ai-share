@@ -1,8 +1,31 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { normalizePath } from "./process.mjs";
+import { normalizePath } from "./process.ts";
 
-export function summarizeMessages(messages) {
+export type SessionMessage = { data: Record<string, unknown>; timeCreated?: unknown };
+
+export type MessageStats = {
+  inputTokens: number;
+  messageCount: number;
+  toolResultCount: number;
+  largeMessageCount: number;
+  largestMessageChars: number;
+  autoSlashBlocks: number;
+  diffBlocks: number;
+  commandOutputBlocks: number;
+  noiseRatio: number;
+  totalChars: number;
+};
+
+export type SessionRecord = {
+  id?: unknown;
+  title?: unknown;
+  directory?: unknown;
+  time_created?: unknown;
+  time_updated?: unknown;
+};
+
+export function summarizeMessages(messages: SessionMessage[]): MessageStats {
   const texts = messages.map((message) => messageText(message.data));
   const toolResults = messages.filter((message) => /tool|result/i.test(JSON.stringify(message.data).slice(0, 2000)));
   const largeMessages = texts.filter((text) => text.length > 20000);
@@ -27,9 +50,14 @@ export function summarizeMessages(messages) {
   };
 }
 
-export function buildRescueSummary(sessionId, messages, stats, ignore = []) {
+export function buildRescueSummary(
+  sessionId: string,
+  messages: SessionMessage[],
+  stats: MessageStats,
+  ignore: string[] = [],
+): string {
   const entries = messages.map((message) => ({
-    role: message.data.role || "unknown",
+    role: typeof message.data.role === "string" ? message.data.role : "unknown",
     text: messageText(message.data),
   }));
   const userMessages = entries
@@ -50,7 +78,7 @@ export function buildRescueSummary(sessionId, messages, stats, ignore = []) {
       .filter((line) => /error|failed|exception|报错|失败|卡住/i.test(line)),
   ).slice(-30);
   const files = uniqueLines(
-    entries.flatMap((entry) => cleanText(entry.text).match(/[A-Za-z]:\\[^\s`"']+|(?:[\w.-]+\/)+[\w.-]+/g) || []),
+    entries.flatMap((entry) => cleanText(entry.text).match(/[A-Za-z]:\\[^\s`"']+|(?:[\w.-]+\/)+[\w.-]+/g) ?? []),
   )
     .filter((file) => !isIgnoredPath(file, ignore))
     .slice(-60);
@@ -82,7 +110,15 @@ export function buildRescueSummary(sessionId, messages, stats, ignore = []) {
   );
 }
 
-export function buildHandoffSummary(launcher, sessionId, session, stats, cwd, rescuePath, ignore = []) {
+export function buildHandoffSummary(
+  launcher: string,
+  sessionId: string,
+  session: SessionRecord | undefined,
+  stats: MessageStats,
+  cwd: string,
+  rescuePath: string,
+  ignore: string[] = [],
+): string {
   const projectStateFiles = [
     ".sisyphus/boulder.json",
     ".sisyphus/plans/ai-workbench-mvp.md",
@@ -90,8 +126,8 @@ export function buildHandoffSummary(launcher, sessionId, session, stats, cwd, re
     ".sisyphus/notepads/ai-workbench-mvp/learnings.md",
   ].filter((file) => existsSync(resolve(cwd, file)));
   const visibleIgnore = ignore.slice(0, 80);
-  const title = session?.title ? String(session.title) : "unknown";
-  const directory = session?.directory ? String(session.directory) : cwd;
+  const title = typeof session?.title === "string" && session.title ? session.title : "unknown";
+  const directory = typeof session?.directory === "string" && session.directory ? session.directory : cwd;
   return (
     `# OpenCode Handoff\n\n` +
     `## Source Session\n` +
@@ -115,13 +151,13 @@ export function buildHandoffSummary(launcher, sessionId, session, stats, cwd, re
   );
 }
 
-function messageText(value) {
-  const parts = [];
+function messageText(value: unknown): string {
+  const parts: string[] = [];
   collectStrings(value, parts);
   return parts.join("\n");
 }
 
-function collectStrings(value, parts) {
+function collectStrings(value: unknown, parts: string[]): void {
   if (typeof value === "string") {
     parts.push(value);
     return;
@@ -134,12 +170,12 @@ function collectStrings(value, parts) {
   for (const item of Object.values(value)) collectStrings(item, parts);
 }
 
-function isIgnoredPath(path, ignore) {
+function isIgnoredPath(path: string, ignore: string[]): boolean {
   const normalized = normalizePath(path).replace(/^[a-z]:\//, "");
   return ignore.some((pattern) => globLikeMatch(normalized, normalizePath(pattern)));
 }
 
-function globLikeMatch(path, pattern) {
+function globLikeMatch(path: string, pattern: string): boolean {
   if (!pattern) return false;
   if (pattern.endsWith("/**")) {
     const prefix = pattern.slice(0, -3).replace(/\/+$/, "");
@@ -153,7 +189,7 @@ function globLikeMatch(path, pattern) {
   return path === pattern || path.endsWith(`/${pattern}`);
 }
 
-function cleanText(value) {
+function cleanText(value: string): string {
   return value
     .replace(/<auto-slash-command>[\s\S]*?<\/auto-slash-command>/g, "[auto-slash-command omitted]")
     .replace(/\r/g, "")
@@ -161,19 +197,19 @@ function cleanText(value) {
     .trim();
 }
 
-function truncate(value, max) {
+function truncate(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, max)}... [truncated]` : value;
 }
 
-export function bulletList(items) {
+export function bulletList(items: string[]): string {
   if (items.length === 0) return "- (none)";
   return items.map((item) => `- ${item.replace(/\n/g, "\n  ")}`).join("\n");
 }
 
-function uniqueLines(lines) {
+function uniqueLines(lines: string[]): string[] {
   return [...new Set(lines.map((line) => line.trim()).filter(Boolean))];
 }
 
-export function sanitizeFileName(value) {
+export function sanitizeFileName(value: string): string {
   return value.replace(/[^A-Za-z0-9_.-]/g, "_");
 }

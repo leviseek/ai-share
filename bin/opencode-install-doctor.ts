@@ -196,14 +196,16 @@ function checkInstalledLaunchers(): void {
           "aioc.cmd",
           "aioc.ps1",
           "opencode-launcher-common.ps1",
-          "opencode-context-guard.mjs",
+          "opencode-context-guard.ts",
           "aiomo-monitor.cmd",
           "aiomo-monitor.ps1",
         ]
-      : ["aiomo", "aioc", "opencode-launcher-common.sh", "opencode-context-guard.mjs", "aiomo-monitor"];
+      : ["aiomo", "aioc", "opencode-launcher-common.sh", "opencode-context-guard.ts", "aiomo-monitor"];
   for (const fileName of launcherFiles) {
     checkFile("Launchers", `launcher ${fileName}`, join(binDir, fileName));
   }
+  checkFile("Launchers", "context guard module check", join(binDir, "context-guard", "check.ts"));
+  checkFile("Launchers", "context guard module watch", join(binDir, "context-guard", "watch.ts"));
   checkFile("Launchers", "install doctor", join(binDir, "opencode-install-doctor.ts"));
 }
 

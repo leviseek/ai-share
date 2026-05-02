@@ -1,10 +1,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { DEFAULT_GUARD, readGuardConfig, readStrategyConfig, workspaceIgnore } from "./config.mjs";
-import { readSessionMessages } from "./db.mjs";
-import { buildRescueSummary, sanitizeFileName, summarizeMessages } from "./text-summary.mjs";
+import { DEFAULT_GUARD, readGuardConfig, readStrategyConfig, workspaceIgnore } from "./config.ts";
+import { readSessionMessages } from "./db.ts";
+import { buildRescueSummary, sanitizeFileName, summarizeMessages } from "./text-summary.ts";
 
-export function rescue(args) {
+export function rescue(args: string[]): number | false {
   const [launcher, sessionId, guardConfigPath, dbPath] = args;
   if (!launcher || !sessionId || !guardConfigPath || !dbPath) {
     return false;

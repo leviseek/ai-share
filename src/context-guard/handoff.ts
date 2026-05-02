@@ -1,10 +1,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { DEFAULT_GUARD, readGuardConfig, readStrategyConfig, workspaceIgnore } from "./config.mjs";
-import { readSession, readSessionMessages } from "./db.mjs";
-import { buildHandoffSummary, buildRescueSummary, sanitizeFileName, summarizeMessages } from "./text-summary.mjs";
+import { DEFAULT_GUARD, readGuardConfig, readStrategyConfig, workspaceIgnore } from "./config.ts";
+import { readSession, readSessionMessages } from "./db.ts";
+import { buildHandoffSummary, buildRescueSummary, sanitizeFileName, summarizeMessages } from "./text-summary.ts";
 
-export function handoff(args) {
+export function handoff(args: string[]): number | false {
   const [launcher, sessionId, guardConfigPath, dbPath, cwd = process.cwd()] = args;
   if (!launcher || !sessionId || !guardConfigPath || !dbPath) {
     return false;

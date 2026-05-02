@@ -6,12 +6,31 @@ import {
   readStrategyConfig,
   readMaxInputTokens,
   strategyBudgetTokens,
-} from "./config.mjs";
-import { findLatestSessionForDirectory, inspectSession, inspectZeroOutputLoop } from "./db.mjs";
-import { riskLevel, shouldStop } from "./risk.mjs";
-import { processAlive, sleep, stopProcessTree } from "./process.mjs";
+} from "./config.ts";
+import { findLatestSessionForDirectory, inspectSession, inspectZeroOutputLoop } from "./db.ts";
+import { riskLevel, shouldStop } from "./risk.ts";
+import { processAlive, sleep, stopProcessTree } from "./process.ts";
 
-export async function watch(args) {
+type Alert = {
+  launcher: string;
+  reason: string;
+  session_id?: string;
+  directory?: unknown;
+  profile?: string;
+  input_tokens?: number;
+  max_input_tokens?: number;
+  base_max_input_tokens?: number;
+  strategy_context_budget_tokens?: number;
+  zero_output_steps?: number;
+  latest_finish?: unknown;
+  time: string;
+  local_time: string;
+  continue_command?: string;
+  recommendation?: string;
+  error?: string;
+};
+
+export async function watch(args: string[]): Promise<boolean> {
   const [launcher, configPath, guardConfigPath, strategyPath, dbPath, cwd, parentPidValue] = args;
   if (!launcher || !configPath || !guardConfigPath || !strategyPath || !dbPath || !cwd) {
     return false;
@@ -24,11 +43,11 @@ export async function watch(args) {
   const strategy = readStrategyConfig(strategyPath);
   const maxInputTokens = baseMaxInputTokens;
   const softBudgetTokens = strategyBudgetTokens(strategy);
-  const intervalMs = Math.max(1000, Number(guard.watch_interval_ms) || DEFAULT_GUARD.watch_interval_ms);
+  const intervalMs = Math.max(1000, guard.watch_interval_ms || DEFAULT_GUARD.watch_interval_ms);
   const parentPid = Number(parentPidValue) || 0;
   const alertPath = resolve(cwd, guard.alert_file || DEFAULT_GUARD.alert_file);
   const historyDir = resolve(cwd, guard.history_dir || DEFAULT_GUARD.history_dir);
-  const state = { lastSessionId: undefined, warnedKey: undefined, startedAt: Date.now() };
+  const state: { lastSessionId?: string; warnedKey?: string; startedAt: number } = { startedAt: Date.now() };
 
   while (true) {
     if (parentPid > 0 && !processAlive(parentPid)) process.exit(0);
@@ -42,17 +61,16 @@ export async function watch(args) {
         const shouldAlert =
           level !== "safe" ||
           softBudgetExceeded ||
-          zeroLoop.count >= (Number(guard.zero_output_limit) || DEFAULT_GUARD.zero_output_limit);
+          zeroLoop.count >= (guard.zero_output_limit || DEFAULT_GUARD.zero_output_limit);
         if (shouldAlert) {
           const reason =
             level !== "safe" ? `context-${level}` : zeroLoop.count > 0 ? "zero-output-loop" : "soft-budget";
           const eventTime = new Date();
-          const alert = {
+          const alert: Alert = {
             launcher,
             reason,
             session_id: session.id,
             directory: session.directory,
-            profile: strategy?.profile,
             input_tokens: stats.inputTokens,
             max_input_tokens: maxInputTokens,
             base_max_input_tokens: baseMaxInputTokens,
@@ -63,11 +81,11 @@ export async function watch(args) {
             local_time: formatLocalTime(eventTime),
             continue_command: `${launcher} ${strategy?.profile ?? "coding"} --relay ${session.id}`,
             recommendation:
-              level === "blocked" ||
-              zeroLoop.count >= (Number(guard.zero_output_limit) || DEFAULT_GUARD.zero_output_limit)
+              level === "blocked" || zeroLoop.count >= (guard.zero_output_limit || DEFAULT_GUARD.zero_output_limit)
                 ? `运行 ${launcher} ${strategy?.profile ?? "coding"} --relay ${session.id} 新开干净会话继续。`
                 : "尽快 /compact，或在任务边界新开会话。",
           };
+          if (strategy?.profile) alert.profile = strategy.profile;
           const warningKey = `${session.id}:${reason}:${stats.inputTokens}:${zeroLoop.count}`;
           writeAlert(alertPath, alert);
           if (warningKey !== state.warnedKey) {
@@ -98,21 +116,21 @@ export async function watch(args) {
   }
 }
 
-function writeAlert(path, alert) {
+function writeAlert(path: string, alert: Alert): void {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(alert, null, 2)}\n`, "utf8");
 }
 
-function writeHistory(dir, alert) {
+function writeHistory(dir: string, alert: Alert): void {
   mkdirSync(dir, { recursive: true });
   const eventTime = new Date(alert.time);
   const stamp = `${formatCompactTime(eventTime, true)}-${formatCompactTime(eventTime, false)}`;
-  const baseName = `${stamp}_${safeName(alert.reason)}_${safeName(alert.session_id)}`;
+  const baseName = `${stamp}_${safeName(alert.reason)}_${safeName(alert.session_id ?? "unknown")}`;
   const jsoncPath = join(dir, `${baseName}.jsonc`);
   writeFileSync(jsoncPath, historyJsonc(alert), "utf8");
 }
 
-function historyJsonc(alert) {
+function historyJsonc(alert: Alert): string {
   const record = {
     session_id: alert.session_id,
     continue_command: alert.continue_command,
@@ -138,11 +156,11 @@ function historyJsonc(alert) {
   );
 }
 
-function safeName(value) {
-  return String(value || "unknown").replace(/[^A-Za-z0-9_.-]+/g, "_").slice(0, 120);
+function safeName(value: string): string {
+  return (value || "unknown").replace(/[^A-Za-z0-9_.-]+/g, "_").slice(0, 120);
 }
 
-function formatCompactTime(date, utc = false) {
+function formatCompactTime(date: Date, utc = false): string {
   const values = utc
     ? [
         date.getUTCFullYear(),
@@ -153,10 +171,13 @@ function formatCompactTime(date, utc = false) {
         date.getUTCSeconds(),
       ]
     : [date.getFullYear(), date.getMonth() + 1, date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()];
-  return `${values[0]}${values.slice(1).map((value) => String(value).padStart(2, "0")).join("")}`;
+  return `${values[0]}${values
+    .slice(1)
+    .map((value) => String(value).padStart(2, "0"))
+    .join("")}`;
 }
 
-function formatLocalTime(date) {
+function formatLocalTime(date: Date): string {
   const compact = formatCompactTime(date, false);
   return `${compact.slice(0, 4)}-${compact.slice(4, 6)}-${compact.slice(6, 8)} ${compact.slice(8, 10)}:${compact.slice(10, 12)}:${compact.slice(12, 14)}`;
 }

@@ -123,7 +123,7 @@ Windows 下对应为：
 %USERPROFILE%\.local\bin\aiomo-monitor.ps1
 ```
 
-`opencode-install-doctor.ts` 也会安装到同一目录，作为 `aiomo doctor install` / `aioc doctor install` 内部使用的检查脚本；它需要启动器通过 Bun 传入参数，不作为普通启动命令直接使用。
+`opencode-install-doctor.ts` 与 `opencode-context-guard.ts` 也会安装到同一目录，作为 `aiomo` / `aioc` 内部使用的检查和上下文守卫脚本；它们需要启动器通过 Bun 传入参数，不作为普通启动命令直接使用。上下文守卫实现源代码位于 `src/context-guard/`，安装时复制为用户 bin 下的 `opencode-context-guard.ts` 和 `context-guard/*.ts`。
 
 Windows 会自动把该目录加入用户级 PATH。已经打开的终端可能需要重启后才能直接使用 `aiomo` / `aioc` / `aiomo-monitor`。
 

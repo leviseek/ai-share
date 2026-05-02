@@ -15,22 +15,15 @@ export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): 
           "aioc.ps1",
           "opencode-launcher-common.ps1",
           "opencode-install-doctor.ts",
-          "opencode-context-guard.mjs",
           "aiomo-monitor.cmd",
           "aiomo-monitor.ps1",
         ]
-      : [
-          "aiomo",
-          "aioc",
-          "opencode-launcher-common.sh",
-          "opencode-install-doctor.ts",
-          "opencode-context-guard.mjs",
-          "aiomo-monitor",
-        ];
+      : ["aiomo", "aioc", "opencode-launcher-common.sh", "opencode-install-doctor.ts", "aiomo-monitor"];
   if (dryRun) {
     for (const fileName of launcherFiles) {
       console.log(`将安装启动命令：${resolve(paths.targetBinDir, fileName)}`);
     }
+    console.log(`将安装上下文守卫入口：${resolve(paths.targetBinDir, "opencode-context-guard.ts")}`);
     console.log(`将安装上下文守卫模块：${resolve(paths.targetBinDir, "context-guard")}`);
     if (process.platform === "win32") {
       console.log(`将确保用户 PATH 包含：${paths.targetBinDir}`);
@@ -50,10 +43,15 @@ export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): 
     }
     await copyFile(sourcePath, targetPath);
   }
-  await cp(resolve(paths.binDir, "context-guard"), resolve(paths.targetBinDir, "context-guard"), {
+  await writeFile(
+    resolve(paths.targetBinDir, "opencode-context-guard.ts"),
+    installedContextGuardCli(await readFile(resolve(paths.contextGuardSourceDir, "cli.ts"), "utf8")),
+  );
+  await cp(paths.contextGuardSourceDir, resolve(paths.targetBinDir, "context-guard"), {
     recursive: true,
     force: true,
   });
+  await Bun.file(resolve(paths.targetBinDir, "context-guard", "cli.ts")).delete();
 
   if (process.platform === "win32") {
     ensureWindowsUserPath(paths.targetBinDir);
@@ -99,6 +97,10 @@ export async function installNativeSkills(paths: GeneratorPaths, dryRun: boolean
 
 function withUtf8Bom(content: string): string {
   return content.startsWith("\uFEFF") ? content : `\uFEFF${content}`;
+}
+
+function installedContextGuardCli(content: string): string {
+  return content.replaceAll('from "./', 'from "./context-guard/');
 }
 
 async function buildPlugin(paths: GeneratorPaths, directoryName: string): Promise<string> {

@@ -8,7 +8,7 @@ opencode_context_guard() {
   shift 4
 
   db_path="$HOME/.local/share/opencode/opencode.db"
-  guard_script="$(dirname "$0")/opencode-context-guard.mjs"
+  guard_script="$(dirname "$0")/opencode-context-guard.ts"
   guard_config="$config_dir/context-guard.json"
   if [ ! -f "$guard_script" ] || ! command -v bun > /dev/null 2>&1; then return 0; fi
 

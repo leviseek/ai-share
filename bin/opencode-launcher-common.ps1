@@ -11,7 +11,7 @@ function Invoke-ContextGuardShared {
     [string[]]$ArgsList
   )
 
-  $GuardScript = Join-Path $PSScriptRoot "opencode-context-guard.mjs"
+  $GuardScript = Join-Path $PSScriptRoot "opencode-context-guard.ts"
   $GuardConfig = Join-Path $ConfigDir "context-guard.json"
   $DbPath = Join-Path ([Environment]::GetFolderPath("UserProfile")) ".local\share\opencode\opencode.db"
   if (-not (Test-Path -LiteralPath $GuardScript -PathType Leaf)) { return 0 }
@@ -32,7 +32,7 @@ function New-ContextGuardHandoffShared {
     [string]$WorkingDirectory
   )
 
-  $GuardScript = Join-Path $PSScriptRoot "opencode-context-guard.mjs"
+  $GuardScript = Join-Path $PSScriptRoot "opencode-context-guard.ts"
   $GuardConfig = Join-Path $ConfigDir "context-guard.json"
   $DbPath = Join-Path ([Environment]::GetFolderPath("UserProfile")) ".local\share\opencode\opencode.db"
   if (-not (Test-Path -LiteralPath $GuardScript -PathType Leaf)) { return $null }
@@ -54,7 +54,7 @@ function Start-ContextGuardWatchShared {
     [int]$WatchPid
   )
 
-  $GuardScript = Join-Path $PSScriptRoot "opencode-context-guard.mjs"
+  $GuardScript = Join-Path $PSScriptRoot "opencode-context-guard.ts"
   $GuardConfig = Join-Path $ConfigDir "context-guard.json"
   $StrategyConfig = Join-Path $ConfigDir "strategy.json"
   $DbPath = Join-Path ([Environment]::GetFolderPath("UserProfile")) ".local\share\opencode\opencode.db"
@@ -96,7 +96,7 @@ function Stop-ExistingContextGuardWatchShared {
     Get-CimInstance Win32_Process |
       Where-Object {
         $_.ProcessId -ne $CurrentPid -and
-        $_.CommandLine -match "opencode-context-guard\.mjs\s+watch\s+$EscapedLauncher\b" -and
+        $_.CommandLine -match "opencode-context-guard\.ts\s+watch\s+$EscapedLauncher\b" -and
         $_.CommandLine -match $EscapedWorkingDirectory
       } |
       ForEach-Object {

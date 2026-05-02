@@ -1,9 +1,10 @@
-import { readGuardConfig, readMaxInputTokens } from "./config.mjs";
-import { inspectSession } from "./db.mjs";
-import { printDiagnostics, printRisk, riskLevel } from "./risk.mjs";
+import { readGuardConfig, readMaxInputTokens } from "./config.ts";
+import { inspectSession } from "./db.ts";
+import { printDiagnostics, printRisk, riskLevel } from "./risk.ts";
 
-export function check(args) {
+export function check(args: string[]): number {
   const [launcher, configPath, guardConfigPath, dbPath, ...openCodeArgs] = splitArgs(args);
+  if (!launcher || !configPath || !guardConfigPath || !dbPath) return 2;
   const guard = readGuardConfig(guardConfigPath);
   if (!guard.enabled) return 0;
 
@@ -30,13 +31,13 @@ export function check(args) {
   return 0;
 }
 
-function splitArgs(args) {
+function splitArgs(args: string[]): string[] {
   const marker = args.indexOf("--");
   if (marker < 0) return args;
   return [...args.slice(0, marker), ...args.slice(marker + 1)];
 }
 
-function findResumeSession(args) {
+function findResumeSession(args: string[]): string | undefined {
   for (let index = 0; index < args.length - 1; index += 1) {
     if (args[index] === "-s" || args[index] === "--resume") return args[index + 1];
   }

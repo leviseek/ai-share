@@ -4,6 +4,7 @@ export type GeneratorPaths = {
   projectRoot: string;
   configDir: string;
   binDir: string;
+  contextGuardSourceDir: string;
   pluginDir: string;
   distPluginDir: string;
   homeDir: string;
@@ -23,6 +24,7 @@ export type GeneratorPaths = {
 export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.dir, "..", "..")): GeneratorPaths {
   const configDir = resolve(projectRoot, "config");
   const binDir = resolve(projectRoot, "bin");
+  const contextGuardSourceDir = resolve(projectRoot, "src", "context-guard");
   const pluginDir = resolve(projectRoot, "plugins");
   const distPluginDir = resolve(projectRoot, "dist", "plugins");
   const homeDir = resolve(Bun.env.HOME ?? Bun.env.USERPROFILE ?? "");
@@ -36,6 +38,7 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
     projectRoot: projectRoot,
     configDir: configDir,
     binDir: binDir,
+    contextGuardSourceDir: contextGuardSourceDir,
     pluginDir: pluginDir,
     distPluginDir: distPluginDir,
     homeDir: homeDir,
