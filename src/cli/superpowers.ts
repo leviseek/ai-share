@@ -54,16 +54,23 @@ export async function superpowersInstallState(homeDir: string = homedir()): Prom
   return { packageDir, missingSkills };
 }
 
-export function warmUpSuperpowersPlugin(enabledPlugins: string[]): void {
+export async function warmUpSuperpowersPlugin(enabledPlugins: string[]): Promise<void> {
   if (!enabledPlugins.includes(SUPERPOWERS_PLUGIN)) return;
 
-  const result = spawnSync("opencode", ["run", "Tell me about your superpowers"], {
-    encoding: "utf8",
-    stdio: "pipe",
-  });
-  if (result.status === 0) return;
+  let lastDetail = "opencode run failed";
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const result = spawnSync("opencode", ["run", "Tell me about your superpowers"], {
+      encoding: "utf8",
+      stdio: "pipe",
+    });
+    lastDetail = (result.stderr || result.stdout || lastDetail).trim();
+    if (result.status !== 0) continue;
 
-  const detail = (result.stderr || result.stdout || "opencode run failed").trim();
-  console.warn(`WARN Superpowers 插件预热失败：${detail}`);
-  console.warn("WARN 请运行 aiomo doctor install 检查插件缓存，并在网络可用后重启 aiomo / aioc。");
+    const state = await superpowersInstallState();
+    if (state.missingSkills.length === 0) return;
+    lastDetail = `缺少 Superpowers skills：${state.missingSkills.join(", ")}`;
+  }
+
+  console.warn(`WARN Superpowers 插件预热未完成：${lastDetail}`);
+  console.warn('WARN 请运行 aiomo doctor install，或在网络可用时运行：opencode run "Tell me about your superpowers"。');
 }

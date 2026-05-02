@@ -133,7 +133,7 @@ await writeJson(paths.targetProxy, buildProxyConfig(globalConfig), { dryRun, for
 await installPlugins(paths, dryRun);
 await installNativeSkills(paths, dryRun, force);
 await installLaunchers(paths, dryRun);
-if (!dryRun) warmUpSuperpowersPlugin(selectedOpenCodeConfig.plugin);
+if (!dryRun) await warmUpSuperpowersPlugin(selectedOpenCodeConfig.plugin);
 
 printGenerationSummary({
   dryRun,

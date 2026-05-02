@@ -33,15 +33,25 @@ export function buildAiocOpenCodeConfigs(
   globalConfig: GlobalYaml,
 ): Record<string, OpenCodeConfig> {
   const excludedPlugins = new Set(globalConfig.opencode?.aioc_excluded_plugins ?? ["oh-my-openagent@3.17.5"]);
+  const isExcludedPlugin = excludedPluginMatcher(excludedPlugins);
   return Object.fromEntries(
     Object.entries(openCodeConfigs).map(([profileId, openCodeConfig]) => [
       profileId,
       {
         ...openCodeConfig,
-        plugin: openCodeConfig.plugin.filter((plugin) => !excludedPlugins.has(plugin)),
+        plugin: openCodeConfig.plugin.filter((plugin) => !isExcludedPlugin(plugin)),
       },
     ]),
   );
+}
+
+function excludedPluginMatcher(excludedPlugins: Set<string>): (plugin: string) => boolean {
+  return (plugin) => excludedPlugins.has(plugin) || isOmoMonitorPlugin(plugin);
+}
+
+function isOmoMonitorPlugin(plugin: string): boolean {
+  const normalized = plugin.replaceAll("\\", "/").replace(/^\.\//, "");
+  return normalized === "plugins/omo-agent-monitor" || normalized.endsWith("/plugins/omo-agent-monitor");
 }
 
 export function buildTuiConfig(globalConfig: GlobalYaml): TuiConfig {

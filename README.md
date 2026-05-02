@@ -233,7 +233,7 @@ aiomo-monitor
 
 `doctor install` 输出 `OK` / `WARN` / `FAIL`：`OK` 表示该项已安装或配置符合当前模式；`WARN` 表示可能可用但需要关注，例如当前终端 PATH 尚未刷新；`FAIL` 表示缺失或配置不一致，需要重新运行 `bun run ai:gen -- --force` 或修复环境。该检查为轻量级静态/版本探测，不会启动 OpenCode TUI，也不验证插件运行时渲染。
 
-首次安装时需要网络访问以便 OpenCode 拉取插件包。`aiomo doctor install` / `aioc doctor install` 会检查 Superpowers 插件缓存和关键 skills 是否存在；如果缺失，请在网络可用时重启 `aiomo` / `aioc`，或运行一次 `opencode run "Tell me about your superpowers"` 触发插件安装。
+首次安装时需要网络访问以便 OpenCode 拉取插件包。`aiomo doctor install` / `aioc doctor install` 会检查 Superpowers 插件缓存和关键 skills 是否存在；如果缺失会报告 `FAIL`，请在网络可用时重新运行 `bun run ai:gen -- --force`，或运行一次 `opencode run "Tell me about your superpowers"` 触发插件安装。
 
 ### Gitignore Doctor
 
@@ -309,6 +309,8 @@ opencode:
 升级 OMO 插件时，只需要修改这里的版本号，然后重新运行 `bun run ai:gen -- --force`。
 
 对应的 agents/categories/fallback/background task 等配置来自生成的 `oh-my-openagent.json`。`aiomo` 启动时会先读取 `.omo-profiles.json` 中的默认级别和可用级别清单，再把所选级别的 `opencode.<profile>.json` 和 `oh-my-openagent.<profile>.json` 分别复制为当前生效的 `opencode.json` 与 `oh-my-openagent.json`。
+
+`aiomo run "..."` 适合做非交互 smoke test，通常会由默认的 Sisyphus / `primary` 模型执行。OMO category 路由和并行 agent 委派依赖运行时 `task()` / background task 调用，建议在交互式 `aiomo` 会话中验证，或在 prompt 中明确要求委派；不要仅凭一次 `aiomo run` 是否使用 `quick` / `deep` 模型判断编排配置是否失效。
 
 默认 OMO 编排级别由 `config/global.yaml` 的 `default_profile` 控制。当前默认值为 `balanced`，因此直接运行 `aiomo` 等价于 `aiomo balanced`。如果修改 `default_profile`，需要重新运行 `bun run ai:gen -- --force` 生成 `.omo-profiles.json` 后才会影响启动器默认行为。
 

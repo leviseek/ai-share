@@ -137,14 +137,23 @@ function checkSuperpowersInstall(): void {
     fail(
       "Skills",
       "superpowers plugin package",
-      `missing under ${join(homeDir, ".cache", "opencode", "packages")}; restart aiomo/aioc or run opencode once to install plugins`,
+      `missing under ${join(homeDir, ".cache", "opencode", "packages")}; run bun run ai:gen -- --force or opencode run "Tell me about your superpowers" with network access`,
     );
     return;
   }
 
   ok("Skills", "superpowers plugin package", packageDir);
+  const missingSkills: string[] = [];
   for (const skillName of REQUIRED_SUPERPOWERS_SKILLS) {
-    checkFile("Skills", `superpowers/${skillName}`, join(packageDir, "skills", skillName, "SKILL.md"));
+    const skillPath = join(packageDir, "skills", skillName, "SKILL.md");
+    if (!checkFile("Skills", `superpowers/${skillName}`, skillPath)) missingSkills.push(skillName);
+  }
+  if (missingSkills.length > 0) {
+    fail(
+      "Skills",
+      "superpowers missing skills",
+      `${missingSkills.join(", ")}; run bun run ai:gen -- --force or opencode run "Tell me about your superpowers" with network access`,
+    );
   }
 }
 
