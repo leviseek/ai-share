@@ -123,7 +123,7 @@ Windows 下对应为：
 %USERPROFILE%\.local\bin\aiomo-monitor.ps1
 ```
 
-`opencode-install-doctor.mjs` 也会安装到同一目录，作为 `aiomo doctor install` / `aioc doctor install` 内部使用的检查脚本；它需要启动器传入参数，不作为普通启动命令直接使用。
+`opencode-install-doctor.ts` 也会安装到同一目录，作为 `aiomo doctor install` / `aioc doctor install` 内部使用的检查脚本；它需要启动器通过 Bun 传入参数，不作为普通启动命令直接使用。
 
 Windows 会自动把该目录加入用户级 PATH。已经打开的终端可能需要重启后才能直接使用 `aiomo` / `aioc` / `aiomo-monitor`。
 

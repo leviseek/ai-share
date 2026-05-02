@@ -16,13 +16,13 @@ if [ "${1:-}" = "doctor" ]; then
     printf '%s\n' "用法：aioc doctor install" >&2
     exit 2
   fi
-  doctor_script="$(dirname "$0")/opencode-install-doctor.mjs"
+  doctor_script="$(dirname "$0")/opencode-install-doctor.ts"
   if [ ! -f "$doctor_script" ]; then
     printf '%s\n' "缺少 install doctor 脚本：$doctor_script" >&2
     exit 1
   fi
-  if ! command -v node >/dev/null 2>&1; then
-    printf '%s\n' "缺少 node，无法执行 doctor install。" >&2
+  if ! command -v bun >/dev/null 2>&1; then
+    printf '%s\n' "缺少 bun，无法执行 doctor install。" >&2
     exit 1
   fi
   AIOC_CONFIG="$CONFIG_DIR/opencode.aioc.$PROFILE.json"
@@ -35,7 +35,7 @@ if [ "${1:-}" = "doctor" ]; then
   if [ -f "$CONTEXT_GUARD_PROFILE" ]; then
     cp "$CONTEXT_GUARD_PROFILE" "$CONTEXT_GUARD_ACTIVE"
   fi
-  node "$doctor_script" aioc "$PROFILE"
+  bun "$doctor_script" aioc "$PROFILE"
   exit "$?"
 fi
 

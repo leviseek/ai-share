@@ -14,7 +14,7 @@ export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): 
           "aioc.cmd",
           "aioc.ps1",
           "opencode-launcher-common.ps1",
-          "opencode-install-doctor.mjs",
+          "opencode-install-doctor.ts",
           "opencode-context-guard.mjs",
           "aiomo-monitor.cmd",
           "aiomo-monitor.ps1",
@@ -23,7 +23,7 @@ export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): 
           "aiomo",
           "aioc",
           "opencode-launcher-common.sh",
-          "opencode-install-doctor.mjs",
+          "opencode-install-doctor.ts",
           "opencode-context-guard.mjs",
           "aiomo-monitor",
         ];

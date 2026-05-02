@@ -6,6 +6,10 @@
 
 model_fallback: true
 
+shared_prompt:
+  append: |
+    必须遵循当前 OpenCode instructions 中加载的 AI_GUIDELINES.md。开发、重构、行为修改和需求不清的任务默认执行 Superpowers 开发闭环：brainstorming -> writing-plans -> subagent/worktree/TDD -> code-review。需要修改代码时应先验证需求和上下文，优先使用隔离 worktree 和测试驱动开发，完成后运行相关验证并接受代码审查。若用户当前明确指令与该流程冲突，在不违反安全和隐私边界的前提下，以用户当前指令为准。
+
 agents:
   sisyphus:
     model: primary

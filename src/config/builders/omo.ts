@@ -37,11 +37,17 @@ function buildOhMyOpenAgentConfig(
     $schema: "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
     model_fallback: agentsConfig.model_fallback ?? true,
     disabled_hooks: ["auto-slash-command"],
-    agents: buildConfiguredAgents(requireRecord(agentsConfig.agents, "agents"), modelSources, profileModels),
+    agents: buildConfiguredAgents(
+      requireRecord(agentsConfig.agents, "agents"),
+      modelSources,
+      profileModels,
+      sharedPromptAppend(agentsConfig),
+    ),
     categories: buildConfiguredAgents(
       requireRecord(agentsConfig.categories, "categories"),
       modelSources,
       profileModels,
+      sharedPromptAppend(agentsConfig),
     ),
     runtime_fallback: buildRuntimeFallback(
       requireValue(agentsConfig.runtime_fallback, "runtime_fallback"),
@@ -61,11 +67,12 @@ function buildConfiguredAgents(
   agentSources: Record<string, AgentSource>,
   modelSources: ModelsYaml,
   profileModels: ModelRoleMap,
+  sharedPrompt: string,
 ): Record<string, OhMyAgent> {
   return Object.fromEntries(
     Object.entries(agentSources).map(([agentId, agent]) => {
       const extra: Partial<OhMyAgent> = {};
-      const promptAppend = agent.prompt?.append ?? agent.prompt?.system;
+      const promptAppend = joinPrompt(sharedPrompt, agent.prompt?.append ?? agent.prompt?.system);
       if (promptAppend) extra.prompt_append = promptAppend.trim();
       if (agent.permission) extra.permission = agent.permission;
 
@@ -79,6 +86,17 @@ function buildConfiguredAgents(
       ];
     }),
   );
+}
+
+function sharedPromptAppend(agentsConfig: AgentsYaml): string {
+  return (agentsConfig.shared_prompt?.append ?? agentsConfig.shared_prompt?.system ?? "").trim();
+}
+
+function joinPrompt(...parts: (string | undefined)[]): string {
+  return parts
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+    .join("\n\n");
 }
 
 function buildRuntimeFallback(

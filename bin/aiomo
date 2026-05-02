@@ -201,13 +201,13 @@ case "${1:-}" in
         exit "$?"
         ;;
       install)
-        doctor_script="$(dirname "$0")/opencode-install-doctor.mjs"
+        doctor_script="$(dirname "$0")/opencode-install-doctor.ts"
         if [ ! -f "$doctor_script" ]; then
           printf '%s\n' "缺少 install doctor 脚本：$doctor_script" >&2
           exit 1
         fi
-        if ! command -v node >/dev/null 2>&1; then
-          printf '%s\n' "缺少 node，无法执行 doctor install。" >&2
+        if ! command -v bun >/dev/null 2>&1; then
+          printf '%s\n' "缺少 bun，无法执行 doctor install。" >&2
           exit 1
         fi
         opencode_profile_config="$config_dir/opencode.$profile.json"
@@ -230,7 +230,7 @@ case "${1:-}" in
         if [ -f "$context_guard_profile_config" ]; then
           cp "$context_guard_profile_config" "$context_guard_active_profile_config"
         fi
-        node "$doctor_script" aiomo "$profile"
+        bun "$doctor_script" aiomo "$profile"
         exit "$?"
         ;;
       *)

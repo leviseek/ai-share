@@ -14,7 +14,7 @@ if (Test-Path -LiteralPath $ManifestPath -PathType Leaf) {
 }
 
 if ($args.Count -gt 1 -and $args[0] -eq "doctor" -and $args[1] -eq "install") {
-  $DoctorScript = Join-Path $PSScriptRoot "opencode-install-doctor.mjs"
+  $DoctorScript = Join-Path $PSScriptRoot "opencode-install-doctor.ts"
   if (-not (Test-Path -LiteralPath $DoctorScript -PathType Leaf)) {
     Write-Error "缺少 install doctor 脚本：$DoctorScript"
     exit 1
@@ -32,12 +32,12 @@ if ($args.Count -gt 1 -and $args[0] -eq "doctor" -and $args[1] -eq "install") {
   if (Test-Path -LiteralPath $ContextGuardProfileConfig -PathType Leaf) {
     Copy-Item -LiteralPath $ContextGuardProfileConfig -Destination $ContextGuardActiveProfileConfig -Force
   }
-  $Node = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-  if (-not $Node) {
-    Write-Error "缺少 node，无法执行 install doctor。"
+  $Bun = Get-Command bun -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if (-not $Bun) {
+    Write-Error "缺少 bun，无法执行 install doctor。"
     exit 1
   }
-  & $Node.Source $DoctorScript "aioc" $ProfileName
+  & $Bun.Source $DoctorScript "aioc" $ProfileName
   exit $LASTEXITCODE
 }
 

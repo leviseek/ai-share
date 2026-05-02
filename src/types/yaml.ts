@@ -145,6 +145,7 @@ export type AgentSource = {
 
 export type AgentsYaml = {
   model_fallback?: boolean;
+  shared_prompt?: AgentPrompt;
   agents?: Record<string, AgentSource>;
   categories?: Record<string, AgentSource>;
   runtime_fallback?: RuntimeFallbackSource;
