@@ -211,13 +211,13 @@ case "${1:-}" in
           printf '%s\n' "缺少 bun，无法执行 doctor install。" >&2
           exit 1
         fi
-        opencode_profile_config="$config_dir/opencode.$profile.json"
+        opencode_profile_config="$config_dir/profiles/opencode/$profile.json"
         opencode_active_config="$config_dir/opencode.json"
-        omo_profile_config="$config_dir/oh-my-openagent.$profile.json"
+        omo_profile_config="$config_dir/profiles/oh-my-openagent/$profile.json"
         omo_active_config="$config_dir/oh-my-openagent.json"
-        strategy_profile_config="$config_dir/strategy.$profile.json"
+        strategy_profile_config="$config_dir/profiles/strategy/$profile.json"
         strategy_active_config="$config_dir/strategy.json"
-        context_guard_profile_config="$config_dir/context-guard.$profile.json"
+        context_guard_profile_config="$config_dir/profiles/context-guard/$profile.json"
         context_guard_active_profile_config="$config_dir/context-guard.profile.json"
         if [ -f "$opencode_profile_config" ]; then
           cp "$opencode_profile_config" "$opencode_active_config"
@@ -243,7 +243,7 @@ case "${1:-}" in
     ;;
   rescue)
     if [ "$#" -lt 2 ]; then printf '%s\n' "用法：aiomo rescue <session-id>" >&2; exit 2; fi
-    opencode_context_guard rescue aiomo "$config_dir/opencode.$profile.json" "$config_dir" "$2"
+    opencode_context_guard rescue aiomo "$config_dir/profiles/opencode/$profile.json" "$config_dir" "$2"
     exit "$?"
     ;;
 esac
@@ -280,13 +280,13 @@ if ! is_profile "$profile"; then
   exit 2
 fi
 
-opencode_profile_config="$config_dir/opencode.$profile.json"
+opencode_profile_config="$config_dir/profiles/opencode/$profile.json"
 opencode_active_config="$config_dir/opencode.json"
-omo_profile_config="$config_dir/oh-my-openagent.$profile.json"
+omo_profile_config="$config_dir/profiles/oh-my-openagent/$profile.json"
 omo_active_config="$config_dir/oh-my-openagent.json"
-strategy_profile_config="$config_dir/strategy.$profile.json"
+strategy_profile_config="$config_dir/profiles/strategy/$profile.json"
 strategy_active_config="$config_dir/strategy.json"
-context_guard_profile_config="$config_dir/context-guard.$profile.json"
+context_guard_profile_config="$config_dir/profiles/context-guard/$profile.json"
 context_guard_active_profile_config="$config_dir/context-guard.profile.json"
 
 if [ ! -f "$opencode_profile_config" ]; then

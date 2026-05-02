@@ -76,6 +76,15 @@ if (registryMismatches.length > 0) {
 }
 
 if (!dryRun) await mkdir(paths.targetConfigDir, { recursive: true });
+if (!dryRun) {
+  await Promise.all([
+    mkdir(paths.targetOpenCodeProfileDir, { recursive: true }),
+    mkdir(paths.targetAiocProfileDir, { recursive: true }),
+    mkdir(paths.targetOhMyOpenAgentProfileDir, { recursive: true }),
+    mkdir(paths.targetStrategyProfileDir, { recursive: true }),
+    mkdir(paths.targetContextGuardProfileDir, { recursive: true }),
+  ]);
+}
 for (const [profileId, openCodeConfig] of Object.entries(openCodeConfigs)) {
   await writeJson(profileOpenCodePath(paths.targetConfigDir, profileId), openCodeConfig, { dryRun, force });
 }

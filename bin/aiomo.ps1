@@ -214,13 +214,13 @@ if ($args.Count -gt 1 -and $args[0] -eq "doctor" -and $args[1] -eq "install") {
     Write-Error "缺少 install doctor 脚本：$DoctorScript"
     exit 1
   }
-  $OpenCodeProfileConfig = Join-Path $ConfigDir "opencode.$ProfileName.json"
+  $OpenCodeProfileConfig = Join-Path $ConfigDir "profiles\opencode\$ProfileName.json"
   $OpenCodeActiveConfig = Join-Path $ConfigDir "opencode.json"
-  $OmoProfileConfig = Join-Path $ConfigDir "oh-my-openagent.$ProfileName.json"
+  $OmoProfileConfig = Join-Path $ConfigDir "profiles\oh-my-openagent\$ProfileName.json"
   $OmoActiveConfig = Join-Path $ConfigDir "oh-my-openagent.json"
-  $StrategyProfileConfig = Join-Path $ConfigDir "strategy.$ProfileName.json"
+  $StrategyProfileConfig = Join-Path $ConfigDir "profiles\strategy\$ProfileName.json"
   $StrategyActiveConfig = Join-Path $ConfigDir "strategy.json"
-  $ContextGuardProfileConfig = Join-Path $ConfigDir "context-guard.$ProfileName.json"
+  $ContextGuardProfileConfig = Join-Path $ConfigDir "profiles\context-guard\$ProfileName.json"
   $ContextGuardActiveProfileConfig = Join-Path $ConfigDir "context-guard.profile.json"
   if (-not (Test-Path -LiteralPath $OpenCodeProfileConfig -PathType Leaf)) {
     Write-Error ((U @(32570, 23569, 32, 79, 112, 101, 110, 67, 111, 100, 101, 32, 32534, 25490, 32423, 21035, 37197, 32622, 65306)) + $OpenCodeProfileConfig)
@@ -323,13 +323,13 @@ if ($AvailableProfiles -notcontains $ProfileName) {
   exit 2
 }
 
-$OpenCodeProfileConfig = Join-Path $ConfigDir "opencode.$ProfileName.json"
+$OpenCodeProfileConfig = Join-Path $ConfigDir "profiles\opencode\$ProfileName.json"
 $OpenCodeActiveConfig = Join-Path $ConfigDir "opencode.json"
-$OmoProfileConfig = Join-Path $ConfigDir "oh-my-openagent.$ProfileName.json"
+$OmoProfileConfig = Join-Path $ConfigDir "profiles\oh-my-openagent\$ProfileName.json"
 $OmoActiveConfig = Join-Path $ConfigDir "oh-my-openagent.json"
-$StrategyProfileConfig = Join-Path $ConfigDir "strategy.$ProfileName.json"
+$StrategyProfileConfig = Join-Path $ConfigDir "profiles\strategy\$ProfileName.json"
 $StrategyActiveConfig = Join-Path $ConfigDir "strategy.json"
-$ContextGuardProfileConfig = Join-Path $ConfigDir "context-guard.$ProfileName.json"
+$ContextGuardProfileConfig = Join-Path $ConfigDir "profiles\context-guard\$ProfileName.json"
 $ContextGuardActiveProfileConfig = Join-Path $ConfigDir "context-guard.profile.json"
 
 if (-not (Test-Path -LiteralPath $OpenCodeProfileConfig -PathType Leaf)) {

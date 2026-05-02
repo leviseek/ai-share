@@ -28,9 +28,9 @@ if [ "${1:-}" = "doctor" ]; then
     printf '%s\n' "缺少 bun，无法执行 doctor install。" >&2
     exit 1
   fi
-  AIOC_CONFIG="$CONFIG_DIR/opencode.aioc.$PROFILE.json"
+  AIOC_CONFIG="$CONFIG_DIR/profiles/aioc/$PROFILE.json"
   ACTIVE_CONFIG="$CONFIG_DIR/opencode.json"
-  CONTEXT_GUARD_PROFILE="$CONFIG_DIR/context-guard.$PROFILE.json"
+  CONTEXT_GUARD_PROFILE="$CONFIG_DIR/profiles/context-guard/$PROFILE.json"
   CONTEXT_GUARD_ACTIVE="$CONFIG_DIR/context-guard.profile.json"
   if [ -f "$AIOC_CONFIG" ]; then
     cp "$AIOC_CONFIG" "$ACTIVE_CONFIG"
@@ -72,9 +72,9 @@ case " $PROFILES " in
     ;;
 esac
 
-AIOC_CONFIG="$CONFIG_DIR/opencode.aioc.$PROFILE.json"
+AIOC_CONFIG="$CONFIG_DIR/profiles/aioc/$PROFILE.json"
 ACTIVE_CONFIG="$CONFIG_DIR/opencode.json"
-CONTEXT_GUARD_PROFILE="$CONFIG_DIR/context-guard.$PROFILE.json"
+CONTEXT_GUARD_PROFILE="$CONFIG_DIR/profiles/context-guard/$PROFILE.json"
 CONTEXT_GUARD_ACTIVE="$CONFIG_DIR/context-guard.profile.json"
 
 if [ ! -f "$AIOC_CONFIG" ]; then

@@ -9,6 +9,12 @@ export type GeneratorPaths = {
   distPluginDir: string;
   homeDir: string;
   targetConfigDir: string;
+  targetProfileDir: string;
+  targetOpenCodeProfileDir: string;
+  targetAiocProfileDir: string;
+  targetOhMyOpenAgentProfileDir: string;
+  targetStrategyProfileDir: string;
+  targetContextGuardProfileDir: string;
   targetOpenCode: string;
   targetTui: string;
   targetOhMyOpenAgent: string;
@@ -30,6 +36,12 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
   const distPluginDir = resolve(projectRoot, "dist", "plugins");
   const homeDir = resolve(Bun.env.HOME ?? Bun.env.USERPROFILE ?? "");
   const targetConfigDir = resolve(homeDir, ".config", "opencode");
+  const targetProfileDir = resolve(targetConfigDir, "profiles");
+  const targetOpenCodeProfileDir = resolve(targetProfileDir, "opencode");
+  const targetAiocProfileDir = resolve(targetProfileDir, "aioc");
+  const targetOhMyOpenAgentProfileDir = resolve(targetProfileDir, "oh-my-openagent");
+  const targetStrategyProfileDir = resolve(targetProfileDir, "strategy");
+  const targetContextGuardProfileDir = resolve(targetProfileDir, "context-guard");
 
   if (!targetConfigDir.startsWith(homeDir)) {
     throw new Error("无法解析用户级 OpenCode 配置目录。请检查 HOME 或 USERPROFILE 环境变量。");
@@ -44,12 +56,18 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
     distPluginDir: distPluginDir,
     homeDir: homeDir,
     targetConfigDir: targetConfigDir,
+    targetProfileDir: targetProfileDir,
+    targetOpenCodeProfileDir: targetOpenCodeProfileDir,
+    targetAiocProfileDir: targetAiocProfileDir,
+    targetOhMyOpenAgentProfileDir: targetOhMyOpenAgentProfileDir,
+    targetStrategyProfileDir: targetStrategyProfileDir,
+    targetContextGuardProfileDir: targetContextGuardProfileDir,
     targetOpenCode: resolve(targetConfigDir, "opencode.json"),
     targetTui: resolve(targetConfigDir, "tui.json"),
     targetOhMyOpenAgent: resolve(targetConfigDir, "oh-my-openagent.json"),
     targetProfileManifest: resolve(targetConfigDir, ".omo-profiles.json"),
     targetContextGuard: resolve(targetConfigDir, "context-guard.json"),
-    targetContextGuardProfile: contextGuardProfilePath(targetConfigDir, "profile"),
+    targetContextGuardProfile: resolve(targetConfigDir, "context-guard.profile.json"),
     targetProxy: resolve(targetConfigDir, "proxy.json"),
     targetStrategy: resolve(targetConfigDir, "strategy.json"),
     targetBinDir: resolve(homeDir, ".local", "bin"),
@@ -59,11 +77,11 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
 }
 
 export function profileOhMyOpenAgentPath(targetConfigDir: string, profileId: string): string {
-  return resolve(targetConfigDir, `oh-my-openagent.${profileId}.json`);
+  return resolve(targetConfigDir, "profiles", "oh-my-openagent", `${profileId}.json`);
 }
 
 export function profileStrategyPath(targetConfigDir: string, profileId: string): string {
-  return resolve(targetConfigDir, `strategy.${profileId}.json`);
+  return resolve(targetConfigDir, "profiles", "strategy", `${profileId}.json`);
 }
 
 export function profileContextGuardPath(targetConfigDir: string, profileId: string): string {
@@ -71,13 +89,13 @@ export function profileContextGuardPath(targetConfigDir: string, profileId: stri
 }
 
 export function profileOpenCodePath(targetConfigDir: string, profileId: string): string {
-  return resolve(targetConfigDir, `opencode.${profileId}.json`);
+  return resolve(targetConfigDir, "profiles", "opencode", `${profileId}.json`);
 }
 
 export function profileAiocOpenCodePath(targetConfigDir: string, profileId: string): string {
-  return resolve(targetConfigDir, `opencode.aioc.${profileId}.json`);
+  return resolve(targetConfigDir, "profiles", "aioc", `${profileId}.json`);
 }
 
 function contextGuardProfilePath(targetConfigDir: string, profileId: string): string {
-  return resolve(targetConfigDir, `context-guard.${profileId}.json`);
+  return resolve(targetConfigDir, "profiles", "context-guard", `${profileId}.json`);
 }

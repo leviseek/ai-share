@@ -276,7 +276,7 @@ if (mode === "aiomo") {
   const profileConfig = readJsonIfExists(
     "Profile",
     "aiomo profile config",
-    join(configDir, `opencode.${profile}.json`),
+    join(configDir, "profiles", "opencode", `${profile}.json`),
     true,
   );
   checkPluginPresence("Profile", "aiomo profile OMO plugin", profileConfig, OMO_PLUGIN, true);
@@ -293,23 +293,28 @@ if (mode === "aiomo") {
   checkPluginPresence("Active Config", "active superpowers plugin", activeConfig, SUPERPOWERS_PLUGIN, true);
   checkPluginPresence("Active Config", "active monitor plugin", activeConfig, MONITOR_PLUGIN, true);
 
-  readJsonIfExists("OMO Config", "OMO profile config", join(configDir, `oh-my-openagent.${profile}.json`), true);
+  readJsonIfExists(
+    "OMO Config",
+    "OMO profile config",
+    join(configDir, "profiles", "oh-my-openagent", `${profile}.json`),
+    true,
+  );
   readJsonIfExists("OMO Config", "OMO active config", join(configDir, "oh-my-openagent.json"), true);
   checkOptionalProfileJson(
     "strategy profile config",
-    join(configDir, `strategy.${profile}.json`),
+    join(configDir, "profiles", "strategy", `${profile}.json`),
     join(configDir, "strategy.json"),
   );
   checkOptionalProfileJson(
     "context guard profile config",
-    join(configDir, `context-guard.${profile}.json`),
+    join(configDir, "profiles", "context-guard", `${profile}.json`),
     join(configDir, "context-guard.profile.json"),
   );
 } else {
   const profileConfig = readJsonIfExists(
     "Profile",
     "aioc profile config",
-    join(configDir, `opencode.aioc.${profile}.json`),
+    join(configDir, "profiles", "aioc", `${profile}.json`),
     true,
   );
   checkPluginPresence("Profile", "aioc profile OMO plugin", profileConfig, OMO_PLUGIN, false);
