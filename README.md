@@ -110,9 +110,29 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.config/opencode/plugins/omo-agent-monitor/server.js
 ~/.config/opencode/plugins/omo-agent-monitor/tui.js
 ~/.config/opencode/skills/git-master/SKILL.md
+~/.config/opencode/skills/context-guard/SKILL.md
+~/.config/opencode/skills/ai-share-generator/SKILL.md
+~/.config/opencode/skills/install-doctor/SKILL.md
+~/.config/opencode/skills/config-profile-tuning/SKILL.md
+~/.config/opencode/skills/release-commit/SKILL.md
+~/.config/opencode/skills/plugin-vetting/SKILL.md
+~/.config/opencode/skills/skill-creator/SKILL.md
+~/.config/opencode/skills/find-skills/SKILL.md
+~/.config/opencode/skills/frontend-design/SKILL.md
 ```
 
-`git-master` 是本仓库安装的本地 native skill。
+本仓库会安装一组本地 native skills，供 `aiomo` 和 `aioc` 共享使用：
+
+- `git-master`：安全 Git 操作、原子提交、历史搜索。
+- `context-guard`：上下文守卫、watch/rescue/handoff 和熔断历史排查。
+- `ai-share-generator`：修改 `config/*.yaml`、生成器和安装输出时的工作流。
+- `install-doctor`：诊断 `aiomo doctor install` / `aioc doctor install` 输出。
+- `config-profile-tuning`：调整模型角色、profile、compaction 和上下文预算。
+- `release-commit`：按批次组织提交、发布式摘要和推送前验证。
+- `plugin-vetting`：新增共享插件或可选插件前的来源、权限和作用域审查。
+- `skill-creator`：新增、维护和审查本仓库本地 native skills 的流程。
+- `find-skills`：列出并选择当前任务最相关的本地 native skill。
+- `frontend-design`：前端 UI/UX、CSS、布局、可访问性和视觉实现。
 
 同时会安装启动命令到用户级 bin 目录：
 

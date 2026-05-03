@@ -12,6 +12,18 @@ type Result = { group: Group; status: Status; label: string; detail: string };
 
 const OMO_PLUGIN = "oh-my-openagent@3.17.5";
 const MONITOR_PLUGIN = "./plugins/omo-agent-monitor";
+const NATIVE_SKILLS = [
+  "git-master",
+  "context-guard",
+  "ai-share-generator",
+  "install-doctor",
+  "config-profile-tuning",
+  "release-commit",
+  "plugin-vetting",
+  "skill-creator",
+  "find-skills",
+  "frontend-design",
+] as const;
 const GROUP_ORDER: Group[] = [
   "Profile",
   "Active Config",
@@ -220,7 +232,9 @@ function checkCommonFiles(): void {
   const tui = readJsonIfExists("TUI & Plugin", "tui config", join(configDir, "tui.json"), true);
   checkPluginPresence("TUI & Plugin", "tui monitor plugin", tui, MONITOR_PLUGIN, true);
   checkLocalPluginInstall();
-  checkFile("Skills", "git-master skill", join(configDir, "skills", "git-master", "SKILL.md"));
+  for (const skillName of NATIVE_SKILLS) {
+    checkFile("Skills", `${skillName} skill`, join(configDir, "skills", skillName, "SKILL.md"));
+  }
   checkInstalledLaunchers();
   checkPath();
   checkOpencodeDiscovery();
