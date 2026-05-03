@@ -11,6 +11,8 @@ type DingTalkNotifierConfig = {
   keyword_env?: string;
   message_type?: "text" | "markdown";
   events?: string[];
+  require_review_before_send?: boolean;
+  review_items?: string[];
   min_interval_ms?: number;
   timeout_ms?: number;
 };
@@ -26,6 +28,8 @@ type DingTalkResponse = {
 
 type Plugin = { id: string; server(): Promise<Record<string, (input: Record<string, unknown>) => Promise<void>>> };
 
+type EventHandlerMap = Record<string, (event: Record<string, unknown>) => Promise<void>>;
+
 const pluginDir = dirname(fileURLToPath(import.meta.url));
 const configPath = resolve(pluginDir, "..", "..", "dingtalk-notifier.json");
 const logPath = resolve(pluginDir, "..", "..", "dingtalk-notifier.log");
@@ -36,19 +40,17 @@ const plugin: Plugin = {
   server: async () => {
     const config = await loadConfig();
     if (config.enabled === false) return {};
-    const configuredEvents = new Set(config.events ?? ["session.idle"]);
-    return {
-      event: async (input) => {
-        const event = recordProperty(input, "event") ?? input;
-        const eventName = stringProperty(event, "type");
-        if (!eventName || !configuredEvents.has(eventName)) return;
+    const handlers: EventHandlerMap = {};
+    for (const eventName of config.events ?? ["session.idle"]) {
+      handlers[eventName] = async (event) => {
         try {
           await notify(eventName, event, config, process.argv.includes("run"));
         } catch (error) {
           await logDiagnostic("send failed", error instanceof Error ? error.message : String(error));
         }
-      },
-    };
+      };
+    }
+    return handlers;
   },
 };
 
@@ -67,6 +69,11 @@ async function notify(
   config: DingTalkNotifierConfig,
   detached: boolean,
 ): Promise<void> {
+  if (config.require_review_before_send ?? true) {
+    await logDiagnostic("pending review", reviewPrompt(eventName, event, config));
+    return;
+  }
+
   const webhook = envValue(config.webhook_env ?? "AI_SHARE_DINGTALK_WEBHOOK");
   if (!webhook) {
     await logDiagnostic("skip", `${config.webhook_env ?? "AI_SHARE_DINGTALK_WEBHOOK"} is not set`);
@@ -168,6 +175,22 @@ function notificationContent(title: string, eventName: string, event: Record<str
   return [`## ${title}`, `- 事件：${eventName}`, `- 状态：${status}`, `- 时间：${new Date().toLocaleString()}`].join(
     "\n",
   );
+}
+
+function reviewPrompt(eventName: string, event: Record<string, unknown>, config: DingTalkNotifierConfig): string {
+  const properties = recordProperty(event, "properties");
+  const sessionId = stringProperty(properties, "sessionID") ?? stringProperty(properties, "session_id") ?? "unknown";
+  return [
+    `event=${eventName}`,
+    `session=${sessionId}`,
+    "auto-send paused until the assistant reviews notifiable information with the user",
+    ...reviewItems(config).map((item) => `review-item=${item}`),
+  ].join("; ");
+}
+
+function reviewItems(config: DingTalkNotifierConfig): string[] {
+  const configured = config.review_items?.filter((item) => item.trim() !== "") ?? [];
+  return configured.length > 0 ? configured : ["会话内容摘要", "任务结果", "验证结论", "剩余风险或后续事项"];
 }
 
 async function logDiagnostic(reason: string, detail: string): Promise<void> {

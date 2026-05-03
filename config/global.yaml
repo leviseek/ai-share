@@ -160,6 +160,12 @@ dingtalk_notifier:
   message_type: markdown
   events:
     - session.idle
+  require_review_before_send: true
+  review_items:
+    - 会话内容摘要
+    - 任务结果
+    - 验证结论
+    - 剩余风险或后续事项
   min_interval_ms: 60000
   timeout_ms: 10000
 

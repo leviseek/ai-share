@@ -189,7 +189,7 @@ export AI_SHARE_DINGTALK_SECRET="SECxxxxxxxx"
 export AI_SHARE_DINGTALK_KEYWORD="ai-share"
 ```
 
-插件配置源在 `config/global.yaml` 的 `dingtalk_notifier`，可配置 `webhook_env`、`secret_env`、`keyword_env`、`message_type`、`events`、`min_interval_ms` 和 `timeout_ms`。默认监听 `session.status`，按 `min_interval_ms` 节流发送 markdown 通知；未设置 webhook 环境变量时插件会静默跳过发送。
+插件配置源在 `config/global.yaml` 的 `dingtalk_notifier`，可配置 `webhook_env`、`secret_env`、`keyword_env`、`message_type`、`events`、`require_review_before_send`、`review_items`、`min_interval_ms` 和 `timeout_ms`。默认监听 `session.idle`，并启用 `require_review_before_send`：任务完成后先由 AI 在当前会话中整理并确认会话内容摘要、任务结果、验证结论和剩余风险等可通知信息，确认前插件不会自动外发钉钉通知；确认后 AI 会在当前会话输出优化后的通知内容，只有用户明确要求外发时才执行外部通知发送。未设置 webhook 环境变量时插件会静默跳过发送。
 
 默认会额外生成 `proxy.json`，并让 `aiomo` / `aioc` 启动器在启动 OpenCode 前自动设置标准代理环境变量。默认代理为 `http://127.0.0.1:7897`，会写入 `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` 及对应小写变量，`NO_PROXY` 默认包含 `localhost,127.0.0.1,::1`。如果当前 shell 已经设置了这些标准变量，启动器不会覆盖；如需临时关闭共享代理，可设置 `AI_SHARE_PROXY=0`；如需临时改端口或完整地址，可设置 `AI_SHARE_PROXY_PORT=7890` 或 `AI_SHARE_PROXY_URL=http://127.0.0.1:7890`。
 

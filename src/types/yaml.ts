@@ -134,6 +134,8 @@ export type GlobalDingTalkNotifier = {
   keyword_env?: string;
   message_type?: "text" | "markdown";
   events?: string[];
+  require_review_before_send?: boolean;
+  review_items?: string[];
   min_interval_ms?: number;
   timeout_ms?: number;
 };
