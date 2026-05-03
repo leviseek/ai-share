@@ -23,7 +23,7 @@ export function check(args: string[]): number {
   const level = riskLevel(stats.inputTokens, maxInputTokens, guard);
   if (level === "safe") return 0;
 
-  printRisk(level, launcher, sessionId, stats, maxInputTokens, guard);
+  printRisk(level, launcher, sessionId, stats, maxInputTokens, guard, force);
   if (guard.diagnostics) printDiagnostics(stats);
 
   if (level === "blocked" && !force) return 10;

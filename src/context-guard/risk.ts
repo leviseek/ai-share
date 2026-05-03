@@ -20,12 +20,23 @@ export function printRisk(
   stats: MessageStats,
   maxInputTokens: number,
   guard: GuardConfig,
+  force = false,
 ): void {
   const ratio = Math.round((stats.inputTokens / maxInputTokens) * 100);
-  const label = level === "blocked" ? "已阻止直接恢复" : level === "danger" ? "高风险" : "预警";
+  const label =
+    force && level === "blocked"
+      ? "强制恢复高风险 session"
+      : level === "blocked"
+        ? "已阻止直接恢复"
+        : level === "danger"
+          ? "高风险"
+          : "预警";
   console.warn(`\n[context-guard] ${label}：${sessionId}`);
   console.warn(`  input_tokens: ${stats.inputTokens} / ${maxInputTokens} (${ratio}%)`);
-  if (level === "blocked") {
+  if (force && level === "blocked") {
+    console.warn("  已检测到 --force，将跳过恢复前阻断；仍建议优先使用 rescue 迁移到新会话。");
+    console.warn(`  推荐：${launcher} rescue ${sessionId}`);
+  } else if (level === "blocked") {
     console.warn("  为避免恢复后直接卡住，默认不进入该 session。");
     console.warn(`  推荐：${launcher} rescue ${sessionId}`);
     console.warn(`  如仍要强制恢复：${launcher} -s ${sessionId} --force`);
