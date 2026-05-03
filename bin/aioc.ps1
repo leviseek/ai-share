@@ -23,13 +23,12 @@ if ($args.Count -gt 1 -and $args[0] -eq "doctor" -and $args[1] -eq "install") {
     exit 1
   }
   $AiocProfileConfig = Join-Path $ConfigDir "profiles\aioc\$ProfileName.json"
-  $OpenCodeActiveConfig = Join-Path $ConfigDir "opencode.json"
   if (-not (Test-Path -LiteralPath $AiocProfileConfig -PathType Leaf)) {
     Write-Error "缺少 aioc OpenCode 配置级别配置：$AiocProfileConfig"
     Write-Error "请先运行：bun run ai:gen -- --force"
     exit 1
   }
-  Copy-Item -LiteralPath $AiocProfileConfig -Destination $OpenCodeActiveConfig -Force
+  New-OpenCodeActiveConfigDirShared $ConfigDir "aioc" $ProfileName $AiocProfileConfig | Out-Null
   $Bun = Get-Command bun -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
   if (-not $Bun) {
     Write-Error "缺少 bun，无法执行 install doctor。"
@@ -70,7 +69,6 @@ if ($AvailableProfiles -notcontains $ProfileName) {
 }
 
 $AiocProfileConfig = Join-Path $ConfigDir "profiles\aioc\$ProfileName.json"
-$OpenCodeActiveConfig = Join-Path $ConfigDir "opencode.json"
 
 if (-not (Test-Path -LiteralPath $AiocProfileConfig -PathType Leaf)) {
   Write-Error "缺少 aioc OpenCode 配置级别配置：$AiocProfileConfig"
@@ -78,7 +76,7 @@ if (-not (Test-Path -LiteralPath $AiocProfileConfig -PathType Leaf)) {
   exit 1
 }
 
-Copy-Item -LiteralPath $AiocProfileConfig -Destination $OpenCodeActiveConfig -Force
+New-OpenCodeActiveConfigDirShared $ConfigDir "aioc" $ProfileName $AiocProfileConfig | Out-Null
 
 $OpenCode = Get-Command opencode.exe -CommandType Application -ErrorAction Stop
 & $OpenCode.Source @($OpenCodeArgs.ToArray())

@@ -46,6 +46,39 @@ function Set-OpenCodeProxyEnvShared {
   }
 }
 
+function New-OpenCodeActiveConfigDirShared {
+  param(
+    [string]$ConfigDir,
+    [string]$Launcher,
+    [string]$ProfileName,
+    [string]$OpenCodeProfileConfig,
+    [string]$OmoProfileConfig = "",
+    [string]$StrategyProfileConfig = "",
+    [string]$ContextGuardProfileConfig = ""
+  )
+
+  $ActiveDir = Join-Path $ConfigDir (Join-Path ".active" (Join-Path $Launcher (Join-Path $ProfileName ([string]$PID))))
+  New-Item -ItemType Directory -Force -Path $ActiveDir | Out-Null
+
+  $OpenCodeContent = Get-Content -LiteralPath $OpenCodeProfileConfig -Raw -Encoding UTF8
+  $PluginPrefix = (Join-Path $ConfigDir "plugins").Replace("\", "/").TrimEnd("/") + "/"
+  $OpenCodeContent = $OpenCodeContent.Replace('"./plugins/', '"' + $PluginPrefix)
+  [System.IO.File]::WriteAllText((Join-Path $ActiveDir "opencode.json"), $OpenCodeContent, $Utf8NoBom)
+  if ($OmoProfileConfig -and (Test-Path -LiteralPath $OmoProfileConfig -PathType Leaf)) {
+    Copy-Item -LiteralPath $OmoProfileConfig -Destination (Join-Path $ActiveDir "oh-my-openagent.json") -Force
+  }
+  if ($StrategyProfileConfig -and (Test-Path -LiteralPath $StrategyProfileConfig -PathType Leaf)) {
+    Copy-Item -LiteralPath $StrategyProfileConfig -Destination (Join-Path $ActiveDir "strategy.json") -Force
+  }
+  if ($ContextGuardProfileConfig -and (Test-Path -LiteralPath $ContextGuardProfileConfig -PathType Leaf)) {
+    Copy-Item -LiteralPath $ContextGuardProfileConfig -Destination (Join-Path $ActiveDir "context-guard.profile.json") -Force
+  }
+
+  $env:OPENCODE_CONFIG = Join-Path $ActiveDir "opencode.json"
+  $env:OPENCODE_CONFIG_DIR = $ActiveDir
+  return $ActiveDir
+}
+
 function Invoke-ContextGuardShared {
   param(
     [string]$Command,
@@ -100,7 +133,11 @@ function Start-ContextGuardWatchShared {
 
   $GuardScript = Join-Path $PSScriptRoot "opencode-context-guard.ts"
   $GuardConfig = Join-Path $ConfigDir "context-guard.json"
-  $StrategyConfig = Join-Path $ConfigDir "strategy.json"
+  $ConfigProfileDir = Split-Path -Parent $ConfigPath
+  $StrategyConfig = Join-Path $ConfigProfileDir "strategy.json"
+  if (-not (Test-Path -LiteralPath $StrategyConfig -PathType Leaf)) {
+    $StrategyConfig = Join-Path $ConfigDir "strategy.json"
+  }
   $DbPath = Join-Path ([Environment]::GetFolderPath("UserProfile")) ".local\share\opencode\opencode.db"
   if (-not (Test-Path -LiteralPath $GuardScript -PathType Leaf)) { return }
   if (-not (Test-Path -LiteralPath $StrategyConfig -PathType Leaf)) { return }
