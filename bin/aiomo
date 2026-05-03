@@ -212,24 +212,11 @@ case "${1:-}" in
           exit 1
         fi
         opencode_profile_config="$config_dir/profiles/opencode/$profile.json"
-        opencode_active_config="$config_dir/opencode.json"
         omo_profile_config="$config_dir/profiles/oh-my-openagent/$profile.json"
-        omo_active_config="$config_dir/oh-my-openagent.json"
         strategy_profile_config="$config_dir/profiles/strategy/$profile.json"
-        strategy_active_config="$config_dir/strategy.json"
         context_guard_profile_config="$config_dir/profiles/context-guard/$profile.json"
-        context_guard_active_profile_config="$config_dir/context-guard.profile.json"
         if [ -f "$opencode_profile_config" ]; then
-          cp "$opencode_profile_config" "$opencode_active_config"
-        fi
-        if [ -f "$omo_profile_config" ]; then
-          cp "$omo_profile_config" "$omo_active_config"
-        fi
-        if [ -f "$strategy_profile_config" ]; then
-          cp "$strategy_profile_config" "$strategy_active_config"
-        fi
-        if [ -f "$context_guard_profile_config" ]; then
-          cp "$context_guard_profile_config" "$context_guard_active_profile_config"
+          opencode_prepare_active_config_dir "$config_dir" aiomo "$profile" "$opencode_profile_config" "$omo_profile_config" "$strategy_profile_config" "$context_guard_profile_config"
         fi
         bun "$doctor_script" aiomo "$profile"
         exit "$?"
@@ -281,13 +268,9 @@ if ! is_profile "$profile"; then
 fi
 
 opencode_profile_config="$config_dir/profiles/opencode/$profile.json"
-opencode_active_config="$config_dir/opencode.json"
 omo_profile_config="$config_dir/profiles/oh-my-openagent/$profile.json"
-omo_active_config="$config_dir/oh-my-openagent.json"
 strategy_profile_config="$config_dir/profiles/strategy/$profile.json"
-strategy_active_config="$config_dir/strategy.json"
 context_guard_profile_config="$config_dir/profiles/context-guard/$profile.json"
-context_guard_active_profile_config="$config_dir/context-guard.profile.json"
 
 if [ ! -f "$opencode_profile_config" ]; then
   printf '%s\n' "缺少 OpenCode 编排级别配置：$opencode_profile_config" >&2
@@ -301,17 +284,10 @@ if [ ! -f "$omo_profile_config" ]; then
   exit 1
 fi
 
-cp "$opencode_profile_config" "$opencode_active_config"
-cp "$omo_profile_config" "$omo_active_config"
-if [ -f "$strategy_profile_config" ]; then
-  cp "$strategy_profile_config" "$strategy_active_config"
-fi
-if [ -f "$context_guard_profile_config" ]; then
-  cp "$context_guard_profile_config" "$context_guard_active_profile_config"
-fi
-guard_budget_config="$opencode_profile_config"
-if [ -f "$context_guard_profile_config" ]; then
-  guard_budget_config="$context_guard_profile_config"
+opencode_prepare_active_config_dir "$config_dir" aiomo "$profile" "$opencode_profile_config" "$omo_profile_config" "$strategy_profile_config" "$context_guard_profile_config"
+guard_budget_config="$OPENCODE_CONFIG"
+if [ -f "$OPENCODE_CONFIG_DIR/context-guard.profile.json" ]; then
+  guard_budget_config="$OPENCODE_CONFIG_DIR/context-guard.profile.json"
 fi
 set +e
 opencode_context_guard check aiomo "$guard_budget_config" "$config_dir" "$@"
