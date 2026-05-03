@@ -27,7 +27,6 @@ proxy:
 opencode:
   plugins:
     - oh-my-openagent@3.17.5
-    - superpowers@git+https://github.com/obra/superpowers.git
     - ./plugins/omo-agent-monitor
   aioc_excluded_plugins:
     - oh-my-openagent@3.17.5

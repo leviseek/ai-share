@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -11,15 +11,7 @@ type Group = "Profile" | "Active Config" | "OMO Config" | "TUI & Plugin" | "Skil
 type Result = { group: Group; status: Status; label: string; detail: string };
 
 const OMO_PLUGIN = "oh-my-openagent@3.17.5";
-const SUPERPOWERS_PLUGIN = "superpowers@git+https://github.com/obra/superpowers.git";
 const MONITOR_PLUGIN = "./plugins/omo-agent-monitor";
-const REQUIRED_SUPERPOWERS_SKILLS = [
-  "using-superpowers",
-  "brainstorming",
-  "writing-plans",
-  "test-driven-development",
-  "verification-before-completion",
-] as const;
 const GROUP_ORDER: Group[] = [
   "Profile",
   "Active Config",
@@ -106,54 +98,6 @@ function readJsonIfExists(group: Group, label: string, path: string, required = 
   } catch (error) {
     fail(group, `${label} JSON`, error instanceof Error ? error.message : String(error));
     return null;
-  }
-}
-
-function findSuperpowersPackageDir(): string | null {
-  const packageCacheDir = join(homeDir, ".cache", "opencode", "packages");
-  if (!existsSync(packageCacheDir)) return null;
-
-  return findSuperpowersPackageDirInTree(packageCacheDir, 0);
-}
-
-function findSuperpowersPackageDirInTree(directory: string, depth: number): string | null {
-  const packageDir = join(directory, "node_modules", "superpowers");
-  if (existsSync(join(packageDir, "package.json"))) return packageDir;
-  if (depth >= 6) return null;
-
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-
-    const found = findSuperpowersPackageDirInTree(join(directory, entry.name), depth + 1);
-    if (found) return found;
-  }
-
-  return null;
-}
-
-function checkSuperpowersInstall(): void {
-  const packageDir = findSuperpowersPackageDir();
-  if (!packageDir) {
-    fail(
-      "Skills",
-      "superpowers plugin package",
-      `missing under ${join(homeDir, ".cache", "opencode", "packages")}; run bun run ai:gen -- --force or opencode run "Tell me about your superpowers" with network access`,
-    );
-    return;
-  }
-
-  ok("Skills", "superpowers plugin package", packageDir);
-  const missingSkills: string[] = [];
-  for (const skillName of REQUIRED_SUPERPOWERS_SKILLS) {
-    const skillPath = join(packageDir, "skills", skillName, "SKILL.md");
-    if (!checkFile("Skills", `superpowers/${skillName}`, skillPath)) missingSkills.push(skillName);
-  }
-  if (missingSkills.length > 0) {
-    fail(
-      "Skills",
-      "superpowers missing skills",
-      `${missingSkills.join(", ")}; run bun run ai:gen -- --force or opencode run "Tell me about your superpowers" with network access`,
-    );
   }
 }
 
@@ -277,7 +221,6 @@ function checkCommonFiles(): void {
   checkPluginPresence("TUI & Plugin", "tui monitor plugin", tui, MONITOR_PLUGIN, true);
   checkLocalPluginInstall();
   checkFile("Skills", "git-master skill", join(configDir, "skills", "git-master", "SKILL.md"));
-  checkSuperpowersInstall();
   checkInstalledLaunchers();
   checkPath();
   checkOpencodeDiscovery();
@@ -336,7 +279,6 @@ if (mode === "aiomo") {
     true,
   );
   checkPluginPresence("Profile", "aiomo profile OMO plugin", profileConfig, OMO_PLUGIN, true);
-  checkPluginPresence("Profile", "aiomo profile superpowers plugin", profileConfig, SUPERPOWERS_PLUGIN, true);
   checkPluginPresence("Profile", "aiomo profile monitor plugin", profileConfig, MONITOR_PLUGIN, true);
 
   const activeConfig = readJsonIfExists(
@@ -346,7 +288,6 @@ if (mode === "aiomo") {
     true,
   );
   checkPluginPresence("Active Config", "active OMO plugin", activeConfig, OMO_PLUGIN, true);
-  checkPluginPresence("Active Config", "active superpowers plugin", activeConfig, SUPERPOWERS_PLUGIN, true);
   checkPluginPresence("Active Config", "active monitor plugin", activeConfig, MONITOR_PLUGIN, true);
 
   readJsonIfExists(
@@ -375,7 +316,6 @@ if (mode === "aiomo") {
   );
   checkPluginPresence("Profile", "aioc profile OMO plugin", profileConfig, OMO_PLUGIN, false);
   checkPluginPresence("Profile", "aioc profile monitor plugin", profileConfig, MONITOR_PLUGIN, false);
-  checkPluginPresence("Profile", "aioc profile superpowers plugin", profileConfig, SUPERPOWERS_PLUGIN, true);
 
   const activeConfig = readJsonIfExists(
     "Active Config",
@@ -385,7 +325,6 @@ if (mode === "aiomo") {
   );
   checkPluginPresence("Active Config", "active OMO plugin", activeConfig, OMO_PLUGIN, false);
   checkPluginPresence("Active Config", "active monitor plugin", activeConfig, MONITOR_PLUGIN, false);
-  checkPluginPresence("Active Config", "active superpowers plugin", activeConfig, SUPERPOWERS_PLUGIN, true);
 }
 
 checkCommonFiles();

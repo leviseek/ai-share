@@ -8,7 +8,7 @@ model_fallback: true
 
 shared_prompt:
   append: |
-    遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行 Superpowers 开发闭环，用户当前明确指令优先。
+    遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
 
 agents:
   sisyphus:

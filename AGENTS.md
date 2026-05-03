@@ -92,6 +92,6 @@ bun run format:check
 
 - `bun run ai:check` validates config/generator consistency without writing or installing.
 - `bun run ai:gen` writes user config and installs launchers/plugins/skills; use `--dry-run` first for config edits.
-- `aioc` excludes `oh-my-openagent` and `./plugins/omo-agent-monitor` but keeps shared plugins such as Superpowers.
+- `aioc` excludes `oh-my-openagent` and `./plugins/omo-agent-monitor` for native OpenCode Build / Plan usage.
 - `aiomo`/`aioc` context guard can block oversized session recovery; use `aiomo rescue <session-id>` or `aioc rescue <session-id>` before forcing.
 - Git commits require explicit user request; format is `option: 中文描述`.

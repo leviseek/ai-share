@@ -112,7 +112,7 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.config/opencode/skills/git-master/SKILL.md
 ```
 
-`git-master` 是本仓库安装的本地 native skill。Superpowers skills（例如 `writing-plans`、`brainstorming`）不复制到 `~/.config/opencode/skills/`；它们由 `superpowers@git+https://github.com/obra/superpowers.git` 插件在 OpenCode 启动时自动安装和注册。
+`git-master` 是本仓库安装的本地 native skill。
 
 同时会安装启动命令到用户级 bin 目录：
 
@@ -159,7 +159,7 @@ Git 提交规范在 `GIT_COMMIT_GUIDELINES.md`，提交信息使用 `option: 中
 # oh-my-openagent 多 agents 编排模式，加载完整共享插件
 aiomo
 
-# OpenCode 原生 Build / Plan 模式，只排除 OMO 插件，保留其他共享插件
+# OpenCode 原生 Build / Plan 模式，排除 OMO 相关插件
 aioc
 ```
 
@@ -233,7 +233,7 @@ aiomo-monitor
 
 `doctor install` 输出 `OK` / `WARN` / `FAIL`：`OK` 表示该项已安装或配置符合当前模式；`WARN` 表示可能可用但需要关注，例如当前终端 PATH 尚未刷新；`FAIL` 表示缺失或配置不一致，需要重新运行 `bun run ai:gen -- --force` 或修复环境。该检查为轻量级静态/版本探测，不会启动 OpenCode TUI，也不验证插件运行时渲染。
 
-首次安装时需要网络访问以便 OpenCode 拉取插件包。`aiomo doctor install` / `aioc doctor install` 会检查 Superpowers 插件缓存和关键 skills 是否存在；如果缺失会报告 `FAIL`，请在网络可用时重新运行 `bun run ai:gen -- --force`，或运行一次 `opencode run "Tell me about your superpowers"` 触发插件安装。
+首次安装时需要网络访问以便 OpenCode 拉取 OMO 插件包。若 `doctor install` 报告插件缺失，请在网络可用时重新运行 `bun run ai:gen -- --force`。
 
 ### Gitignore Doctor
 
@@ -251,7 +251,7 @@ aiomo doctor gitignore --apply
 
 它会按当前项目特征补充规则，例如 `.opencode/context-guard-history/`、`.opencode/handoff/`、`.opencode-rescue/`、`.env`、`node_modules/`、`dist/`、`coverage/`、Python 缓存、Rust `target/`、Go/JVM 常见输出目录等。不会忽略整个 `.opencode/`，以便项目级 OpenCode 配置可以入库。
 
-`aioc` 会把 `opencode.aioc.<profile>.json` 复制为当前生效的 `opencode.json` 后启动 OpenCode。它不使用 `--pure`，因此仍会加载共享插件；默认只通过 `config/global.yaml` 的 `opencode.aioc_excluded_plugins` 排除 `oh-my-openagent` 和 OMO 监控插件。这样 `superpowers` 等非 OMO 插件在 `aioc` 中仍然生效。
+`aioc` 会把 `opencode.aioc.<profile>.json` 复制为当前生效的 `opencode.json` 后启动 OpenCode。它不使用 `--pure`，默认通过 `config/global.yaml` 的 `opencode.aioc_excluded_plugins` 排除 `oh-my-openagent` 和 OMO 监控插件。
 
 ## OMO 状态监控
 
@@ -413,7 +413,7 @@ opencode:
     - <confirmed-opencode-dcp-package-or-path>
 ```
 
-`config/global.yaml` 也支持 `opencode.aioc_excluded_plugins`。生成 `opencode.aioc.<profile>.json` 时会从共享插件列表中移除这些插件，用于让 `aioc` 保持 OpenCode 原生 Build / Plan 体验，同时继续加载 `superpowers` 等其他共享插件：
+`config/global.yaml` 也支持 `opencode.aioc_excluded_plugins`。生成 `opencode.aioc.<profile>.json` 时会从共享插件列表中移除这些插件，用于让 `aioc` 保持 OpenCode 原生 Build / Plan 体验：
 
 ```yaml
 opencode:
