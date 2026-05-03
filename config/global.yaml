@@ -50,8 +50,7 @@ context:
 workspace:
   ignore:
     - .git/**
-    - .opencode/context-guard-alert.json
-    - .opencode/context-guard-history/**
+    - .opencode/context-guard-watch/**
     - .opencode/handoff/**
     - .opencode/checkpoints/**
     - .opencode/dcp/**
@@ -149,8 +148,8 @@ context_guard:
   watch_interval_ms: 5000
   zero_output_limit: 3
   watch_action: stop # alert / stop，仅作用于 aiomo/aioc 启动的进程树
-  alert_file: .opencode/context-guard-alert.json
-  history_dir: .opencode/context-guard-history
+  alert_file: .opencode/context-guard-watch/alert.json
+  history_dir: .opencode/context-guard-watch/history
 
 dingtalk_notifier:
   enabled: true
