@@ -104,6 +104,7 @@ export type GlobalModels = {
 export type GlobalContext = {
   max_tokens?: number;
   strategy?: "truncate" | "summarize" | "split";
+  cache_enabled?: boolean;
 };
 
 export type GlobalWorkspace = {

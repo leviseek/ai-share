@@ -20,21 +20,39 @@ function buildStrategyConfig(
   profileId: string,
 ): SharedStrategyConfig {
   const profileStrategies = profilesConfig[profileId]?.strategies;
+  const contextCacheEnabled = globalConfig.context?.cache_enabled ?? true;
   return {
     $schema: "https://opencode.ai/ai-share-strategy.json",
     profile: profileId,
     workspace: { ignore: globalConfig.workspace?.ignore ?? [] },
     opencode: {
-      dcp: mergeStrategy(globalConfig.dcp, profileStrategies?.opencode?.dcp) ?? {},
-      checkpoint: mergeStrategy(globalConfig.checkpoint, profileStrategies?.opencode?.checkpoint) ?? {},
-      memory: mergeStrategy(globalConfig.memory, profileStrategies?.opencode?.memory) ?? {},
+      dcp: buildCacheStrategy(contextCacheEnabled, globalConfig.dcp, profileStrategies?.opencode?.dcp),
+      checkpoint: buildCacheStrategy(
+        contextCacheEnabled,
+        globalConfig.checkpoint,
+        profileStrategies?.opencode?.checkpoint,
+      ),
+      memory: buildCacheStrategy(contextCacheEnabled, globalConfig.memory, profileStrategies?.opencode?.memory),
     },
     oh_my_openagent: {
-      dcp: mergeStrategy(agentsConfig.dcp, profileStrategies?.oh_my_openagent?.dcp) ?? {},
-      checkpoint: mergeStrategy(agentsConfig.checkpoint, profileStrategies?.oh_my_openagent?.checkpoint) ?? {},
-      memory: mergeStrategy(agentsConfig.memory, profileStrategies?.oh_my_openagent?.memory) ?? {},
+      dcp: buildCacheStrategy(contextCacheEnabled, agentsConfig.dcp, profileStrategies?.oh_my_openagent?.dcp),
+      checkpoint: buildCacheStrategy(
+        contextCacheEnabled,
+        agentsConfig.checkpoint,
+        profileStrategies?.oh_my_openagent?.checkpoint,
+      ),
+      memory: buildCacheStrategy(contextCacheEnabled, agentsConfig.memory, profileStrategies?.oh_my_openagent?.memory),
     },
   };
+}
+
+function buildCacheStrategy(
+  enabled: boolean,
+  base: Record<string, unknown> | undefined,
+  override: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  if (!enabled) return { enabled: false };
+  return mergeStrategy(base, override) ?? { enabled: true };
 }
 
 function mergeStrategy(

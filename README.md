@@ -370,6 +370,10 @@ schema；DCP / checkpoint / memory 这类共享策略会生成到独立的 `stra
 `dcp` / `checkpoint` / `memory` 默认策略与 `profiles.<profile>.strategies.opencode`，并合并
 `config/agents.yaml` 的默认策略与 `profiles.<profile>.strategies.oh_my_openagent`：
 
+默认 `config/global.yaml` 使用 `context.cache_enabled: true` 开启这类 AI 上下文缓存策略；生成器会把
+OpenCode 和 OMO 的 `dcp` / `checkpoint` / `memory` 写入 `strategy.<profile>.json`。如果需要关闭，可显式改为
+`context.cache_enabled: false`，此时生成器会把这些策略都写成 `enabled: false`。
+
 ```yaml
 max:
   strategies:
@@ -390,7 +394,7 @@ max:
 ```
 
 这样 `aiomo lite` / `aiomo balanced` / `aiomo max` 切换编排级别时，会同步把对应的
-`strategy.<profile>.json` 复制为当前生效的 `strategy.json`，切换 DCP 上下文预算、checkpoint 保留数量和 memory 摘要粒度。
+`strategy.<profile>.json` 复制为当前生效的 `strategy.json`，并随 profile 切换 DCP 上下文预算、checkpoint 保留数量和 memory 摘要粒度。
 
 ### 上下文守卫
 

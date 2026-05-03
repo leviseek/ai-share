@@ -44,6 +44,7 @@ models:
 context:
   max_tokens: 120000
   strategy: truncate # truncate / summarize / split
+  cache_enabled: true # 是否启用 DCP / checkpoint / memory 等上下文缓存策略
 
 workspace:
   ignore:
