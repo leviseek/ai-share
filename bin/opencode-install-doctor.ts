@@ -47,6 +47,8 @@ const homeDir = homedir();
 const configBaseDir =
   process.platform !== "win32" && process.env.XDG_CONFIG_HOME ? process.env.XDG_CONFIG_HOME : join(homeDir, ".config");
 const configDir = join(configBaseDir, "opencode");
+const activeConfigPath = process.env.OPENCODE_CONFIG ?? join(configDir, "opencode.json");
+const activeConfigDir = process.env.OPENCODE_CONFIG_DIR ?? configDir;
 const binDir = join(homeDir, ".local", "bin");
 const manifestPath = join(configDir, ".omo-profiles.json");
 const OPENCODE_SKILL_PATHS = [join(configDir, "skills"), join(process.cwd(), ".opencode", "skills")];
@@ -135,11 +137,20 @@ function checkPluginPresence(group: Group, label: string, config: unknown, plugi
     fail(group, label, "missing plugin array");
     return;
   }
-  const hasPlugin = plugins.includes(plugin);
+  const hasPlugin = plugins.some((configuredPlugin) => pluginMatches(configuredPlugin, plugin));
   if (expected && hasPlugin) ok(group, label, plugin);
   else if (expected) fail(group, label, `missing plugin: ${plugin}`);
   else if (hasPlugin) fail(group, label, `unexpected plugin: ${plugin}`);
   else ok(group, label, `absent: ${plugin}`);
+}
+
+function pluginMatches(configuredPlugin: string, expectedPlugin: string): boolean {
+  if (configuredPlugin === expectedPlugin) return true;
+  if (!expectedPlugin.startsWith("./plugins/")) return false;
+
+  const expectedSuffix = expectedPlugin.slice("./".length);
+  const normalized = configuredPlugin.replaceAll("\\", "/");
+  return normalized.endsWith(`/${expectedSuffix}`);
 }
 
 function defaultProfileFromManifest(manifest: unknown): string {
@@ -329,7 +340,7 @@ function checkDingTalkNotifierInstall(): void {
     join(configDir, "dingtalk-notifier.json"),
     true,
   );
-  const activeConfig = readJsonIfExists("Active Config", "active opencode", join(configDir, "opencode.json"), true);
+  const activeConfig = readJsonIfExists("Active Config", "active opencode", activeConfigPath, true);
   checkPluginPresence("Active Config", "dingtalk notifier plugin", activeConfig, DINGTALK_PLUGIN, true);
   const pluginDir = join(configDir, "plugins", "dingtalk-notifier");
   checkFile("TUI & Plugin", "dingtalk plugin package", join(pluginDir, "package.json"));
@@ -396,12 +407,7 @@ if (mode === "aiomo") {
   checkPluginPresence("Profile", "aiomo profile OMO plugin", profileConfig, OMO_PLUGIN, true);
   checkPluginPresence("Profile", "aiomo profile monitor plugin", profileConfig, MONITOR_PLUGIN, true);
 
-  const activeConfig = readJsonIfExists(
-    "Active Config",
-    "active opencode config",
-    join(configDir, "opencode.json"),
-    true,
-  );
+  const activeConfig = readJsonIfExists("Active Config", "active opencode config", activeConfigPath, true);
   checkPluginPresence("Active Config", "active OMO plugin", activeConfig, OMO_PLUGIN, true);
   checkPluginPresence("Active Config", "active monitor plugin", activeConfig, MONITOR_PLUGIN, true);
 
@@ -411,16 +417,16 @@ if (mode === "aiomo") {
     join(configDir, "profiles", "oh-my-openagent", `${profile}.json`),
     true,
   );
-  readJsonIfExists("OMO Config", "OMO active config", join(configDir, "oh-my-openagent.json"), true);
+  readJsonIfExists("OMO Config", "OMO active config", join(activeConfigDir, "oh-my-openagent.json"), true);
   checkOptionalProfileJson(
     "strategy profile config",
     join(configDir, "profiles", "strategy", `${profile}.json`),
-    join(configDir, "strategy.json"),
+    join(activeConfigDir, "strategy.json"),
   );
   checkOptionalProfileJson(
     "context guard profile config",
     join(configDir, "profiles", "context-guard", `${profile}.json`),
-    join(configDir, "context-guard.profile.json"),
+    join(activeConfigDir, "context-guard.profile.json"),
   );
 } else {
   const profileConfig = readJsonIfExists(
@@ -432,12 +438,7 @@ if (mode === "aiomo") {
   checkPluginPresence("Profile", "aioc profile OMO plugin", profileConfig, OMO_PLUGIN, false);
   checkPluginPresence("Profile", "aioc profile monitor plugin", profileConfig, MONITOR_PLUGIN, false);
 
-  const activeConfig = readJsonIfExists(
-    "Active Config",
-    "active opencode config",
-    join(configDir, "opencode.json"),
-    true,
-  );
+  const activeConfig = readJsonIfExists("Active Config", "active opencode config", activeConfigPath, true);
   checkPluginPresence("Active Config", "active OMO plugin", activeConfig, OMO_PLUGIN, false);
   checkPluginPresence("Active Config", "active monitor plugin", activeConfig, MONITOR_PLUGIN, false);
 }

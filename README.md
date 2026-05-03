@@ -301,7 +301,7 @@ aiomo doctor gitignore --apply
 
 它会按当前项目特征补充规则，例如 `.opencode/context-guard-history/`、`.opencode/handoff/`、`.opencode-rescue/`、`.env`、`node_modules/`、`dist/`、`coverage/`、Python 缓存、Rust `target/`、Go/JVM 常见输出目录等。不会忽略整个 `.opencode/`，以便项目级 OpenCode 配置可以入库。
 
-`aioc` 会把 `opencode.aioc.<profile>.json` 复制为当前生效的 `opencode.json` 后启动 OpenCode。它不使用 `--pure`，默认通过 `config/global.yaml` 的 `opencode.aioc_excluded_plugins` 排除 `oh-my-openagent` 和 OMO 监控插件。
+`aioc` 启动时会为本次进程准备独立的活动配置目录，并通过 `OPENCODE_CONFIG` / `OPENCODE_CONFIG_DIR` 指向对应的 aioc profile；它不会覆盖共享的 `~/.config/opencode/opencode.json`。它不使用 `--pure`，默认通过 `config/global.yaml` 的 `opencode.aioc_excluded_plugins` 排除 `oh-my-openagent` 和 OMO 监控插件。
 
 ## OMO 状态监控
 
@@ -359,7 +359,7 @@ opencode:
 
 升级 OMO 插件时，只需要修改这里的版本号，然后重新运行 `bun run ai:gen -- --force`。
 
-对应的 agents/categories/fallback/background task 等配置来自生成的 `oh-my-openagent.json`。`aiomo` 启动时会先读取 `.omo-profiles.json` 中的默认级别和可用级别清单，再把所选级别的 `opencode.<profile>.json` 和 `oh-my-openagent.<profile>.json` 分别复制为当前生效的 `opencode.json` 与 `oh-my-openagent.json`。
+对应的 agents/categories/fallback/background task 等配置来自生成的 `oh-my-openagent.json`。`aiomo` 启动时会先读取 `.omo-profiles.json` 中的默认级别和可用级别清单，再为本次进程准备独立的活动配置目录，并通过 `OPENCODE_CONFIG` / `OPENCODE_CONFIG_DIR` 指向所选级别的 OpenCode 与 OMO 配置快照。因此同时运行 `aioc` / `aiomo` 或切换 profile 时，不会互相覆盖共享配置入口。
 
 `aiomo run "..."` 适合做非交互 smoke test，通常会由默认的 Sisyphus / `primary` 模型执行。OMO category 路由和并行 agent 委派依赖运行时 `task()` / background task 调用，建议在交互式 `aiomo` 会话中验证，或在 prompt 中明确要求委派；不要仅凭一次 `aiomo run` 是否使用 `quick` / `deep` 模型判断编排配置是否失效。
 
