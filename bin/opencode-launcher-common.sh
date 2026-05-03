@@ -51,3 +51,21 @@ opencode_context_guard() {
     bun "$guard_script" rescue "$launcher" "$1" "$guard_config" "$db_path"
   fi
 }
+
+opencode_context_guard_watch() {
+  launcher="$1"
+  config_path="$2"
+  config_dir="$3"
+  cwd="$4"
+  parent_pid="$5"
+
+  db_path="$HOME/.local/share/opencode/opencode.db"
+  guard_script="$(dirname "$0")/opencode-context-guard.ts"
+  guard_config="$config_dir/context-guard.json"
+  strategy_config="$config_dir/strategy.json"
+  stdout_log="$config_dir/context-guard-watch-$parent_pid.log"
+  stderr_log="$config_dir/context-guard-watch-$parent_pid.err.log"
+  if [ ! -f "$guard_script" ] || [ ! -f "$strategy_config" ] || ! command -v bun > /dev/null 2>&1; then return 0; fi
+
+  bun "$guard_script" watch "$launcher" "$config_path" "$guard_config" "$strategy_config" "$db_path" "$cwd" "$parent_pid" >> "$stdout_log" 2>> "$stderr_log" &
+}

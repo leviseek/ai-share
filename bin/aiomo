@@ -318,4 +318,5 @@ opencode_context_guard check aiomo "$guard_budget_config" "$config_dir" "$@"
 code="$?"
 set -e
 if [ "$code" = "10" ]; then exit 10; fi
+opencode_context_guard_watch aiomo "$guard_budget_config" "$config_dir" "$(pwd)" "$$"
 exec opencode "$@"

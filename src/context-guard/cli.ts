@@ -16,6 +16,7 @@ try {
       usage();
       process.exit(2);
     }
+    process.exit(0);
   }
   usage();
   process.exit(2);

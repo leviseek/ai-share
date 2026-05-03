@@ -30,13 +30,8 @@ if [ "${1:-}" = "doctor" ]; then
   fi
   AIOC_CONFIG="$CONFIG_DIR/profiles/aioc/$PROFILE.json"
   ACTIVE_CONFIG="$CONFIG_DIR/opencode.json"
-  CONTEXT_GUARD_PROFILE="$CONFIG_DIR/profiles/context-guard/$PROFILE.json"
-  CONTEXT_GUARD_ACTIVE="$CONFIG_DIR/context-guard.profile.json"
   if [ -f "$AIOC_CONFIG" ]; then
     cp "$AIOC_CONFIG" "$ACTIVE_CONFIG"
-  fi
-  if [ -f "$CONTEXT_GUARD_PROFILE" ]; then
-    cp "$CONTEXT_GUARD_PROFILE" "$CONTEXT_GUARD_ACTIVE"
   fi
   bun "$doctor_script" aioc "$PROFILE"
   exit "$?"
@@ -74,8 +69,6 @@ esac
 
 AIOC_CONFIG="$CONFIG_DIR/profiles/aioc/$PROFILE.json"
 ACTIVE_CONFIG="$CONFIG_DIR/opencode.json"
-CONTEXT_GUARD_PROFILE="$CONFIG_DIR/profiles/context-guard/$PROFILE.json"
-CONTEXT_GUARD_ACTIVE="$CONFIG_DIR/context-guard.profile.json"
 
 if [ ! -f "$AIOC_CONFIG" ]; then
   printf '%s\n' "缺少 aioc OpenCode 配置级别配置：$AIOC_CONFIG" >&2
@@ -84,8 +77,5 @@ if [ ! -f "$AIOC_CONFIG" ]; then
 fi
 
 cp "$AIOC_CONFIG" "$ACTIVE_CONFIG"
-if [ -f "$CONTEXT_GUARD_PROFILE" ]; then
-  cp "$CONTEXT_GUARD_PROFILE" "$CONTEXT_GUARD_ACTIVE"
-fi
 
 exec opencode "$@"

@@ -7,7 +7,12 @@ import {
   readMaxInputTokens,
   strategyBudgetTokens,
 } from "./config.ts";
-import { findLatestSessionForDirectory, inspectSession, inspectZeroOutputLoop } from "./db.ts";
+import {
+  findLatestSessionForDirectory,
+  findSessionForDirectoryById,
+  inspectSession,
+  inspectZeroOutputLoop,
+} from "./db.ts";
 import { riskLevel, shouldStop } from "./risk.ts";
 import { processAlive, sleep, stopProcessTree } from "./process.ts";
 
@@ -30,6 +35,13 @@ type Alert = {
   error?: string;
 };
 
+type WatchState = {
+  boundSessionId?: string;
+  warnedKey?: string;
+  startedAt: number;
+  closed: boolean;
+};
+
 export async function watch(args: string[]): Promise<boolean> {
   const [launcher, configPath, guardConfigPath, strategyPath, dbPath, cwd, parentPidValue] = args;
   if (!launcher || !configPath || !guardConfigPath || !strategyPath || !dbPath || !cwd) {
@@ -37,7 +49,7 @@ export async function watch(args: string[]): Promise<boolean> {
   }
 
   const guard = readGuardConfig(guardConfigPath);
-  if (!guard.enabled) process.exit(0);
+  if (!guard.enabled) return true;
 
   const baseMaxInputTokens = readMaxInputTokens(configPath);
   const strategy = readStrategyConfig(strategyPath);
@@ -47,13 +59,19 @@ export async function watch(args: string[]): Promise<boolean> {
   const parentPid = Number(parentPidValue) || 0;
   const alertPath = resolve(cwd, guard.alert_file || DEFAULT_GUARD.alert_file);
   const historyDir = resolve(cwd, guard.history_dir || DEFAULT_GUARD.history_dir);
-  const state: { lastSessionId?: string; warnedKey?: string; startedAt: number } = { startedAt: Date.now() };
+  const state: WatchState = { startedAt: Date.now(), closed: false };
 
   while (true) {
-    if (parentPid > 0 && !processAlive(parentPid)) process.exit(0);
+    if (parentPid > 0 && !processAlive(parentPid)) {
+      writeSessionClosedHistory(launcher, alertPath, historyDir, state);
+      return true;
+    }
     try {
-      const session = findLatestSessionForDirectory(dbPath, cwd, state.startedAt);
+      const session = state.boundSessionId
+        ? findSessionForDirectoryById(dbPath, cwd, state.boundSessionId)
+        : findLatestSessionForDirectory(dbPath, cwd, state.startedAt);
       if (session) {
+        state.boundSessionId ??= session.id;
         const stats = inspectSession(dbPath, session.id);
         const zeroLoop = inspectZeroOutputLoop(dbPath, session.id, state.startedAt);
         const level = riskLevel(stats.inputTokens, maxInputTokens, guard);
@@ -97,10 +115,9 @@ export async function watch(args: string[]): Promise<boolean> {
           }
           if (shouldStop(guard, level, zeroLoop)) {
             stopProcessTree(parentPid);
-            process.exit(10);
+            return true;
           }
         }
-        state.lastSessionId = session.id;
       }
     } catch (error) {
       const eventTime = new Date();
@@ -114,6 +131,23 @@ export async function watch(args: string[]): Promise<boolean> {
     }
     await sleep(intervalMs);
   }
+}
+
+function writeSessionClosedHistory(launcher: string, alertPath: string, historyDir: string, state: WatchState): void {
+  if (state.closed || !state.boundSessionId) return;
+  state.closed = true;
+  const eventTime = new Date();
+  const alert: Alert = {
+    launcher,
+    reason: "session-closed",
+    session_id: state.boundSessionId,
+    time: eventTime.toISOString(),
+    local_time: formatLocalTime(eventTime),
+    recommendation: "关联 session 已关闭，context guard watcher 已正常退出。",
+  };
+  writeAlert(alertPath, alert);
+  writeHistory(historyDir, alert);
+  console.warn(`[context-guard] session-closed: ${state.boundSessionId} watcher stopped`);
 }
 
 function writeAlert(path: string, alert: Alert): void {

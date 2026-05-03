@@ -38,6 +38,23 @@ export function findLatestSessionForDirectory(
   }
 }
 
+export function findSessionForDirectoryById(
+  dbPath: string,
+  cwd: string,
+  sessionId: string,
+): SessionDirectoryRow | undefined {
+  const normalizedCwd = normalizePath(cwd);
+  const db = new Database(dbPath, { readonly: true });
+  try {
+    const row = db
+      .query("select id, directory, time_updated from session where id = ? and directory is not null limit 1")
+      .get(sessionId) as SessionDirectoryRow | null;
+    return row && normalizePath(row.directory) === normalizedCwd ? row : undefined;
+  } finally {
+    db.close();
+  }
+}
+
 export function inspectZeroOutputLoop(
   dbPath: string,
   sessionId: string,
