@@ -21,6 +21,7 @@ export type GeneratorPaths = {
   targetProfileManifest: string;
   targetContextGuard: string;
   targetContextGuardProfile: string;
+  targetDingTalkNotifier: string;
   targetProxy: string;
   targetStrategy: string;
   targetBinDir: string;
@@ -68,6 +69,7 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
     targetProfileManifest: resolve(targetConfigDir, ".omo-profiles.json"),
     targetContextGuard: resolve(targetConfigDir, "context-guard.json"),
     targetContextGuardProfile: resolve(targetConfigDir, "context-guard.profile.json"),
+    targetDingTalkNotifier: resolve(targetConfigDir, "dingtalk-notifier.json"),
     targetProxy: resolve(targetConfigDir, "proxy.json"),
     targetStrategy: resolve(targetConfigDir, "strategy.json"),
     targetBinDir: resolve(homeDir, ".local", "bin"),

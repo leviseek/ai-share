@@ -8,6 +8,7 @@ import {
   buildAiocOpenCodeConfigs,
   buildContextGuardConfig,
   buildContextGuardProfileConfigs,
+  buildDingTalkNotifierConfig,
   buildOhMyOpenAgentConfigs,
   buildOpenCodeConfigs,
   buildProfileManifest,
@@ -128,6 +129,7 @@ await writeJson(paths.targetProfileManifest, buildProfileManifest(profilesConfig
   force,
 });
 await writeJson(paths.targetContextGuard, buildContextGuardConfig(globalConfig), { dryRun, force });
+await writeJson(paths.targetDingTalkNotifier, buildDingTalkNotifierConfig(globalConfig), { dryRun, force });
 await writeJson(paths.targetProxy, buildProxyConfig(globalConfig), { dryRun, force });
 await installPlugins(paths, dryRun);
 await installNativeSkills(paths, dryRun, force);

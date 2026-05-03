@@ -1,0 +1,9 @@
+{
+  "name": "dingtalk-notifier",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./server": "./server.js",
+    "./tui": "./tui.js"
+  }
+}

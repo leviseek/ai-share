@@ -12,6 +12,7 @@ type Result = { group: Group; status: Status; label: string; detail: string };
 
 const OMO_PLUGIN = "oh-my-openagent@3.17.5";
 const MONITOR_PLUGIN = "./plugins/omo-agent-monitor";
+const DINGTALK_PLUGIN = "./plugins/dingtalk-notifier";
 const NATIVE_SKILLS = [
   "git-master",
   "context-guard",
@@ -232,6 +233,7 @@ function checkCommonFiles(): void {
   const tui = readJsonIfExists("TUI & Plugin", "tui config", join(configDir, "tui.json"), true);
   checkPluginPresence("TUI & Plugin", "tui monitor plugin", tui, MONITOR_PLUGIN, true);
   checkLocalPluginInstall();
+  checkDingTalkNotifierInstall();
   for (const skillName of NATIVE_SKILLS) {
     checkFile("Skills", `${skillName} skill`, join(configDir, "skills", skillName, "SKILL.md"));
   }
@@ -239,6 +241,26 @@ function checkCommonFiles(): void {
   checkPath();
   checkOpencodeDiscovery();
   checkOpencodeRuntime();
+}
+
+function checkDingTalkNotifierInstall(): void {
+  const config = readJsonIfExists(
+    "TUI & Plugin",
+    "dingtalk notifier config",
+    join(configDir, "dingtalk-notifier.json"),
+    true,
+  );
+  const activeConfig = readJsonIfExists("Active Config", "active opencode", join(configDir, "opencode.json"), true);
+  checkPluginPresence("Active Config", "dingtalk notifier plugin", activeConfig, DINGTALK_PLUGIN, true);
+  const pluginDir = join(configDir, "plugins", "dingtalk-notifier");
+  checkFile("TUI & Plugin", "dingtalk plugin package", join(pluginDir, "package.json"));
+  checkFile("TUI & Plugin", "dingtalk plugin server", join(pluginDir, "server.js"));
+  checkFile("TUI & Plugin", "dingtalk plugin tui", join(pluginDir, "tui.js"));
+  const configRecord = asRecord(config);
+  const webhookEnv =
+    typeof configRecord?.webhook_env === "string" ? configRecord.webhook_env : "AI_SHARE_DINGTALK_WEBHOOK";
+  if (process.env[webhookEnv]) ok("Runtime", "dingtalk webhook env", webhookEnv);
+  else warn("Runtime", "dingtalk webhook env", `not set: ${webhookEnv}`);
 }
 
 function statusText(status: Status): string {

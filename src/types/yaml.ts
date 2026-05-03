@@ -54,6 +54,7 @@ export type GlobalYaml = {
   context?: GlobalContext;
   workspace?: GlobalWorkspace;
   context_guard?: GlobalContextGuard;
+  dingtalk_notifier?: GlobalDingTalkNotifier;
   compaction?: GlobalCompaction;
   dcp?: StrategySource;
   checkpoint?: StrategySource;
@@ -124,6 +125,17 @@ export type GlobalContextGuard = {
   watch_action?: "alert" | "stop";
   alert_file?: string;
   history_dir?: string;
+};
+
+export type GlobalDingTalkNotifier = {
+  enabled?: boolean;
+  webhook_env?: string;
+  secret_env?: string;
+  keyword_env?: string;
+  message_type?: "text" | "markdown";
+  events?: string[];
+  min_interval_ms?: number;
+  timeout_ms?: number;
 };
 
 export type GlobalCompaction = {

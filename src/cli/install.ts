@@ -61,7 +61,7 @@ export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): 
 }
 
 export async function installPlugins(paths: GeneratorPaths, dryRun: boolean): Promise<void> {
-  const pluginDirectories = ["omo-agent-monitor"];
+  const pluginDirectories = ["omo-agent-monitor", "dingtalk-notifier"];
   if (dryRun) {
     for (const directoryName of pluginDirectories) {
       console.log(`将安装 OpenCode 本地插件：${resolve(paths.targetPluginDir, directoryName)}`);
@@ -133,7 +133,9 @@ async function buildPlugin(paths: GeneratorPaths, directoryName: string): Promis
     throw new Error(result.stderr.trim() || result.stdout.trim() || `构建插件失败：${directoryName}`);
   }
   await copyFile(resolve(sourceDir, "package.json"), resolve(outputDir, "package.json"));
-  await copyFile(resolve(sourceDir, "agents-registry.json"), resolve(outputDir, "agents-registry.json"));
+  if (await pathExists(resolve(sourceDir, "agents-registry.json"))) {
+    await copyFile(resolve(sourceDir, "agents-registry.json"), resolve(outputDir, "agents-registry.json"));
+  }
   return outputDir;
 }
 

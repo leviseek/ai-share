@@ -28,6 +28,7 @@ opencode:
   plugins:
     - oh-my-openagent@3.17.5
     - ./plugins/omo-agent-monitor
+    - ./plugins/dingtalk-notifier
   aioc_excluded_plugins:
     - oh-my-openagent@3.17.5
     - ./plugins/omo-agent-monitor
@@ -150,6 +151,17 @@ context_guard:
   watch_action: stop # alert / stop，仅作用于 aiomo/aioc 启动的进程树
   alert_file: .opencode/context-guard-alert.json
   history_dir: .opencode/context-guard-history
+
+dingtalk_notifier:
+  enabled: true
+  webhook_env: AI_SHARE_DINGTALK_WEBHOOK
+  secret_env: AI_SHARE_DINGTALK_SECRET
+  keyword_env: AI_SHARE_DINGTALK_KEYWORD
+  message_type: markdown
+  events:
+    - session.status
+  min_interval_ms: 60000
+  timeout_ms: 10000
 
 # telemetry:
 #   enabled: true
