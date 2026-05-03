@@ -299,7 +299,7 @@ aiomo doctor gitignore
 aiomo doctor gitignore --apply
 ```
 
-它会按当前项目特征补充规则，例如 `.opencode/context-guard-history/`、`.opencode/handoff/`、`.opencode-rescue/`、`.env`、`node_modules/`、`dist/`、`coverage/`、Python 缓存、Rust `target/`、Go/JVM 常见输出目录等。不会忽略整个 `.opencode/`，以便项目级 OpenCode 配置可以入库。
+它会按当前项目特征补充规则，例如 `.opencode/context-guard-watch/`、`.opencode/handoff/`、`.opencode-rescue/`、`.env`、`node_modules/`、`dist/`、`coverage/`、Python 缓存、Rust `target/`、Go/JVM 常见输出目录等。不会忽略整个 `.opencode/`，以便项目级 OpenCode 配置可以入库。
 
 `aioc` 启动时会为本次进程准备独立的活动配置目录，并通过 `OPENCODE_CONFIG` / `OPENCODE_CONFIG_DIR` 指向对应的 aioc profile；它不会覆盖共享的 `~/.config/opencode/opencode.json`。它不使用 `--pure`，默认通过 `config/global.yaml` 的 `opencode.aioc_excluded_plugins` 排除 `oh-my-openagent` 和 OMO 监控插件。
 
@@ -440,8 +440,8 @@ context_guard:
   absolute_block_tokens: 180000
   rescue_dir: .opencode-rescue
   diagnostics: true
-  alert_file: .opencode/context-guard-alert.json
-  history_dir: .opencode/context-guard-history
+  alert_file: .opencode/context-guard-watch/alert.json
+  history_dir: .opencode/context-guard-watch/history
 ```
 
 超过阻断线时，启动器默认不会直接恢复旧 session，避免还没来得及 `/compact` 就卡住。推荐先生成本地救援摘要：
@@ -450,7 +450,7 @@ context_guard:
 aiomo rescue ses_xxx
 ```
 
-`watch` 会把最近一次风险事件写入 `.opencode/context-guard-alert.json`，其中包含 `session_id` 和建议的 `continue_command`。同时，每次新的风险事件都会在 `.opencode/context-guard-history/` 下追加一个 `.jsonc` 快照，文件名使用 `UTC时间-本地时间_原因_session` 格式，例如 `20260430181408-20260501021408_context-warning_ses_xxx.jsonc`，便于熔断后按会话历史辨认应该从哪个 session 接力；JSONC 内容会优先显示本地时间，并用注释标出继续命令。
+`watch` 会把日志产物统一收纳到 `.opencode/context-guard-watch/`。最近一次风险事件写入 `.opencode/context-guard-watch/alert.json`，其中包含 `session_id` 和建议的 `continue_command`。同时，每次新的风险事件都会在 `.opencode/context-guard-watch/history/` 下追加一个 `.jsonc` 快照，文件名使用 `UTC时间-本地时间_原因_session` 格式，例如 `20260430181408-20260501021408_context-warning_ses_xxx.jsonc`，便于熔断后按会话历史辨认应该从哪个 session 接力；JSONC 内容会优先显示本地时间，并用注释标出继续命令。watch 进程自身的 stdout/stderr 日志会写入用户配置目录下的 `context-guard-watch/logs/`，避免散落在配置根目录。
 
 救援摘要会写入当前目录的 `.opencode-rescue/<session-id>.md`，只做本地规则提取，不调用模型。确认要强制恢复时，可以显式传入 `--force`：
 

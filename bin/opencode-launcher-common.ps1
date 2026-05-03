@@ -143,8 +143,10 @@ function Start-ContextGuardWatchShared {
   if (-not (Test-Path -LiteralPath $StrategyConfig -PathType Leaf)) { return }
   if (-not (Get-Command bun -CommandType Application -ErrorAction SilentlyContinue)) { return }
 
-  $StdoutLogPath = Join-Path $ConfigDir "context-guard-watch-$WatchPid.log"
-  $StderrLogPath = Join-Path $ConfigDir "context-guard-watch-$WatchPid.err.log"
+  $WatchLogDir = Join-Path $ConfigDir (Join-Path "context-guard-watch" "logs")
+  New-Item -ItemType Directory -Force -Path $WatchLogDir | Out-Null
+  $StdoutLogPath = Join-Path $WatchLogDir "$WatchPid.log"
+  $StderrLogPath = Join-Path $WatchLogDir "$WatchPid.err.log"
   $Arguments = @(
     $GuardScript,
     "watch",

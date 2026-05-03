@@ -93,8 +93,10 @@ opencode_context_guard_watch() {
   if [ ! -f "$strategy_config" ]; then
     strategy_config="$config_dir/strategy.json"
   fi
-  stdout_log="$config_dir/context-guard-watch-$parent_pid.log"
-  stderr_log="$config_dir/context-guard-watch-$parent_pid.err.log"
+  watch_log_dir="$config_dir/context-guard-watch/logs"
+  mkdir -p "$watch_log_dir"
+  stdout_log="$watch_log_dir/$parent_pid.log"
+  stderr_log="$watch_log_dir/$parent_pid.err.log"
   if [ ! -f "$guard_script" ] || [ ! -f "$strategy_config" ] || ! command -v bun > /dev/null 2>&1; then return 0; fi
 
   bun "$guard_script" watch "$launcher" "$config_path" "$guard_config" "$strategy_config" "$db_path" "$cwd" "$parent_pid" >> "$stdout_log" 2>> "$stderr_log" &
