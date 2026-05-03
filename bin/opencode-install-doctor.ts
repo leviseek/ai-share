@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -25,6 +25,7 @@ const NATIVE_SKILLS = [
   "find-skills",
   "frontend-design",
 ] as const;
+const OPENCODE_BUILTIN_COMMAND_PROBE = "__ai_share_doctor_missing_command__";
 const GROUP_ORDER: Group[] = [
   "Profile",
   "Active Config",
@@ -48,6 +49,9 @@ const configBaseDir =
 const configDir = join(configBaseDir, "opencode");
 const binDir = join(homeDir, ".local", "bin");
 const manifestPath = join(configDir, ".omo-profiles.json");
+const OPENCODE_SKILL_PATHS = [join(configDir, "skills"), join(process.cwd(), ".opencode", "skills")];
+const CLAUDE_SKILL_PATHS = [join(homeDir, ".claude", "skills"), join(process.cwd(), ".claude", "skills")];
+const AGENTS_SKILL_PATHS = [join(homeDir, ".agents", "skills"), join(process.cwd(), ".agents", "skills")];
 const results: Result[] = [];
 
 const colorEnabled = shouldUseColor();
@@ -199,6 +203,79 @@ function checkOpencodeRuntime(): void {
   else warn("Runtime", "opencode runtime", (probe.stderr || probe.stdout || "opencode --version failed").trim());
 }
 
+function checkOpencodeBuiltinCommands(): void {
+  const probe = spawnSync("opencode", ["run", "--command", OPENCODE_BUILTIN_COMMAND_PROBE], {
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+  if (probe.error) {
+    warn("Skills", "opencode builtin commands", probe.error.message);
+    return;
+  }
+
+  const commandNames = availableCommandNames(`${probe.stderr}\n${probe.stdout}`);
+  if (!commandNames) {
+    warn("Skills", "opencode builtin commands", "unable to read opencode command list");
+    return;
+  }
+
+  const nativeSkillNames = new Set<string>(NATIVE_SKILLS);
+  const builtinSkills = commandNames.filter((commandName) => !nativeSkillNames.has(commandName));
+  if (builtinSkills.length === 0) {
+    warn("Skills", "opencode builtin commands", "none discovered");
+    return;
+  }
+
+  ok("Skills", "opencode builtin commands", builtinSkills.join(" / "));
+}
+
+function checkDiscoveredSkills(): void {
+  ok("Skills", "opencode builtin skills", "none discovered in OpenCode 1.14.33");
+  reportSkillDirectory("local OpenCode skills", OPENCODE_SKILL_PATHS);
+  reportSkillDirectory("local Claude-compatible skills", CLAUDE_SKILL_PATHS);
+  reportSkillDirectory("local agents-compatible skills", AGENTS_SKILL_PATHS);
+}
+
+function reportSkillDirectory(label: string, roots: string[]): void {
+  const skills = discoveredSkillNames(roots);
+  if (skills.length === 0) {
+    ok("Skills", label, "none discovered");
+    return;
+  }
+
+  ok("Skills", label, skills.join(" / "));
+}
+
+function discoveredSkillNames(roots: string[]): string[] {
+  const names = new Set<string>();
+  for (const root of roots) {
+    if (!existsSync(root)) continue;
+    try {
+      for (const entry of readdirSync(root, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        const skillPath = join(root, entry.name, "SKILL.md");
+        if (existsSync(skillPath)) names.add(entry.name);
+      }
+    } catch {
+      continue;
+    }
+  }
+  return [...names].sort();
+}
+
+function availableCommandNames(output: string): string[] | null {
+  const marker = "Available commands:";
+  const markerIndex = output.indexOf(marker);
+  if (markerIndex < 0) return null;
+  const commandList = output.slice(markerIndex + marker.length).trim();
+  if (!commandList) return null;
+  const commands = commandList
+    .split(",")
+    .map((commandName) => commandName.trim())
+    .filter(Boolean);
+  return commands.length > 0 ? commands : null;
+}
+
 function checkInstalledLaunchers(): void {
   const launcherFiles =
     process.platform === "win32"
@@ -234,8 +311,10 @@ function checkCommonFiles(): void {
   checkPluginPresence("TUI & Plugin", "tui monitor plugin", tui, MONITOR_PLUGIN, true);
   checkLocalPluginInstall();
   checkDingTalkNotifierInstall();
+  checkOpencodeBuiltinCommands();
+  checkDiscoveredSkills();
   for (const skillName of NATIVE_SKILLS) {
-    checkFile("Skills", `${skillName} skill`, join(configDir, "skills", skillName, "SKILL.md"));
+    checkFile("Skills", `local skill ${skillName}`, join(configDir, "skills", skillName, "SKILL.md"));
   }
   checkInstalledLaunchers();
   checkPath();
