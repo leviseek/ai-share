@@ -22,7 +22,7 @@ export function buildDingTalkNotifierConfig(globalConfig: GlobalYaml): DingTalkN
     secret_env: source.secret_env ?? "AI_SHARE_DINGTALK_SECRET",
     keyword_env: source.keyword_env ?? "AI_SHARE_DINGTALK_KEYWORD",
     message_type: source.message_type ?? "markdown",
-    events: source.events ?? ["session.status"],
+    events: source.events ?? ["session.idle"],
     min_interval_ms: source.min_interval_ms ?? 60000,
     timeout_ms: source.timeout_ms ?? 10000,
   };
