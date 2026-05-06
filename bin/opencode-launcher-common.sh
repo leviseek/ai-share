@@ -33,32 +33,6 @@ opencode_apply_proxy_env() {
   fi
 }
 
-opencode_prepare_active_config_dir() {
-  config_dir="$1"
-  launcher="$2"
-  profile="$3"
-  opencode_profile_config="$4"
-  omo_profile_config="${5:-}"
-  strategy_profile_config="${6:-}"
-  context_guard_profile_config="${7:-}"
-
-  active_dir="$config_dir/.active/$launcher/$profile/$$"
-  mkdir -p "$active_dir"
-  bun -e "const fs=require('fs'); const source=process.argv[1]; const target=process.argv[2]; const configDir=process.argv[3].replace(/\\\\/g, '/').replace(/\/$/, ''); const content=fs.readFileSync(source, 'utf8').replaceAll('\"./plugins/', '\"' + configDir + '/plugins/'); fs.writeFileSync(target, content);" "$opencode_profile_config" "$active_dir/opencode.json" "$config_dir"
-  if [ -n "$omo_profile_config" ] && [ -f "$omo_profile_config" ]; then
-    cp "$omo_profile_config" "$active_dir/oh-my-openagent.json"
-  fi
-  if [ -n "$strategy_profile_config" ] && [ -f "$strategy_profile_config" ]; then
-    cp "$strategy_profile_config" "$active_dir/strategy.json"
-  fi
-  if [ -n "$context_guard_profile_config" ] && [ -f "$context_guard_profile_config" ]; then
-    cp "$context_guard_profile_config" "$active_dir/context-guard.profile.json"
-  fi
-  OPENCODE_CONFIG="$active_dir/opencode.json"
-  OPENCODE_CONFIG_DIR="$active_dir"
-  export OPENCODE_CONFIG OPENCODE_CONFIG_DIR
-}
-
 opencode_context_guard() {
   command_name="$1"
   launcher="$2"

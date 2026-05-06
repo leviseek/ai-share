@@ -29,8 +29,9 @@ if [ "${1:-}" = "doctor" ]; then
     exit 1
   fi
   AIOC_CONFIG="$CONFIG_DIR/profiles/aioc/$PROFILE.json"
+  ACTIVE_CONFIG="$CONFIG_DIR/opencode.json"
   if [ -f "$AIOC_CONFIG" ]; then
-    opencode_prepare_active_config_dir "$CONFIG_DIR" aioc "$PROFILE" "$AIOC_CONFIG"
+    cp "$AIOC_CONFIG" "$ACTIVE_CONFIG"
   fi
   bun "$doctor_script" aioc "$PROFILE"
   exit "$?"
@@ -67,6 +68,7 @@ case " $PROFILES " in
 esac
 
 AIOC_CONFIG="$CONFIG_DIR/profiles/aioc/$PROFILE.json"
+ACTIVE_CONFIG="$CONFIG_DIR/opencode.json"
 
 if [ ! -f "$AIOC_CONFIG" ]; then
   printf '%s\n' "缺少 aioc OpenCode 配置级别配置：$AIOC_CONFIG" >&2
@@ -74,6 +76,6 @@ if [ ! -f "$AIOC_CONFIG" ]; then
   exit 1
 fi
 
-opencode_prepare_active_config_dir "$CONFIG_DIR" aioc "$PROFILE" "$AIOC_CONFIG"
+cp "$AIOC_CONFIG" "$ACTIVE_CONFIG"
 
 exec opencode "$@"
