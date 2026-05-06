@@ -30,7 +30,7 @@ src/
 | Context guard sidecars      | `config/builders/context-guard.ts` | Guard defaults and max-input-token profiles                |
 | Context guard runtime       | `context-guard/`                   | CLI, config, DB, risk, rescue/handoff, watch logic         |
 | CLI flags                   | `cli/options.ts`                   | `--force`, `--dry-run`, `--check`, provider groups/env     |
-| Install/copy/build behavior | `cli/install.ts`                   | Launchers, plugins, native `git-master` skill              |
+| Install/copy/build behavior | `cli/install.ts`                   | Launchers, plugins, all local native skills                |
 | Output paths                | `cli/paths.ts`                     | User config/bin/skills/plugin targets                      |
 | Required field guards       | `config/validation.ts`             | Chinese errors for missing config                          |
 
@@ -45,6 +45,7 @@ src/
 - Independent YAML reads/builds may run concurrently with `Promise.all`.
 - Secrets are checked by env-var name only; never materialize real key values into generated config.
 - `src/context-guard/cli.ts` installs as `opencode-context-guard.ts`; sibling modules install as `context-guard/*.ts`.
+- Context guard has its own child `AGENTS.md`; read it before changing watch/rescue/check behavior.
 
 ## VALIDATION
 
