@@ -215,9 +215,13 @@ if ($args.Count -gt 1 -and $args[0] -eq "doctor" -and $args[1] -eq "install") {
     exit 1
   }
   $OpenCodeProfileConfig = Join-Path $ConfigDir "profiles\opencode\$ProfileName.json"
+  $OpenCodeActiveConfig = Join-Path $ConfigDir "opencode.json"
   $OmoProfileConfig = Join-Path $ConfigDir "profiles\oh-my-openagent\$ProfileName.json"
+  $OmoActiveConfig = Join-Path $ConfigDir "oh-my-openagent.json"
   $StrategyProfileConfig = Join-Path $ConfigDir "profiles\strategy\$ProfileName.json"
+  $StrategyActiveConfig = Join-Path $ConfigDir "strategy.json"
   $ContextGuardProfileConfig = Join-Path $ConfigDir "profiles\context-guard\$ProfileName.json"
+  $ContextGuardActiveProfileConfig = Join-Path $ConfigDir "context-guard.profile.json"
   if (-not (Test-Path -LiteralPath $OpenCodeProfileConfig -PathType Leaf)) {
     Write-Error ((U @(32570, 23569, 32, 79, 112, 101, 110, 67, 111, 100, 101, 32, 32534, 25490, 32423, 21035, 37197, 32622, 65306)) + $OpenCodeProfileConfig)
     Write-Error (U @(35831, 20808, 36816, 34892, 65306, 98, 117, 110, 32, 114, 117, 110, 32, 97, 105, 58, 103, 101, 110, 32, 45, 45, 32, 45, 45, 102, 111, 114, 99, 101))
@@ -228,7 +232,14 @@ if ($args.Count -gt 1 -and $args[0] -eq "doctor" -and $args[1] -eq "install") {
     Write-Error (U @(35831, 20808, 36816, 34892, 65306, 98, 117, 110, 32, 114, 117, 110, 32, 97, 105, 58, 103, 101, 110, 32, 45, 45, 32, 45, 45, 102, 111, 114, 99, 101))
     exit 1
   }
-  New-OpenCodeActiveConfigDirShared $ConfigDir "aiomo" $ProfileName $OpenCodeProfileConfig $OmoProfileConfig $StrategyProfileConfig $ContextGuardProfileConfig | Out-Null
+  Copy-Item -LiteralPath $OpenCodeProfileConfig -Destination $OpenCodeActiveConfig -Force
+  Copy-Item -LiteralPath $OmoProfileConfig -Destination $OmoActiveConfig -Force
+  if (Test-Path -LiteralPath $StrategyProfileConfig -PathType Leaf) {
+    Copy-Item -LiteralPath $StrategyProfileConfig -Destination $StrategyActiveConfig -Force
+  }
+  if (Test-Path -LiteralPath $ContextGuardProfileConfig -PathType Leaf) {
+    Copy-Item -LiteralPath $ContextGuardProfileConfig -Destination $ContextGuardActiveProfileConfig -Force
+  }
   $Bun = Get-Command bun -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
   if (-not $Bun) {
     Write-Error "缺少 bun，无法执行 install doctor。"
@@ -313,9 +324,13 @@ if ($AvailableProfiles -notcontains $ProfileName) {
 }
 
 $OpenCodeProfileConfig = Join-Path $ConfigDir "profiles\opencode\$ProfileName.json"
+$OpenCodeActiveConfig = Join-Path $ConfigDir "opencode.json"
 $OmoProfileConfig = Join-Path $ConfigDir "profiles\oh-my-openagent\$ProfileName.json"
+$OmoActiveConfig = Join-Path $ConfigDir "oh-my-openagent.json"
 $StrategyProfileConfig = Join-Path $ConfigDir "profiles\strategy\$ProfileName.json"
+$StrategyActiveConfig = Join-Path $ConfigDir "strategy.json"
 $ContextGuardProfileConfig = Join-Path $ConfigDir "profiles\context-guard\$ProfileName.json"
+$ContextGuardActiveProfileConfig = Join-Path $ConfigDir "context-guard.profile.json"
 
 if (-not (Test-Path -LiteralPath $OpenCodeProfileConfig -PathType Leaf)) {
   Write-Error ((U @(32570, 23569, 32, 79, 112, 101, 110, 67, 111, 100, 101, 32, 32534, 25490, 32423, 21035, 37197, 32622, 65306)) + $OpenCodeProfileConfig)
@@ -329,7 +344,14 @@ if (-not (Test-Path -LiteralPath $OmoProfileConfig -PathType Leaf)) {
   exit 1
 }
 
-$ActiveConfigDir = New-OpenCodeActiveConfigDirShared $ConfigDir "aiomo" $ProfileName $OpenCodeProfileConfig $OmoProfileConfig $StrategyProfileConfig $ContextGuardProfileConfig
+Copy-Item -LiteralPath $OpenCodeProfileConfig -Destination $OpenCodeActiveConfig -Force
+Copy-Item -LiteralPath $OmoProfileConfig -Destination $OmoActiveConfig -Force
+if (Test-Path -LiteralPath $StrategyProfileConfig -PathType Leaf) {
+  Copy-Item -LiteralPath $StrategyProfileConfig -Destination $StrategyActiveConfig -Force
+}
+if (Test-Path -LiteralPath $ContextGuardProfileConfig -PathType Leaf) {
+  Copy-Item -LiteralPath $ContextGuardProfileConfig -Destination $ContextGuardActiveProfileConfig -Force
+}
 $WorkingDirectory = (Get-Location).Path
 if ($ContinueFromSession) {
   $HandoffPath = New-ContextGuardHandoffShared "aiomo" $ConfigDir $ContinueFromSession $WorkingDirectory
@@ -341,9 +363,7 @@ if ($ContinueFromSession) {
   $OpenCodeArgs.Add("--prompt")
   $OpenCodeArgs.Add($Prompt)
 }
-$ActiveContextGuardConfig = Join-Path $ActiveConfigDir "context-guard.profile.json"
-$ActiveOpenCodeConfig = Join-Path $ActiveConfigDir "opencode.json"
-$GuardConfigPath = if (Test-Path -LiteralPath $ActiveContextGuardConfig -PathType Leaf) { $ActiveContextGuardConfig } else { $ActiveOpenCodeConfig }
+$GuardConfigPath = if (Test-Path -LiteralPath $ContextGuardProfileConfig -PathType Leaf) { $ContextGuardProfileConfig } else { $OpenCodeProfileConfig }
 $GuardExit = Invoke-ContextGuardShared "check" "aiomo" $ConfigDir $GuardConfigPath $OpenCodeArgs.ToArray()
 if ($GuardExit -eq 10) { exit 10 }
 $OpenCode = Get-Command opencode.exe -CommandType Application -ErrorAction Stop
