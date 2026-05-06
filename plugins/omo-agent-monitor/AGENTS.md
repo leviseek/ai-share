@@ -28,10 +28,12 @@ omo-agent-monitor/
 | TUI command registration | `tui.ts`                                                                                              | `OMO agents monitor`, `/omo-monitor`, alias `/omom`                   |
 | WebUI lifecycle          | `tui/web-server.ts`                                                                                   | Starts local monitor UI and opens browser                             |
 | Rendering/view model     | `tui/renderer.ts`, `tui/view-model.ts`, `tui/template.html`, `tui/styles.css`, `tui/client-script.ts` | Browser display                                                       |
+| Default agent registry   | `agents-registry.json`, `shared.ts`                                                                   | Main/subagent/category labels merged into empty state                 |
 
 ## CONVENTIONS
 
 - Server code owns OpenCode event capture and persistence; TUI code owns command/WebUI only.
+- `shared.ts` is the cross-entry contract for agent names/kinds; keep server and TUI behavior compatible.
 - Persisted monitor state lives outside repo in user config (`omo-agent-monitor-state.json`).
 - Build command uses Bun and keeps `bun:sqlite` external; do not replace it with a dependency.
 - `installPlugins` copies built `server.js`, `tui.js`, `package.json`, and `agents-registry.json` into user plugin dir.

@@ -32,9 +32,11 @@ bin/
 - PowerShell files are installed with UTF-8 BOM by `installLaunchers`; preserve Windows behavior.
 - Windows install updates user PATH, but current terminals may need restart.
 - `aiomo` selects OMO profile and copies matching `opencode.<profile>.json` / OMO sidecars.
+- `aiomo` also copies matching strategy, proxy, and context-guard sidecars before launching OpenCode.
 - `aioc` selects native profile and excludes `oh-my-openagent` + monitor while keeping shared plugins.
 - Do not put TypeScript business implementation here; keep it under `src/` and install/copy it from there.
 - Context guard writes local alerts/history/rescue files under `.opencode/` and `.opencode-rescue/` per generated config.
+- `aiomo-monitor` reads user config state; it should not depend on repo-local plugin runtime files after install.
 - Doctor output should be actionable: `OK` / `WARN` / `FAIL` with exact missing path/config item.
 
 ## VALIDATION
