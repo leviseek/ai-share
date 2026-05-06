@@ -6,22 +6,25 @@ YAML source of truth for every generated OpenCode, aioc, OMO, strategy, profile,
 
 ## WHERE TO LOOK
 
-| Need                                                                                | File            | Notes                                       |
-| ----------------------------------------------------------------------------------- | --------------- | ------------------------------------------- |
-| Default profile, shared plugins, ignored paths, DCP/checkpoint/memory/context guard | `global.yaml`   | Broad defaults and shared policy            |
-| Provider base URLs and API-key env vars                                             | `provider.yaml` | Secrets stay env-only                       |
-| Model catalog, upstream IDs, provider groups, fallback                              | `models.yaml`   | Referenced by profile role names            |
-| OMO profile roles and profile-level strategy/compaction overrides                   | `profiles.yaml` | `lite`, `cheap`, `balanced`, `coding`, etc. |
-| Agents, categories, shared prompts, runtime fallback, background concurrency        | `agents.yaml`   | OMO agent/category behavior                 |
+| Need                                                                                       | File            | Notes                                       |
+| ------------------------------------------------------------------------------------------ | --------------- | ------------------------------------------- |
+| Default profile, shared plugins, proxy, ignored paths, DCP/checkpoint/memory/context guard | `global.yaml`   | Broad defaults and shared policy            |
+| Provider base URLs and API-key env vars                                                    | `provider.yaml` | Secrets stay env-only                       |
+| Model catalog, upstream IDs, provider groups, fallback                                     | `models.yaml`   | Referenced by profile role names            |
+| OMO profile roles and profile-level strategy/compaction overrides                          | `profiles.yaml` | `lite`, `cheap`, `balanced`, `coding`, etc. |
+| Agents, categories, shared prompts, runtime fallback, background concurrency               | `agents.yaml`   | OMO agent/category behavior                 |
 
 ## CONVENTIONS
 
 - Edit YAML first; generated files under user config are outputs.
 - Stable keys matter: generator code references provider/model/profile/agent IDs.
 - Prefer shared defaults in `global.yaml`; use profile overrides only for real profile differences.
+- `profiles.yaml` currently defines `lite`, `economy`, `cheap`, `balanced`, `coding`, `research`, `writing`, `max`.
 - `agents.yaml` model values normally reference roles (`primary`, `reasoning`, `fast`), not raw provider model strings.
 - `shared_prompt.append` is Chinese and injects `AI_GUIDELINES.md` workflow expectations into OMO agents.
 - Optional plugins default empty; do not add unknown package names or paths speculatively.
+- `dingtalk_notifier` must keep webhook/secret/keyword as env-var names and preserve `require_review_before_send` unless deliberately changing user-facing safety.
+- `proxy` config is shared launcher behavior; prefer env overrides for local temporary changes.
 - Workspace/DCP/memory excludes must keep `.env*`, `.git/**`, `node_modules/**`, lockfiles, and runtime state out.
 
 ## VALIDATION
