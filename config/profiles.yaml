@@ -40,13 +40,13 @@ economy:
     fast: deepseek-v4-flash
   compaction:
     enabled: true
-    threshold: 30000
+    threshold: 500000000
     model: fast
-    max_input_tokens: 64000
+    max_input_tokens: 1000000000
   strategies:
     opencode:
       dcp:
-        context_budget_tokens: 6000
+        context_budget_tokens: 100000000
       checkpoint:
         max_entries: 4
       memory:
@@ -54,7 +54,7 @@ economy:
         strategy: compact-summary
     oh_my_openagent:
       dcp:
-        context_budget_tokens: 6000
+        context_budget_tokens: 10000000
       checkpoint:
         max_entries: 4
       memory:
