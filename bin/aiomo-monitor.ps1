@@ -348,8 +348,13 @@ function Read-State {
       agents = @($obj.agents)
     }
     $script:LastGoodState = $state
+    $script:retryDelay = 1
+    $script:readFailed = $false
     return $state
   } catch {
+    Start-Sleep $script:retryDelay
+    $script:retryDelay = [Math]::Min($script:retryDelay * 2, 30)
+    $script:readFailed = $true
     return $script:LastGoodState
   }
 }
@@ -707,6 +712,7 @@ $gridUpdating = $false
 $agentSortKey = "default"
 $agentSortAscending = $true
 $forceGridRefresh = $false
+$readFailed = $false
 $sortColumnNames = @("状态", "Agent", "当前操作/工具/技能", "任务次数", "Token", "平均周期")
 
 Update-FormMaximumSize
@@ -789,6 +795,10 @@ $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 1000
 $timer.Add_Tick({
   $state = Read-State
+  $staleThresholdMs = 30000
+  $now_stale = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+  $dataAge = $now_stale - [double](Coalesce $state.updatedAt 0)
+  $dataStale = $dataAge -gt $staleThresholdMs
   $session = $state.session
   $todos = @($state.todos)
   $agents = Merge-AgentList @($state.agents)
@@ -818,7 +828,18 @@ $timer.Add_Tick({
   $baseBar.Text = "任务 $done/$($todos.Count) ($taskPct%) · 待处理 $pending · 当前: $currentTaskText"
   $tokenLabel.Text = "Token $(Coalesce $session.totalTokens 0) · 执行 $activeText · 空闲 $idleText"
   if ($script:expanded) {
-    $headerInfo.Text = "$(Status-Text $session.status) · 任务 $done/$($todos.Count) · Token $(Coalesce $session.totalTokens 0)"
+    $staleSuffix = ""
+    if ($script:readFailed) {
+      $staleSuffix = " (历史数据)"
+    } elseif ($dataStale) {
+      $staleSuffix = " (数据可能已过期)"
+    }
+    $headerInfo.Text = "$(Status-Text $session.status) · 任务 $done/$($todos.Count) · Token $(Coalesce $session.totalTokens 0)$staleSuffix"
+    if ($script:readFailed -or $dataStale) {
+      $headerInfo.ForeColor = [System.Drawing.Color]::FromArgb(245, 158, 11)
+    } else {
+      $headerInfo.ForeColor = [System.Drawing.Color]::FromArgb(220, 228, 238)
+    }
   }
   $taskTitle.Text = "任务进度 $taskPct%"
   $header.Invalidate()
@@ -961,6 +982,7 @@ function Update-SortHeaders {
 }
 
 $script:forceGridRefresh = $true
+$script:retryDelay = 1
 Update-SortHeaders
 $timer.Start()
 Write-LaunchLog "show-dialog begin"

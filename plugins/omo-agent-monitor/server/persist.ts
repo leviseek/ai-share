@@ -2,6 +2,8 @@ import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { ensureAgent, state } from "./state.ts";
 import { refreshDbTokenSnapshot } from "./sqlite.ts";
+import { validateState } from "./validate.ts";
+import { checkHealth, emergencyStop } from "./circuit-breaker.ts";
 import type { AgentMetric } from "./types.ts";
 
 const idleThresholdMs = 15_000;
@@ -15,6 +17,19 @@ export async function persist(statePath: string): Promise<void> {
   } else if (state.session.status === "running" && now - state.session.lastActiveAt > idleThresholdMs) {
     state.session.status = "idle";
   }
+
+  // Validate and repair state before writing
+  const { repaired, warnings } = validateState(state);
+  for (const warning of warnings) {
+    console.warn(`[omo-monitor] state validation: ${warning}`);
+  }
+  if (repaired.session) {
+    Object.assign(state.session, repaired.session);
+  }
+  if (repaired.updatedAt !== undefined) {
+    state.updatedAt = repaired.updatedAt;
+  }
+
   mkdirSync(dirname(statePath), { recursive: true });
   const tempPath = `${statePath}.${process.pid}.tmp`;
   const activeNow =
@@ -37,6 +52,13 @@ export async function persist(statePath: string): Promise<void> {
   );
   writeFileSync(tempPath, content);
   renameSync(tempPath, statePath);
+
+  // Circuit breaker health check after successful persist
+  const tripReason = checkHealth(statePath);
+  if (tripReason) {
+    console.error(`[omo-monitor] Persist triggered circuit breaker: ${tripReason}`);
+    emergencyStop(statePath);
+  }
 }
 
 function mergedAgentMetrics(): AgentMetric[] {

@@ -1,12 +1,15 @@
 import { resolve } from "node:path";
+import { performance } from "node:perf_hooks";
 import { mainAgentNames, omoAgentNames, omoCategoryNames } from "../shared.ts";
 import { parseJson } from "./json.ts";
 import { state } from "./state.ts";
 import { tokenTotal } from "./tokens.ts";
-import type { SqliteDb } from "./types.ts";
+import { resetConsecutiveTimeouts } from "./circuit-breaker.ts";
+import type { SqliteDb, SqliteRow } from "./types.ts";
 
 const openCodeDbPath = resolve(homeDir(), ".local", "share", "opencode", "opencode.db");
 const tokenDbRefreshMs = 2_000;
+const SQLITE_SLOW_QUERY_MS = 2_000;
 
 let sqliteModulePromise: Promise<typeof import("bun:sqlite")> | undefined;
 let sqliteDb: SqliteDb | undefined;
@@ -18,11 +21,20 @@ export async function refreshDbTokenSnapshot(now: number): Promise<void> {
   if (!db) return;
 
   try {
+    const startTime = performance.now();
     const rows = db
       .query(
         "SELECT m.id, m.session_id, m.time_created, m.data, s.parent_id FROM message m LEFT JOIN session s ON s.id = m.session_id WHERE m.time_created >= ? ORDER BY m.time_created ASC",
       )
-      .all(state.session.startedAt - 60_000);
+      .all(state.session.startedAt - 60_000) as SqliteRow[];
+    const durationMs = performance.now() - startTime;
+
+    if (durationMs > SQLITE_SLOW_QUERY_MS) {
+      const slowSeconds = (durationMs / 1000).toFixed(1);
+      console.warn(`[omo-monitor] slow SQLite query (${slowSeconds}s)`);
+    }
+    resetConsecutiveTimeouts();
+
     const agents: Record<string, number> = {};
     const executions: Record<string, number> = {};
     let total = 0;
@@ -48,8 +60,11 @@ export async function refreshDbTokenSnapshot(now: number): Promise<void> {
       state.dbTokens.agents[agent] = (state.dbTokens.agents[agent] ?? 0) + tokens;
     }
     state.dbTokens.total += total;
-  } catch {
+  } catch (err) {
     // SQLite fallback is best-effort; live event metrics must keep working if DB is locked/unavailable.
+    sqliteDb = undefined;
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[omo-monitor] sqlite query error: ${message}`);
   }
 }
 
