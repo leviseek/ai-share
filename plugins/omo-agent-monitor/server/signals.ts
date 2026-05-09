@@ -2,6 +2,8 @@ import { writeFileSync } from "node:fs";
 import { state } from "./state.ts";
 import { validateState } from "./validate.ts";
 import type { Server } from "node:http";
+import { buildPersistedStateSnapshot } from "./snapshot.ts";
+import { applyValidatedStateRepair } from "./apply-validation.ts";
 
 let registered = false;
 
@@ -19,23 +21,8 @@ export function registerSignalHandlers(serverRefHolder: { current?: Server }, st
     state.session.status = "interrupted";
     try {
       const { repaired } = validateState(state);
-      Object.assign(state, repaired);
-      const content = JSON.stringify(
-        {
-          updatedAt: Date.now(),
-          session: {
-            startedAt: state.session.startedAt,
-            lastActiveAt: state.session.lastActiveAt,
-            totalActiveMs: state.session.totalActiveMs,
-            totalTokens: state.session.totalTokens,
-            status: state.session.status,
-          },
-          todos: state.todos,
-          agents: Object.values(state.agents),
-        },
-        null,
-        2,
-      );
+      applyValidatedStateRepair(state, repaired);
+      const content = JSON.stringify(buildPersistedStateSnapshot(Date.now()), null, 2);
       writeFileSync(statePath, content, "utf8");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

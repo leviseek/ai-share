@@ -330,6 +330,10 @@ function New-State {
 $LastGoodState = New-State
 
 function Read-State {
+  $now = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+  if ($script:nextReadAttemptAt -gt 0 -and $now -lt $script:nextReadAttemptAt) {
+    return $script:LastGoodState
+  }
   if (-not (Test-Path -LiteralPath $StatePath -PathType Leaf)) { return $script:LastGoodState }
   try {
     $json = Get-Content -LiteralPath $StatePath -Raw -Encoding UTF8 -ErrorAction Stop
@@ -349,10 +353,11 @@ function Read-State {
     }
     $script:LastGoodState = $state
     $script:retryDelay = 1
+    $script:nextReadAttemptAt = 0
     $script:readFailed = $false
     return $state
   } catch {
-    Start-Sleep $script:retryDelay
+    $script:nextReadAttemptAt = $now + ($script:retryDelay * 1000)
     $script:retryDelay = [Math]::Min($script:retryDelay * 2, 30)
     $script:readFailed = $true
     return $script:LastGoodState
@@ -983,6 +988,7 @@ function Update-SortHeaders {
 
 $script:forceGridRefresh = $true
 $script:retryDelay = 1
+$script:nextReadAttemptAt = 0
 Update-SortHeaders
 $timer.Start()
 Write-LaunchLog "show-dialog begin"

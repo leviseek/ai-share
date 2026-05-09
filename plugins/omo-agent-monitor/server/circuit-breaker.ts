@@ -2,6 +2,8 @@ import { writeFileSync } from "node:fs";
 import { state } from "./state.ts";
 import { serverRef } from "./signals.ts";
 import { validateState } from "./validate.ts";
+import { buildPersistedStateSnapshot } from "./snapshot.ts";
+import { applyValidatedStateRepair } from "./apply-validation.ts";
 
 export interface CircuitBreakerState {
   tripped: boolean;
@@ -100,25 +102,8 @@ export function emergencyStop(statePath: string): void {
   // Validate and write final state
   try {
     const { repaired } = validateState(state);
-    Object.assign(state, repaired);
-    const activeNow =
-      state.session.activeWindowStart !== undefined ? Math.max(Date.now() - state.session.activeWindowStart, 0) : 0;
-    const content = JSON.stringify(
-      {
-        updatedAt: Date.now(),
-        session: {
-          startedAt: state.session.startedAt,
-          lastActiveAt: state.session.lastActiveAt,
-          totalActiveMs: state.session.totalActiveMs + activeNow,
-          totalTokens: state.session.totalTokens + state.dbTokens.total,
-          status: state.session.status,
-        },
-        todos: state.todos,
-        agents: Object.values(state.agents),
-      },
-      null,
-      2,
-    );
+    applyValidatedStateRepair(state, repaired);
+    const content = JSON.stringify(buildPersistedStateSnapshot(Date.now()), null, 2);
     writeFileSync(statePath, content, "utf8");
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
