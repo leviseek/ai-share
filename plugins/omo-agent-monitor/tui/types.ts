@@ -52,5 +52,16 @@ export type ViewModel = {
 };
 export type Plugin = {
   id: string;
-  tui(api: { command: { register(callback: () => unknown[]): void } }): Promise<void>;
+  tui(api: {
+    command?: { register(callback: () => unknown[]): void };
+    route?: {
+      register(
+        routes: Array<{ name: string; render(input: { params?: Record<string, unknown> }): unknown }>,
+      ): () => void;
+    };
+    ui?: {
+      DialogConfirm(props: { title: string; message: string; onConfirm?: () => void; onCancel?: () => void }): unknown;
+      toast?(input: { message: string; title?: string; variant?: "info" | "success" | "warning" | "error" }): void;
+    };
+  }): Promise<void>;
 };

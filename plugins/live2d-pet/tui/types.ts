@@ -4,8 +4,15 @@ export type Plugin = {
 };
 
 export type TuiApi = {
-  command: {
+  command?: {
     register(factory: () => TuiCommand[]): void;
+  };
+  route?: {
+    register(routes: Array<{ name: string; render(input: { params?: Record<string, unknown> }): unknown }>): () => void;
+  };
+  ui?: {
+    DialogConfirm(props: { title: string; message: string; onConfirm?: () => void; onCancel?: () => void }): unknown;
+    toast?(input: { message: string; title?: string; variant?: "info" | "success" | "warning" | "error" }): void;
   };
 };
 

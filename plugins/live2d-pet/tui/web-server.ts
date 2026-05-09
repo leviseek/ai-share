@@ -6,6 +6,7 @@ declare const Bun: {
     stop(closeConnections?: boolean): void;
   };
   spawn(command: string[], options: { stdout: "ignore"; stderr: "ignore" }): { unref(): void };
+  which(command: string): string | null;
 };
 
 declare const process: { platform: "win32" | "darwin" | string };
@@ -13,6 +14,7 @@ declare const process: { platform: "win32" | "darwin" | string };
 let webServer: ReturnType<typeof Bun.serve> | undefined;
 let lastRequestAt = 0;
 let idleTimer: ReturnType<typeof setInterval> | undefined;
+const WEB_UI_PORT = 18080;
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 const IDLE_CHECK_INTERVAL_MS = 60_000;
@@ -37,11 +39,12 @@ export function closeWebUi(): void {
 }
 
 export async function ensureWebUi(): Promise<string> {
-  if (webServer) return `http://127.0.0.1:${webServer.port}`;
+  const url = `http://127.0.0.1:${WEB_UI_PORT}`;
+  if (webServer) return url;
 
   webServer = Bun.serve({
     hostname: "127.0.0.1",
-    port: 0,
+    port: WEB_UI_PORT,
     fetch: () => {
       lastRequestAt = Date.now();
       return new Response(renderHtml(), {
@@ -50,17 +53,23 @@ export async function ensureWebUi(): Promise<string> {
     },
   });
   startIdleTimer();
-  return `http://127.0.0.1:${webServer.port}`;
+  return url;
 }
 
 export function openBrowser(url: string): void {
   const command = browserOpenCommand(url);
+  if (!command) return;
   const child = Bun.spawn(command, { stdout: "ignore", stderr: "ignore" });
   child.unref();
 }
 
-function browserOpenCommand(url: string): string[] {
+function browserOpenCommand(url: string): string[] | undefined {
   if (process.platform === "win32") return ["cmd.exe", "/c", "start", "", url];
   if (process.platform === "darwin") return ["open", url];
-  return ["xdg-open", url];
+  if (Bun.which("xdg-open")) return ["xdg-open", url];
+  if (Bun.which("gio")) return ["gio", "open", url];
+  if (Bun.which("wslview")) return ["wslview", url];
+  if (Bun.which("powershell.exe")) return ["powershell.exe", "-NoProfile", "-Command", "Start-Process", url];
+  if (Bun.which("cmd.exe")) return ["cmd.exe", "/c", "start", "", url];
+  return undefined;
 }
