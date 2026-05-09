@@ -142,4 +142,4 @@ memory:
     - cookie
 
 tmux:
-  enabled: false
+  enabled: true
