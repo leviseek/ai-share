@@ -191,6 +191,8 @@ export AI_SHARE_DINGTALK_KEYWORD="ai-share"
 
 插件配置源在 `config/global.yaml` 的 `dingtalk_notifier`，可配置 `webhook_env`、`secret_env`、`keyword_env`、`message_type`、`events`、`require_review_before_send`、`review_items`、`min_interval_ms` 和 `timeout_ms`。默认监听 `session.idle`，并启用 `require_review_before_send`：任务完成后先由 AI 在当前会话中整理并确认会话内容摘要、任务结果、验证结论和剩余风险等可通知信息，确认前插件不会自动外发钉钉通知；确认后 AI 会在当前会话输出优化后的通知内容，只有用户明确要求外发时才执行外部通知发送。未设置 webhook 环境变量时插件会静默跳过发送。
 
+另外还会安装一个本地 TUI 插件 `./plugins/live2d-pet`，它会在 OpenCode TUI 中提供 `Live2D pet` 命令与 `/live2d-pet` slash 入口，打开本地浏览器页并优先加载白猫 `Tororo`，也可手动切换到动漫备用模型 `Miku`。模型资源只通过公开 CDN 读取，不会把第三方模型文件打包进仓库或生成配置。
+
 默认会额外生成 `proxy.json`，并让 `aiomo` / `aioc` 启动器在启动 OpenCode 前自动设置标准代理环境变量。默认代理为 `http://127.0.0.1:7897`，会写入 `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` 及对应小写变量，`NO_PROXY` 默认包含 `localhost,127.0.0.1,::1`。如果当前 shell 已经设置了这些标准变量，启动器不会覆盖；如需临时关闭共享代理，可设置 `AI_SHARE_PROXY=0`；如需临时改端口或完整地址，可设置 `AI_SHARE_PROXY_PORT=7890` 或 `AI_SHARE_PROXY_URL=http://127.0.0.1:7890`。
 
 通用 AI 协作规范在 `AI_GUIDELINES.md`，生成的 OpenCode 配置会加载该文件。
@@ -476,6 +478,8 @@ opencode:
     - oh-my-openagent@3.17.5
     - ./plugins/omo-agent-monitor
 ```
+
+`live2d-pet` 只挂在 `tui.plugins`，不会进入 `opencode.plugins`，因此不会影响 `aioc` 的原生 Build / Plan 插件列表。
 
 ## 配置源
 

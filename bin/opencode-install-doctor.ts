@@ -13,6 +13,7 @@ type Result = { group: Group; status: Status; label: string; detail: string };
 const OMO_PLUGIN = "oh-my-openagent@3.17.5";
 const MONITOR_PLUGIN = "./plugins/omo-agent-monitor";
 const DINGTALK_PLUGIN = "./plugins/dingtalk-notifier";
+const LIVE2D_PET_PLUGIN = "./plugins/live2d-pet";
 const NATIVE_SKILLS = [
   "git-master",
   "context-guard",
@@ -310,16 +311,22 @@ function checkInstalledLaunchers(): void {
 }
 
 function checkLocalPluginInstall(): void {
-  const pluginDir = join(configDir, "plugins", "omo-agent-monitor");
-  checkFile("TUI & Plugin", "monitor plugin package", join(pluginDir, "package.json"));
-  checkFile("TUI & Plugin", "monitor plugin server", join(pluginDir, "server.js"));
-  checkFile("TUI & Plugin", "monitor plugin tui", join(pluginDir, "tui.js"));
-  checkFile("TUI & Plugin", "monitor plugin registry", join(pluginDir, "agents-registry.json"));
+  const monitorPluginDir = join(configDir, "plugins", "omo-agent-monitor");
+  checkFile("TUI & Plugin", "monitor plugin package", join(monitorPluginDir, "package.json"));
+  checkFile("TUI & Plugin", "monitor plugin server", join(monitorPluginDir, "server.js"));
+  checkFile("TUI & Plugin", "monitor plugin tui", join(monitorPluginDir, "tui.js"));
+  checkFile("TUI & Plugin", "monitor plugin registry", join(monitorPluginDir, "agents-registry.json"));
+
+  const live2dPetPluginDir = join(configDir, "plugins", "live2d-pet");
+  checkFile("TUI & Plugin", "live2d pet plugin package", join(live2dPetPluginDir, "package.json"));
+  checkFile("TUI & Plugin", "live2d pet plugin server", join(live2dPetPluginDir, "server.js"));
+  checkFile("TUI & Plugin", "live2d pet plugin tui", join(live2dPetPluginDir, "tui.js"));
 }
 
 function checkCommonFiles(): void {
   const tui = readJsonIfExists("TUI & Plugin", "tui config", join(configDir, "tui.json"), true);
   checkPluginPresence("TUI & Plugin", "tui monitor plugin", tui, MONITOR_PLUGIN, true);
+  checkPluginPresence("TUI & Plugin", "tui live2d pet plugin", tui, LIVE2D_PET_PLUGIN, true);
   checkLocalPluginInstall();
   checkDingTalkNotifierInstall();
   checkOpencodeBuiltinCommands();

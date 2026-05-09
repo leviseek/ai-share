@@ -61,7 +61,7 @@ export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): 
 }
 
 export async function installPlugins(paths: GeneratorPaths, dryRun: boolean): Promise<void> {
-  const pluginDirectories = ["omo-agent-monitor", "dingtalk-notifier"];
+  const pluginDirectories = ["omo-agent-monitor", "dingtalk-notifier", "live2d-pet"];
   if (dryRun) {
     for (const directoryName of pluginDirectories) {
       console.log(`将安装 OpenCode 本地插件：${resolve(paths.targetPluginDir, directoryName)}`);

@@ -37,6 +37,7 @@ opencode:
 tui:
   plugins:
     - ./plugins/omo-agent-monitor
+    - ./plugins/live2d-pet
 
 models:
   default: gpt-5.5
