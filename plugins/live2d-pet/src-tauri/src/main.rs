@@ -1,9 +1,13 @@
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-use tauri::{PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
+use serde::Deserialize;
+use std::{sync::{Arc, Mutex}, time::Duration};
+use tauri::{Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 
 #[cfg(target_os = "windows")]
+use windows_sys::Win32::Foundation::POINT;
+#[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    AppendMenuW, CreatePopupMenu, DestroyMenu, TrackPopupMenu, MF_POPUP, MF_SEPARATOR, MF_STRING, TPM_RETURNCMD, TPM_RIGHTBUTTON,
+    AppendMenuW, CreatePopupMenu, DestroyMenu, GetCursorPos, TrackPopupMenu, MF_POPUP, MF_SEPARATOR, MF_STRING, TPM_RETURNCMD, TPM_RIGHTBUTTON,
 };
 
 const WINDOW_WIDTH: i32 = 320;
@@ -30,9 +34,41 @@ const PARTICLE_OPTIONS: [(&str, &str); 6] = [("none", "关闭"), ("sakura", "樱
 const OPACITY_OPTIONS: [u32; 6] = [35, 50, 65, 80, 95, 100];
 const SIZE_OPTIONS: [(&str, &str); 3] = [("small", "小"), ("medium", "中"), ("large", "大")];
 
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+struct HitRegion {
+    left: f64,
+    top: f64,
+    right: f64,
+    bottom: f64,
+}
+
+impl HitRegion {
+    fn contains(self, x: f64, y: f64) -> bool {
+        x >= self.left && x <= self.right && y >= self.top && y <= self.bottom
+    }
+}
+
+#[derive(Default)]
+struct HitRegions(Arc<Mutex<HitRegionState>>);
+
+#[derive(Clone, Default)]
+struct HitRegionState {
+    regions: Vec<HitRegion>,
+    scale_factor: f64,
+}
+
+#[cfg(target_os = "windows")]
+fn set_window_cursor_passthrough(window: &WebviewWindow, ignore: bool) {
+    let _ = window.set_ignore_cursor_events(ignore);
+}
+
+#[cfg(not(target_os = "windows"))]
+fn set_window_cursor_passthrough(_window: &WebviewWindow, _ignore: bool) {}
+
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![click_probe, show_context_menu])
+        .manage(HitRegions::default())
+        .invoke_handler(tauri::generate_handler![click_probe, show_context_menu, update_hit_regions])
         .setup(|app| {
             let handle = app.handle().clone();
             let (default_x, default_y) = default_window_position(&handle);
@@ -61,6 +97,9 @@ fn main() {
 
             let _ = clamp_to_work_area(&window);
 
+            let hit_regions = app.state::<HitRegions>();
+            start_cursor_passthrough_monitor(window.clone(), hit_regions.inner());
+
             Ok(())
         })
         .run(tauri::generate_context!())
@@ -76,6 +115,55 @@ fn click_probe(x: f64, y: f64) {
 fn show_context_menu(window: WebviewWindow, x: f64, y: f64, motions: Vec<String>) -> Option<String> {
     show_platform_context_menu(&window, x, y, &motions).ok().flatten()
 }
+
+#[tauri::command]
+fn update_hit_regions(regions: Vec<HitRegion>, scale_factor: f64, state: tauri::State<'_, HitRegions>) {
+    if let Ok(mut current_state) = state.0.lock() {
+        current_state.regions = regions;
+        current_state.scale_factor = if scale_factor.is_finite() && scale_factor > 0.0 { scale_factor } else { 1.0 };
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn start_cursor_passthrough_monitor(window: WebviewWindow, state: &HitRegions) {
+    let state = Arc::clone(&state.0);
+    std::thread::spawn(move || {
+        let mut ignored = false;
+        loop {
+            std::thread::sleep(Duration::from_millis(80));
+            let Ok(position) = window.outer_position() else {
+                break;
+            };
+            let Ok(current_state) = state.lock().map(|state| state.clone()) else {
+                continue;
+            };
+            if current_state.regions.is_empty() {
+                if ignored {
+                    set_window_cursor_passthrough(&window, false);
+                    ignored = false;
+                }
+                continue;
+            }
+            let mut point = POINT { x: 0, y: 0 };
+            let cursor_available = unsafe { GetCursorPos(&mut point) != 0 };
+            if !cursor_available {
+                continue;
+            }
+            let scale_factor = if current_state.scale_factor > 0.0 { current_state.scale_factor } else { 1.0 };
+            let local_x = f64::from(point.x - position.x) / scale_factor;
+            let local_y = f64::from(point.y - position.y) / scale_factor;
+            let in_interactive_region = current_state.regions.iter().any(|region| region.contains(local_x, local_y));
+            let should_ignore = !in_interactive_region;
+            if should_ignore != ignored {
+                set_window_cursor_passthrough(&window, should_ignore);
+                ignored = should_ignore;
+            }
+        }
+    });
+}
+
+#[cfg(not(target_os = "windows"))]
+fn start_cursor_passthrough_monitor(_window: WebviewWindow, _state: &HitRegions) {}
 
 #[cfg(target_os = "windows")]
 fn show_platform_context_menu(window: &WebviewWindow, x: f64, y: f64, motions: &[String]) -> tauri::Result<Option<String>> {

@@ -39,6 +39,7 @@ let idleTimer;
 let particleAnimation;
 let particleItems = [];
 let motionGroups = { click: [], idle: [] };
+let hitRegionPollTimer;
 let petSettings = {
   floorStyle: "warm-wood",
   particleEffect: "bubbles",
@@ -141,6 +142,7 @@ function applyPetSettings(options = {}) {
     syncOpacityDisplay();
   }
   startParticleEffect(petSettings.particleEffect);
+  syncHitRegions();
 }
 
 function installContextMenu() {
@@ -186,6 +188,47 @@ async function showNativeContextMenu(x, y) {
   } catch {
     return undefined;
   }
+}
+
+function updateHitRegions(regions) {
+  const invoke = window.__TAURI__?.core?.invoke;
+  if (!invoke) return;
+  invoke("update_hit_regions", { regions, scaleFactor: window.devicePixelRatio || 1 }).catch(() => {
+    // ignore sync failures; native fallback still works
+  });
+}
+
+function syncHitRegions() {
+  const regions = [];
+  const canvas = document.getElementById("live2d-canvas");
+  if (canvas instanceof HTMLCanvasElement && live2dModel) {
+    const canvasRect = canvas.getBoundingClientRect();
+    try {
+      const bounds = live2dModel.getBounds?.();
+      if (bounds && Number.isFinite(bounds.x) && Number.isFinite(bounds.y) && Number.isFinite(bounds.width) && Number.isFinite(bounds.height)) {
+        regions.push({
+          left: canvasRect.left + bounds.x,
+          top: canvasRect.top + bounds.y,
+          right: canvasRect.left + bounds.x + bounds.width,
+          bottom: canvasRect.top + bounds.y + bounds.height,
+        });
+      }
+    } catch {
+      // ignore model bounds failures
+    }
+  }
+  for (const element of [
+    document.querySelector(".floor"),
+    document.getElementById("lock-toggle"),
+    document.querySelector(".top-drag-zone"),
+    document.querySelector(".floor-drag-zone"),
+  ]) {
+    if (!(element instanceof HTMLElement)) continue;
+    const rect = element.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) continue;
+    regions.push({ left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom });
+  }
+  updateHitRegions(regions);
 }
 
 function applyMenuSelection(selection) {
@@ -470,6 +513,7 @@ function resizeModel(app, model) {
   model.position.set(width * 0.52, height * 0.96);
   const scale = Math.min(width / model.width, height / model.height) * 0.75;
   model.scale.set(Math.max(0.09, Math.min(scale, 0.9)));
+  syncHitRegions();
 }
 
 async function installLive2dPet() {
@@ -505,6 +549,9 @@ async function installLive2dPet() {
     });
     setStatus("Tororo 已入住小屋", true);
     scheduleIdleMotion();
+    syncHitRegions();
+    if (hitRegionPollTimer) window.clearInterval(hitRegionPollTimer);
+    hitRegionPollTimer = window.setInterval(syncHitRegions, 800);
   } catch (error) {
     setStatus(error instanceof Error ? error.message : "Live2D 加载失败");
   }
@@ -522,9 +569,13 @@ function installNativeDragging() {
       event.stopPropagation();
       const locked = document.body.dataset.locked === "true";
       document.body.dataset.locked = String(!locked);
-      lockToggle.textContent = locked ? "🔓" : "🔒";
+      const lockIcon = lockToggle.querySelector(".lock-icon");
+      if (lockIcon instanceof HTMLElement) {
+        lockIcon.textContent = locked ? "🔓" : "🔒";
+      }
       lockToggle.setAttribute("aria-label", locked ? "已解锁，可拖拽" : "已锁定拖拽");
       lockToggle.title = locked ? "单击锁定拖拽" : "单击解锁拖拽";
+      syncHitRegions();
     });
   }
 
@@ -535,6 +586,8 @@ function installNativeDragging() {
       // ignore probe failures
     }
   }, 500);
+
+  window.addEventListener("resize", () => syncHitRegions());
 
   shell.addEventListener("pointerdown", async (event) => {
     if (event.button !== 0) return;

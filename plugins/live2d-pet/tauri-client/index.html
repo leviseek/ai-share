@@ -85,12 +85,13 @@ body {
   right: -8%;
   bottom: -5%;
   z-index: 3;
-  height: 34%;
+  height: 38%;
   background:
     repeating-linear-gradient(90deg, rgba(137, 84, 38, 0.16) 0 2px, transparent 2px 46px),
     repeating-linear-gradient(0deg, rgba(111, 67, 31, 0.11) 0 2px, transparent 2px 24px),
     linear-gradient(135deg, #d99957, #c77f43 66%, #a86536);
-  transform: perspective(210px) rotateX(14deg);
+  clip-path: polygon(14% 0, 86% 0, 100% 100%, 0 100%);
+  transform: perspective(190px) rotateX(18deg) translateZ(0);
   transform-origin: bottom;
   pointer-events: auto;
 }
@@ -311,20 +312,30 @@ body[data-floor-style="cloud"] .floor {
 
 #lock-toggle {
   position: absolute;
-  right: 6px;
-  bottom: 6px;
+  right: 10px;
+  bottom: 10px;
   z-index: 8;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
   border: 0;
   border-radius: 999px;
   color: rgba(255, 255, 255, 0.95);
-  background: rgba(74, 45, 24, 0.72);
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.18), transparent 42%), rgba(74, 45, 24, 0.72);
+  box-shadow: 0 2px 6px rgba(58, 33, 16, 0.24);
   font: 13px/1 sans-serif;
   cursor: pointer;
   pointer-events: auto;
+}
+
+#lock-toggle .lock-icon {
+  display: block;
+  transform: translate(-2px, -2px);
+}
+
+body[data-locked="true"] #lock-toggle .lock-icon {
+  transform: translate(-4px, -4px);
 }
 
 body[data-locked="true"] #live2d-shell {
@@ -363,7 +374,7 @@ body[data-size="large"] {
           <div class="floor"></div>
           <canvas id="live2d-canvas" aria-label="Live2D pet model"></canvas>
           <div class="floor-drag-zone" aria-label="拖拽地板移动窗口"></div>
-          <button id="lock-toggle" type="button" aria-label="已解锁，可拖拽" title="单击锁定拖拽">🔓</button>
+          <button id="lock-toggle" type="button" aria-label="已解锁，可拖拽" title="单击锁定拖拽"><span class="lock-icon">🔓</span></button>
         </div>
       </div>
       <div id="live2d-context-menu" hidden aria-label="Live2D 宠物菜单"></div>
@@ -411,6 +422,7 @@ let idleTimer;
 let particleAnimation;
 let particleItems = [];
 let motionGroups = { click: [], idle: [] };
+let hitRegionPollTimer;
 let petSettings = {
   floorStyle: "warm-wood",
   particleEffect: "bubbles",
@@ -513,6 +525,7 @@ function applyPetSettings(options = {}) {
     syncOpacityDisplay();
   }
   startParticleEffect(petSettings.particleEffect);
+  syncHitRegions();
 }
 
 function installContextMenu() {
@@ -558,6 +571,47 @@ async function showNativeContextMenu(x, y) {
   } catch {
     return undefined;
   }
+}
+
+function updateHitRegions(regions) {
+  const invoke = window.__TAURI__?.core?.invoke;
+  if (!invoke) return;
+  invoke("update_hit_regions", { regions, scaleFactor: window.devicePixelRatio || 1 }).catch(() => {
+    // ignore sync failures; native fallback still works
+  });
+}
+
+function syncHitRegions() {
+  const regions = [];
+  const canvas = document.getElementById("live2d-canvas");
+  if (canvas instanceof HTMLCanvasElement && live2dModel) {
+    const canvasRect = canvas.getBoundingClientRect();
+    try {
+      const bounds = live2dModel.getBounds?.();
+      if (bounds && Number.isFinite(bounds.x) && Number.isFinite(bounds.y) && Number.isFinite(bounds.width) && Number.isFinite(bounds.height)) {
+        regions.push({
+          left: canvasRect.left + bounds.x,
+          top: canvasRect.top + bounds.y,
+          right: canvasRect.left + bounds.x + bounds.width,
+          bottom: canvasRect.top + bounds.y + bounds.height,
+        });
+      }
+    } catch {
+      // ignore model bounds failures
+    }
+  }
+  for (const element of [
+    document.querySelector(".floor"),
+    document.getElementById("lock-toggle"),
+    document.querySelector(".top-drag-zone"),
+    document.querySelector(".floor-drag-zone"),
+  ]) {
+    if (!(element instanceof HTMLElement)) continue;
+    const rect = element.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) continue;
+    regions.push({ left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom });
+  }
+  updateHitRegions(regions);
 }
 
 function applyMenuSelection(selection) {
@@ -842,6 +896,7 @@ function resizeModel(app, model) {
   model.position.set(width * 0.52, height * 0.96);
   const scale = Math.min(width / model.width, height / model.height) * 0.75;
   model.scale.set(Math.max(0.09, Math.min(scale, 0.9)));
+  syncHitRegions();
 }
 
 async function installLive2dPet() {
@@ -877,6 +932,7 @@ async function installLive2dPet() {
     });
     setStatus("Tororo \u5DF2\u5165\u4F4F\u5C0F\u5C4B", true);
     scheduleIdleMotion();
+    syncHitRegions();
   } catch (error) {
     setStatus(error instanceof Error ? error.message : "Live2D \u52A0\u8F7D\u5931\u8D25");
   }
@@ -894,9 +950,13 @@ function installNativeDragging() {
       event.stopPropagation();
       const locked = document.body.dataset.locked === "true";
       document.body.dataset.locked = String(!locked);
-      lockToggle.textContent = locked ? "\u{1f513}" : "\u{1f512}";
+      const lockIcon = lockToggle.querySelector(".lock-icon");
+      if (lockIcon instanceof HTMLElement) {
+        lockIcon.textContent = locked ? "\u{1f513}" : "\u{1f512}";
+      }
       lockToggle.setAttribute("aria-label", locked ? "\u5DF2\u89E3\u9501\uFF0C\u53EF\u62D6\u62FD" : "\u5DF2\u9501\u5B9A\u62D6\u62FD");
       lockToggle.title = locked ? "\u5355\u51FB\u9501\u5B9A\u62D6\u62FD" : "\u5355\u51FB\u89E3\u9501\u62D6\u62FD";
+      syncHitRegions();
     });
   }
 
@@ -907,6 +967,8 @@ function installNativeDragging() {
       // ignore probe failures
     }
   }, 500);
+
+  window.addEventListener("resize", () => syncHitRegions());
 
   shell.addEventListener("pointerdown", async (event) => {
     if (event.button !== 0) return;

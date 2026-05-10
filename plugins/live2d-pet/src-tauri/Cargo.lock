@@ -1681,6 +1681,7 @@ version = "0.1.0"
 dependencies = [
  "dbus",
  "raw-window-handle",
+ "serde",
  "tauri",
  "tauri-build",
  "windows-sys 0.61.2",

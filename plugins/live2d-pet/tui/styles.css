@@ -78,18 +78,29 @@ body {
   right: -8%;
   bottom: -5%;
   z-index: 3;
-  height: 34%;
+  height: 38%;
   background:
+    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.4), transparent 32%),
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.18), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 24%),
     repeating-linear-gradient(90deg, rgba(137, 84, 38, 0.16) 0 2px, transparent 2px 46px),
     repeating-linear-gradient(0deg, rgba(111, 67, 31, 0.11) 0 2px, transparent 2px 24px),
     linear-gradient(135deg, #d99957, #c77f43 66%, #a86536);
-  transform: perspective(210px) rotateX(14deg);
+  box-shadow:
+    inset 0 16px 18px rgba(255, 241, 220, 0.24),
+    inset 0 -18px 20px rgba(93, 52, 21, 0.22),
+    0 -12px 28px rgba(68, 40, 19, 0.14);
+  clip-path: polygon(14% 0, 86% 0, 100% 100%, 0 100%);
+  transform: perspective(190px) rotateX(18deg) translateZ(0);
   transform-origin: bottom;
   pointer-events: auto;
 }
 
 body[data-floor-style="warm-wood"] .floor {
   background:
+    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.4), transparent 32%),
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.18), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 24%),
     repeating-linear-gradient(90deg, rgba(137, 84, 38, 0.16) 0 2px, transparent 2px 46px),
     repeating-linear-gradient(0deg, rgba(111, 67, 31, 0.11) 0 2px, transparent 2px 24px),
     linear-gradient(135deg, #d99957, #c77f43 66%, #a86536);
@@ -97,12 +108,16 @@ body[data-floor-style="warm-wood"] .floor {
 
 body[data-floor-style="light-wood"] .floor {
   background:
+    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.38), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 22%),
     repeating-linear-gradient(90deg, rgba(165, 121, 75, 0.18) 0 2px, transparent 2px 52px),
     linear-gradient(135deg, #f0d5ad, #ddb889 62%, #c99765);
 }
 
 body[data-floor-style="tatami"] .floor {
   background:
+    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.34), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 22%),
     repeating-linear-gradient(90deg, rgba(94, 128, 55, 0.16) 0 2px, transparent 2px 48px),
     repeating-linear-gradient(0deg, rgba(75, 102, 43, 0.1) 0 2px, transparent 2px 22px),
     linear-gradient(135deg, #c9d58a, #b6c76e 64%, #92a74c);
@@ -110,6 +125,8 @@ body[data-floor-style="tatami"] .floor {
 
 body[data-floor-style="marble"] .floor {
   background:
+    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.5), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.36), transparent 22%),
     radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.58), transparent 16%),
     radial-gradient(circle at 82% 28%, rgba(255, 255, 255, 0.42), transparent 18%),
     linear-gradient(135deg, #f7f4ee, #e3ddd4 60%, #c5bdb1);
@@ -117,6 +134,8 @@ body[data-floor-style="marble"] .floor {
 
 body[data-floor-style="night-floor"] .floor {
   background:
+    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 22%),
     linear-gradient(135deg, rgba(118, 92, 179, 0.3), transparent 45%),
     repeating-linear-gradient(90deg, rgba(93, 70, 125, 0.18) 0 2px, transparent 2px 42px),
     linear-gradient(135deg, #483a6d, #3a2e56 64%, #251f3d);
@@ -124,6 +143,8 @@ body[data-floor-style="night-floor"] .floor {
 
 body[data-floor-style="grass"] .floor {
   background:
+    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.32), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 24%),
     repeating-linear-gradient(90deg, rgba(53, 109, 52, 0.16) 0 2px, transparent 2px 44px),
     radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.18), transparent 20%),
     linear-gradient(135deg, #93cf79, #70b75a 60%, #4f9445);
@@ -131,6 +152,8 @@ body[data-floor-style="grass"] .floor {
 
 body[data-floor-style="tile"] .floor {
   background:
+    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.34), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 24%),
     linear-gradient(90deg, rgba(255, 255, 255, 0.16) 1px, transparent 1px),
     linear-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1px),
     linear-gradient(135deg, #d7e3f0, #b9cde0 62%, #93acc3);
@@ -139,6 +162,8 @@ body[data-floor-style="tile"] .floor {
 
 body[data-floor-style="pastel"] .floor {
   background:
+    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.38), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 24%),
     radial-gradient(circle at 20% 24%, rgba(255, 255, 255, 0.34), transparent 20%),
     radial-gradient(circle at 74% 26%, rgba(255, 255, 255, 0.26), transparent 18%),
     linear-gradient(135deg, #ffc9d4, #f6b9ef 54%, #cfa8ff);
@@ -146,6 +171,8 @@ body[data-floor-style="pastel"] .floor {
 
 body[data-floor-style="cloud"] .floor {
   background:
+    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.52), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent 22%),
     radial-gradient(circle at 18% 28%, rgba(255, 255, 255, 0.54), transparent 22%),
     radial-gradient(circle at 68% 24%, rgba(255, 255, 255, 0.46), transparent 16%),
     linear-gradient(135deg, #f7fbff, #dcecf9 62%, #bfd7eb);
@@ -304,20 +331,30 @@ body[data-floor-style="cloud"] .floor {
 
 #lock-toggle {
   position: absolute;
-  right: 6px;
-  bottom: 6px;
+  right: 10px;
+  bottom: 10px;
   z-index: 8;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
   border: 0;
   border-radius: 999px;
   color: rgba(255, 255, 255, 0.95);
-  background: rgba(74, 45, 24, 0.72);
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.18), transparent 42%), rgba(74, 45, 24, 0.72);
+  box-shadow: 0 2px 6px rgba(58, 33, 16, 0.24);
   font: 13px/1 sans-serif;
   cursor: pointer;
   pointer-events: auto;
+}
+
+#lock-toggle .lock-icon {
+  display: block;
+  transform: translate(-2px, -2px);
+}
+
+body[data-locked="true"] #lock-toggle .lock-icon {
+  transform: translate(-4px, -4px);
 }
 
 body[data-locked="true"] #live2d-shell {
