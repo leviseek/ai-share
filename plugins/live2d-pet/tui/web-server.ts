@@ -27,8 +27,8 @@ let idleTimer: ReturnType<typeof setInterval> | undefined;
 const WEB_UI_PORT = 18080;
 const WINDOW_LEFT = 80;
 const WINDOW_TOP = 80;
-const WINDOW_WIDTH = 165;
-const WINDOW_HEIGHT = 235;
+const WINDOW_WIDTH = 320;
+const WINDOW_HEIGHT = 420;
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 const IDLE_CHECK_INTERVAL_MS = 60_000;

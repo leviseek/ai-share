@@ -1,11 +1,38 @@
+use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use tauri::{PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
-const WINDOW_WIDTH: i32 = 165;
-const WINDOW_HEIGHT: i32 = 235;
+
+#[cfg(target_os = "windows")]
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    AppendMenuW, CreatePopupMenu, DestroyMenu, TrackPopupMenu, MF_POPUP, MF_SEPARATOR, MF_STRING, TPM_RETURNCMD, TPM_RIGHTBUTTON,
+};
+
+const WINDOW_WIDTH: i32 = 320;
+const WINDOW_HEIGHT: i32 = 420;
 const WINDOW_MARGIN: i32 = 16;
+const MENU_MOTION_BASE: u32 = 1000;
+const MENU_FLOOR_BASE: u32 = 2000;
+const MENU_PARTICLE_BASE: u32 = 3000;
+const MENU_OPACITY_BASE: u32 = 4000;
+const MENU_SIZE_BASE: u32 = 5000;
+
+const FLOOR_OPTIONS: [(&str, &str); 9] = [
+    ("warm-wood", "暖木地板"),
+    ("light-wood", "浅木地板"),
+    ("tatami", "榻榻米"),
+    ("marble", "大理石"),
+    ("night-floor", "星夜地板"),
+    ("grass", "草地"),
+    ("tile", "蓝白瓷砖"),
+    ("pastel", "糖果云朵"),
+    ("cloud", "云朵地板"),
+];
+const PARTICLE_OPTIONS: [(&str, &str); 6] = [("none", "关闭"), ("sakura", "樱花"), ("fireworks", "烟火"), ("snow", "雪花"), ("stars", "星光"), ("bubbles", "泡泡")];
+const OPACITY_OPTIONS: [u32; 6] = [35, 50, 65, 80, 95, 100];
+const SIZE_OPTIONS: [(&str, &str); 3] = [("small", "小"), ("medium", "中"), ("large", "大")];
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![click_probe])
+        .invoke_handler(tauri::generate_handler![click_probe, show_context_menu])
         .setup(|app| {
             let handle = app.handle().clone();
             let (default_x, default_y) = default_window_position(&handle);
@@ -43,6 +70,102 @@ fn main() {
 #[tauri::command]
 fn click_probe(x: f64, y: f64) {
     eprintln!("click_probe x={x} y={y}");
+}
+
+#[tauri::command]
+fn show_context_menu(window: WebviewWindow, x: f64, y: f64, motions: Vec<String>) -> Option<String> {
+    show_platform_context_menu(&window, x, y, &motions).ok().flatten()
+}
+
+#[cfg(target_os = "windows")]
+fn show_platform_context_menu(window: &WebviewWindow, x: f64, y: f64, motions: &[String]) -> tauri::Result<Option<String>> {
+    let hwnd = match window.window_handle()?.as_raw() {
+        RawWindowHandle::Win32(handle) => handle.hwnd.get() as isize,
+        _ => return Ok(None),
+    };
+    let outer_position = window.outer_position()?;
+    let menu_x = outer_position.x + x.round() as i32;
+    let menu_y = outer_position.y + y.round() as i32;
+
+    unsafe {
+        let menu = CreatePopupMenu();
+        let motions_menu = CreatePopupMenu();
+        for (index, motion) in motions.iter().enumerate() {
+            append_menu_text(motions_menu, MENU_MOTION_BASE + index as u32, motion);
+        }
+        AppendMenuW(menu, MF_POPUP, motions_menu as usize, wide("动作列表").as_ptr());
+        AppendMenuW(menu, MF_SEPARATOR, 0, std::ptr::null());
+
+        let floor_menu = CreatePopupMenu();
+        for (index, (_, label)) in FLOOR_OPTIONS.iter().enumerate() {
+            append_menu_text(floor_menu, MENU_FLOOR_BASE + index as u32, label);
+        }
+        AppendMenuW(menu, MF_POPUP, floor_menu as usize, wide("地板样式").as_ptr());
+
+        let particle_menu = CreatePopupMenu();
+        for (index, (_, label)) in PARTICLE_OPTIONS.iter().enumerate() {
+            append_menu_text(particle_menu, MENU_PARTICLE_BASE + index as u32, label);
+        }
+        AppendMenuW(menu, MF_POPUP, particle_menu as usize, wide("粒子背景").as_ptr());
+
+        let opacity_menu = CreatePopupMenu();
+        for (index, opacity) in OPACITY_OPTIONS.iter().enumerate() {
+            append_menu_text(opacity_menu, MENU_OPACITY_BASE + index as u32, &format!("{opacity}%"));
+        }
+        AppendMenuW(menu, MF_POPUP, opacity_menu as usize, wide("透明度").as_ptr());
+
+        let size_menu = CreatePopupMenu();
+        for (index, (_, label)) in SIZE_OPTIONS.iter().enumerate() {
+            append_menu_text(size_menu, MENU_SIZE_BASE + index as u32, label);
+        }
+        AppendMenuW(menu, MF_POPUP, size_menu as usize, wide("尺寸").as_ptr());
+
+        let selected = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, menu_x, menu_y, 0, hwnd as _, std::ptr::null());
+        DestroyMenu(menu);
+        Ok(menu_selection(selected as u32, motions))
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn show_platform_context_menu(_window: &WebviewWindow, _x: f64, _y: f64, _motions: &[String]) -> tauri::Result<Option<String>> {
+    Ok(None)
+}
+
+fn menu_selection(selected: u32, motions: &[String]) -> Option<String> {
+    if selected == 0 {
+        return None;
+    }
+    if (MENU_MOTION_BASE..MENU_FLOOR_BASE).contains(&selected) {
+        let index = usize::try_from(selected - MENU_MOTION_BASE).ok()?;
+        return motions.get(index).map(|motion| format!("motion:{motion}"));
+    }
+    if (MENU_FLOOR_BASE..MENU_PARTICLE_BASE).contains(&selected) {
+        let index = usize::try_from(selected - MENU_FLOOR_BASE).ok()?;
+        return FLOOR_OPTIONS.get(index).map(|(id, _)| format!("floor:{id}"));
+    }
+    if (MENU_PARTICLE_BASE..MENU_OPACITY_BASE).contains(&selected) {
+        let index = usize::try_from(selected - MENU_PARTICLE_BASE).ok()?;
+        return PARTICLE_OPTIONS.get(index).map(|(id, _)| format!("particle:{id}"));
+    }
+    if (MENU_OPACITY_BASE..MENU_SIZE_BASE).contains(&selected) {
+        let index = usize::try_from(selected - MENU_OPACITY_BASE).ok()?;
+        return OPACITY_OPTIONS.get(index).map(|opacity| format!("opacity:{opacity}"));
+    }
+    if (MENU_SIZE_BASE..MENU_SIZE_BASE + SIZE_OPTIONS.len() as u32).contains(&selected) {
+        let index = usize::try_from(selected - MENU_SIZE_BASE).ok()?;
+        return SIZE_OPTIONS.get(index).map(|(id, _)| format!("size:{id}"));
+    }
+    None
+}
+
+#[cfg(target_os = "windows")]
+unsafe fn append_menu_text(menu: windows_sys::Win32::UI::WindowsAndMessaging::HMENU, id: u32, label: &str) {
+    AppendMenuW(menu, MF_STRING, id as usize, wide(label).as_ptr());
+}
+
+#[cfg(target_os = "windows")]
+fn wide(value: &str) -> Vec<u16> {
+    value.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
 fn clamp_to_work_area(window: &WebviewWindow) -> tauri::Result<()> {

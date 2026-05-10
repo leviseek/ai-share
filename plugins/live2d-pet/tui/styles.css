@@ -13,20 +13,31 @@ body {
   cursor: grab;
   user-select: none;
   touch-action: none;
+  --pet-scale: 1;
+  --pet-opacity: 0.96;
 }
 
 #live2d-shell {
   position: fixed;
   inset: 0;
   z-index: 2147483647;
-  display: flex;
-  align-items: stretch;
-  justify-content: stretch;
-  padding: 4px;
   box-sizing: border-box;
   color: #7a4b28;
   background: transparent;
   pointer-events: auto;
+}
+
+#live2d-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  z-index: 1;
+  transform: scale(var(--pet-scale));
+  transform-origin: center bottom;
+  opacity: var(--pet-opacity);
+  pointer-events: none;
 }
 
 .house-scene {
@@ -38,6 +49,27 @@ body {
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+}
+
+.particle-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.top-drag-zone {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 6;
+  height: 28px;
+  background: transparent;
+  cursor: grab;
+  pointer-events: auto;
 }
 
 .floor {
@@ -54,6 +86,69 @@ body {
   transform: perspective(210px) rotateX(14deg);
   transform-origin: bottom;
   pointer-events: auto;
+}
+
+body[data-floor-style="warm-wood"] .floor {
+  background:
+    repeating-linear-gradient(90deg, rgba(137, 84, 38, 0.16) 0 2px, transparent 2px 46px),
+    repeating-linear-gradient(0deg, rgba(111, 67, 31, 0.11) 0 2px, transparent 2px 24px),
+    linear-gradient(135deg, #d99957, #c77f43 66%, #a86536);
+}
+
+body[data-floor-style="light-wood"] .floor {
+  background:
+    repeating-linear-gradient(90deg, rgba(165, 121, 75, 0.18) 0 2px, transparent 2px 52px),
+    linear-gradient(135deg, #f0d5ad, #ddb889 62%, #c99765);
+}
+
+body[data-floor-style="tatami"] .floor {
+  background:
+    repeating-linear-gradient(90deg, rgba(94, 128, 55, 0.16) 0 2px, transparent 2px 48px),
+    repeating-linear-gradient(0deg, rgba(75, 102, 43, 0.1) 0 2px, transparent 2px 22px),
+    linear-gradient(135deg, #c9d58a, #b6c76e 64%, #92a74c);
+}
+
+body[data-floor-style="marble"] .floor {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.58), transparent 16%),
+    radial-gradient(circle at 82% 28%, rgba(255, 255, 255, 0.42), transparent 18%),
+    linear-gradient(135deg, #f7f4ee, #e3ddd4 60%, #c5bdb1);
+}
+
+body[data-floor-style="night-floor"] .floor {
+  background:
+    linear-gradient(135deg, rgba(118, 92, 179, 0.3), transparent 45%),
+    repeating-linear-gradient(90deg, rgba(93, 70, 125, 0.18) 0 2px, transparent 2px 42px),
+    linear-gradient(135deg, #483a6d, #3a2e56 64%, #251f3d);
+}
+
+body[data-floor-style="grass"] .floor {
+  background:
+    repeating-linear-gradient(90deg, rgba(53, 109, 52, 0.16) 0 2px, transparent 2px 44px),
+    radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.18), transparent 20%),
+    linear-gradient(135deg, #93cf79, #70b75a 60%, #4f9445);
+}
+
+body[data-floor-style="tile"] .floor {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.16) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1px),
+    linear-gradient(135deg, #d7e3f0, #b9cde0 62%, #93acc3);
+  background-size: 46px 24px, 46px 24px, auto;
+}
+
+body[data-floor-style="pastel"] .floor {
+  background:
+    radial-gradient(circle at 20% 24%, rgba(255, 255, 255, 0.34), transparent 20%),
+    radial-gradient(circle at 74% 26%, rgba(255, 255, 255, 0.26), transparent 18%),
+    linear-gradient(135deg, #ffc9d4, #f6b9ef 54%, #cfa8ff);
+}
+
+body[data-floor-style="cloud"] .floor {
+  background:
+    radial-gradient(circle at 18% 28%, rgba(255, 255, 255, 0.54), transparent 22%),
+    radial-gradient(circle at 68% 24%, rgba(255, 255, 255, 0.46), transparent 16%),
+    linear-gradient(135deg, #f7fbff, #dcecf9 62%, #bfd7eb);
 }
 
 .floor-drag-zone {
@@ -77,6 +172,113 @@ body {
   height: 100%;
   cursor: pointer;
   pointer-events: auto;
+}
+
+#live2d-context-menu {
+  position: absolute;
+  z-index: 9;
+  width: min(168px, calc(100vw - 16px));
+  max-width: calc(100vw - 16px);
+  max-height: min(300px, calc(100vh - 16px));
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid rgba(126, 83, 44, 0.18);
+  border-radius: 14px;
+  background: rgba(255, 248, 236, 0.96);
+  box-shadow: 0 10px 28px rgba(89, 54, 26, 0.26);
+  color: #604022;
+  pointer-events: auto;
+  backdrop-filter: blur(12px);
+}
+
+#live2d-context-menu[hidden] {
+  display: none;
+}
+
+.menu-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.menu-section {
+  margin-top: 6px;
+}
+
+.menu-section summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(239, 220, 189, 0.48);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.menu-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+.menu-button,
+.menu-chip {
+  min-height: 28px;
+  padding: 6px 8px;
+  border: 1px solid rgba(127, 84, 44, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-button:hover,
+.menu-chip:hover {
+  background: rgba(255, 236, 205, 0.92);
+}
+
+.menu-button[data-active="true"],
+.menu-chip[data-active="true"] {
+  border-color: rgba(192, 107, 41, 0.35);
+  background: rgba(255, 219, 176, 0.96);
+}
+
+.menu-button--full {
+  width: 100%;
+}
+
+.menu-row {
+  display: flex;
+  gap: 4px;
+}
+
+.menu-slider {
+  width: 100%;
+}
+
+.menu-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.menu-value {
+  color: rgba(106, 68, 31, 0.8);
+  font-variant-numeric: tabular-nums;
 }
 
 #live2d-status {
@@ -122,6 +324,23 @@ body[data-locked="true"] #live2d-shell {
   cursor: default;
 }
 
+body[data-locked="true"] .top-drag-zone,
+body[data-locked="true"] .floor-drag-zone {
+  cursor: default;
+}
+
 body[data-locked="true"] #lock-toggle {
   background: rgba(148, 82, 43, 0.84);
+}
+
+body[data-size="small"] {
+  --pet-scale: 0.86;
+}
+
+body[data-size="medium"] {
+  --pet-scale: 1;
+}
+
+body[data-size="large"] {
+  --pet-scale: 1.16;
 }
