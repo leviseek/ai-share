@@ -31,16 +31,15 @@ const PLUGIN_ROOT = existsSync(resolve(MODULE_DIR, "src-tauri")) ? MODULE_DIR : 
 const TAURI_SOURCE_DIR = resolve(PLUGIN_ROOT, "src-tauri");
 const WINDOWS_EXE = resolve(TAURI_SOURCE_DIR, "target", "release", "live2d-pet.exe");
 const UNIX_BIN = resolve(TAURI_SOURCE_DIR, "target", "release", "live2d-pet");
-const WINDOW_WIDTH = 180;
-const WINDOW_HEIGHT = 320;
+const WINDOW_WIDTH = 165;
+const WINDOW_HEIGHT = 235;
 
-export function openTauriWindow(url: string): BrowserSubprocess | undefined {
+export function openTauriWindow(): BrowserSubprocess | undefined {
   const command = tauriCommand();
   if (!command) return undefined;
 
   const child = Bun.spawn(command, {
     cwd: TAURI_SOURCE_DIR,
-    env: { ...process.env, LIVE2D_PET_URL: url },
     stdout: "inherit",
     stderr: "inherit",
   });
@@ -59,8 +58,5 @@ function tauriCommand(): string[] | undefined {
   const binary = process.platform === "win32" ? WINDOWS_EXE : UNIX_BIN;
   if (existsSync(binary)) return [binary];
 
-  const cargo = Bun.which("cargo");
-  if (!cargo || !existsSync(resolve(TAURI_SOURCE_DIR, "Cargo.toml"))) return undefined;
-  console.warn("未找到已构建的 Tauri 可执行文件，回退到 cargo tauri dev。\n");
-  return [cargo, "--manifest-path", resolve(TAURI_SOURCE_DIR, "Cargo.toml"), "tauri", "dev", "--no-watch"];
+  return undefined;
 }

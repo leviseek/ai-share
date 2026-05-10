@@ -1,8 +1,6 @@
 use tauri::{PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
-
-const DEFAULT_URL: &str = "tauri://localhost";
-const WINDOW_WIDTH: i32 = 160;
-const WINDOW_HEIGHT: i32 = 300;
+const WINDOW_WIDTH: i32 = 165;
+const WINDOW_HEIGHT: i32 = 235;
 const WINDOW_MARGIN: i32 = 16;
 
 fn main() {
@@ -12,13 +10,7 @@ fn main() {
             let handle = app.handle().clone();
             let (default_x, default_y) = default_window_position(&handle);
 
-            let window_url = if std::env::var("LIVE2D_PET_URL").is_ok() {
-                WebviewUrl::App("index.html".into())
-            } else {
-                WebviewUrl::App("index.html".into())
-            };
-
-            let window = WebviewWindowBuilder::new(&handle, "live2d-pet", window_url)
+            let window = WebviewWindowBuilder::new(&handle, "live2d-pet", WebviewUrl::App("index.html".into()))
                 .title("Live2D Pet")
                 .inner_size(WINDOW_WIDTH as f64, WINDOW_HEIGHT as f64)
                 .position(default_x, default_y)

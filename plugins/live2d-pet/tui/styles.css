@@ -12,22 +12,116 @@ body {
   overflow: hidden;
   cursor: grab;
   user-select: none;
+  touch-action: none;
 }
 
 #live2d-shell {
   position: fixed;
   inset: 0;
   z-index: 2147483647;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-size: 18px;
-  font-weight: 700;
-  background: rgba(255, 0, 128, 0.55);
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 4px;
+  box-sizing: border-box;
+  color: #7a4b28;
+  background: transparent;
   pointer-events: auto;
 }
 
-#live2d-widget,
-#live2d-widget * {
-  pointer-events: none !important;
+.house-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.floor {
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  bottom: -5%;
+  z-index: 3;
+  height: 34%;
+  background:
+    repeating-linear-gradient(90deg, rgba(137, 84, 38, 0.16) 0 2px, transparent 2px 46px),
+    repeating-linear-gradient(0deg, rgba(111, 67, 31, 0.11) 0 2px, transparent 2px 24px),
+    linear-gradient(135deg, #d99957, #c77f43 66%, #a86536);
+  transform: perspective(210px) rotateX(14deg);
+  transform-origin: bottom;
+  pointer-events: auto;
+}
+
+.floor-drag-zone {
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  bottom: -5%;
+  z-index: 5;
+  height: 34%;
+  background: transparent;
+  cursor: grab;
+  pointer-events: auto;
+}
+
+#live2d-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#live2d-status {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  z-index: 7;
+  max-width: 82%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: rgba(99, 58, 29, 0.88);
+  background: rgba(255, 247, 223, 0.72);
+  font-size: 12px;
+  line-height: 1.3;
+  transform: translateX(-50%);
+  transition: opacity 180ms ease;
+  pointer-events: none;
+}
+
+#live2d-status[data-ready="true"] {
+  opacity: 0;
+}
+
+#lock-toggle {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 8;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(74, 45, 24, 0.72);
+  font: 13px/1 sans-serif;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+body[data-locked="true"] #live2d-shell {
+  cursor: default;
+}
+
+body[data-locked="true"] #lock-toggle {
+  background: rgba(148, 82, 43, 0.84);
 }

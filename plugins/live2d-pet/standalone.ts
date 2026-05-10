@@ -17,7 +17,13 @@ if (!(await acquireInstanceLock(instanceLockPath))) {
 const url = await ensureWebUi();
 try {
   console.log(`Live2D pet window: ${url}`);
-  const child = openTauriWindow(url) ?? openBrowserFallbackWindow(url);
+  let child;
+  try {
+    child = openTauriWindow();
+  } catch {
+    child = undefined;
+  }
+  child ??= openBrowserFallbackWindow(url);
   const stopChild = () => {
     try {
       child.kill();

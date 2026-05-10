@@ -27,8 +27,8 @@ let idleTimer: ReturnType<typeof setInterval> | undefined;
 const WEB_UI_PORT = 18080;
 const WINDOW_LEFT = 80;
 const WINDOW_TOP = 80;
-const WINDOW_WIDTH = 360;
-const WINDOW_HEIGHT = 640;
+const WINDOW_WIDTH = 165;
+const WINDOW_HEIGHT = 235;
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 const IDLE_CHECK_INTERVAL_MS = 60_000;
@@ -142,7 +142,7 @@ async function isExistingLive2dPetServer(url: string): Promise<boolean> {
     const response = await fetch(url);
     if (!response.ok) return false;
     const html = await response.text();
-    return html.includes("Live2D Pet") && html.includes("live2d-widget");
+    return html.includes("Live2D Pet") && html.includes("live2d-canvas") && html.includes("house-scene");
   } catch {
     return false;
   }
