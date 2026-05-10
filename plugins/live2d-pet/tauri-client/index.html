@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live2D Pet</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        overflow: hidden;
+      }
+
+      #live2d-shell {
+        position: fixed;
+        inset: 0;
+        user-select: none;
+        cursor: grab;
+        touch-action: none;
+      }
+
+      body[data-locked="true"] #live2d-shell {
+        cursor: default;
+      }
+
+      #lock-toggle {
+        position: fixed;
+        right: 6px;
+        bottom: 6px;
+        width: 24px;
+        height: 24px;
+        display: grid;
+        place-items: center;
+        border: 0;
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.92);
+        background: rgba(0, 0, 0, 0.42);
+        font: 15px/1 sans-serif;
+        opacity: 0;
+        cursor: pointer;
+        transition: opacity 140ms ease;
+        pointer-events: auto;
+      }
+
+      body:hover #lock-toggle {
+        opacity: 1;
+      }
+
+      #live2d-widget,
+      #live2d-widget * {
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="live2d-shell"></div>
+    <button id="lock-toggle" type="button" aria-label="解锁，可拖拽" title="单击锁定">🔓</button>
+    <script type="module">
+      const shell = document.getElementById("live2d-shell");
+      const lockToggle = document.getElementById("lock-toggle");
+      let locked = false;
+
+      async function setLocked(nextLocked) {
+        locked = nextLocked;
+        document.body.dataset.locked = String(locked);
+        if (lockToggle) {
+          lockToggle.textContent = locked ? "🔒" : "🔓";
+          lockToggle.title = locked ? "单击解锁" : "单击锁定";
+          lockToggle.setAttribute("aria-label", locked ? "已锁定，单击解锁" : "解锁，可拖拽");
+        }
+      }
+
+      await setLocked(false);
+
+      window.setTimeout(async () => {
+        try {
+          await window.__TAURI__?.core?.invoke?.("click_probe", { x: -1, y: -1 });
+        } catch {}
+      }, 500);
+      shell?.addEventListener("pointerdown", async (event) => {
+        if (event.button !== 0) return;
+        if (locked) return;
+        if (event.target?.closest?.("#lock-toggle")) return;
+        try {
+          await window.__TAURI__?.core?.invoke?.("click_probe", { x: event.clientX, y: event.clientY });
+          await window.__TAURI__?.window?.getCurrentWindow?.().startDragging?.();
+          event.preventDefault();
+        } catch {}
+      });
+
+      lockToggle?.addEventListener("click", async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        await setLocked(!locked);
+      });
+
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/live2d-widget@3.1.4/lib/L2Dwidget.min.js";
+      script.async = true;
+      script.onload = () => {
+        if (!window.L2Dwidget) return;
+        window.L2Dwidget.init({
+          model: { jsonPath: "https://cdn.jsdelivr.net/npm/live2d-widget-model-tororo/assets/tororo.model.json", scale: 0.84 },
+          display: { position: "left", width: 128, height: 258, hOffset: 0, vOffset: -12 },
+          mobile: { show: true, scale: 0.7 },
+          dialog: { enable: false },
+        });
+      };
+      script.onerror = () => {};
+      document.head.appendChild(script);
+    </script>
+  </body>
+</html>

@@ -1,7 +1,10 @@
-import { ensureWebUi, openBrowser } from "./tui/web-server.ts";
-
 type TuiApi = {
   command?: { register(factory: () => TuiCommand[]): void };
+};
+
+declare const Bun: {
+  spawn(command: string[], options: { stdout: "ignore"; stderr: "ignore" }): { unref(): void };
+  which(command: string): string | null;
 };
 
 type TuiCommand = {
@@ -23,7 +26,6 @@ const plugin: Plugin = {
   id: "live2d-pet",
   tui: async (api) => {
     registerCommands(api);
-    void openPetCommand();
   },
 };
 
@@ -42,11 +44,13 @@ function registerCommands(api: TuiApi): void {
 }
 
 async function openPetCommand(): Promise<void> {
-  const url = await ensureWebUi();
   try {
-    openBrowser(url);
+    const command = Bun.which("live2d-pet");
+    if (!command) return;
+    const child = Bun.spawn([command], { stdout: "ignore", stderr: "ignore" });
+    child.unref();
   } catch {
-    // Browser launching is best-effort only.
+    // Window launching is best-effort only.
   }
 }
 

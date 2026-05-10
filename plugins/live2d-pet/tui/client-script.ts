@@ -1,25 +1,29 @@
 export const clientScript: string = String.raw`
-let live2dRuntimeReady = false;
+function installNativeDragging() {
+  const shell = document.getElementById("live2d-shell");
+  if (!(shell instanceof HTMLElement)) return;
 
-function tryLoadExternalLive2D() {
-  const script = document.createElement("script");
-  script.src = "https://cdn.jsdelivr.net/npm/live2d-widget@3.1.4/lib/L2Dwidget.min.js";
-  script.async = true;
-  script.onload = () => {
-    if (!window.L2Dwidget) {
-      return;
+  window.setTimeout(async () => {
+    try {
+      await window.__TAURI__?.core?.invoke?.("click_probe", { x: -1, y: -1 });
+    } catch {
+      // ignore probe failures
     }
-    live2dRuntimeReady = true;
-    window.L2Dwidget.init({
-      model: { jsonPath: "https://cdn.jsdelivr.net/npm/live2d-widget-model-tororo/assets/tororo.model.json", scale: 1 },
-      display: { position: "left", width: 160, height: 320, hOffset: 0, vOffset: -20 },
-      mobile: { show: true, scale: 0.7 },
-      dialog: { enable: false },
-    });
-  };
-  script.onerror = () => {};
-  document.head.appendChild(script);
+  }, 500);
+
+  shell.textContent = "DRAG TEST";
+
+  shell.addEventListener("pointerdown", async (event) => {
+    if (event.button !== 0) return;
+    try {
+      await window.__TAURI__?.core?.invoke?.("click_probe", { x: event.clientX, y: event.clientY });
+      await window.__TAURI__?.core?.invoke?.("start_dragging");
+      event.preventDefault();
+    } catch {
+      // If the JS API is unavailable, the native drag region still applies.
+    }
+  });
 }
 
-tryLoadExternalLive2D();
+installNativeDragging();
 `;

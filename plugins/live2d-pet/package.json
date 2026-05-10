@@ -4,6 +4,11 @@
   "type": "module",
   "exports": {
     "./server": "./server.js",
+    "./standalone": "./standalone.js",
     "./tui": "./tui.js"
+  },
+  "scripts": {
+    "tauri:dev": "cargo --manifest-path src-tauri/Cargo.toml tauri dev --no-watch",
+    "tauri:build": "bun x @tauri-apps/cli build"
   }
 }
