@@ -40,5 +40,6 @@ docs/superpowers/
 .opencode/memory/
 .opencode-rescue/
 .sisyphus/evidence/
+.playwright-mcp/
 .env
 .env.*
