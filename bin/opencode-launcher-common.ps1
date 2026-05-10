@@ -46,6 +46,78 @@ function Set-OpenCodeProxyEnvShared {
   }
 }
 
+$script:Live2DPetProcess = $null
+
+function Start-Live2DPetShared {
+  param(
+    [string]$ConfigDir,
+    [bool]$AllowBrowserFallback = $true
+  )
+
+  if (-not (Get-Command bun -CommandType Application -ErrorAction SilentlyContinue)) {
+    throw "缺少 bun，无法启动 Live2D pet。"
+  }
+
+  $Entry = Join-Path $ConfigDir "plugins\live2d-pet\standalone.js"
+  if (-not (Test-Path -LiteralPath $Entry -PathType Leaf)) {
+    throw "缺少 Live2D pet 独立入口：$Entry`n请先运行：bun run ai:gen -- --force"
+  }
+
+  if (-not $AllowBrowserFallback) {
+    $ReleaseBinary = if ($IsWindows) {
+      Join-Path $ConfigDir "plugins\live2d-pet\src-tauri\target\release\live2d-pet.exe"
+    } else {
+      Join-Path $ConfigDir "plugins\live2d-pet\src-tauri\target\release\live2d-pet"
+    }
+    if (-not (Test-Path -LiteralPath $ReleaseBinary -PathType Leaf)) {
+      Write-Warning "Live2D pet 已跳过：未找到发布版二进制，且当前启动路径不允许浏览器回退。"
+      return
+    }
+  }
+
+  if ($script:Live2DPetProcess -and -not $script:Live2DPetProcess.HasExited) { return }
+
+  New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
+  $StdoutLogFile = Join-Path $ConfigDir "live2d-pet-launcher.out.log"
+  $StderrLogFile = Join-Path $ConfigDir "live2d-pet-launcher.err.log"
+  $Arguments = @($Entry)
+  $PreviousBrowserFallback = $env:AI_SHARE_LIVE2D_BROWSER_FALLBACK
+  if (-not $AllowBrowserFallback) {
+    $env:AI_SHARE_LIVE2D_BROWSER_FALLBACK = "0"
+  }
+  try {
+    $script:Live2DPetProcess = Start-Process -FilePath "bun" -ArgumentList $Arguments -WindowStyle Hidden -PassThru -RedirectStandardOutput $StdoutLogFile -RedirectStandardError $StderrLogFile
+  } finally {
+    if ($null -eq $PreviousBrowserFallback) {
+      Remove-Item Env:\AI_SHARE_LIVE2D_BROWSER_FALLBACK -ErrorAction SilentlyContinue
+    } else {
+      $env:AI_SHARE_LIVE2D_BROWSER_FALLBACK = $PreviousBrowserFallback
+    }
+  }
+  Start-Sleep -Seconds 1
+  if ($script:Live2DPetProcess.HasExited) {
+    if ($script:Live2DPetProcess.ExitCode -eq 0) {
+      $script:Live2DPetProcess = $null
+      return
+    }
+    Write-Warning "Live2D pet 未能启动，详情请查看日志：$StdoutLogFile 和 $StderrLogFile"
+    $script:Live2DPetProcess = $null
+  }
+}
+
+function Stop-Live2DPetShared {
+  if (-not $script:Live2DPetProcess) { return }
+
+  try {
+    if (-not $script:Live2DPetProcess.HasExited) {
+      Stop-Process -Id $script:Live2DPetProcess.Id -Force -ErrorAction SilentlyContinue
+      Wait-Process -Id $script:Live2DPetProcess.Id -ErrorAction SilentlyContinue
+    }
+  } catch {}
+
+  $script:Live2DPetProcess = $null
+}
+
 function Invoke-ContextGuardShared {
   param(
     [string]$Command,

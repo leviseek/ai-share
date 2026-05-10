@@ -371,7 +371,12 @@ $OpenCodeStartInfo = [System.Diagnostics.ProcessStartInfo]::new()
 $OpenCodeStartInfo.FileName = $OpenCode.Source
 $OpenCodeStartInfo.UseShellExecute = $false
 foreach ($Arg in $OpenCodeArgs) { [void]$OpenCodeStartInfo.ArgumentList.Add($Arg) }
-$OpenCodeProcess = [System.Diagnostics.Process]::Start($OpenCodeStartInfo)
-Start-ContextGuardWatchShared "aiomo" $ConfigDir $GuardConfigPath $WorkingDirectory $OpenCodeProcess.Id
-$OpenCodeProcess.WaitForExit()
-exit $OpenCodeProcess.ExitCode
+try {
+  Start-Live2DPetShared -ConfigDir $ConfigDir -AllowBrowserFallback:$false
+  $OpenCodeProcess = [System.Diagnostics.Process]::Start($OpenCodeStartInfo)
+  Start-ContextGuardWatchShared "aiomo" $ConfigDir $GuardConfigPath $WorkingDirectory $OpenCodeProcess.Id
+  $OpenCodeProcess.WaitForExit()
+  exit $OpenCodeProcess.ExitCode
+} finally {
+  Stop-Live2DPetShared
+}

@@ -78,4 +78,10 @@ fi
 
 cp "$AIOC_CONFIG" "$ACTIVE_CONFIG"
 
-exec opencode "$@"
+opencode_live2d_pet_start "$CONFIG_DIR"
+trap 'status=$?; opencode_live2d_pet_stop; exit $status' EXIT HUP INT TERM
+opencode "$@"
+status=$?
+opencode_live2d_pet_stop
+trap - EXIT HUP INT TERM
+exit "$status"

@@ -300,8 +300,10 @@ function checkInstalledLaunchers(): void {
           "opencode-context-guard.ts",
           "aiomo-monitor.cmd",
           "aiomo-monitor.ps1",
+          "live2d-pet.cmd",
+          "live2d-pet.ps1",
         ]
-      : ["aiomo", "aioc", "opencode-launcher-common.sh", "opencode-context-guard.ts", "aiomo-monitor"];
+      : ["aiomo", "aioc", "opencode-launcher-common.sh", "opencode-context-guard.ts", "aiomo-monitor", "live2d-pet"];
   for (const fileName of launcherFiles) {
     checkFile("Launchers", `launcher ${fileName}`, join(binDir, fileName));
   }
@@ -321,6 +323,7 @@ function checkLocalPluginInstall(): void {
   checkFile("TUI & Plugin", "live2d pet plugin package", join(live2dPetPluginDir, "package.json"));
   checkFile("TUI & Plugin", "live2d pet plugin server", join(live2dPetPluginDir, "server.js"));
   checkFile("TUI & Plugin", "live2d pet plugin tui", join(live2dPetPluginDir, "tui.js"));
+  checkFile("TUI & Plugin", "live2d pet standalone", join(live2dPetPluginDir, "standalone.js"));
 }
 
 function checkCommonFiles(): void {

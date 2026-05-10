@@ -81,5 +81,10 @@ if (-not (Test-Path -LiteralPath $AiocProfileConfig -PathType Leaf)) {
 Copy-Item -LiteralPath $AiocProfileConfig -Destination $OpenCodeActiveConfig -Force
 
 $OpenCode = Get-Command opencode.exe -CommandType Application -ErrorAction Stop
-& $OpenCode.Source @($OpenCodeArgs.ToArray())
-exit $LASTEXITCODE
+try {
+  Start-Live2DPetShared -ConfigDir $ConfigDir -AllowBrowserFallback:$false
+  & $OpenCode.Source @($OpenCodeArgs.ToArray())
+  exit $LASTEXITCODE
+} finally {
+  Stop-Live2DPetShared
+}

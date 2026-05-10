@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { cp, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { resolve, sep } from "node:path";
 import type { GeneratorPaths } from "./paths.ts";
 import { pathExists } from "./fs.ts";
 import { NATIVE_SKILLS } from "./native-skills.ts";
@@ -17,8 +17,10 @@ export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): 
           "opencode-install-doctor.ts",
           "aiomo-monitor.cmd",
           "aiomo-monitor.ps1",
+          "live2d-pet.cmd",
+          "live2d-pet.ps1",
         ]
-      : ["aiomo", "aioc", "opencode-launcher-common.sh", "opencode-install-doctor.ts", "aiomo-monitor"];
+      : ["aiomo", "aioc", "opencode-launcher-common.sh", "opencode-install-doctor.ts", "aiomo-monitor", "live2d-pet"];
   if (dryRun) {
     for (const fileName of launcherFiles) {
       console.log(`将安装启动命令：${resolve(paths.targetBinDir, fileName)}`);
@@ -65,6 +67,10 @@ export async function installPlugins(paths: GeneratorPaths, dryRun: boolean): Pr
   if (dryRun) {
     for (const directoryName of pluginDirectories) {
       console.log(`将安装 OpenCode 本地插件：${resolve(paths.targetPluginDir, directoryName)}`);
+      if (directoryName === "live2d-pet") {
+        console.log(`将安装 Live2D pet 桌面壳源码：${resolve(paths.targetPluginDir, directoryName, "src-tauri")}`);
+        console.log(`如已构建，将安装 Live2D pet 桌面壳二进制：${live2dPetInstalledBinary(paths)}`);
+      }
     }
     return;
   }
@@ -115,28 +121,48 @@ function installedContextGuardCli(content: string): string {
 async function buildPlugin(paths: GeneratorPaths, directoryName: string): Promise<string> {
   const sourceDir = resolve(paths.pluginDir, directoryName);
   const outputDir = resolve(paths.distPluginDir, directoryName);
+  const entrypoints = [resolve(sourceDir, "server.ts"), resolve(sourceDir, "tui.ts")];
+  const standaloneEntrypoint = resolve(sourceDir, "standalone.ts");
+  if (await pathExists(standaloneEntrypoint)) {
+    entrypoints.push(standaloneEntrypoint);
+  }
   const result = spawnSync(
     "bun",
-    [
-      "build",
-      resolve(sourceDir, "server.ts"),
-      resolve(sourceDir, "tui.ts"),
-      "--target=bun",
-      "--outdir",
-      outputDir,
-      "--external",
-      "bun:sqlite",
-    ],
+    ["build", ...entrypoints, "--target=bun", "--outdir", outputDir, "--external", "bun:sqlite"],
     { cwd: paths.projectRoot, stdio: "pipe", encoding: "utf8" },
   );
   if (result.status !== 0) {
     throw new Error(result.stderr.trim() || result.stdout.trim() || `构建插件失败：${directoryName}`);
   }
   await copyFile(resolve(sourceDir, "package.json"), resolve(outputDir, "package.json"));
+  if (directoryName === "live2d-pet") {
+    await cp(resolve(sourceDir, "src-tauri"), resolve(outputDir, "src-tauri"), {
+      recursive: true,
+      force: true,
+      filter: (sourcePath) => !sourcePath.includes(`${sep}target${sep}`) && !sourcePath.endsWith(`${sep}target`),
+    });
+    await cp(resolve(sourceDir, "tauri-client"), resolve(outputDir, "tauri-client"), { recursive: true, force: true });
+    await copyLive2dPetDesktopBinary(sourceDir, outputDir);
+  }
   if (await pathExists(resolve(sourceDir, "agents-registry.json"))) {
     await copyFile(resolve(sourceDir, "agents-registry.json"), resolve(outputDir, "agents-registry.json"));
   }
   return outputDir;
+}
+
+async function copyLive2dPetDesktopBinary(sourceDir: string, outputDir: string): Promise<void> {
+  const binaryName = process.platform === "win32" ? "live2d-pet.exe" : "live2d-pet";
+  const sourceBinary = resolve(sourceDir, "src-tauri", "target", "release", binaryName);
+  if (!(await pathExists(sourceBinary))) return;
+
+  const targetDir = resolve(outputDir, "src-tauri", "target", "release");
+  await mkdir(targetDir, { recursive: true });
+  await copyFile(sourceBinary, resolve(targetDir, binaryName));
+}
+
+function live2dPetInstalledBinary(paths: GeneratorPaths): string {
+  const binaryName = process.platform === "win32" ? "live2d-pet.exe" : "live2d-pet";
+  return resolve(paths.targetPluginDir, "live2d-pet", "src-tauri", "target", "release", binaryName);
 }
 
 function ensureWindowsUserPath(path: string): void {

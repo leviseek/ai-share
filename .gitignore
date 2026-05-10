@@ -18,6 +18,7 @@ bun.lockb
 
 ### TypeScript
 dist/
+target/
 *.tsbuildinfo
 
 ### Local monitor state

@@ -33,6 +33,44 @@ opencode_apply_proxy_env() {
   fi
 }
 
+opencode_live2d_pet_start() {
+  config_dir="$1"
+  entry="$config_dir/plugins/live2d-pet/standalone.js"
+  log_file="$config_dir/live2d-pet-launcher.log"
+
+  if ! command -v bun > /dev/null 2>&1; then
+    printf '%s\n' "缺少 bun，无法启动 Live2D pet。" >&2
+    return 1
+  fi
+
+  if [ ! -f "$entry" ]; then
+    printf '%s\n' "缺少 Live2D pet 独立入口：$entry" >&2
+    printf '%s\n' "请先运行：bun run ai:gen -- --force" >&2
+    return 1
+  fi
+
+  if [ -n "${LIVE2D_PET_PID:-}" ] && kill -0 "$LIVE2D_PET_PID" 2>/dev/null; then
+    return 0
+  fi
+
+  mkdir -p "$config_dir"
+  bun "$entry" >"$log_file" 2>&1 &
+  LIVE2D_PET_PID=$!
+  sleep 1
+  if ! kill -0 "$LIVE2D_PET_PID" 2>/dev/null; then
+    printf '%s\n' "Live2D pet 未能启动，详情请查看日志：$log_file" >&2
+    LIVE2D_PET_PID=""
+  fi
+}
+
+opencode_live2d_pet_stop() {
+  if [ -n "${LIVE2D_PET_PID:-}" ] && kill -0 "$LIVE2D_PET_PID" 2>/dev/null; then
+    kill "$LIVE2D_PET_PID" 2>/dev/null || true
+    wait "$LIVE2D_PET_PID" 2>/dev/null || true
+  fi
+  LIVE2D_PET_PID=""
+}
+
 opencode_context_guard() {
   command_name="$1"
   launcher="$2"

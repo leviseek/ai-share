@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+set -eu
+
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+entry="$config_dir/plugins/live2d-pet/standalone.js"
+
+if ! command -v bun >/dev/null 2>&1; then
+  printf '%s\n' "缺少 bun，无法启动 Live2D pet。" >&2
+  exit 1
+fi
+
+if [ ! -f "$entry" ]; then
+  printf '%s\n' "缺少 Live2D pet 独立入口：$entry" >&2
+  printf '%s\n' "请先运行：bun run ai:gen -- --force" >&2
+  exit 1
+fi
+
+exec bun "$entry" "$@"
