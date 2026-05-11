@@ -10,6 +10,7 @@ tauri-build = { version = "2", features = [] }
 raw-window-handle = "0.6"
 serde = { version = "1", features = ["derive"] }
 tauri = { version = "2", features = [] }
+url = "2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }

@@ -1,9 +1,18 @@
 export const clientScript: string = String.raw`
 const MODEL_URL = "https://cdn.jsdelivr.net/npm/live2d-lib@1.0.9/live2d/models/tororo/tororo.model3.json";
 const SCRIPT_URLS = [
-  "https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js",
-  "https://cdn.jsdelivr.net/npm/live2dcubismcore@1.0.2/live2dcubismcore.min.js",
-  "https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js",
+  {
+    src: "https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js",
+    integrity: "sha384-98eYPI3XO3wKMBW5IUYk3WpffOsMLc+0WSK+ZMutD8S5R6e4E7hKIqFKcdHBLOMB",
+  },
+  {
+    src: "https://cdn.jsdelivr.net/npm/live2dcubismcore@1.0.2/live2dcubismcore.min.js",
+    integrity: "sha384-22AEPPF5gktH7wGMhLIh4Z/bDqlqwudB8VbfBHupXa2RVfspuFnxXP0+CRT1qr8y",
+  },
+  {
+    src: "https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js",
+    integrity: "sha384-x73Ez+8Lf2UpkuWDPMvQ/T8scXzifx3geDffp4EdBI2/r/z+NlTxlHA5xySHOP7n",
+  },
 ];
 const CLICK_MOTION_GROUPS = ["TapBody", "TapLeft", "TapRight"];
 const IDLE_MOTION_GROUPS = ["Idle", "TapBody", "TapLeft", "TapRight"];
@@ -40,6 +49,12 @@ let particleAnimation;
 let particleItems = [];
 let motionGroups = { click: [], idle: [] };
 let hitRegionPollTimer;
+let bubbleFetchTimer;
+let bubbleTypingTimer;
+let bubbleTypingToken = 0;
+let bubbleText = "";
+let bubbleRenderedText = "";
+let bubbleStateToken = "";
 let petSettings = {
   floorStyle: "warm-wood",
   particleEffect: "bubbles",
@@ -48,25 +63,108 @@ let petSettings = {
 };
 
 function setStatus(message, ready = false) {
-  const status = document.getElementById("live2d-status");
-  if (!(status instanceof HTMLElement)) return;
-  status.textContent = message;
-  status.dataset.ready = String(ready);
+  const bubble = document.getElementById("live2d-bubble");
+  const bubbleTextNode = document.getElementById("live2d-bubble-text");
+  if (!(bubble instanceof HTMLElement) || !(bubbleTextNode instanceof HTMLElement)) return;
+  bubble.hidden = false;
+  bubbleText = catifyText(message);
+  bubble.dataset.ready = String(ready);
+  startBubbleTyping(bubbleText);
+}
+
+function catifyText(message) {
+  const text = String(message ?? "").trim();
+  if (!text) return "";
+  if (/喵[～~。！？!?,，]?$/u.test(text)) return text;
+  return text + " 喵～";
+}
+
+function startBubbleTyping(message) {
+  bubbleTypingToken += 1;
+  const token = bubbleTypingToken;
+  if (bubbleTypingTimer) window.clearTimeout(bubbleTypingTimer);
+  bubbleRenderedText = "";
+  renderBubbleText("");
+  const text = String(message ?? "").trim();
+  if (!text) {
+    return;
+  }
+  const chars = Array.from(text);
+  let index = 0;
+  const step = () => {
+    if (token !== bubbleTypingToken) return;
+    index += 1;
+    bubbleRenderedText = chars.slice(0, index).join("");
+    renderBubbleText(bubbleRenderedText);
+    if (index < chars.length) {
+      bubbleTypingTimer = window.setTimeout(step, typingDelayFor(chars[index - 1]));
+      return;
+    }
+    bubbleTypingTimer = window.setTimeout(() => {
+      if (token !== bubbleTypingToken) return;
+      bubbleTypingTimer = undefined;
+      bubbleRenderedText = text;
+      renderBubbleText(bubbleRenderedText);
+    }, 1200);
+  };
+  step();
+}
+
+function renderBubbleText(text) {
+  const bubble = document.getElementById("live2d-bubble");
+  const bubbleTextNode = document.getElementById("live2d-bubble-text");
+  const cursor = document.getElementById("live2d-bubble-cursor");
+  if (!(bubble instanceof HTMLElement) || !(bubbleTextNode instanceof HTMLElement) || !(cursor instanceof HTMLElement)) return;
+  bubble.hidden = false;
+  bubbleTextNode.textContent = text;
+  cursor.hidden = text.length === 0;
+}
+
+function typingDelayFor(character) {
+  if (character === "\n") return 140;
+  if ("，。！？；：,.!?;:".includes(character)) return 160;
+  if ("、,.".includes(character)) return 110;
+  return 42;
+}
+
+async function refreshBubbleState() {
+  try {
+    const response = await fetch("/state", { cache: "no-store" });
+    if (!response.ok) return;
+    const state = await response.json();
+    if (!state || typeof state.text !== "string") return;
+    const nextText = catifyText(state.text);
+    const nextToken = [state.sessionID ?? "", state.messageID ?? "", String(state.updatedAt ?? 0), nextText].join("|");
+    if (nextToken === bubbleStateToken) return;
+    bubbleStateToken = nextToken;
+    if (typeof state.updatedAt === "number" && state.updatedAt <= 0) return;
+    setStatus(nextText, true);
+  } catch {
+    // Best-effort polling only.
+  }
+}
+
+function startBubblePolling() {
+  if (bubbleFetchTimer) window.clearInterval(bubbleFetchTimer);
+  bubbleFetchTimer = window.setInterval(refreshBubbleState, 900);
+  void refreshBubbleState();
 }
 
 function loadScript(src) {
   return new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[src="' + src + '"]');
+    const existing = document.querySelector('script[src="' + src.src + '"]');
     if (existing) {
       existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener("error", () => reject(new Error("无法加载 " + src)), { once: true });
+      existing.addEventListener("error", () => reject(new Error("无法加载 " + src.src)), { once: true });
       return;
     }
     const script = document.createElement("script");
-    script.src = src;
+    script.src = src.src;
+    script.integrity = src.integrity;
+    script.crossOrigin = "anonymous";
     script.async = true;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("无法加载 " + src));
+    script.onerror = () => reject(new Error("无法加载 " + src.src));
     document.head.appendChild(script);
   });
 }
@@ -119,7 +217,6 @@ function playMotion(group) {
   if (!group) return;
   try {
     live2dModel.motion(group);
-    setStatus("Tororo 正在播放 " + group, true);
   } catch {
     // Missing motion groups should not break the pet window.
   }
@@ -598,7 +695,8 @@ function installNativeDragging() {
     if (!(event.target instanceof HTMLElement && (event.target === floorDragZone || event.target.closest(".floor-drag-zone") || event.target === topDragZone || event.target.closest(".top-drag-zone") || event.target === shell || event.target.closest("#live2d-shell")))) return;
     try {
       await window.__TAURI__?.core?.invoke?.("click_probe", { x: event.clientX, y: event.clientY });
-      await window.__TAURI__?.window?.getCurrentWindow?.().startDragging?.();
+      const currentWindow = window.__TAURI__?.window?.getCurrentWindow?.() ?? window.__TAURI__?.window?.appWindow;
+      await currentWindow?.startDragging?.();
       event.preventDefault();
     } catch {
       // If the JS API is unavailable, the native drag region still applies.
@@ -609,5 +707,6 @@ function installNativeDragging() {
 installContextMenu();
 applyPetSettings();
 installNativeDragging();
+startBubblePolling();
 installLive2dPet();
 `;

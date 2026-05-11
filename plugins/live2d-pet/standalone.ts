@@ -19,7 +19,7 @@ try {
   console.log(`Live2D pet window: ${url}`);
   let child;
   try {
-    child = openTauriWindow();
+    child = openTauriWindow(url);
   } catch {
     child = undefined;
   }

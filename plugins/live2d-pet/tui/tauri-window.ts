@@ -31,15 +31,16 @@ const PLUGIN_ROOT = existsSync(resolve(MODULE_DIR, "src-tauri")) ? MODULE_DIR : 
 const TAURI_SOURCE_DIR = resolve(PLUGIN_ROOT, "src-tauri");
 const WINDOWS_EXE = resolve(TAURI_SOURCE_DIR, "target", "release", "live2d-pet.exe");
 const UNIX_BIN = resolve(TAURI_SOURCE_DIR, "target", "release", "live2d-pet");
-const WINDOW_WIDTH = 165;
-const WINDOW_HEIGHT = 235;
+const WINDOW_WIDTH = 320;
+const WINDOW_HEIGHT = 420;
 
-export function openTauriWindow(): BrowserSubprocess | undefined {
+export function openTauriWindow(url?: string): BrowserSubprocess | undefined {
   const command = tauriCommand();
   if (!command) return undefined;
 
   const child = Bun.spawn(command, {
     cwd: TAURI_SOURCE_DIR,
+    env: url ? { ...process.env, LIVE2D_PET_WEB_URL: url } : process.env,
     stdout: "inherit",
     stderr: "inherit",
   });

@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { readLive2dPetState } from "./state.ts";
 import { renderHtml } from "./renderer.ts";
 import { floatBrowserWindow } from "./windows-window.ts";
 
@@ -60,8 +61,15 @@ export async function ensureWebUi(): Promise<string> {
     webServer = Bun.serve({
       hostname: "127.0.0.1",
       port: WEB_UI_PORT,
-      fetch: () => {
+      fetch: async (request) => {
         lastRequestAt = Date.now();
+        const url = new URL(request.url);
+        if (url.pathname === "/state") {
+          const state = await readLive2dPetState();
+          return Response.json(state, {
+            headers: { "Cache-Control": "no-store" },
+          });
+        }
         return new Response(renderHtml(), {
           headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
         });

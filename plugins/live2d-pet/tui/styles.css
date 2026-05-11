@@ -70,6 +70,8 @@ body {
   background: transparent;
   cursor: grab;
   pointer-events: auto;
+  -webkit-app-region: drag;
+  app-region: drag;
 }
 
 .floor {
@@ -94,6 +96,16 @@ body {
   transform: perspective(190px) rotateX(18deg) translateZ(0);
   transform-origin: bottom;
   pointer-events: auto;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+#live2d-canvas,
+#lock-toggle,
+#live2d-context-menu,
+#live2d-bubble {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 body[data-floor-style="warm-wood"] .floor {
@@ -157,7 +169,10 @@ body[data-floor-style="tile"] .floor {
     linear-gradient(90deg, rgba(255, 255, 255, 0.16) 1px, transparent 1px),
     linear-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1px),
     linear-gradient(135deg, #d7e3f0, #b9cde0 62%, #93acc3);
-  background-size: 46px 24px, 46px 24px, auto;
+  background-size:
+    46px 24px,
+    46px 24px,
+    auto;
 }
 
 body[data-floor-style="pastel"] .floor {
@@ -188,6 +203,8 @@ body[data-floor-style="cloud"] .floor {
   background: transparent;
   cursor: grab;
   pointer-events: auto;
+  -webkit-app-region: drag;
+  app-region: drag;
 }
 
 #live2d-canvas {
@@ -308,25 +325,70 @@ body[data-floor-style="cloud"] .floor {
   font-variant-numeric: tabular-nums;
 }
 
-#live2d-status {
+#live2d-bubble {
   position: absolute;
   left: 50%;
-  bottom: 14px;
-  z-index: 7;
-  max-width: 82%;
-  padding: 6px 10px;
-  border-radius: 999px;
-  color: rgba(99, 58, 29, 0.88);
-  background: rgba(255, 247, 223, 0.72);
-  font-size: 12px;
-  line-height: 1.3;
+  bottom: 72px;
+  z-index: 8;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 2px;
+  max-width: min(84%, 270px);
+  box-sizing: border-box;
+  padding: 10px 12px 11px;
+  border: 1px solid rgba(167, 107, 57, 0.22);
+  border-radius: 18px 18px 18px 6px;
+  color: rgba(82, 48, 24, 0.96);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 247, 227, 0.92)),
+    radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.92), transparent 34%);
+  box-shadow: 0 12px 28px rgba(94, 56, 28, 0.18);
   transform: translateX(-50%);
-  transition: opacity 180ms ease;
   pointer-events: none;
+  opacity: 1;
 }
 
-#live2d-status[data-ready="true"] {
-  opacity: 0;
+#live2d-bubble::after {
+  content: "";
+  position: absolute;
+  right: 28px;
+  bottom: -10px;
+  width: 18px;
+  height: 18px;
+  transform: rotate(45deg);
+  border-right: 1px solid rgba(167, 107, 57, 0.18);
+  border-bottom: 1px solid rgba(167, 107, 57, 0.18);
+  border-radius: 3px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 247, 227, 0.96));
+}
+
+#live2d-bubble[hidden] {
+  display: none;
+}
+
+#live2d-bubble-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.45;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.52);
+}
+
+#live2d-bubble-cursor {
+  margin-top: 1px;
+  color: rgba(151, 95, 43, 0.9);
+  animation: live2dBubbleBlink 0.9s steps(1, end) infinite;
+}
+
+@keyframes live2dBubbleBlink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
 }
 
 #lock-toggle {
