@@ -19,9 +19,12 @@ export function buildInstructionsPaths(projectRoot: string): string[] {
     resolve(projectRoot, "AI_GUIDELINES.md"),
     // memory/user/
     resolve(memoryBase, "user", "profile.md"),
+    resolve(memoryBase, "user", "profile.yaml"),
     resolve(memoryBase, "user", "workflow.md"),
+    resolve(memoryBase, "user", "workflows.yaml"),
     resolve(memoryBase, "user", "preferences.md"),
     resolve(memoryBase, "user", "devices.md"),
+    resolve(memoryBase, "user", "devices.yaml"),
     resolve(memoryBase, "user", "toolchain.md"),
     resolve(memoryBase, "user", "prompts.md"),
     // memory/architecture/

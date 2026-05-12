@@ -1,0 +1,53 @@
+# 用户人格核心 - 结构化约束
+# 供 OpenCode/OMO 精确理解用户偏好
+# 配合 profile.md 一起使用（md 是自然语言描述，yaml 是精确约束）
+
+identity:
+  role: 全栈开发者
+  focus:
+    - TypeScript 全栈
+    - AI Infra
+    - 自动化
+
+coding_style:
+  principles:
+    - 最小正确改动：每次改动只解决当前问题，不做无关重构
+    - 根因优先：不表面修补，定位根本原因
+    - 测试驱动：先写失败测试，再写最小实现让测试通过
+    - 渐进增强：简单方案优先，只在必要时引入复杂度
+
+  preferences:
+    typescript: strict
+    eslint: true
+    prettier_2_spaces: true
+    quotes: double
+    semicolons: true
+    trailing_commas: true
+    print_width: 120
+
+  anti_patterns: &anti_patterns
+    - 不要加装饰性注释解释代码表面行为
+    - 不要预测未来需求或提"可以扩展"的建议
+    - 不要主动创建 README / CHANGELOG / 文档
+    - 不要使用 as any 或 @ts-ignore
+    - 不要引入无关新依赖
+    - 不要做无关重构、过度抽象、风格漂移
+
+communication:
+  language: zh-CN
+  identifiers: English  # 代码标识符、命令、API 名称保持英文
+  style: 直接给出结论和结果，不需要前置客套
+  failure_format: 失败时给根因分析 + 修复路径
+  delivery: 交付时附带验证结果和遗留关注点
+
+architecture:
+  principles:
+    - 复用项目已有模式，不另起炉灶
+    - 分层清晰：orchestration、business logic、IO 分离
+    - 接口稳定：公共 API 和数据结构的变更需评估影响面
+    - 依赖克制：不主动引入新依赖
+
+  long_term:
+    - 配置即代码，可版本控制、可审查
+    - 知识结构化沉淀，不依赖聊天记录
+    - 系统可迁移、可复制、可审计

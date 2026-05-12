@@ -1,0 +1,85 @@
+# 工作流偏好 - 结构化约束
+# 定义 AI 协作的开发流程、验证标准和 Git 规则
+
+development:
+  steps:
+    - phase: 理解上下文
+      actions:
+        - 阅读项目文档和相关代码
+        - 确认目标文件位置和现有模式
+        - 识别风险边界
+    - phase: 制定计划
+      actions:
+        - 分解为可执行步骤
+        - 明确变更文件、测试大纲
+        - 复杂任务先搭建隔离环境（Git worktree）
+      skip_when:
+        - 纯问答或信息查询
+        - 简单命令执行
+        - 用户明确要求跳过
+    - phase: 实现验证
+      actions:
+        - 最小正确改动
+        - 运行类型检查、lint、构建和相关测试
+        - 区分当前改动引入的问题和既有问题
+    - phase: 代码审查
+      actions:
+        - 检查需求符合性
+        - 检查测试有效性
+        - 检查项目风格一致性
+        - 检查安全边界
+      on_failure: 回到实现阶段修补并重新验证
+
+  verification:
+    - type: typecheck
+      command: bun run typecheck
+      required: true
+    - type: lint
+      command: bun run lint
+      required: true
+    - type: build
+      command: bun run check
+      required: true
+    - type: format_check
+      command: bun run format:check
+      required: false
+    - type: test
+      command: bun test
+      required: false
+
+  git:
+    format: "option: 中文描述"
+    style:
+      - "feat: 新增功能"
+      - "fix: 修复问题"
+      - "config: 配置变更"
+      - "docs: 文档更新"
+      - "chore: 构建/工具"
+      - "refactor: 重构"
+    rules:
+      - 不主动提交、推送或创建分支
+      - 不做 force push、amend、rebase -i
+      - 提交前检查工作区状态和差异
+      - 不提交密钥、令牌、本地配置、临时产物
+      - 不使用跳过钩子（--no-verify）
+    sisyphus_attribution:
+      - "Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-openagent)"
+      - "Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>"
+
+  debugging:
+    strategy: 定位根因优先，不表面修补
+    max_retries: 3
+    after_3_failures: 回滚到已知工作状态
+    complex_problem: 先咨询 Oracle agent 再继续
+
+  memory:
+    # 用户级记忆治理规则
+    write_policy: 人工审核后写入
+    format: 结构化 Markdown（辅以 YAML 约束）
+    location: memory/
+    sync: 跨设备通过 Git 同步
+    anti_patterns:
+      - 不要让 AI 自动写入长期 memory
+      - 不要用 SQLite 存 memory（多设备锁库）
+      - 不要把聊天记录完整保存为 memory
+      - 不要把全部 memory 塞入上下文
