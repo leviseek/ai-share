@@ -86,5 +86,6 @@ try {
   & $OpenCode.Source @($OpenCodeArgs.ToArray())
   exit $LASTEXITCODE
 } finally {
+  Restore-OpenCodeTerminalShared
   Stop-Live2DPetShared
 }

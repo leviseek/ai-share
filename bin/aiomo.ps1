@@ -10,6 +10,7 @@ function Show-Help {
   Write-Output "  aiomo --omo-profile=<profile> [opencode args...]"
   Write-Output "  aiomo [profile] --relay <session-id>"
   Write-Output "  aiomo doctor gitignore [--apply]"
+  Write-Output "  aiomo doctor terminal [--launch]"
   Write-Output "  aiomo doctor install"
   Write-Output "  aiomo rescue <session-id>"
   Write-Output "  aiomo [profile] -h"
@@ -23,6 +24,7 @@ function Show-Help {
   Write-Output "  --continue-from <id>       --relay 的别名。"
   Write-Output "  --handoff <id>             --relay 的别名。"
   Write-Output "  doctor gitignore [--apply] 检查 .gitignore 缺失规则；加 --apply 自动追加。"
+  Write-Output "  doctor terminal [--launch] 输出自动熔断后终端恢复的手工验证步骤；加 --launch 直接启动 aiomo。"
   Write-Output "  doctor install            检查共享配置、插件、skills 和 TUI 插件是否安装并可见。"
   Write-Output "  rescue <session-id>        只生成 rescue 摘要，不启动 OpenCode。"
   Write-Output "  -h, --help                 显示帮助。"
@@ -40,6 +42,8 @@ function Show-Help {
   Write-Output "  aiomo max --relay ses_abc123"
   Write-Output "  aiomo doctor gitignore"
   Write-Output "  aiomo doctor gitignore --apply"
+  Write-Output "  aiomo doctor terminal"
+  Write-Output "  aiomo doctor terminal --launch"
   Write-Output "  aiomo rescue ses_abc123"
   Write-Output "  aiomo -h"
 }
@@ -52,6 +56,49 @@ function Show-DoctorGitignoreHelp {
   Write-Output "说明："
   Write-Output "  在当前 Git 仓库检查 .gitignore 缺失规则。"
   Write-Output "  默认只输出建议，不修改文件；加 --apply 会把缺失规则追加到 .gitignore。"
+}
+
+function Show-DoctorTerminalHelp {
+  Write-Output "用法："
+  Write-Output "  aiomo doctor terminal"
+  Write-Output "  aiomo doctor terminal --launch"
+  Write-Output ""
+  Write-Output "说明："
+  Write-Output "  输出 aiomo 自动熔断后终端恢复的手工验证步骤。"
+  Write-Output "  加 --launch 会在输出步骤后直接启动 aiomo。"
+}
+
+function Invoke-TerminalDoctor {
+  param([bool]$Launch = $false)
+
+  Write-Output "aiomo 终端恢复验证步骤"
+  Write-Output ""
+  Write-Output "目标：确认自动熔断后退出 TUI 回到 pwsh 时，移动鼠标不会再向终端刷 0x233... 一类乱码。"
+  Write-Output ""
+  Write-Output "前置条件："
+  Write-Output "1. 已执行过：bun run ai:gen -- --force"
+  Write-Output "2. 最新 launcher 已安装到：$env:USERPROFILE\.local\bin"
+  Write-Output "3. 关闭所有残留的 aiomo、opencode.exe、live2d-pet.exe 进程。"
+  Write-Output "4. 用一个新的 pwsh 窗口执行验证。"
+  Write-Output ""
+  Write-Output "手工验证步骤："
+  Write-Output "1. 运行：aiomo"
+  Write-Output "2. 进入 TUI 后，执行一个会明显拉长会话的操作，直到触发自动熔断。"
+  Write-Output "3. 观察它退出后是否回到 pwsh 提示符。"
+  Write-Output "4. 在 pwsh 里移动鼠标 5 秒。"
+  Write-Output "5. 期望：终端只改变光标位置，不再持续输出控制字符或 0x233... 乱码。"
+  Write-Output "6. 如果仍有乱码，记录 aiomo profile、触发方式、session id 和终端类型。"
+  Write-Output ""
+  Write-Output "建议记录项："
+  Write-Output "- aiomo profile"
+  Write-Output "- 触发熔断时的 session id"
+  Write-Output "- Windows Terminal / 旧版 console host / VS Code terminal"
+  Write-Output "- 乱码是否只在鼠标移动时出现"
+
+  if ($Launch) {
+    Write-Output ""
+    Write-Output "正在启动 aiomo，退出后请按上面步骤手工验证。"
+  }
 }
 
 function Invoke-GitignoreDoctor {
@@ -206,6 +253,17 @@ if ($args.Count -gt 1 -and $args[0] -eq "doctor" -and $args[1] -eq "gitignore") 
   $Apply = $args -contains "--apply"
   Invoke-GitignoreDoctor -Apply:$Apply
   exit $script:AiomoDoctorExitCode
+}
+
+if ($args.Count -gt 1 -and $args[0] -eq "doctor" -and $args[1] -eq "terminal") {
+  if ($args.Count -gt 2 -and ($args[2] -eq "-h" -or $args[2] -eq "--help")) {
+    Show-DoctorTerminalHelp
+    exit 0
+  }
+  $LaunchTerminalDoctor = $args -contains "--launch"
+  Invoke-TerminalDoctor -Launch:$LaunchTerminalDoctor
+  if (-not $LaunchTerminalDoctor) { exit 0 }
+  $args = @()
 }
 
 if ($args.Count -gt 1 -and $args[0] -eq "doctor" -and $args[1] -eq "install") {
@@ -378,5 +436,6 @@ try {
   $OpenCodeProcess.WaitForExit()
   exit $OpenCodeProcess.ExitCode
 } finally {
+  Restore-OpenCodeTerminalShared
   Stop-Live2DPetShared
 }

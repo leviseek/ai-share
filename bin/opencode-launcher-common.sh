@@ -71,6 +71,10 @@ opencode_live2d_pet_stop() {
   LIVE2D_PET_PID=""
 }
 
+opencode_restore_terminal() {
+  printf '\033[?1000l\033[?1002l\033[?1003l\033[?1004l\033[?1005l\033[?1006l\033[?2004l\033[?1049l\033[?25h\033[0m'
+}
+
 opencode_context_guard() {
   command_name="$1"
   launcher="$2"

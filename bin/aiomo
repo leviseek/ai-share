@@ -29,6 +29,7 @@ show_help() {
   printf '%s\n' "  aiomo --omo-profile=<编排级别> [opencode 参数...]"
   printf '%s\n' "  aiomo --omo-profile <编排级别> [opencode 参数...]"
   printf '%s\n' "  aiomo doctor gitignore [--apply]"
+  printf '%s\n' "  aiomo doctor terminal [--launch]"
   printf '%s\n' "  aiomo doctor install"
   printf '%s\n' ""
   printf '%s\n' "说明：启动 oh-my-openagent 多 agents 编排模式，并在启动前切换对应 OMO 配置。"
@@ -37,6 +38,7 @@ show_help() {
   printf '%s\n' ""
   printf '%s\n' "参数："
   printf '%s\n' "  doctor gitignore [--apply] 检查 .gitignore 缺失规则；加 --apply 自动追加。"
+  printf '%s\n' "  doctor terminal [--launch] 输出自动熔断后终端恢复的手工验证步骤；加 --launch 直接启动 aiomo。"
   printf '%s\n' "  doctor install            检查共享配置、插件、skills 和 TUI 插件是否安装并可见。"
   printf '%s\n' ""
   printf '%s\n' "示例："
@@ -44,6 +46,8 @@ show_help() {
   printf '%s\n' "  aiomo coding"
   printf '%s\n' "  aiomo doctor gitignore"
   printf '%s\n' "  aiomo doctor gitignore --apply"
+  printf '%s\n' "  aiomo doctor terminal"
+  printf '%s\n' "  aiomo doctor terminal --launch"
   printf '%s\n' "  aiomo --omo-profile=research run \"请分析当前项目\""
   printf '%s\n' "  aiomo -h"
 }
@@ -56,6 +60,16 @@ show_gitignore_doctor_help() {
   printf '%s\n' "说明："
   printf '%s\n' "  在当前 Git 仓库检查 .gitignore 缺失规则。"
   printf '%s\n' "  默认只输出建议，不修改文件；加 --apply 会把缺失规则追加到 .gitignore。"
+}
+
+show_terminal_doctor_help() {
+  printf '%s\n' "用法："
+  printf '%s\n' "  aiomo doctor terminal"
+  printf '%s\n' "  aiomo doctor terminal --launch"
+  printf '%s\n' ""
+  printf '%s\n' "说明："
+  printf '%s\n' "  输出 aiomo 自动熔断后终端恢复的手工验证步骤。"
+  printf '%s\n' "  加 --launch 会在输出步骤后直接启动 aiomo。"
 }
 
 has_rule() {
@@ -190,6 +204,50 @@ gitignore_doctor() {
   printf '%s\n' "已追加到 .gitignore：$gitignore_path"
 }
 
+terminal_doctor() {
+  launch="false"
+  case "${1:-}" in
+    -h|--help)
+      show_terminal_doctor_help
+      return 0
+      ;;
+    --launch)
+      launch="true"
+      ;;
+    "") ;;
+  esac
+
+  printf '%s\n' "aiomo 终端恢复验证步骤"
+  printf '%s\n' ""
+  printf '%s\n' "目标：确认自动熔断后退出 TUI 回到 pwsh 时，移动鼠标不会再向终端刷 0x233... 一类乱码。"
+  printf '%s\n' ""
+  printf '%s\n' "前置条件："
+  printf '%s\n' "1. 已执行过：bun run ai:gen -- --force"
+  printf '%s\n' "2. 最新 launcher 已安装到：$HOME/.local/bin"
+  printf '%s\n' "3. 关闭所有残留的 aiomo、opencode.exe、live2d-pet.exe 进程。"
+  printf '%s\n' "4. 用一个新的 pwsh 窗口执行验证。"
+  printf '%s\n' ""
+  printf '%s\n' "手工验证步骤："
+  printf '%s\n' "1. 运行：aiomo"
+  printf '%s\n' "2. 进入 TUI 后，执行一个会明显拉长会话的操作，直到触发自动熔断。"
+  printf '%s\n' "3. 观察它退出后是否回到 pwsh 提示符。"
+  printf '%s\n' "4. 在 pwsh 里移动鼠标 5 秒。"
+  printf '%s\n' "5. 期望：终端只改变光标位置，不再持续输出控制字符或 0x233... 乱码。"
+  printf '%s\n' "6. 如果仍有乱码，记录 aiomo profile、触发方式、session id 和终端类型。"
+  printf '%s\n' ""
+  printf '%s\n' "建议记录项："
+  printf '%s\n' "- aiomo profile"
+  printf '%s\n' "- 触发熔断时的 session id"
+  printf '%s\n' "- Windows Terminal / 旧版 console host / VS Code terminal"
+  printf '%s\n' "- 乱码是否只在鼠标移动时出现"
+
+  if [ "$launch" = "true" ]; then
+    printf '%s\n' ""
+    printf '%s\n' "正在启动 aiomo，退出后请按上面步骤手工验证。"
+    aiomo
+  fi
+}
+
 case "${1:-}" in
   -h|--help)
     show_help
@@ -199,6 +257,10 @@ case "${1:-}" in
     case "${2:-}" in
       gitignore)
         gitignore_doctor "${3:-}"
+        exit "$?"
+        ;;
+      terminal)
+        terminal_doctor "${3:-}"
         exit "$?"
         ;;
       install)
@@ -236,6 +298,7 @@ case "${1:-}" in
         ;;
       *)
         printf '%s\n' "用法：aiomo doctor gitignore [--apply]" >&2
+        printf '%s\n' "用法：aiomo doctor terminal [--launch]" >&2
         printf '%s\n' "用法：aiomo doctor install" >&2
         exit 2
         ;;
@@ -320,9 +383,10 @@ set -e
 if [ "$code" = "10" ]; then exit 10; fi
 opencode_context_guard_watch aiomo "$guard_budget_config" "$config_dir" "$(pwd)" "$$"
 opencode_live2d_pet_start "$config_dir"
-trap 'status=$?; opencode_live2d_pet_stop; exit $status' EXIT HUP INT TERM
+trap 'status=$?; opencode_restore_terminal; opencode_live2d_pet_stop; exit $status' EXIT HUP INT TERM
 opencode "$@"
 status=$?
+opencode_restore_terminal
 opencode_live2d_pet_stop
 trap - EXIT HUP INT TERM
 exit "$status"
