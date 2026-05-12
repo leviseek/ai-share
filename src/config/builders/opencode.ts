@@ -27,12 +27,16 @@ export function buildInstructionsPaths(projectRoot: string): string[] {
     resolve(memoryBase, "user", "devices.yaml"),
     resolve(memoryBase, "user", "toolchain.md"),
     resolve(memoryBase, "user", "prompts.md"),
+    resolve(memoryBase, "user", "models.yaml"),
     // memory/architecture/
     resolve(memoryBase, "architecture", "coding-philosophy.md"),
     resolve(memoryBase, "architecture", "agent-patterns.md"),
+    resolve(memoryBase, "architecture", "ai-desktop.md"),
     // memory/stack/
     resolve(memoryBase, "stack", "opencode.md"),
     resolve(memoryBase, "stack", "oh-my-openagent.md"),
+    resolve(memoryBase, "stack", "wsl.md"),
+    resolve(memoryBase, "stack", "models.md"),
   ];
 }
 
