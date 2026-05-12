@@ -28,14 +28,14 @@ test("force resumes a blocked session without printing blocked wording", () => {
   const dbPath = join(dir, "opencode.db");
   const sessionId = "ses_force";
 
-  writeFileSync(configPath, JSON.stringify({ max_input_tokens: 180000 }), "utf8");
+  writeFileSync(configPath, JSON.stringify({ max_input_tokens: 250000 }), "utf8");
   writeFileSync(guardConfigPath, JSON.stringify({ enabled: true, diagnostics: false }), "utf8");
   const db = new Database(dbPath);
   try {
     db.run("create table message (session_id text, data text, time_created integer)");
     db.run("insert into message values (?, ?, ?)", [
       sessionId,
-      JSON.stringify({ role: "assistant", tokens: { input: 179167 } }),
+      JSON.stringify({ role: "assistant", tokens: { input: 249167 } }),
       1,
     ]);
   } finally {

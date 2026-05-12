@@ -24,10 +24,10 @@ export type StrategyConfig = {
 
 export const DEFAULT_GUARD: GuardConfig = {
   enabled: true,
-  warn_ratio: 0.5,
-  danger_ratio: 0.75,
-  block_ratio: 0.9,
-  absolute_block_tokens: 180000,
+  warn_ratio: 0.6,
+  danger_ratio: 0.8,
+  block_ratio: 0.95,
+  absolute_block_tokens: 250000,
   rescue_dir: ".opencode-rescue",
   diagnostics: true,
   watch_interval_ms: 5000,

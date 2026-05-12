@@ -14,7 +14,7 @@ test("watcher binds to its first session and writes close history", async () => 
   const dbPath = join(dir, "opencode.db");
   const historyDir = join(dir, ".opencode", "context-guard-history");
 
-  writeFileSync(configPath, JSON.stringify({ max_input_tokens: 180000 }), "utf8");
+  writeFileSync(configPath, JSON.stringify({ max_input_tokens: 250000 }), "utf8");
   writeFileSync(
     guardConfigPath,
     JSON.stringify({ enabled: true, watch_interval_ms: 100, history_dir: ".opencode/context-guard-history" }),
@@ -54,7 +54,7 @@ test("watcher binds to its first session and writes close history", async () => 
     db2.run("insert into session values (?, ?, ?)", ["ses_second", dir, Date.now() + 1000]);
     db2.run("insert into message values (?, ?, ?)", [
       "ses_second",
-      JSON.stringify({ role: "assistant", tokens: { input: 180000, output: 0 } }),
+      JSON.stringify({ role: "assistant", tokens: { input: 250000, output: 0 } }),
       Date.now() + 1000,
     ]);
   } finally {

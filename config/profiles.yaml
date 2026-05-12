@@ -157,25 +157,25 @@ research:
     fast: gpt-5.4-mini
   compaction:
     enabled: true
-    threshold: 85000
+    threshold: 100000
     model: reasoning
-    max_input_tokens: 160000
+    max_input_tokens: 180000
   strategies:
     opencode:
       dcp:
-        context_budget_tokens: 40000
+        context_budget_tokens: 50000
       checkpoint:
-        max_entries: 32
+        max_entries: 24
       memory:
         retention: project
         strategy: evidence-summary
     oh_my_openagent:
       dcp:
-        context_budget_tokens: 40000
+        context_budget_tokens: 50000
         share:
           research_notes: true
       checkpoint:
-        max_entries: 32
+        max_entries: 24
       memory:
         strategy: evidence-summary
 
@@ -215,25 +215,25 @@ max:
     fast: gpt-5.4
   compaction:
     enabled: true
-    threshold: 95000
+    threshold: 140000
     model: reasoning
-    max_input_tokens: 180000
+    max_input_tokens: 250000
   strategies:
     opencode:
       dcp:
-        context_budget_tokens: 56000
+        context_budget_tokens: 120000
       checkpoint:
-        max_entries: 48
+        max_entries: 64
       memory:
         retention: project
         strategy: detailed-summary
     oh_my_openagent:
       dcp:
-        context_budget_tokens: 56000
+        context_budget_tokens: 120000
         share:
           research_notes: true
           verification_artifacts: true
       checkpoint:
-        max_entries: 48
+        max_entries: 64
       memory:
         strategy: detailed-summary

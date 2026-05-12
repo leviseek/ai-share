@@ -413,17 +413,22 @@ OpenCode 和 OMO 的 `dcp` / `checkpoint` / `memory` 写入 `strategy.<profile>.
 
 ```yaml
 max:
+  compaction:
+    enabled: true
+    threshold: 140000
+    model: reasoning
+    max_input_tokens: 250000
   strategies:
     opencode:
       dcp:
-        context_budget_tokens: 56000
+        context_budget_tokens: 100000
       checkpoint:
         max_entries: 48
       memory:
         strategy: detailed-summary
     oh_my_openagent:
       dcp:
-        context_budget_tokens: 56000
+        context_budget_tokens: 100000
       checkpoint:
         max_entries: 48
       memory:
@@ -440,10 +445,10 @@ max:
 ```yaml
 context_guard:
   enabled: true
-  warn_ratio: 0.5
-  danger_ratio: 0.75
-  block_ratio: 0.9
-  absolute_block_tokens: 180000
+  warn_ratio: 0.6
+  danger_ratio: 0.8
+  block_ratio: 0.95
+  absolute_block_tokens: 250000
   rescue_dir: .opencode-rescue
   diagnostics: true
   alert_file: .opencode/context-guard-watch/alert.json
