@@ -13,6 +13,26 @@ import { modelRef } from "../model-refs.ts";
 import { buildProviders } from "./provider.ts";
 import { requireRecord, requireString } from "../validation.ts";
 
+export function buildInstructionsPaths(projectRoot: string): string[] {
+  const memoryBase = resolve(projectRoot, "memory");
+  return [
+    resolve(projectRoot, "AI_GUIDELINES.md"),
+    // memory/user/
+    resolve(memoryBase, "user", "profile.md"),
+    resolve(memoryBase, "user", "workflow.md"),
+    resolve(memoryBase, "user", "preferences.md"),
+    resolve(memoryBase, "user", "devices.md"),
+    resolve(memoryBase, "user", "toolchain.md"),
+    resolve(memoryBase, "user", "prompts.md"),
+    // memory/architecture/
+    resolve(memoryBase, "architecture", "coding-philosophy.md"),
+    resolve(memoryBase, "architecture", "agent-patterns.md"),
+    // memory/stack/
+    resolve(memoryBase, "stack", "opencode.md"),
+    resolve(memoryBase, "stack", "oh-my-openagent.md"),
+  ];
+}
+
 export function buildOpenCodeConfigs(
   projectRoot: string,
   globalConfig: GlobalYaml,
@@ -77,7 +97,7 @@ function buildOpenCodeConfig(
     $schema: "https://opencode.ai/config.json",
     model: profilePrimaryModelRef,
     small_model: profileFastModelRef,
-    instructions: [resolve(projectRoot, "AI_GUIDELINES.md")],
+    instructions: buildInstructionsPaths(projectRoot),
     plugin: [
       ...(globalConfig.opencode?.plugins ?? ["oh-my-openagent@3.17.5"]),
       ...(globalConfig.opencode?.optional_plugins ?? []),

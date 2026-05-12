@@ -29,7 +29,9 @@ export function buildPersistedStateSnapshot(now: number): {
 } {
   const activeNow =
     state.session.activeWindowStart !== undefined ? Math.max(now - state.session.activeWindowStart, 0) : 0;
-  const agents = new Map<string, AgentMetric>(Object.entries(state.agents).map(([name, metric]) => [name, { ...metric }]));
+  const agents = new Map<string, AgentMetric>(
+    Object.entries(state.agents).map(([name, metric]) => [name, { ...metric }]),
+  );
 
   for (const [name, executed] of Object.entries(state.dbExecutions.agents)) {
     const metric = agents.get(name) ?? fallbackMetric(name);
