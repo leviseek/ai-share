@@ -17,7 +17,7 @@ export type MemoryCompileOptions = {
  * Supports scalars, lists, and nested objects (using unknown to avoid
  * circular type alias under isolatedDeclarations).
  */
-type MemNode = string | string[] | Record<string, unknown>;
+export type MemNode = string | string[] | Record<string, unknown>;
 
 /**
  * Stack frame for parsing YAML indentation-based nesting.
@@ -74,7 +74,7 @@ export function compileMemory(options: MemoryCompileOptions): string {
  * and YAML anchors (&). Does NOT handle inline arrays, flow mappings, or
  * multi-line strings (not needed for the memory files).
  */
-function parseMemYaml(text: string): Record<string, MemNode> {
+export function parseMemYaml(text: string): Record<string, MemNode> {
   const lines = text.replaceAll("\r\n", "\n").split("\n");
   const root: Record<string, MemNode> = {};
   const stack: StackFrame[] = [{ indent: -1, node: root }];
@@ -335,4 +335,57 @@ function objectToSentences(obj: Record<string, MemNode>, path: string[]): string
   }
 
   return results;
+}
+
+/**
+ * Serializes a MemNode tree back into a YAML string.
+ * Produces 2-space indentation matching the project convention.
+ * Handles scalars, lists, and nested objects.
+ *
+ * @param node   - The parsed memory YAML tree to serialize.
+ * @param indent - Current indentation level (default 0).
+ * @returns A YAML-formatted string.
+ */
+export function serializeMemYaml(node: Record<string, MemNode>, indent = 0): string {
+  const lines: string[] = [];
+  const pad = " ".repeat(indent);
+
+  for (const [key, value] of Object.entries(node)) {
+    if (typeof value === "string") {
+      lines.push(`${pad}${key}: ${value}`);
+    } else if (Array.isArray(value)) {
+      lines.push(`${pad}${key}:`);
+      for (const item of value) {
+        lines.push(`${pad}  - ${item}`);
+      }
+    } else {
+      lines.push(`${pad}${key}:`);
+      const nested = serializeMemYamlLines(value as Record<string, MemNode>, indent + 2);
+      lines.push(...nested);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function serializeMemYamlLines(node: Record<string, MemNode>, indent: number): string[] {
+  const lines: string[] = [];
+  const pad = " ".repeat(indent);
+
+  for (const [key, value] of Object.entries(node)) {
+    if (typeof value === "string") {
+      lines.push(`${pad}${key}: ${value}`);
+    } else if (Array.isArray(value)) {
+      lines.push(`${pad}${key}:`);
+      for (const item of value) {
+        lines.push(`${pad}  - ${item}`);
+      }
+    } else {
+      lines.push(`${pad}${key}:`);
+      const nested = serializeMemYamlLines(value as Record<string, MemNode>, indent + 2);
+      lines.push(...nested);
+    }
+  }
+
+  return lines;
 }
