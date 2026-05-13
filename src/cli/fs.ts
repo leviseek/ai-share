@@ -1,5 +1,6 @@
 import { constants } from "node:fs";
 import { access, writeFile } from "node:fs/promises";
+import { color } from "./color.ts";
 
 export async function writeJson(
   path: string,
@@ -8,7 +9,7 @@ export async function writeJson(
 ): Promise<void> {
   const content = `${JSON.stringify(value, null, 2)}\n`;
   if (options.dryRun) {
-    console.log(`\n--- ${path} ---\n${content}`);
+    console.log(`\n${color.gray("---")} ${color.cyan(path)} ${color.gray("---")}\n${content}`);
     return;
   }
 
