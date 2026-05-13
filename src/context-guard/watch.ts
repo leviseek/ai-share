@@ -114,7 +114,7 @@ export async function watch(args: string[]): Promise<boolean> {
             );
           }
           if (shouldStop(guard, level, zeroLoop)) {
-            stopProcessTree(parentPid);
+            await stopProcessTree(parentPid);
             return true;
           }
         }

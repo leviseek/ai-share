@@ -437,5 +437,6 @@ try {
   exit $OpenCodeProcess.ExitCode
 } finally {
   Restore-OpenCodeTerminalShared
+  Restore-OpenCodeConsoleEncodingShared
   Stop-Live2DPetShared
 }

@@ -381,11 +381,29 @@ opencode_context_guard check aiomo "$guard_budget_config" "$config_dir" "$@"
 code="$?"
 set -e
 if [ "$code" = "10" ]; then exit 10; fi
-opencode_context_guard_watch aiomo "$guard_budget_config" "$config_dir" "$(pwd)" "$$"
 opencode_live2d_pet_start "$config_dir"
-trap 'status=$?; opencode_restore_terminal; opencode_live2d_pet_stop; exit $status' EXIT HUP INT TERM
-opencode "$@"
+
+# Start opencode in background so we can capture its PID for context-guard watch
+opencode "$@" &
+opencode_pid=$!
+
+# Forward signals to opencode before cleanup — without this, background+wait
+# would trap SIGINT/SIGTERM in the launcher shell itself, skipping opencode's
+# graceful signal handler (signals.ts) and leaving the terminal in TUI raw mode.
+trap 'kill -TERM $opencode_pid 2>/dev/null; exit 143' TERM
+trap 'kill -HUP  $opencode_pid 2>/dev/null; exit 129' HUP
+trap 'kill -INT  $opencode_pid 2>/dev/null; exit 130' INT
+
+# EXIT trap fires on any exit (normal or signal-forwarded) — restores terminal
+trap 'opencode_restore_terminal; opencode_live2d_pet_stop' EXIT
+
+# Pass opencode PID (not $$) to watch — stopProcessTree will SIGTERM opencode directly
+opencode_context_guard_watch aiomo "$guard_budget_config" "$config_dir" "$(pwd)" "$opencode_pid"
+
+# Wait for opencode to finish
+wait $opencode_pid
 status=$?
+
 opencode_restore_terminal
 opencode_live2d_pet_stop
 trap - EXIT HUP INT TERM

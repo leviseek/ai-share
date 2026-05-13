@@ -1,3 +1,4 @@
+$script:PreviousOutputEncoding = [Console]::OutputEncoding
 $Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding = $Utf8NoBom
 $OutputEncoding = $Utf8NoBom
@@ -50,17 +51,18 @@ $script:Live2DPetProcess = $null
 
 function Restore-OpenCodeTerminalShared {
   try {
-    $sequences = @(
-      "`e[?1000l`e[?1002l`e[?1003l`e[?1004l`e[?1005l`e[?1006l`e[?2004l`e[?1049l`e[?25h`e[0m",
-      "`e[?1000l`e[?1002l`e[?1003l`e[?1004l`e[?1005l`e[?1006l`e[?2004l`e[?1049l`e[?25h`e[0m`n"
-    )
-    foreach ($sequence in $sequences) {
-      [Console]::Write($sequence)
-      try { [Console]::Error.Write($sequence) } catch {}
-      try { $Host.UI.Write($sequence) } catch {}
-    }
+    $sequence = "`e[?1000l`e[?1002l`e[?1003l`e[?1004l`e[?1005l`e[?1006l`e[?2004l`e[?1049l`e[?25h`e[0m"
+    [Console]::Write($sequence)
     [Console]::Out.Flush()
-    [Console]::Error.Flush()
+  } catch {}
+}
+
+function Restore-OpenCodeConsoleEncodingShared {
+  try {
+    if ($script:PreviousOutputEncoding) {
+      [Console]::OutputEncoding = $script:PreviousOutputEncoding
+      $script:PreviousOutputEncoding = $null
+    }
   } catch {}
 }
 

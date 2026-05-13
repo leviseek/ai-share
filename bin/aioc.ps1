@@ -87,5 +87,6 @@ try {
   exit $LASTEXITCODE
 } finally {
   Restore-OpenCodeTerminalShared
+  Restore-OpenCodeConsoleEncodingShared
   Stop-Live2DPetShared
 }
