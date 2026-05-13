@@ -1,5 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { getMemoryFilesForProfile } from "../../loaders/memory-loader.ts";
+import { compileMemory } from "../../loaders/memory-compiler.ts";
 import type {
   GlobalYaml,
   ModelRoleMap,
@@ -14,7 +16,7 @@ import { modelRef } from "../model-refs.ts";
 import { buildProviders } from "./provider.ts";
 import { requireRecord, requireString } from "../validation.ts";
 
-export function buildInstructionsPaths(projectRoot: string): string[] {
+export function buildInstructionsPaths(projectRoot: string, profile?: string): string[] {
   const memoryBase = resolve(projectRoot, "memory");
   const aiMemoryBase = resolve(projectRoot, "..", "ai-memory");
   return [
@@ -39,19 +41,41 @@ export function buildInstructionsPaths(projectRoot: string): string[] {
     resolve(memoryBase, "stack", "oh-my-openagent.md"),
     resolve(memoryBase, "stack", "wsl.md"),
     resolve(memoryBase, "stack", "models.md"),
-    // external: ai-memory/
-    ...(existsSync(aiMemoryBase)
-      ? [
-          resolve(aiMemoryBase, "stable", "user.yaml"),
-          resolve(aiMemoryBase, "stable", "workflows.yaml"),
-          resolve(aiMemoryBase, "stable", "devices.yaml"),
-          resolve(aiMemoryBase, "profiles", "coding.yaml"),
-          resolve(aiMemoryBase, "profiles", "research.yaml"),
-          resolve(aiMemoryBase, "profiles", "infra.yaml"),
-          resolve(aiMemoryBase, "policies", "memory-policy.yaml"),
-        ]
-      : []),
+    // external: ai-memory/ (profile-aware)
+    ...(profile
+      ? getMemoryFilesForProfile(profile, aiMemoryBase)
+      : existsSync(aiMemoryBase)
+        ? [
+            resolve(aiMemoryBase, "stable", "user.yaml"),
+            resolve(aiMemoryBase, "stable", "workflows.yaml"),
+            resolve(aiMemoryBase, "stable", "devices.yaml"),
+            resolve(aiMemoryBase, "profiles", "coding.yaml"),
+            resolve(aiMemoryBase, "profiles", "research.yaml"),
+            resolve(aiMemoryBase, "profiles", "infra.yaml"),
+            resolve(aiMemoryBase, "policies", "memory-policy.yaml"),
+          ]
+        : []),
+    // compiled memory context (profile-aware)
+    ...(profile && existsSync(aiMemoryBase) ? [createCompiledMemoryContext(profile, aiMemoryBase)] : []),
   ];
+}
+
+/**
+ * Creates a compiled memory context string for a given profile.
+ * Gets the profile's ai-memory files, compiles them to natural language,
+ * and prefixes with a marker to ensure it's treated as inline text.
+ * Falls back to empty string if compilation fails or no files exist.
+ */
+function createCompiledMemoryContext(profile: string, aiMemoryBase: string): string {
+  const memoryFiles = getMemoryFilesForProfile(profile, aiMemoryBase);
+  if (memoryFiles.length === 0) return "";
+  try {
+    const compiled = compileMemory({ profile, aiMemoryBase, memoryFiles });
+    if (!compiled) return "";
+    return `# compiled memory context\n${compiled}`;
+  } catch {
+    return "";
+  }
 }
 
 export function buildOpenCodeConfigs(
@@ -118,7 +142,7 @@ function buildOpenCodeConfig(
     $schema: "https://opencode.ai/config.json",
     model: profilePrimaryModelRef,
     small_model: profileFastModelRef,
-    instructions: buildInstructionsPaths(projectRoot),
+    instructions: buildInstructionsPaths(projectRoot, profileId),
     plugin: [
       ...(globalConfig.opencode?.plugins ?? ["oh-my-openagent@3.17.5"]),
       ...(globalConfig.opencode?.optional_plugins ?? []),
