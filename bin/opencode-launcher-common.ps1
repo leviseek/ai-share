@@ -54,6 +54,7 @@ function Restore-OpenCodeTerminalShared {
     $sequence = "`e[?1000l`e[?1002l`e[?1003l`e[?1004l`e[?1005l`e[?1006l`e[?2004l`e[?1049l`e[?25h`e[0m"
     [Console]::Write($sequence)
     [Console]::Out.Flush()
+    [Console]::Error.Flush()
   } catch {}
 }
 
