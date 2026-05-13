@@ -6,7 +6,7 @@ devices:
     os: Windows 11
     shell: powershell 7+
     shell_extension: .ps1
-    ai_home: "C:\\Users\\admin\\ai-workspace"
+    ai_home: "%USERPROFILE%\\ai-workspace"
     bin: "%USERPROFILE%\\.local\\bin\\"
     notes:
       - 主力开发设备

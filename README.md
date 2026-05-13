@@ -225,6 +225,8 @@ memory/
 
 记忆文件在 `src/config/builders/opencode.ts` 的 `buildInstructionsPaths()` 中组装，生成的 `instructions` 数组同时用于 `opencode` 和 `aioc` 配置。所有 profile 都共享同一套记忆。修改记忆内容后重新运行 `bun run ai:gen -- --force` 即可生效。
 
+执行 `bun run ai:gen` 时会自动确保 `~/ai-workspace/ai-share` 指向当前 `ai-share` 仓库；如果当前仓库旁边存在 `../ai-memory`，也会自动确保 `~/ai-workspace/ai-memory` 指向它，方便统一从 `~/ai-workspace` 访问；如果 `ai-memory` 不存在，只会输出 warning 并继续生成配置。
+
 生成的 oh-my-openagent 配置会禁用 `auto-slash-command` hook，避免 native skills（例如 `/git-master`）被插件二次展开并在 TUI 中显示完整内部提示词。
 
 Git 提交规范在 `GIT_COMMIT_GUIDELINES.md`，提交信息使用 `option: 中文描述` 格式。

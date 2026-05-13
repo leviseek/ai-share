@@ -7,6 +7,10 @@ export type GeneratorPaths = {
   contextGuardSourceDir: string;
   pluginDir: string;
   distPluginDir: string;
+  aiWorkspaceDir: string;
+  workspaceAiShareDir: string;
+  workspaceAiMemoryDir: string;
+  externalAiMemoryDir: string;
   homeDir: string;
   targetConfigDir: string;
   targetProfileDir: string;
@@ -36,6 +40,10 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
   const pluginDir = resolve(projectRoot, "plugins");
   const distPluginDir = resolve(projectRoot, "dist", "plugins");
   const homeDir = resolve(Bun.env.HOME ?? Bun.env.USERPROFILE ?? "");
+  const aiWorkspaceDir = resolve(homeDir, "ai-workspace");
+  const workspaceAiShareDir = resolve(aiWorkspaceDir, "ai-share");
+  const workspaceAiMemoryDir = resolve(aiWorkspaceDir, "ai-memory");
+  const externalAiMemoryDir = resolve(projectRoot, "..", "ai-memory");
   const targetConfigDir = resolve(homeDir, ".config", "opencode");
   const targetProfileDir = resolve(targetConfigDir, "profiles");
   const targetOpenCodeProfileDir = resolve(targetProfileDir, "opencode");
@@ -55,6 +63,10 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
     contextGuardSourceDir: contextGuardSourceDir,
     pluginDir: pluginDir,
     distPluginDir: distPluginDir,
+    aiWorkspaceDir: aiWorkspaceDir,
+    workspaceAiShareDir: workspaceAiShareDir,
+    workspaceAiMemoryDir: workspaceAiMemoryDir,
+    externalAiMemoryDir: externalAiMemoryDir,
     homeDir: homeDir,
     targetConfigDir: targetConfigDir,
     targetProfileDir: targetProfileDir,

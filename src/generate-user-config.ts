@@ -21,6 +21,7 @@ import {
 import { missingProviderApiKeyEnvNames } from "./cli/api-keys.ts";
 import { writeJson } from "./cli/fs.ts";
 import { installLaunchers, installNativeSkills, installPlugins } from "./cli/install.ts";
+import { ensureAiWorkspaceLinks } from "./cli/memory-link.ts";
 import { parseCliOptions } from "./cli/options.ts";
 import { printCheckSummary, printGenerationSummary } from "./cli/output.ts";
 import {
@@ -37,6 +38,8 @@ import { parseYamlObject } from "./yaml.ts";
 const cliOptions = parseCliOptions();
 const { force, dryRun, checkOnly, providerGroups } = cliOptions;
 const paths = buildGeneratorPaths();
+
+if (!checkOnly) await ensureAiWorkspaceLinks(paths, dryRun);
 
 const [globalConfig, providersConfig, modelsConfig, profilesConfig, agentsConfig] = await Promise.all([
   loadYaml<GlobalYaml>("global.yaml"),
