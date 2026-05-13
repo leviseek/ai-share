@@ -91,6 +91,7 @@ dcp:
     - GIT_COMMIT_GUIDELINES.md
     - README.md
     - config/*.yaml
+    - memory/**
   exclude:
     - .env
     - .env.*
@@ -132,6 +133,7 @@ memory:
     - AI_GUIDELINES.md
     - README.md
     - config/*.yaml
+    - memory/**
   exclude:
     - .env
     - .env.*

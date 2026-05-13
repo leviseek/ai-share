@@ -1,0 +1,80 @@
+# 模型使用规则
+# 作为 AI 行为约束：在选择模型和 profile 时遵循本规则
+
+model_roles:
+  primary: 主要执行模型，负责编码、规划、生成
+  reasoning: 深度推理模型，负责复杂分析、架构决策、研究
+  fast: 轻量模型，负责搜索、摘要、标题、compaction
+
+profile_mapping:
+  lite:
+    model: gpt-5.4
+    role: primary
+    use: 轻量日常，上下文预算低，快速往返
+  economy:
+    model: deepseek-v4-flash
+    role: primary
+    use: 激进省钱，全部用 DeepSeek 低成本模型
+  cheap:
+    model: gpt-5.4-mini
+    role: primary
+    use: 极低成本，简单问答、文件操作、格式化
+  balanced:
+    model: gpt-5.5
+    role: primary
+    use: 默认日常编码，均衡质量与成本
+  coding:
+    model: gpt-5.3-codex
+    role: primary
+    use: 代码实施优先，强调代码生成能力
+  research:
+    model: deepseek-v4-pro-think-max
+    role: reasoning
+    use: 深度研究、架构分析、复杂调试，不限上下文
+  writing:
+    model: gpt-5.5
+    role: primary
+    use: 写作润色，文字质量优先
+  max:
+    model: deepseek-v4-pro-think-max
+    role: reasoning
+    use: 全力模式，最大上下文预算，最强推理
+
+compaction:
+  model: fast
+  rule: compaction 始终使用 fast 角色模型（gpt-5.4-mini）
+  例外: research/writing/max profile 可用 reasoning 模型做 compaction
+
+selection_rules:
+  - condition: 简单问答、文件搜索、格式化
+    profile: cheap 或 lite
+    reason: 不需要强大推理能力，节省 tokens
+  - condition: 日常编码、bug 修复、小功能
+    profile: balanced
+    reason: GPT-5.5 质量好、成本适中
+  - condition: 复杂代码生成、大型重构
+    profile: coding
+    reason: Codex 模型代码生成能力更强
+  - condition: 架构设计、深度调试、研究问题
+    profile: research 或 max
+    reason: 需要 DeepSeek 深度推理能力
+  - condition: 文档写作、README、注释
+    profile: writing
+    reason: 文字连贯性和风格一致性优先
+  - condition: 资源极度受限或扫描任务
+    profile: economy
+    reason: 全部使用低成本 DeepSeek 模型
+  - condition: 上下文太长逼近警戒线
+    action: 先 rescue 再新 session，不强制恢复
+    reason: 避免卡死，保护上下文预算
+  - condition: subagent 或 background task 无特殊要求
+    action: 继承当前 profile 的模型角色
+    reason: 保持模型分工一致
+
+anti_patterns:
+  - 不要用 max profile 做简单文件搜索或问答
+  - 不要用 cheap profile 做架构设计或复杂调试
+  - 不要跨 profile 混用模型角色（除显式覆盖外）
+  - 不要手动修改生成的 JSON 来更换模型—改 profiles.yaml 后重新生成
+  - 不要在不清楚任务复杂度时默认使用最高级模型
+  - compaction 不要使用 primary 模型（除非 profile 明确覆盖）

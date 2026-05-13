@@ -16,6 +16,7 @@ ai-share/
 ├── src/                       # Bun generator, context guard, builders, CLI/install helpers, types
 ├── bin/                       # aiomo/aioc launchers + install doctor wrappers
 ├── docs/                      # plans/specs for local superpowers work
+├── memory/                    # user-level memory vault (structured Markdown)
 ├── plugins/omo-agent-monitor/ # local OpenCode monitor plugin
 ├── plugins/dingtalk-notifier/ # shared notification plugin generated from config
 ├── AI_GUIDELINES.md           # generated OpenCode instruction source
@@ -40,6 +41,8 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.opencode-rescue/`, `.o
 | DingTalk notification plugin            | `plugins/dingtalk-notifier/`           | Env-only webhook/secret, review-before-send flow           |
 | Shared AI workflow rules                | `AI_GUIDELINES.md`                     | Loaded into generated OpenCode configs                     |
 | Commit format                           | `GIT_COMMIT_GUIDELINES.md`             | `option: 中文描述`                                         |
+| User memory content                     | `memory/`                              | Structured Markdown; injected as startup instructions      |
+| Instructions path builder               | `src/config/builders/opencode.ts`      | `buildInstructionsPaths` generates memory file list        |
 
 ## CODE MAP
 
@@ -55,6 +58,7 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.opencode-rescue/`, `.o
 | `installLaunchers`           | function       | `src/cli/install.ts`                   | Copy platform launchers to user bin                        |
 | `installPlugins`             | function       | `src/cli/install.ts`                   | Build/copy local OpenCode plugins                          |
 | `parseCliOptions`            | function       | `src/cli/options.ts`                   | Handles `--force`, `--dry-run`, `--check`, provider groups |
+| `buildInstructionsPaths`     | function       | `src/config/builders/opencode.ts`      | Generate instructions list including memory/ files         |
 | `plugin`                     | default export | `plugins/omo-agent-monitor/server.ts`  | Handles OpenCode server events and persists monitor state  |
 | `plugin`                     | default export | `plugins/omo-agent-monitor/tui.ts`     | Registers monitor command and `/omo-monitor` slash         |
 
@@ -97,6 +101,7 @@ bun run format:check
 
 ## NOTES
 
+- `memory/` contains user-level memory files (structured Markdown); loaded as OpenCode startup instructions via `buildInstructionsPaths`.
 - `bun run ai:check` validates config/generator consistency without writing or installing.
 - `bun run ai:gen` writes user config and installs launchers/plugins/skills; use `--dry-run` first for config edits.
 - `aioc` excludes `oh-my-openagent` and `./plugins/omo-agent-monitor` for native OpenCode Build / Plan usage.

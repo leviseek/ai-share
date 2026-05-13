@@ -67,7 +67,10 @@ const plugin: Plugin = {
         stringValue(input.messageID) ?? stringValue(properties?.messageID) ?? stringValue(part?.messageID);
       const partID = stringValue(input.partID) ?? stringValue(properties?.partID) ?? stringValue(part?.id);
       const text = normalizeBubbleText(
-        stringValue(delta?.text) ?? stringValue(input.text) ?? stringValue(properties?.text) ?? stringValue(output?.text),
+        stringValue(delta?.text) ??
+          stringValue(input.text) ??
+          stringValue(properties?.text) ??
+          stringValue(output?.text),
       );
       if (messageID && !assistantMessageIDs.has(messageID)) return;
       if (!partID || !text) return;

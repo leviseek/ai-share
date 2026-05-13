@@ -1,0 +1,47 @@
+# 跨设备配置 - 结构化约束
+# 确保 AI 在多设备生成正确的命令和路径
+
+devices:
+  windows:
+    os: Windows 11
+    shell: powershell 7+
+    shell_extension: .ps1
+    ai_home: "C:\\Users\\admin\\ai-workspace"
+    bin: "%USERPROFILE%\\.local\\bin\\"
+    notes:
+      - 主力开发设备
+      - 所有 AI 生成命令必须使用 PowerShell 语法
+      - 路径使用反斜杠 \\ 或原始字符串
+      - 配置文件在 %APPDATA%\\opencode
+
+  wsl:
+    os: Ubuntu (WSL2)
+    shell: bash
+    shell_extension: .sh
+    ai_home: "~/ai-workspace"
+    bin: "~/.local/bin/"
+    notes:
+      - 辅助开发环境
+      - 命令使用 bash 语法
+      - 路径使用正斜杠 /
+      - 包管理用 apt
+
+  macos:
+    os: macOS
+    shell: zsh
+    shell_extension: .sh
+    ai_home: "~/ai-workspace"
+    bin: "~/.local/bin/"
+    notes:
+      - 备用开发设备
+      - 命令使用 zsh/bash 语法
+      - 路径使用正斜杠 /
+      - 包管理用 brew
+
+rules:
+  - 在 Windows 上生成的命令必须使用 PowerShell 语法
+  - 在 WSL/Mac 上生成的命令使用 bash/zsh 语法
+  - 所有设备共享统一的 ~/ai-workspace 作为 AI 根目录
+  - ai-share 仓库通过 Git 跨设备同步
+  - 生成的 JSON 配置不提交到仓库，每个设备独立生成
+  - API Key、代理配置等敏感信息通过环境变量引用，不写入仓库
