@@ -25,6 +25,15 @@ providers:
     timeout: 600000
     chunkTimeout: 30000
 
+  axasapi:
+    name: Axas API
+    short_name: AxasAPI
+    npm: "@ai-sdk/openai"
+    base_url: https://api.asxs.top/v1
+    api_key: ${AXASAPI_API_KEY}
+    timeout: 600000
+    chunkTimeout: 30000
+
   deepseek:
     name: DeepSeek
     short_name: DeepSeek
