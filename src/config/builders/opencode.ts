@@ -15,6 +15,7 @@ import { requireRecord, requireString } from "../validation.ts";
 
 export function buildInstructionsPaths(projectRoot: string): string[] {
   const memoryBase = resolve(projectRoot, "memory");
+  const aiMemoryBase = resolve(projectRoot, "..", "ai-memory");
   return [
     resolve(projectRoot, "AI_GUIDELINES.md"),
     // memory/user/
@@ -37,6 +38,14 @@ export function buildInstructionsPaths(projectRoot: string): string[] {
     resolve(memoryBase, "stack", "oh-my-openagent.md"),
     resolve(memoryBase, "stack", "wsl.md"),
     resolve(memoryBase, "stack", "models.md"),
+    // external: ai-memory/
+    resolve(aiMemoryBase, "stable", "user.yaml"),
+    resolve(aiMemoryBase, "stable", "workflows.yaml"),
+    resolve(aiMemoryBase, "stable", "devices.yaml"),
+    resolve(aiMemoryBase, "profiles", "coding.yaml"),
+    resolve(aiMemoryBase, "profiles", "research.yaml"),
+    resolve(aiMemoryBase, "profiles", "infra.yaml"),
+    resolve(aiMemoryBase, "policies", "memory-policy.yaml"),
   ];
 }
 
