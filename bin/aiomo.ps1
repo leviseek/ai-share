@@ -23,6 +23,7 @@ function Show-Help {
   Write-Output "  --relay <session-id>       从旧/卡住的 session 生成交接文件，并新开干净会话继续。"
   Write-Output "  --continue-from <id>       --relay 的别名。"
   Write-Output "  --handoff <id>             --relay 的别名。"
+  Write-Output "  --no-pet                  不启动 Live2D pet 桌面宠物。"
   Write-Output "  doctor gitignore [--apply] 检查 .gitignore 缺失规则；加 --apply 自动追加。"
   Write-Output "  doctor terminal [--launch] 输出自动熔断后终端恢复的手工验证步骤；加 --launch 直接启动 aiomo。"
   Write-Output "  doctor install            检查共享配置、插件、skills 和 TUI 插件是否安装并可见。"
@@ -331,6 +332,7 @@ if ($args.Count -gt 1 -and $args[0] -eq "rescue") {
 
 $OpenCodeArgs = [System.Collections.Generic.List[string]]::new()
 $ContinueFromSession = ""
+$SkipLive2DPet = $false
 
 for ($Index = 0; $Index -lt $args.Count; $Index += 1) {
   $Arg = $args[$Index]
@@ -369,6 +371,11 @@ for ($Index = 0; $Index -lt $args.Count; $Index += 1) {
 
   if ($Arg.StartsWith("--handoff=")) {
     $ContinueFromSession = $Arg.Substring("--handoff=".Length)
+    continue
+  }
+
+  if ($Arg -eq "--no-pet") {
+    $SkipLive2DPet = $true
     continue
   }
 
@@ -430,7 +437,9 @@ $OpenCodeStartInfo.FileName = $OpenCode.Source
 $OpenCodeStartInfo.UseShellExecute = $false
 foreach ($Arg in $OpenCodeArgs) { [void]$OpenCodeStartInfo.ArgumentList.Add($Arg) }
 try {
-  Start-Live2DPetShared -ConfigDir $ConfigDir -AllowBrowserFallback:$false
+  if (-not $SkipLive2DPet) {
+    Start-Live2DPetShared -ConfigDir $ConfigDir -AllowBrowserFallback:$false
+  }
   $OpenCodeProcess = [System.Diagnostics.Process]::Start($OpenCodeStartInfo)
   Start-ContextGuardWatchShared "aiomo" $ConfigDir $GuardConfigPath $WorkingDirectory $OpenCodeProcess.Id
   $OpenCodeProcess.WaitForExit()
@@ -438,5 +447,7 @@ try {
 } finally {
   Restore-OpenCodeTerminalShared
   Restore-OpenCodeConsoleEncodingShared
-  Stop-Live2DPetShared
+  if (-not $SkipLive2DPet) {
+    Stop-Live2DPetShared
+  }
 }

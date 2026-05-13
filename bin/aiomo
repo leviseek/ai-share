@@ -37,6 +37,7 @@ show_help() {
   printf '%s\n' "可用级别：$(printf '%s' "$profiles" | tr ' ' '、')"
   printf '%s\n' ""
   printf '%s\n' "参数："
+  printf '%s\n' "  --no-pet                  不启动 Live2D pet 桌面宠物。"
   printf '%s\n' "  doctor gitignore [--apply] 检查 .gitignore 缺失规则；加 --apply 自动追加。"
   printf '%s\n' "  doctor terminal [--launch] 输出自动熔断后终端恢复的手工验证步骤；加 --launch 直接启动 aiomo。"
   printf '%s\n' "  doctor install            检查共享配置、插件、skills 和 TUI 插件是否安装并可见。"
@@ -337,6 +338,19 @@ case "${1:-}" in
     ;;
 esac
 
+# Parse --no-pet flag from remaining args
+skip_live2d_pet="false"
+_rest=""
+for _arg in "$@"; do
+  case "$_arg" in
+    --no-pet) skip_live2d_pet="true" ;;
+    *)
+      _rest="$_rest${_rest:+ }'$(printf '%s' "$_arg" | sed "s/'/'\\\\''/g")'"
+      ;;
+  esac
+done
+eval "set -- $_rest"
+
 if ! is_profile "$profile"; then
   printf '%s\n' "不支持的 OMO 编排级别：$profile" >&2
   printf '%s\n' "可用级别：$(printf '%s' "$profiles" | tr ' ' '、')" >&2
@@ -381,7 +395,9 @@ opencode_context_guard check aiomo "$guard_budget_config" "$config_dir" "$@"
 code="$?"
 set -e
 if [ "$code" = "10" ]; then exit 10; fi
-opencode_live2d_pet_start "$config_dir"
+if [ "$skip_live2d_pet" = "false" ]; then
+  opencode_live2d_pet_start "$config_dir"
+fi
 
 # Start opencode in background so we can capture its PID for context-guard watch
 opencode "$@" &
@@ -395,7 +411,11 @@ trap 'kill -HUP  $opencode_pid 2>/dev/null; exit 129' HUP
 trap 'kill -INT  $opencode_pid 2>/dev/null; exit 130' INT
 
 # EXIT trap fires on any exit (normal or signal-forwarded) — restores terminal
-trap 'opencode_restore_terminal; opencode_live2d_pet_stop' EXIT
+if [ "$skip_live2d_pet" = "false" ]; then
+  trap 'opencode_restore_terminal; opencode_live2d_pet_stop' EXIT
+else
+  trap 'opencode_restore_terminal' EXIT
+fi
 
 # Pass opencode PID (not $$) to watch — stopProcessTree will SIGTERM opencode directly
 opencode_context_guard_watch aiomo "$guard_budget_config" "$config_dir" "$(pwd)" "$opencode_pid"
@@ -405,6 +425,8 @@ wait $opencode_pid
 status=$?
 
 opencode_restore_terminal
-opencode_live2d_pet_stop
+if [ "$skip_live2d_pet" = "false" ]; then
+  opencode_live2d_pet_stop
+fi
 trap - EXIT HUP INT TERM
 exit "$status"

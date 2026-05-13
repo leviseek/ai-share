@@ -40,6 +40,7 @@ if ($args.Count -gt 1 -and $args[0] -eq "doctor" -and $args[1] -eq "install") {
 }
 
 $OpenCodeArgs = [System.Collections.Generic.List[string]]::new()
+$SkipLive2DPet = $false
 
 for ($Index = 0; $Index -lt $args.Count; $Index += 1) {
   $Arg = $args[$Index]
@@ -57,6 +58,11 @@ for ($Index = 0; $Index -lt $args.Count; $Index += 1) {
 
   if ($Index -eq 0 -and $Arg.StartsWith("--profile=")) {
     $ProfileName = $Arg.Substring("--profile=".Length)
+    continue
+  }
+
+  if ($Arg -eq "--no-pet") {
+    $SkipLive2DPet = $true
     continue
   }
 
@@ -82,11 +88,15 @@ Copy-Item -LiteralPath $AiocProfileConfig -Destination $OpenCodeActiveConfig -Fo
 
 $OpenCode = Get-Command opencode.exe -CommandType Application -ErrorAction Stop
 try {
-  Start-Live2DPetShared -ConfigDir $ConfigDir -AllowBrowserFallback:$false
+  if (-not $SkipLive2DPet) {
+    Start-Live2DPetShared -ConfigDir $ConfigDir -AllowBrowserFallback:$false
+  }
   & $OpenCode.Source @($OpenCodeArgs.ToArray())
   exit $LASTEXITCODE
 } finally {
   Restore-OpenCodeTerminalShared
   Restore-OpenCodeConsoleEncodingShared
-  Stop-Live2DPetShared
+  if (-not $SkipLive2DPet) {
+    Stop-Live2DPetShared
+  }
 }

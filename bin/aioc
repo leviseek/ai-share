@@ -78,11 +78,30 @@ fi
 
 cp "$AIOC_CONFIG" "$ACTIVE_CONFIG"
 
-opencode_live2d_pet_start "$CONFIG_DIR"
-trap 'status=$?; opencode_restore_terminal; opencode_live2d_pet_stop; exit $status' EXIT HUP INT TERM
+# Parse --no-pet flag from remaining args
+skip_live2d_pet="false"
+_rest=""
+for _arg in "$@"; do
+  case "$_arg" in
+    --no-pet) skip_live2d_pet="true" ;;
+    *)
+      _rest="$_rest${_rest:+ }'$(printf '%s' "$_arg" | sed "s/'/'\\\\''/g")'"
+      ;;
+  esac
+done
+eval "set -- $_rest"
+
+if [ "$skip_live2d_pet" = "false" ]; then
+  opencode_live2d_pet_start "$CONFIG_DIR"
+  trap 'status=$?; opencode_restore_terminal; opencode_live2d_pet_stop; exit $status' EXIT HUP INT TERM
+else
+  trap 'status=$?; opencode_restore_terminal; exit $status' EXIT HUP INT TERM
+fi
 opencode "$@"
 status=$?
 opencode_restore_terminal
-opencode_live2d_pet_stop
+if [ "$skip_live2d_pet" = "false" ]; then
+  opencode_live2d_pet_stop
+fi
 trap - EXIT HUP INT TERM
 exit "$status"
