@@ -58,11 +58,10 @@ export function compileMemory(options: MemoryCompileOptions): string {
 
   const result = segments.join("\n");
 
-  if (result.length <= 500) {
-    return result;
-  }
-
-  return result.slice(0, 497) + "...";
+  // No length limit — the compiled context should be complete.
+  // OpenCode's instruction system handles large strings gracefully;
+  // truncation would lose important user context.
+  return result;
 }
 
 // ---------------------------------------------------------------------------
