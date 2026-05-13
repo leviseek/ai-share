@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type {
   GlobalYaml,
@@ -39,13 +40,17 @@ export function buildInstructionsPaths(projectRoot: string): string[] {
     resolve(memoryBase, "stack", "wsl.md"),
     resolve(memoryBase, "stack", "models.md"),
     // external: ai-memory/
-    resolve(aiMemoryBase, "stable", "user.yaml"),
-    resolve(aiMemoryBase, "stable", "workflows.yaml"),
-    resolve(aiMemoryBase, "stable", "devices.yaml"),
-    resolve(aiMemoryBase, "profiles", "coding.yaml"),
-    resolve(aiMemoryBase, "profiles", "research.yaml"),
-    resolve(aiMemoryBase, "profiles", "infra.yaml"),
-    resolve(aiMemoryBase, "policies", "memory-policy.yaml"),
+    ...(existsSync(aiMemoryBase)
+      ? [
+          resolve(aiMemoryBase, "stable", "user.yaml"),
+          resolve(aiMemoryBase, "stable", "workflows.yaml"),
+          resolve(aiMemoryBase, "stable", "devices.yaml"),
+          resolve(aiMemoryBase, "profiles", "coding.yaml"),
+          resolve(aiMemoryBase, "profiles", "research.yaml"),
+          resolve(aiMemoryBase, "profiles", "infra.yaml"),
+          resolve(aiMemoryBase, "policies", "memory-policy.yaml"),
+        ]
+      : []),
   ];
 }
 
