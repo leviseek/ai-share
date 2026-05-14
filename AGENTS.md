@@ -41,7 +41,7 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.opencode-rescue/`, `.o
 | Launcher install behavior               | `src/cli/install.ts` + `bin/`          | Copies launchers/plugins/skills; Windows PATH/BOM handling |
 | OMO monitor behavior                    | `plugins/omo-agent-monitor/`           | Server event capture + TUI command/WebUI                   |
 | DingTalk notification plugin            | `plugins/dingtalk-notifier/`           | Env-only webhook/secret, review-before-send flow           |
-| Live2D pet plugin                       | `plugins/live2d-pet/`                  | TUI slash command, browser fallback, optional Tauri binary  |
+| Live2D pet plugin                       | `plugins/live2d-pet/`                  | TUI slash command, browser fallback, optional Tauri binary |
 | Shared AI workflow rules                | `AI_GUIDELINES.md`                     | Loaded into generated OpenCode configs                     |
 | Commit format                           | `GIT_COMMIT_GUIDELINES.md`             | `option: 中文描述`                                         |
 | User memory content                     | `memory/`                              | Structured Markdown; injected as startup instructions      |

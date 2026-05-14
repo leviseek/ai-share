@@ -35,7 +35,7 @@ coding_style:
 
 communication:
   language: zh-CN
-  identifiers: English  # 代码标识符、命令、API 名称保持英文
+  identifiers: English # 代码标识符、命令、API 名称保持英文
   style: 直接给出结论和结果，不需要前置客套
   failure_format: 失败时给根因分析 + 修复路径
   delivery: 交付时附带验证结果和遗留关注点

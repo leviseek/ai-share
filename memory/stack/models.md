@@ -13,24 +13,24 @@ API Key 通过环境变量引用，不写入仓库。
 
 OpenCode 和 OMO 共享同一套中间层角色。agents 和 categories 只引用角色名，具体模型由 profile 决定：
 
-| 角色 | 用途 | 典型模型 |
-|------|------|----------|
-| `primary` | 主编码/执行 agent（build、sisyphus、hephaestus） | gpt-5.5 / gpt-5.3-codex |
-| `reasoning` | 深度推理/规划 agent（plan、oracle、prometheus） | deepseek-v4-pro-think / deepseek-v4-pro-think-max |
-| `fast` | 轻量/搜索 agent（explore、librarian、sisyphus-junior、compaction） | gpt-5.4-mini |
+| 角色        | 用途                                                               | 典型模型                                          |
+| ----------- | ------------------------------------------------------------------ | ------------------------------------------------- |
+| `primary`   | 主编码/执行 agent（build、sisyphus、hephaestus）                   | gpt-5.5 / gpt-5.3-codex                           |
+| `reasoning` | 深度推理/规划 agent（plan、oracle、prometheus）                    | deepseek-v4-pro-think / deepseek-v4-pro-think-max |
+| `fast`      | 轻量/搜索 agent（explore、librarian、sisyphus-junior、compaction） | gpt-5.4-mini                                      |
 
 ## Profile 模型对照表
 
-| Profile | primary | reasoning | fast |
-|---------|---------|-----------|------|
-| lite | gpt-5.4 | deepseek-v4-flash-think | gpt-5.4-mini |
-| economy | deepseek-v4-flash | deepseek-v4-flash-think | deepseek-v4-flash |
-| cheap | gpt-5.4-mini | deepseek-v4-flash-think | gpt-5.4-mini |
-| balanced | gpt-5.5 | deepseek-v4-pro-think | gpt-5.4-mini |
-| coding | gpt-5.3-codex | deepseek-v4-pro-think | gpt-5.4-mini |
-| research | gpt-5.5 | deepseek-v4-pro-think-max | gpt-5.4-mini |
-| writing | gpt-5.5 | deepseek-v4-pro-think | gpt-5.4-mini |
-| max | gpt-5.5 | deepseek-v4-pro-think-max | gpt-5.4 |
+| Profile  | primary           | reasoning                 | fast              |
+| -------- | ----------------- | ------------------------- | ----------------- |
+| lite     | gpt-5.4           | deepseek-v4-flash-think   | gpt-5.4-mini      |
+| economy  | deepseek-v4-flash | deepseek-v4-flash-think   | deepseek-v4-flash |
+| cheap    | gpt-5.4-mini      | deepseek-v4-flash-think   | gpt-5.4-mini      |
+| balanced | gpt-5.5           | deepseek-v4-pro-think     | gpt-5.4-mini      |
+| coding   | gpt-5.3-codex     | deepseek-v4-pro-think     | gpt-5.4-mini      |
+| research | gpt-5.5           | deepseek-v4-pro-think-max | gpt-5.4-mini      |
+| writing  | gpt-5.5           | deepseek-v4-pro-think     | gpt-5.4-mini      |
+| max      | gpt-5.5           | deepseek-v4-pro-think-max | gpt-5.4           |
 
 ## 模型选择策略
 
@@ -60,16 +60,16 @@ writing 模式。模型与 balanced 一致，但 strategy 的 memory 策略为 p
 
 ## 模型能力速览
 
-| 模型 | 上下文 | 成本（$/M input） | 特点 |
-|------|--------|-------------------|------|
-| gpt-5.5 | 200K | 0.01 | 全能，带 reasoning、planning、long_context |
-| gpt-5.4 | 160K | 0.008 | gpt-5.5 降级备选 |
-| gpt-5.4-mini | 128K | 0.0012 | 极低成本，cheap+fast+general |
-| gpt-5.3-codex | 128K | 0.007 | 编码专精，低 temperature（0.1） |
-| deepseek-v4-pro-think-max | 256K | 0.005 | 最强推理，thinking enabled + reasoning_effort=max |
-| deepseek-v4-pro-think | 128K | 0.003 | 标准推理，thinking enabled + reasoning_effort=high |
-| deepseek-v4-flash-think | 128K | 0.003 | 快速推理，与 pro-think 同价 |
-| deepseek-v4-flash | 64K | 0.0008 | 最便宜，fast+cheap+coding+general |
+| 模型                      | 上下文 | 成本（$/M input） | 特点                                               |
+| ------------------------- | ------ | ----------------- | -------------------------------------------------- |
+| gpt-5.5                   | 200K   | 0.01              | 全能，带 reasoning、planning、long_context         |
+| gpt-5.4                   | 160K   | 0.008             | gpt-5.5 降级备选                                   |
+| gpt-5.4-mini              | 128K   | 0.0012            | 极低成本，cheap+fast+general                       |
+| gpt-5.3-codex             | 128K   | 0.007             | 编码专精，低 temperature（0.1）                    |
+| deepseek-v4-pro-think-max | 256K   | 0.005             | 最强推理，thinking enabled + reasoning_effort=max  |
+| deepseek-v4-pro-think     | 128K   | 0.003             | 标准推理，thinking enabled + reasoning_effort=high |
+| deepseek-v4-flash-think   | 128K   | 0.003             | 快速推理，与 pro-think 同价                        |
+| deepseek-v4-flash         | 64K    | 0.0008            | 最便宜，fast+cheap+coding+general                  |
 
 ## Cost 意识
 
@@ -83,16 +83,16 @@ writing 模式。模型与 balanced 一致，但 strategy 的 memory 策略为 p
 
 自动压缩使用 fast 角色模型（gpt-5.4-mini 或经济模式下的 deepseek-v4-flash）。threshold 决定触发压缩的上下文长度：
 
-| Profile | threshold | max_input_tokens | compaction model |
-|---------|-----------|-----------------|------------------|
-| lite | 40K | 80K | fast |
-| economy | 500M（几乎不触发） | 1B | fast |
-| cheap | 40K | 80K | fast |
-| balanced | 65K | 120K | fast |
-| coding | 65K | 120K | fast |
-| research | 100K | 180K | reasoning |
-| writing | 65K | 120K | reasoning |
-| max | 140K | 250K | reasoning |
+| Profile  | threshold          | max_input_tokens | compaction model |
+| -------- | ------------------ | ---------------- | ---------------- |
+| lite     | 40K                | 80K              | fast             |
+| economy  | 500M（几乎不触发） | 1B               | fast             |
+| cheap    | 40K                | 80K              | fast             |
+| balanced | 65K                | 120K             | fast             |
+| coding   | 65K                | 120K             | fast             |
+| research | 100K               | 180K             | reasoning        |
+| writing  | 65K                | 120K             | reasoning        |
+| max      | 140K               | 250K             | reasoning        |
 
 research/writing/max 使用 reasoning 模型做 compaction，压缩质量更高但成本也高。
 

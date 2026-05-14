@@ -18,14 +18,14 @@ live2d-pet/
 
 ## WHERE TO LOOK
 
-| Need                       | Location                       | Notes                                                   |
-| -------------------------- | ------------------------------ | ------------------------------------------------------- |
-| TUI command registration   | `tui.ts`                       | `Live2D pet`, `ctrl+shift+l`, `/live2d-pet`, `/l2dpet` |
-| Text event capture         | `server.ts`                    | Handles assistant message parts and text completion     |
-| Bubble state/publication   | `tui/state.ts`                 | Shared local state for pet speech bubbles               |
-| Browser/WebUI behavior     | `tui/`                         | Fallback window and Live2D rendering assets             |
-| Desktop/Tauri integration  | `standalone.ts`, `src-tauri/`  | Optional binary copied by `installPlugins`              |
-| Build/install copy rules   | `src/cli/install.ts`           | Copies release binary when present; excludes target     |
+| Need                      | Location                      | Notes                                                  |
+| ------------------------- | ----------------------------- | ------------------------------------------------------ |
+| TUI command registration  | `tui.ts`                      | `Live2D pet`, `ctrl+shift+l`, `/live2d-pet`, `/l2dpet` |
+| Text event capture        | `server.ts`                   | Handles assistant message parts and text completion    |
+| Bubble state/publication  | `tui/state.ts`                | Shared local state for pet speech bubbles              |
+| Browser/WebUI behavior    | `tui/`                        | Fallback window and Live2D rendering assets            |
+| Desktop/Tauri integration | `standalone.ts`, `src-tauri/` | Optional binary copied by `installPlugins`             |
+| Build/install copy rules  | `src/cli/install.ts`          | Copies release binary when present; excludes target    |
 
 ## CONVENTIONS
 

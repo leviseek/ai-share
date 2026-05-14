@@ -1,1 +1,9 @@
-{"default":{"identifier":"default","description":"Enable the Live2D Pet window to invoke native drag handling.","local":true,"windows":["live2d-pet"],"permissions":["core:default","core:window:default","core:window:allow-start-dragging"]}}
+{
+  "default": {
+    "identifier": "default",
+    "description": "Enable the Live2D Pet window to invoke native drag handling.",
+    "local": true,
+    "windows": ["live2d-pet"],
+    "permissions": ["core:default", "core:window:default", "core:window:allow-start-dragging"]
+  }
+}

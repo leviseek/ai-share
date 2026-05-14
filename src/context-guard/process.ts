@@ -22,7 +22,8 @@ export async function stopProcessTree(pid: number, graceMs = 5000): Promise<void
   if (process.platform === "win32") {
     // Step 1: Try graceful shutdown first (without /F)
     Bun.spawnSync(["taskkill.exe", "/PID", String(pid), "/T"], {
-      stdout: "ignore", stderr: "ignore",
+      stdout: "ignore",
+      stderr: "ignore",
     });
 
     // Step 2: Wait up to graceMs for the process to exit on its own
@@ -34,7 +35,8 @@ export async function stopProcessTree(pid: number, graceMs = 5000): Promise<void
 
     // Step 3: Force kill if still alive after grace period
     Bun.spawnSync(["taskkill.exe", "/PID", String(pid), "/T", "/F"], {
-      stdout: "ignore", stderr: "ignore",
+      stdout: "ignore",
+      stderr: "ignore",
     });
     return;
   }

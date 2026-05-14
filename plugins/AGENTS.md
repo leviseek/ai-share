@@ -15,13 +15,13 @@ plugins/
 
 ## WHERE TO LOOK
 
-| Need                         | Location                | Notes                                              |
-| ---------------------------- | ----------------------- | -------------------------------------------------- |
-| Monitor OMO agents/session   | `omo-agent-monitor/`    | Has child `AGENTS.md`; server + TUI + WebUI split  |
-| DingTalk completion notices  | `dingtalk-notifier/`    | Env-only webhook/secret; review gate defaults on   |
-| Live2D pet window            | `live2d-pet/`           | Has child `AGENTS.md`; TUI command + desktop app   |
-| Plugin build/copy behavior   | `src/cli/install.ts`    | Builds TS entrypoints, copies metadata/binaries    |
-| Plugin source configuration  | `config/global.yaml`    | `opencode.plugins`, `tui.plugins`, notifier config |
+| Need                        | Location             | Notes                                              |
+| --------------------------- | -------------------- | -------------------------------------------------- |
+| Monitor OMO agents/session  | `omo-agent-monitor/` | Has child `AGENTS.md`; server + TUI + WebUI split  |
+| DingTalk completion notices | `dingtalk-notifier/` | Env-only webhook/secret; review gate defaults on   |
+| Live2D pet window           | `live2d-pet/`        | Has child `AGENTS.md`; TUI command + desktop app   |
+| Plugin build/copy behavior  | `src/cli/install.ts` | Builds TS entrypoints, copies metadata/binaries    |
+| Plugin source configuration | `config/global.yaml` | `opencode.plugins`, `tui.plugins`, notifier config |
 
 ## CONVENTIONS
 
