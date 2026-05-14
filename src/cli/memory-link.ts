@@ -108,7 +108,7 @@ export async function ensureAiMemoryWorkspaceLink(paths: GeneratorPaths, dryRun:
 async function createDirectoryLink(label: string, sourcePath: string, targetPath: string): Promise<void> {
   try {
     await mkdir(dirname(targetPath), { recursive: true });
-    await symlink(sourcePath, targetPath, "dir");
+    await symlink(sourcePath, targetPath, process.platform === "win32" ? "junction" : "dir");
     console.log(
       `${color.green(`已创建 ${label} 目录链接`)}：${color.cyan(targetPath)} ${color.gray("->")} ${color.cyan(sourcePath)}`,
     );
