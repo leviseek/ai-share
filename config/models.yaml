@@ -75,7 +75,7 @@ deepseek-v4-pro-think-max:
     input: 0.005
     output: 0.012
   limits:
-    context_window: 256000
+    context_window: 1000000
     max_output: 16384
   temperature: 0.1
   parameters:
@@ -97,7 +97,7 @@ deepseek-v4-pro-think:
     input: 0.003
     output: 0.006
   limits:
-    context_window: 128000
+    context_window: 1000000
     max_output: 8192
   temperature: 0.2
   parameters:
@@ -118,7 +118,7 @@ deepseek-v4-flash-think:
     input: 0.003
     output: 0.006
   limits:
-    context_window: 128000
+    context_window: 1000000
     max_output: 8192
   temperature: 0.2
   parameters:
@@ -140,6 +140,6 @@ deepseek-v4-flash:
     input: 0.0008
     output: 0.0016
   limits:
-    context_window: 64000
+    context_window: 1000000
     max_output: 4096
   temperature: 0.1
