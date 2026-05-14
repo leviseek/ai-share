@@ -120,6 +120,7 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.config/opencode/skills/install-doctor/SKILL.md
 ~/.config/opencode/skills/config-profile-tuning/SKILL.md
 ~/.config/opencode/skills/context-compiler/SKILL.md
+~/.config/opencode/skills/ai-workspace-os-refactor/SKILL.md
 ~/.config/opencode/skills/config-diff-auditor/SKILL.md
 ~/.config/opencode/skills/prompt-lint/SKILL.md
 ~/.config/opencode/skills/permission-auditor/SKILL.md
@@ -139,6 +140,7 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 - `install-doctor`：诊断 `aiomo doctor install` / `aioc doctor install` 输出。
 - `config-profile-tuning`：调整模型角色、profile、compaction 和上下文预算。
 - `context-compiler`：把长 session、issue、日志、PR、网页资料或 rescue 输出编译成可审计上下文摘要。
+- `ai-workspace-os-refactor`：面向 AI Workspace OS 演进的上下文、记忆、Agent 编排和小步安全重构流程。
 - `config-diff-auditor`：审计 YAML、生成器、插件、启动器、profile 或 skill 变更对生成输出的影响。
 - `prompt-lint`：检查提示词、agent、category、skill 和 instruction memory 的冲突、冗余与不可验证规则。
 - `permission-auditor`：审计 agents、plugins、MCP、hooks、启动器和安装脚本的权限与副作用边界。

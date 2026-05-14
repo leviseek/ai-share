@@ -21,6 +21,7 @@ const NATIVE_SKILLS = [
   "install-doctor",
   "config-profile-tuning",
   "context-compiler",
+  "ai-workspace-os-refactor",
   "config-diff-auditor",
   "prompt-lint",
   "permission-auditor",

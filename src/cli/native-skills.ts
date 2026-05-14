@@ -249,6 +249,76 @@ Produce this structure:
 - For ai-share work, map the brief back to \`config/*.yaml\`, \`src/\`, \`bin/\`, \`plugins/\`, \`memory/\`, or \`AI_GUIDELINES.md\` whenever possible.`,
   ),
   skill(
+    "ai-workspace-os-refactor",
+    "Use when evolving ai-share toward an AI Workspace OS: context pipeline, memory layers, agent orchestration, checkpointing, observability, or incremental refactors.",
+    `# AI Workspace OS Refactor
+
+Use this skill when the requested work is about evolving \`ai-share\` into a long-lived AI Workspace OS: context-first architecture, memory-native design, multi-agent orchestration, local-first operation, human-in-the-loop safeguards, or incremental refactoring.
+
+## What This Skill Is For
+
+- Analyzing the current repository structure, module boundaries, and technical debt.
+- Designing small, reversible refactors that improve context handling, memory, agent coordination, and observability.
+- Turning a large architecture prompt into a safe execution plan for the current repo.
+
+## Read First
+
+1. \`AGENTS.md\` at repo root and any child \`AGENTS.md\` files for the touched paths.
+2. \`README.md\` for the current product framing and installed skill list.
+3. \`AI_GUIDELINES.md\` for the shared prompt/workflow contract.
+4. \`memory/\` for existing long-lived knowledge and workflow assumptions.
+5. \`src/cli/native-skills.ts\`, \`src/config/builders/opencode.ts\`, \`src/config/builders/omo.ts\`, \`src/config/builders/strategy.ts\`, \`src/context-guard/\`, and \`src/cli/install.ts\` for the active architecture.
+
+## Analysis Checklist
+
+- Current directory structure and module boundaries.
+- Context flow: where prompts, memory, instructions, and tool events enter and leave the runtime.
+- Agent coupling: where planner/executor/reviewer style behavior is implied or hard-coded.
+- Memory gaps: working, episodic, semantic, snapshot, and shared memory needs.
+- Tool chain: registry, side effects, event flow, and human approval points.
+- Observability: logs, checkpoints, snapshots, recovery, and dry-run/diff visibility.
+- Prompt pollution: duplicated instructions, mixed concerns, and drifting task prompts.
+
+## Refactor Rules
+
+1. Prefer incremental evolution over wholesale redesign.
+2. Use anti-corruption layers, adapters, and compatibility layers when crossing boundaries.
+3. Make each step runnable, testable, and easy to revert.
+4. Keep changes local to the smallest viable slice of the architecture.
+5. Never hand-edit generated user config as the durable fix.
+
+## Suggested Architecture Lens
+
+- **Context Pipeline**: system, workspace, memory, task, tool, safety, compression, reflection.
+- **Memory Layers**: working, episodic, semantic, vector, snapshot, shared.
+- **Agent Roles**: planner, executor, reviewer, tool agent, memory agent, RAG agent, sandbox agent, background agent.
+- **Runtime Concerns**: event bus, tool registry, checkpoint/snapshot, recovery, observability, token budget, and local-first storage.
+
+## Execution Loop
+
+1. Map the current state of the repo and identify the exact files involved.
+2. Propose the smallest safe refactor slice with impact and rollback notes.
+3. Implement one slice only.
+4. Verify with the narrowest relevant checks first, then broader validation when needed.
+5. Record remaining architectural gaps separately instead of widening scope.
+
+## aiomo Delegation
+
+When delegating work in aiomo, keep this skill explicit and combine it with the smallest useful set of other skills:
+
+\`task(category="ultrabrain", load_skills=["ai-workspace-os-refactor"], run_in_background=false, prompt="...")\`
+
+For follow-up code changes, add only the other skills that directly apply, such as \`ai-share-generator\`, \`context-compiler\`, or \`prompt-lint\`.
+
+## Avoid
+
+- Do not propose a full rewrite of the repository.
+- Do not mix generated config changes with architecture brainstorming unless the task explicitly requires it.
+- Do not add dependencies, databases, or remote services without a clear local-first justification.
+- Do not collapse multiple prompt layers into one giant prompt.
+- Do not skip verification, dry-run, or diff review for risky changes.`,
+  ),
+  skill(
     "config-diff-auditor",
     "Use after config/*.yaml, generator, plugin, launcher, profile, or native skill changes to audit generated output impact before install.",
     `# Config Diff Auditor
