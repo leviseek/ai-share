@@ -119,6 +119,11 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.config/opencode/skills/ai-share-generator/SKILL.md
 ~/.config/opencode/skills/install-doctor/SKILL.md
 ~/.config/opencode/skills/config-profile-tuning/SKILL.md
+~/.config/opencode/skills/context-compiler/SKILL.md
+~/.config/opencode/skills/config-diff-auditor/SKILL.md
+~/.config/opencode/skills/prompt-lint/SKILL.md
+~/.config/opencode/skills/permission-auditor/SKILL.md
+~/.config/opencode/skills/evidence-pack/SKILL.md
 ~/.config/opencode/skills/release-commit/SKILL.md
 ~/.config/opencode/skills/plugin-vetting/SKILL.md
 ~/.config/opencode/skills/skill-creator/SKILL.md
@@ -133,7 +138,12 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 - `ai-share-generator`：修改 `config/*.yaml`、生成器和安装输出时的工作流。
 - `install-doctor`：诊断 `aiomo doctor install` / `aioc doctor install` 输出。
 - `config-profile-tuning`：调整模型角色、profile、compaction 和上下文预算。
-- `release-commit`：按批次组织提交、发布式摘要和推送前验证。
+- `context-compiler`：把长 session、issue、日志、PR、网页资料或 rescue 输出编译成可审计上下文摘要。
+- `config-diff-auditor`：审计 YAML、生成器、插件、启动器、profile 或 skill 变更对生成输出的影响。
+- `prompt-lint`：检查提示词、agent、category、skill 和 instruction memory 的冲突、冗余与不可验证规则。
+- `permission-auditor`：审计 agents、plugins、MCP、hooks、启动器和安装脚本的权限与副作用边界。
+- `evidence-pack`：实现后整理变更范围、验证证据、风险和回滚路径，不执行 Git 状态变更。
+- `release-commit`：按批次组织 Git 提交、changelog notes 和推送前验证。
 - `plugin-vetting`：新增共享插件或可选插件前的来源、权限和作用域审查。
 - `skill-creator`：新增、维护和审查本仓库本地 native skills 的流程。
 - `find-skills`：列出并选择当前任务最相关的本地 native skill。

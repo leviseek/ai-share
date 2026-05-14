@@ -155,7 +155,18 @@ Use this skill for \`aiomo doctor install\`, \`aioc doctor install\`, launcher i
 
 - Do not edit installed artifacts directly as a durable fix.
 - Preserve Windows and POSIX launcher parity.
-- Keep doctor output actionable with exact missing paths or config items.`,
+- Keep doctor output actionable with exact missing paths or config items.
+
+## Report Template
+
+When summarizing doctor results, use this shape:
+
+1. **Root Cause**: the most likely missing or stale artifact.
+2. **Evidence**: exact \`FAIL\` / \`WARN\` labels and paths.
+3. **Fix**: the smallest command or source change, usually \`bun run ai:gen -- --force\` after source config is valid.
+4. **Verify**: rerun \`aiomo doctor install\` or \`aioc doctor install\` in the target shell.
+
+Prefer one concrete fix path over broad shell advice.`,
   ),
   skill(
     "config-profile-tuning",
@@ -178,6 +189,16 @@ Use this skill when tuning profiles, model roles, compaction thresholds, context
 - Align compaction \`max_input_tokens\` with context guard budgets so launchers warn before sessions become risky.
 - Keep \`aioc\` native/lightweight; use \`aiomo\` for orchestration-heavy workflows.
 
+## P0 Review Checklist
+
+Before changing a profile, record the intended tradeoff:
+
+- Cost: expected provider/model spend and whether \`fast\` can handle search/summary work.
+- Latency: whether background concurrency and fallback behavior match the profile purpose.
+- Context: \`threshold\`, \`reserved\`, \`max_input_tokens\`, DCP budget, checkpoint count, and context guard ratios.
+- Mode split: whether \`aioc\` remains native while \`aiomo\` carries orchestration-heavy plugins and sidecars.
+- Fallback: whether provider fallback preserves the role intent instead of silently upgrading cheap profiles.
+
 ## Verification
 
 1. Run \`bun run ai:check\` after YAML changes.
@@ -192,16 +213,192 @@ Use this skill when tuning profiles, model roles, compaction thresholds, context
 - Do not put real keys, local endpoints, or secrets in YAML.`,
   ),
   skill(
+    "context-compiler",
+    "Use when compiling long sessions, issues, logs, PRs, web research, or rescue output into a compact, auditable context brief.",
+    `# Context Compiler
+
+Use this skill when turning long natural-language context into a compact, auditable brief for aiomo/aioc work.
+
+## Good Inputs
+
+- Long session transcripts, handoff notes, rescue summaries, issue threads, PR discussions, web research, and verbose logs.
+- Human-readable docs that can tolerate semantic summarization.
+
+## Do Not Compress Blindly
+
+- Do not compress \`AI_GUIDELINES.md\`, system/developer instructions, tool rules, permission policies, secrets policy, code diffs, YAML config, shell commands, or exact error messages by deleting tokens.
+- Preserve exact file paths, command names, config keys, env var names, model IDs, profile names, and quoted errors.
+
+## Output Template
+
+Produce this structure:
+
+1. **Goal**: one sentence describing the current objective.
+2. **Confirmed Facts**: only facts supported by the input, with paths or commands when available.
+3. **Decisions**: accepted tradeoffs and why they matter.
+4. **Key Files / Commands**: exact names that future agents must inspect or run.
+5. **Risks / Constraints**: security, type safety, generated-config, platform, or context risks.
+6. **Next Actions**: ordered, verifiable steps.
+7. **Discarded Noise**: categories of details intentionally omitted.
+
+## Rules
+
+- Prefer extractive wording for constraints and commands.
+- Mark uncertain items as \`Unverified\`; do not turn guesses into facts.
+- Keep summaries local and do not include secrets, tokens, cookies, or full private logs.
+- For ai-share work, map the brief back to \`config/*.yaml\`, \`src/\`, \`bin/\`, \`plugins/\`, \`memory/\`, or \`AI_GUIDELINES.md\` whenever possible.`,
+  ),
+  skill(
+    "config-diff-auditor",
+    "Use after config/*.yaml, generator, plugin, launcher, profile, or native skill changes to audit generated output impact before install.",
+    `# Config Diff Auditor
+
+Use this skill to audit how source changes affect generated OpenCode, aioc, OMO, strategy, proxy, context-guard, plugin, launcher, and native-skill outputs.
+
+## Source Of Truth
+
+- Durable changes belong in \`config/*.yaml\`, \`src/\`, \`bin/\`, \`plugins/\`, \`memory/\`, or \`AI_GUIDELINES.md\`.
+- Do not treat generated files under \`~/.config/opencode/\` as source.
+
+## Audit Flow
+
+1. Run \`bun run ai:check\` to validate source config and generator consistency.
+2. Run \`bun run ai:gen -- --dry-run\` to preview writes and installed artifacts.
+3. Inspect whether aiomo and aioc outputs differ intentionally: plugins, OMO sidecars, strategy sidecars, context guard profiles, and native skills.
+4. Confirm added skills appear as \`~/.config/opencode/skills/<name>/SKILL.md\` in dry-run output.
+5. If plugin arrays changed, verify \`aioc\` excludes OMO-only plugins while preserving shared safe plugins.
+
+## Report Template
+
+- **Expected Impact**: source files changed and intended generated outputs.
+- **Unexpected Impact**: any extra profile, plugin, sidecar, launcher, or skill drift.
+- **Mode Split**: aiomo-only vs aioc-native behavior.
+- **Verification**: commands run and pass/fail summary.
+
+## Avoid
+
+- Do not approve a config change only because TypeScript passes.
+- Do not ignore dry-run output that changes unrelated profiles or generated plugin lists.
+- Do not write real API keys, webhooks, or local private endpoints into YAML.`,
+  ),
+  skill(
+    "prompt-lint",
+    "Use when reviewing AI_GUIDELINES.md, agent prompts, native skills, OMO categories, or instruction memory for conflicts and unverifiable rules.",
+    `# Prompt Lint
+
+Use this skill to review prompts and instruction files for clarity, safety, consistency, and enforceability.
+
+## Targets
+
+- \`AI_GUIDELINES.md\`, native skills in \`src/cli/native-skills.ts\`, OMO agents/categories in \`config/agents.yaml\`, memory prompt files, and project-level OpenCode instructions.
+
+## Checks
+
+1. Conflict: newer or more specific instructions should not fight project safety rules.
+2. Verifiability: rules should name observable actions, files, commands, or outputs.
+3. Scope: prompts should say when to use them and when not to use them.
+4. Safety: no instruction should encourage secrets exposure, destructive Git, type suppression, deleting tests, or bypassing review gates.
+5. Brevity: avoid duplicating large policy documents when a path reference or checklist is enough.
+6. Mode split: keep aiomo orchestration and aioc native behavior explicit when relevant.
+
+## Output Template
+
+- **Blocking Issues**: contradictions or unsafe instructions that must be fixed.
+- **Ambiguities**: wording likely to cause wrong agent behavior.
+- **Redundancy**: repeated policy that can be shortened.
+- **Suggested Rewrite**: minimal replacement text.
+
+## Rules
+
+- Preserve exact command names, file paths, and config keys.
+- Do not add motivational language or decorative comments.
+- Prefer concise trigger-oriented descriptions for skills.`,
+  ),
+  skill(
+    "permission-auditor",
+    "Use when auditing OpenCode/OMO agents, plugins, MCP servers, native skills, hooks, or install scripts for permission and side-effect boundaries.",
+    `# Permission Auditor
+
+Use this skill to audit what agents, plugins, MCP servers, hooks, launchers, and install scripts are allowed to read, write, execute, or send externally.
+
+## Inspect
+
+- OpenCode agents and permissions in generated builders and config sources.
+- OMO agents/categories in \`config/agents.yaml\`.
+- Plugin declarations in \`config/global.yaml\` and local plugin code under \`plugins/\`.
+- Native skills in \`src/cli/native-skills.ts\`.
+- Launcher and install behavior in \`bin/\` and \`src/cli/install.ts\`.
+
+## Boundary Questions
+
+1. Can it edit files, run shell commands, start background processes, write local state, or access the network?
+2. Does aioc need to exclude it to preserve native Build/Plan behavior?
+3. Does it inject prompt/context or alter model routing?
+4. Does it read secrets only by env-var reference and avoid printing values?
+5. Is rollback clear: remove plugin/skill/config entry and regenerate?
+
+## Report Template
+
+- **Component**: exact plugin, agent, skill, MCP, or launcher.
+- **Capabilities**: read/write/execute/network/prompt-injection/local-state.
+- **Scope**: shared, aiomo-only, aioc-safe, TUI-only, optional, or project-level.
+- **Risk**: concrete failure mode.
+- **Recommendation**: keep, restrict, make optional, exclude from aioc, or remove.
+
+## Rules
+
+- Default shared plugins should stay minimal.
+- Unknown or network-capable components start as optional or project-level, not global defaults.
+- Never approve automatic external notifications unless review-before-send remains enforced.`,
+  ),
+  skill(
+    "evidence-pack",
+    "Use after implementation to collect structured verification evidence, risks, and rollback notes without staging, committing, or pushing.",
+    `# Evidence Pack
+
+Use this skill after implementation to collect structured evidence for delivery when changes affect config generation, install behavior, plugins, skills, launchers, or user-visible workflow.
+
+This skill is not a Git workflow. Do not stage, commit, push, or group commits from this skill; use \`release-commit\` with \`git-master\` for Git release preparation.
+
+## Collect
+
+1. **Scope**: files changed and why they changed.
+2. **Behavior**: generated outputs, installed artifacts, profile behavior, or user-facing commands affected.
+3. **Verification**: exact commands run, pass/fail result, and focused diagnostics.
+4. **Risks**: skipped checks, platform caveats, dependency or permission changes.
+5. **Rollback**: smallest revert path or config entry to remove.
+
+## Verification Defaults For ai-share
+
+- Generated config or YAML: \`bun run ai:check\` and \`bun run ai:gen -- --dry-run\`.
+- TypeScript/source behavior: \`bun run typecheck\`, \`bun run lint\`, and focused tests when present.
+- Broad changes: \`bun run check\`.
+- Installed artifacts: \`aiomo doctor install\` / \`aioc doctor install\` after generation.
+
+## Output Template
+
+- **What Changed**: concise bullets with paths.
+- **Why**: user goal and design reason.
+- **Verified**: commands and results.
+- **Risks / Follow-up**: only real remaining concerns.
+
+## Rules
+
+- Do not claim a check passed unless it was run.
+- Separate current-change failures from pre-existing failures.
+- Do not include secrets, full logs, or unrelated diffs.`,
+  ),
+  skill(
     "release-commit",
-    "Use when preparing release-style summaries, grouped commits, changelog notes, or final verification before pushing ai-share changes.",
+    "Use when grouping Git commits, preparing changelog notes, or doing final verification before pushing ai-share changes.",
     `# Release Commit
 
-Use this skill when preparing grouped commits, release-style summaries, changelog notes, or final verification before pushing ai-share changes.
+Use this skill when grouping Git commits, preparing changelog notes, or doing final verification before pushing ai-share changes.
 
 ## Relationship To git-master
 
 - For any actual git command, also use \`git-master\` and follow its safety rules.
-- This skill focuses on grouping, verification, and user-facing summary; it does not replace git safety checks.
+- This skill focuses on Git change grouping, release notes, verification, and user-facing summary; it does not replace git safety checks.
 
 ## Grouping Rules
 
@@ -307,7 +504,12 @@ Use this skill at task start, when the user asks what skills exist, or when unsu
 - \`ai-share-generator\`: YAML source-of-truth, config builders, generated OpenCode/OMO config, and install output.
 - \`install-doctor\`: \`aiomo doctor install\`, \`aioc doctor install\`, PATH, launchers, plugins, and installed skills.
 - \`config-profile-tuning\`: OMO profiles, model roles, compaction, context budgets, fallback, and profile tradeoffs.
-- \`release-commit\`: grouped commits, release summaries, push preparation, and final verification summaries.
+- \`context-compiler\`: compact auditable briefs for sessions, issues, logs, PRs, web research, and rescue output.
+- \`config-diff-auditor\`: generated-output impact review after YAML, generator, plugin, launcher, profile, or skill changes.
+- \`prompt-lint\`: prompt, agent, category, skill, and instruction-memory review for conflicts and unverifiable rules.
+- \`permission-auditor\`: OpenCode/OMO agent, plugin, MCP, hook, launcher, and install side-effect boundaries.
+- \`evidence-pack\`: post-implementation evidence summaries with verification, risks, and rollback notes; no Git state changes.
+- \`release-commit\`: Git commit grouping, changelog notes, push preparation, and final verification summaries.
 - \`plugin-vetting\`: OpenCode/OMO/TUI plugin evaluation, version pinning, permissions, and aioc/aiomo scope.
 - \`skill-creator\`: creating, editing, reviewing, and installing local native skills.
 - \`frontend-design\`: UI/UX, CSS, layout, accessibility, visual polish, and frontend component behavior.
@@ -319,8 +521,13 @@ Use this skill at task start, when the user asks what skills exist, or when unsu
 3. If the task changes generated config or YAML, load \`ai-share-generator\`.
 4. If the task changes local native skills, load \`skill-creator\`.
 5. If the task adds plugins, load \`plugin-vetting\`.
-6. If the task touches UI, frontend components, CSS, layout, or design, load \`frontend-design\`.
-7. If more than one skill applies, load the smallest useful set; do not stack unrelated workflows.
+6. If the task asks for session rescue, handoff, or long-context summarization, load \`context-compiler\`.
+7. If the task changes generated outputs, load \`config-diff-auditor\` before final verification.
+8. If the task reviews prompts or instructions, load \`prompt-lint\`.
+9. If the task changes permissions, plugins, MCP, hooks, launchers, or external effects, load \`permission-auditor\`.
+10. If the task needs post-implementation delivery evidence without Git state changes, load \`evidence-pack\`.
+11. If the task touches UI, frontend components, CSS, layout, or design, load \`frontend-design\`.
+12. If more than one skill applies, load the smallest useful set; do not stack unrelated workflows.
 
 ## Output When Asked To List Skills
 
