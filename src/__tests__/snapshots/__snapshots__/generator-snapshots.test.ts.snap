@@ -1,0 +1,4978 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`generator config snapshots opencode lite matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.4",
+    },
+    "compaction": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.4",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "title": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 40000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+  ],
+  "model": "codexapis/gpt-5.4",
+  "plugin": [
+    "oh-my-openagent@3.17.5",
+    "./plugins/omo-agent-monitor",
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "codexapis/gpt-5.4-mini",
+}
+`;
+
+exports[`generator config snapshots aioc lite matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.4",
+    },
+    "compaction": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.4",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "title": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 40000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+  ],
+  "model": "codexapis/gpt-5.4",
+  "plugin": [
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "codexapis/gpt-5.4-mini",
+}
+`;
+
+exports[`generator config snapshots omo lite matches snapshot 1`] = `
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "atlas": {
+      "fallback_models": [
+        "codexapis/gpt-5.4-mini",
+      ],
+      "model": "codexapis/gpt-5.4",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "explorer": {
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "hephaestus": {
+      "fallback_models": [
+        "codexapis/gpt-5.4-mini",
+      ],
+      "model": "codexapis/gpt-5.4",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "librarian": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "metis": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash",
+      ],
+      "model": "deepseek/deepseek-v4-flash-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "momus": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "multimodal-looker": {
+      "fallback_models": [
+        "codexapis/gpt-5.4-mini",
+      ],
+      "model": "codexapis/gpt-5.4",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "oracle": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash",
+      ],
+      "model": "deepseek/deepseek-v4-flash-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "prometheus": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash",
+      ],
+      "model": "deepseek/deepseek-v4-flash-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "sisyphus": {
+      "fallback_models": [
+        "codexapis/gpt-5.4-mini",
+      ],
+      "model": "codexapis/gpt-5.4",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+    "sisyphus-junior": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+  },
+  "background_task": {
+    "modelConcurrency": {
+      "codexapis/gpt-5.4": 2,
+      "codexapis/gpt-5.4-mini": 6,
+      "deepseek/deepseek-v4-flash-think": 1,
+    },
+    "providerConcurrency": {
+      "codexapis": 3,
+      "deepseek": 1,
+    },
+  },
+  "categories": {
+    "artistry": {
+      "fallback_models": [
+        "codexapis/gpt-5.4-mini",
+      ],
+      "model": "codexapis/gpt-5.4",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "deep": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash",
+      ],
+      "model": "deepseek/deepseek-v4-flash-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "quick": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "ultrabrain": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash",
+      ],
+      "model": "deepseek/deepseek-v4-flash-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-high": {
+      "fallback_models": [
+        "codexapis/gpt-5.4-mini",
+      ],
+      "model": "codexapis/gpt-5.4",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-low": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "visual-engineering": {
+      "fallback_models": [
+        "codexapis/gpt-5.4-mini",
+      ],
+      "model": "codexapis/gpt-5.4",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "writing": {
+      "fallback_models": [
+        "codexapis/gpt-5.4-mini",
+      ],
+      "model": "codexapis/gpt-5.4",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文写作、润色和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+  },
+  "disabled_hooks": [
+    "auto-slash-command",
+  ],
+  "model_fallback": true,
+  "runtime_fallback": {
+    "cooldown_seconds": 60,
+    "enabled": true,
+    "max_fallback_attempts": 1,
+    "model_whitelist": [
+      "codexapis/gpt-5.4",
+      "deepseek/deepseek-v4-flash-think",
+      "codexapis/gpt-5.4-mini",
+    ],
+    "notify_on_fallback": true,
+    "retry_on_errors": [
+      429,
+      503,
+      529,
+    ],
+    "timeout_seconds": 30,
+  },
+  "tmux": {
+    "enabled": true,
+  },
+}
+`;
+
+exports[`generator config snapshots strategy lite matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/ai-share-strategy.json",
+  "oh_my_openagent": {
+    "checkpoint": {
+      "enabled": true,
+      "max_entries": 8,
+      "mode": "agent-session",
+      "require_verification_note": true,
+      "restore_policy": "manual-only",
+      "trigger": "before-edit-and-before-delegation",
+    },
+    "dcp": {
+      "context_budget_tokens": 12000,
+      "enabled": true,
+      "handoff_policy": "summarize-before-delegate",
+      "mode": "shared",
+      "required_sections": [
+        "task",
+        "expected_outcome",
+        "required_tools",
+        "must_do",
+        "must_not_do",
+        "context",
+      ],
+      "share": {
+        "decisions": true,
+        "plans": true,
+        "secrets": false,
+        "verification": true,
+      },
+    },
+    "memory": {
+      "enabled": true,
+      "mode": "shared",
+      "read_policy": "load-before-plan",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+        "cookie",
+      ],
+      "scope": "project",
+      "strategy": "compact-summary",
+      "write_policy": "facts-decisions-and-runbooks-only",
+    },
+  },
+  "opencode": {
+    "checkpoint": {
+      "enabled": true,
+      "exclude": [
+        "node_modules/**",
+        ".git/**",
+        "bun.lock",
+      ],
+      "include": [
+        "config/*.yaml",
+        "src/**/*.ts",
+        "bin/*",
+        "plugins/**",
+      ],
+      "max_entries": 8,
+      "mode": "session",
+      "restore_policy": "manual-only",
+      "root": ".opencode/checkpoints",
+      "trigger": "before-risky-change",
+    },
+    "dcp": {
+      "context_budget_tokens": 12000,
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        "bun.lock",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "GIT_COMMIT_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "memory/**",
+      ],
+      "mode": "shared",
+      "root": ".opencode/dcp",
+      "secrets_policy": "env-only",
+      "strategy": "local-first",
+      "sync": "manual",
+    },
+    "memory": {
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "memory/**",
+      ],
+      "mode": "shared",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+      ],
+      "retention": "session",
+      "root": ".opencode/memory",
+      "strategy": "compact-summary",
+      "write_policy": "verified-facts-only",
+    },
+  },
+  "profile": "lite",
+  "workspace": {
+    "ignore": [
+      ".git/**",
+      ".opencode/context-guard-watch/**",
+      ".opencode/handoff/**",
+      ".opencode/checkpoints/**",
+      ".opencode/dcp/**",
+      ".opencode/memory/**",
+      ".opencode-rescue/**",
+      ".sisyphus/evidence/**",
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      "target/**",
+      ".next/**",
+      ".nuxt/**",
+      ".svelte-kit/**",
+      "coverage/**",
+      ".cache/**",
+      ".turbo/**",
+      ".vite/**",
+      "bun.lock",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      ".env",
+      ".env.*",
+    ],
+  },
+}
+`;
+
+exports[`generator config snapshots opencode economy matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "deepseek/deepseek-v4-flash",
+    },
+    "compaction": {
+      "model": "deepseek/deepseek-v4-flash",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "deepseek/deepseek-v4-flash",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "deepseek/deepseek-v4-flash",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "deepseek/deepseek-v4-flash",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "deepseek/deepseek-v4-flash",
+    },
+    "title": {
+      "model": "deepseek/deepseek-v4-flash",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 500000000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+  ],
+  "model": "deepseek/deepseek-v4-flash",
+  "plugin": [
+    "oh-my-openagent@3.17.5",
+    "./plugins/omo-agent-monitor",
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "deepseek/deepseek-v4-flash",
+}
+`;
+
+exports[`generator config snapshots aioc economy matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "deepseek/deepseek-v4-flash",
+    },
+    "compaction": {
+      "model": "deepseek/deepseek-v4-flash",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "deepseek/deepseek-v4-flash",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "deepseek/deepseek-v4-flash",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "deepseek/deepseek-v4-flash",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "deepseek/deepseek-v4-flash",
+    },
+    "title": {
+      "model": "deepseek/deepseek-v4-flash",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 500000000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+  ],
+  "model": "deepseek/deepseek-v4-flash",
+  "plugin": [
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "deepseek/deepseek-v4-flash",
+}
+`;
+
+exports[`generator config snapshots omo economy matches snapshot 1`] = `
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "atlas": {
+      "model": "deepseek/deepseek-v4-flash",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "explorer": {
+      "model": "deepseek/deepseek-v4-flash",
+      "permission": {
+        "edit": "deny",
+      },
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "hephaestus": {
+      "model": "deepseek/deepseek-v4-flash",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "librarian": {
+      "model": "deepseek/deepseek-v4-flash",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "metis": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash",
+      ],
+      "model": "deepseek/deepseek-v4-flash-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "momus": {
+      "model": "deepseek/deepseek-v4-flash",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "multimodal-looker": {
+      "model": "deepseek/deepseek-v4-flash",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "oracle": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash",
+      ],
+      "model": "deepseek/deepseek-v4-flash-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "prometheus": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash",
+      ],
+      "model": "deepseek/deepseek-v4-flash-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "sisyphus": {
+      "model": "deepseek/deepseek-v4-flash",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+    "sisyphus-junior": {
+      "model": "deepseek/deepseek-v4-flash",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+  },
+  "background_task": {
+    "modelConcurrency": {
+      "deepseek/deepseek-v4-flash": 6,
+      "deepseek/deepseek-v4-flash-think": 1,
+    },
+    "providerConcurrency": {
+      "codexapis": 3,
+      "deepseek": 1,
+    },
+  },
+  "categories": {
+    "artistry": {
+      "model": "deepseek/deepseek-v4-flash",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "deep": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash",
+      ],
+      "model": "deepseek/deepseek-v4-flash-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "quick": {
+      "model": "deepseek/deepseek-v4-flash",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "ultrabrain": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash",
+      ],
+      "model": "deepseek/deepseek-v4-flash-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-high": {
+      "model": "deepseek/deepseek-v4-flash",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-low": {
+      "model": "deepseek/deepseek-v4-flash",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "visual-engineering": {
+      "model": "deepseek/deepseek-v4-flash",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "writing": {
+      "model": "deepseek/deepseek-v4-flash",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文写作、润色和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+  },
+  "disabled_hooks": [
+    "auto-slash-command",
+  ],
+  "model_fallback": true,
+  "runtime_fallback": {
+    "cooldown_seconds": 60,
+    "enabled": true,
+    "max_fallback_attempts": 1,
+    "model_whitelist": [
+      "deepseek/deepseek-v4-flash",
+      "deepseek/deepseek-v4-flash-think",
+    ],
+    "notify_on_fallback": true,
+    "retry_on_errors": [
+      429,
+      503,
+      529,
+    ],
+    "timeout_seconds": 30,
+  },
+  "tmux": {
+    "enabled": true,
+  },
+}
+`;
+
+exports[`generator config snapshots strategy economy matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/ai-share-strategy.json",
+  "oh_my_openagent": {
+    "checkpoint": {
+      "enabled": true,
+      "max_entries": 4,
+      "mode": "agent-session",
+      "require_verification_note": true,
+      "restore_policy": "manual-only",
+      "trigger": "before-edit-and-before-delegation",
+    },
+    "dcp": {
+      "context_budget_tokens": 10000000,
+      "enabled": true,
+      "handoff_policy": "summarize-before-delegate",
+      "mode": "shared",
+      "required_sections": [
+        "task",
+        "expected_outcome",
+        "required_tools",
+        "must_do",
+        "must_not_do",
+        "context",
+      ],
+      "share": {
+        "decisions": true,
+        "plans": true,
+        "secrets": false,
+        "verification": true,
+      },
+    },
+    "memory": {
+      "enabled": true,
+      "mode": "shared",
+      "read_policy": "load-before-plan",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+        "cookie",
+      ],
+      "scope": "project",
+      "strategy": "compact-summary",
+      "write_policy": "facts-decisions-and-runbooks-only",
+    },
+  },
+  "opencode": {
+    "checkpoint": {
+      "enabled": true,
+      "exclude": [
+        "node_modules/**",
+        ".git/**",
+        "bun.lock",
+      ],
+      "include": [
+        "config/*.yaml",
+        "src/**/*.ts",
+        "bin/*",
+        "plugins/**",
+      ],
+      "max_entries": 4,
+      "mode": "session",
+      "restore_policy": "manual-only",
+      "root": ".opencode/checkpoints",
+      "trigger": "before-risky-change",
+    },
+    "dcp": {
+      "context_budget_tokens": 100000000,
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        "bun.lock",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "GIT_COMMIT_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "memory/**",
+      ],
+      "mode": "shared",
+      "root": ".opencode/dcp",
+      "secrets_policy": "env-only",
+      "strategy": "local-first",
+      "sync": "manual",
+    },
+    "memory": {
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "memory/**",
+      ],
+      "mode": "shared",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+      ],
+      "retention": "session",
+      "root": ".opencode/memory",
+      "strategy": "compact-summary",
+      "write_policy": "verified-facts-only",
+    },
+  },
+  "profile": "economy",
+  "workspace": {
+    "ignore": [
+      ".git/**",
+      ".opencode/context-guard-watch/**",
+      ".opencode/handoff/**",
+      ".opencode/checkpoints/**",
+      ".opencode/dcp/**",
+      ".opencode/memory/**",
+      ".opencode-rescue/**",
+      ".sisyphus/evidence/**",
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      "target/**",
+      ".next/**",
+      ".nuxt/**",
+      ".svelte-kit/**",
+      "coverage/**",
+      ".cache/**",
+      ".turbo/**",
+      ".vite/**",
+      "bun.lock",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      ".env",
+      ".env.*",
+    ],
+  },
+}
+`;
+
+exports[`generator config snapshots opencode cheap matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "compaction": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "title": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 40000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+  ],
+  "model": "codexapis/gpt-5.4-mini",
+  "plugin": [
+    "oh-my-openagent@3.17.5",
+    "./plugins/omo-agent-monitor",
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "codexapis/gpt-5.4-mini",
+}
+`;
+
+exports[`generator config snapshots aioc cheap matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "compaction": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "title": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 40000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+  ],
+  "model": "codexapis/gpt-5.4-mini",
+  "plugin": [
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "codexapis/gpt-5.4-mini",
+}
+`;
+
+exports[`generator config snapshots omo cheap matches snapshot 1`] = `
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "atlas": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "explorer": {
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "hephaestus": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "librarian": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "metis": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash",
+      ],
+      "model": "deepseek/deepseek-v4-flash-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "momus": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "multimodal-looker": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "oracle": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash",
+      ],
+      "model": "deepseek/deepseek-v4-flash-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "prometheus": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash",
+      ],
+      "model": "deepseek/deepseek-v4-flash-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "sisyphus": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+    "sisyphus-junior": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+  },
+  "background_task": {
+    "modelConcurrency": {
+      "codexapis/gpt-5.4-mini": 6,
+      "deepseek/deepseek-v4-flash-think": 1,
+    },
+    "providerConcurrency": {
+      "codexapis": 3,
+      "deepseek": 1,
+    },
+  },
+  "categories": {
+    "artistry": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "deep": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash",
+      ],
+      "model": "deepseek/deepseek-v4-flash-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "quick": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "ultrabrain": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash",
+      ],
+      "model": "deepseek/deepseek-v4-flash-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-high": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-low": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "visual-engineering": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "writing": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文写作、润色和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+  },
+  "disabled_hooks": [
+    "auto-slash-command",
+  ],
+  "model_fallback": true,
+  "runtime_fallback": {
+    "cooldown_seconds": 60,
+    "enabled": true,
+    "max_fallback_attempts": 1,
+    "model_whitelist": [
+      "codexapis/gpt-5.4-mini",
+      "deepseek/deepseek-v4-flash-think",
+    ],
+    "notify_on_fallback": true,
+    "retry_on_errors": [
+      429,
+      503,
+      529,
+    ],
+    "timeout_seconds": 30,
+  },
+  "tmux": {
+    "enabled": true,
+  },
+}
+`;
+
+exports[`generator config snapshots strategy cheap matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/ai-share-strategy.json",
+  "oh_my_openagent": {
+    "checkpoint": {
+      "enabled": true,
+      "max_entries": 6,
+      "mode": "agent-session",
+      "require_verification_note": true,
+      "restore_policy": "manual-only",
+      "trigger": "before-edit-and-before-delegation",
+    },
+    "dcp": {
+      "context_budget_tokens": 8000,
+      "enabled": true,
+      "handoff_policy": "summarize-before-delegate",
+      "mode": "shared",
+      "required_sections": [
+        "task",
+        "expected_outcome",
+        "required_tools",
+        "must_do",
+        "must_not_do",
+        "context",
+      ],
+      "share": {
+        "decisions": true,
+        "plans": true,
+        "secrets": false,
+        "verification": true,
+      },
+    },
+    "memory": {
+      "enabled": true,
+      "mode": "shared",
+      "read_policy": "load-before-plan",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+        "cookie",
+      ],
+      "scope": "project",
+      "strategy": "compact-summary",
+      "write_policy": "facts-decisions-and-runbooks-only",
+    },
+  },
+  "opencode": {
+    "checkpoint": {
+      "enabled": true,
+      "exclude": [
+        "node_modules/**",
+        ".git/**",
+        "bun.lock",
+      ],
+      "include": [
+        "config/*.yaml",
+        "src/**/*.ts",
+        "bin/*",
+        "plugins/**",
+      ],
+      "max_entries": 6,
+      "mode": "session",
+      "restore_policy": "manual-only",
+      "root": ".opencode/checkpoints",
+      "trigger": "before-risky-change",
+    },
+    "dcp": {
+      "context_budget_tokens": 8000,
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        "bun.lock",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "GIT_COMMIT_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "memory/**",
+      ],
+      "mode": "shared",
+      "root": ".opencode/dcp",
+      "secrets_policy": "env-only",
+      "strategy": "local-first",
+      "sync": "manual",
+    },
+    "memory": {
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "memory/**",
+      ],
+      "mode": "shared",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+      ],
+      "retention": "session",
+      "root": ".opencode/memory",
+      "strategy": "compact-summary",
+      "write_policy": "verified-facts-only",
+    },
+  },
+  "profile": "cheap",
+  "workspace": {
+    "ignore": [
+      ".git/**",
+      ".opencode/context-guard-watch/**",
+      ".opencode/handoff/**",
+      ".opencode/checkpoints/**",
+      ".opencode/dcp/**",
+      ".opencode/memory/**",
+      ".opencode-rescue/**",
+      ".sisyphus/evidence/**",
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      "target/**",
+      ".next/**",
+      ".nuxt/**",
+      ".svelte-kit/**",
+      "coverage/**",
+      ".cache/**",
+      ".turbo/**",
+      ".vite/**",
+      "bun.lock",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      ".env",
+      ".env.*",
+    ],
+  },
+}
+`;
+
+exports[`generator config snapshots opencode balanced matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+    },
+    "compaction": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.5",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "title": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 55000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+    "D:\\ai-share\\memory\\stable\\workflows.yaml",
+    "D:\\ai-share\\memory\\stable\\devices.yaml",
+  ],
+  "model": "codexapis/gpt-5.5",
+  "plugin": [
+    "oh-my-openagent@3.17.5",
+    "./plugins/omo-agent-monitor",
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "codexapis/gpt-5.4-mini",
+}
+`;
+
+exports[`generator config snapshots aioc balanced matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+    },
+    "compaction": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.5",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "title": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 55000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+    "D:\\ai-share\\memory\\stable\\workflows.yaml",
+    "D:\\ai-share\\memory\\stable\\devices.yaml",
+  ],
+  "model": "codexapis/gpt-5.5",
+  "plugin": [
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "codexapis/gpt-5.4-mini",
+}
+`;
+
+exports[`generator config snapshots omo balanced matches snapshot 1`] = `
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "atlas": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "explorer": {
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "hephaestus": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "librarian": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "metis": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "momus": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "multimodal-looker": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "oracle": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "prometheus": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "sisyphus": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+    "sisyphus-junior": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+  },
+  "background_task": {
+    "modelConcurrency": {
+      "codexapis/gpt-5.4-mini": 6,
+      "codexapis/gpt-5.5": 2,
+      "deepseek/deepseek-v4-pro-think": 1,
+    },
+    "providerConcurrency": {
+      "codexapis": 3,
+      "deepseek": 1,
+    },
+  },
+  "categories": {
+    "artistry": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "deep": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "quick": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "ultrabrain": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-high": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-low": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "visual-engineering": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "writing": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文写作、润色和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+  },
+  "disabled_hooks": [
+    "auto-slash-command",
+  ],
+  "model_fallback": true,
+  "runtime_fallback": {
+    "cooldown_seconds": 60,
+    "enabled": true,
+    "max_fallback_attempts": 1,
+    "model_whitelist": [
+      "codexapis/gpt-5.5",
+      "deepseek/deepseek-v4-pro-think",
+      "codexapis/gpt-5.4-mini",
+    ],
+    "notify_on_fallback": true,
+    "retry_on_errors": [
+      429,
+      503,
+      529,
+    ],
+    "timeout_seconds": 30,
+  },
+  "tmux": {
+    "enabled": true,
+  },
+}
+`;
+
+exports[`generator config snapshots strategy balanced matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/ai-share-strategy.json",
+  "oh_my_openagent": {
+    "checkpoint": {
+      "enabled": true,
+      "max_entries": 20,
+      "mode": "agent-session",
+      "require_verification_note": true,
+      "restore_policy": "manual-only",
+      "trigger": "before-edit-and-before-delegation",
+    },
+    "dcp": {
+      "context_budget_tokens": 24000,
+      "enabled": true,
+      "handoff_policy": "summarize-before-delegate",
+      "mode": "shared",
+      "required_sections": [
+        "task",
+        "expected_outcome",
+        "required_tools",
+        "must_do",
+        "must_not_do",
+        "context",
+      ],
+      "share": {
+        "decisions": true,
+        "plans": true,
+        "secrets": false,
+        "verification": true,
+      },
+    },
+    "memory": {
+      "enabled": true,
+      "mode": "shared",
+      "read_policy": "load-before-plan",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+        "cookie",
+      ],
+      "scope": "project",
+      "strategy": "verified-summary",
+      "write_policy": "facts-decisions-and-runbooks-only",
+    },
+  },
+  "opencode": {
+    "checkpoint": {
+      "enabled": true,
+      "exclude": [
+        "node_modules/**",
+        ".git/**",
+        "bun.lock",
+      ],
+      "include": [
+        "config/*.yaml",
+        "src/**/*.ts",
+        "bin/*",
+        "plugins/**",
+      ],
+      "max_entries": 20,
+      "mode": "session",
+      "restore_policy": "manual-only",
+      "root": ".opencode/checkpoints",
+      "trigger": "before-risky-change",
+    },
+    "dcp": {
+      "context_budget_tokens": 24000,
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        "bun.lock",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "GIT_COMMIT_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "memory/**",
+      ],
+      "mode": "shared",
+      "root": ".opencode/dcp",
+      "secrets_policy": "env-only",
+      "strategy": "local-first",
+      "sync": "manual",
+    },
+    "memory": {
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "memory/**",
+      ],
+      "mode": "shared",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+      ],
+      "retention": "project",
+      "root": ".opencode/memory",
+      "strategy": "summary-first",
+      "write_policy": "verified-facts-only",
+    },
+  },
+  "profile": "balanced",
+  "workspace": {
+    "ignore": [
+      ".git/**",
+      ".opencode/context-guard-watch/**",
+      ".opencode/handoff/**",
+      ".opencode/checkpoints/**",
+      ".opencode/dcp/**",
+      ".opencode/memory/**",
+      ".opencode-rescue/**",
+      ".sisyphus/evidence/**",
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      "target/**",
+      ".next/**",
+      ".nuxt/**",
+      ".svelte-kit/**",
+      "coverage/**",
+      ".cache/**",
+      ".turbo/**",
+      ".vite/**",
+      "bun.lock",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      ".env",
+      ".env.*",
+    ],
+  },
+}
+`;
+
+exports[`generator config snapshots opencode coding matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.3-codex",
+    },
+    "compaction": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.3-codex",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.3-codex",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "title": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 55000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+    "D:\\ai-share\\memory\\stable\\workflows.yaml",
+    "D:\\ai-share\\memory\\stable\\devices.yaml",
+    "D:\\ai-share\\memory\\profiles\\coding.yaml",
+  ],
+  "model": "codexapis/gpt-5.3-codex",
+  "plugin": [
+    "oh-my-openagent@3.17.5",
+    "./plugins/omo-agent-monitor",
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "codexapis/gpt-5.4-mini",
+}
+`;
+
+exports[`generator config snapshots aioc coding matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.3-codex",
+    },
+    "compaction": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.3-codex",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.3-codex",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "title": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 55000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+    "D:\\ai-share\\memory\\stable\\workflows.yaml",
+    "D:\\ai-share\\memory\\stable\\devices.yaml",
+    "D:\\ai-share\\memory\\profiles\\coding.yaml",
+  ],
+  "model": "codexapis/gpt-5.3-codex",
+  "plugin": [
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "codexapis/gpt-5.4-mini",
+}
+`;
+
+exports[`generator config snapshots omo coding matches snapshot 1`] = `
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "atlas": {
+      "model": "codexapis/gpt-5.3-codex",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "explorer": {
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "hephaestus": {
+      "model": "codexapis/gpt-5.3-codex",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "librarian": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "metis": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "momus": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "multimodal-looker": {
+      "model": "codexapis/gpt-5.3-codex",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "oracle": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "prometheus": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "sisyphus": {
+      "model": "codexapis/gpt-5.3-codex",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+    "sisyphus-junior": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+  },
+  "background_task": {
+    "modelConcurrency": {
+      "codexapis/gpt-5.3-codex": 2,
+      "codexapis/gpt-5.4-mini": 6,
+      "deepseek/deepseek-v4-pro-think": 1,
+    },
+    "providerConcurrency": {
+      "codexapis": 3,
+      "deepseek": 1,
+    },
+  },
+  "categories": {
+    "artistry": {
+      "model": "codexapis/gpt-5.3-codex",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "deep": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "quick": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "ultrabrain": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-high": {
+      "model": "codexapis/gpt-5.3-codex",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-low": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "visual-engineering": {
+      "model": "codexapis/gpt-5.3-codex",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "writing": {
+      "model": "codexapis/gpt-5.3-codex",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文写作、润色和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+  },
+  "disabled_hooks": [
+    "auto-slash-command",
+  ],
+  "model_fallback": true,
+  "runtime_fallback": {
+    "cooldown_seconds": 60,
+    "enabled": true,
+    "max_fallback_attempts": 1,
+    "model_whitelist": [
+      "codexapis/gpt-5.3-codex",
+      "deepseek/deepseek-v4-pro-think",
+      "codexapis/gpt-5.4-mini",
+    ],
+    "notify_on_fallback": true,
+    "retry_on_errors": [
+      429,
+      503,
+      529,
+    ],
+    "timeout_seconds": 30,
+  },
+  "tmux": {
+    "enabled": true,
+  },
+}
+`;
+
+exports[`generator config snapshots strategy coding matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/ai-share-strategy.json",
+  "oh_my_openagent": {
+    "checkpoint": {
+      "enabled": true,
+      "max_entries": 24,
+      "mode": "agent-session",
+      "require_verification_note": true,
+      "restore_policy": "manual-only",
+      "trigger": "before-edit-and-before-delegation",
+    },
+    "dcp": {
+      "context_budget_tokens": 26000,
+      "enabled": true,
+      "handoff_policy": "summarize-before-delegate",
+      "mode": "shared",
+      "required_sections": [
+        "task",
+        "expected_outcome",
+        "required_tools",
+        "must_do",
+        "must_not_do",
+        "context",
+      ],
+      "share": {
+        "decisions": true,
+        "plans": true,
+        "secrets": false,
+        "verification": true,
+      },
+    },
+    "memory": {
+      "enabled": true,
+      "mode": "shared",
+      "read_policy": "load-before-edit-plan",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+        "cookie",
+      ],
+      "scope": "project",
+      "strategy": "verified-summary",
+      "write_policy": "facts-decisions-and-runbooks-only",
+    },
+  },
+  "opencode": {
+    "checkpoint": {
+      "enabled": true,
+      "exclude": [
+        "node_modules/**",
+        ".git/**",
+        "bun.lock",
+      ],
+      "include": [
+        "config/*.yaml",
+        "src/**/*.ts",
+        "bin/*",
+        "plugins/**",
+      ],
+      "max_entries": 24,
+      "mode": "session",
+      "restore_policy": "manual-only",
+      "root": ".opencode/checkpoints",
+      "trigger": "before-edit-and-before-risky-change",
+    },
+    "dcp": {
+      "context_budget_tokens": 26000,
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        "bun.lock",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "GIT_COMMIT_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "memory/**",
+      ],
+      "mode": "shared",
+      "root": ".opencode/dcp",
+      "secrets_policy": "env-only",
+      "strategy": "local-first",
+      "sync": "manual",
+    },
+    "memory": {
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "src/**/*.ts",
+      ],
+      "mode": "shared",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+      ],
+      "retention": "project",
+      "root": ".opencode/memory",
+      "strategy": "summary-first",
+      "write_policy": "verified-facts-only",
+    },
+  },
+  "profile": "coding",
+  "workspace": {
+    "ignore": [
+      ".git/**",
+      ".opencode/context-guard-watch/**",
+      ".opencode/handoff/**",
+      ".opencode/checkpoints/**",
+      ".opencode/dcp/**",
+      ".opencode/memory/**",
+      ".opencode-rescue/**",
+      ".sisyphus/evidence/**",
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      "target/**",
+      ".next/**",
+      ".nuxt/**",
+      ".svelte-kit/**",
+      "coverage/**",
+      ".cache/**",
+      ".turbo/**",
+      ".vite/**",
+      "bun.lock",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      ".env",
+      ".env.*",
+    ],
+  },
+}
+`;
+
+exports[`generator config snapshots opencode research matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+    },
+    "compaction": {
+      "model": "deepseek/deepseek-v4-pro-think-max",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.5",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "title": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 80000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+    "D:\\ai-share\\memory\\profiles\\research.yaml",
+  ],
+  "model": "codexapis/gpt-5.5",
+  "plugin": [
+    "oh-my-openagent@3.17.5",
+    "./plugins/omo-agent-monitor",
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "codexapis/gpt-5.4-mini",
+}
+`;
+
+exports[`generator config snapshots aioc research matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+    },
+    "compaction": {
+      "model": "deepseek/deepseek-v4-pro-think-max",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.5",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "title": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 80000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+    "D:\\ai-share\\memory\\profiles\\research.yaml",
+  ],
+  "model": "codexapis/gpt-5.5",
+  "plugin": [
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "codexapis/gpt-5.4-mini",
+}
+`;
+
+exports[`generator config snapshots omo research matches snapshot 1`] = `
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "atlas": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "explorer": {
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "hephaestus": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "librarian": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "metis": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-pro-think",
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think-max",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "momus": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "multimodal-looker": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "oracle": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-pro-think",
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think-max",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "prometheus": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-pro-think",
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think-max",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "sisyphus": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+    "sisyphus-junior": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+  },
+  "background_task": {
+    "modelConcurrency": {
+      "codexapis/gpt-5.4-mini": 6,
+      "codexapis/gpt-5.5": 2,
+      "deepseek/deepseek-v4-pro-think-max": 1,
+    },
+    "providerConcurrency": {
+      "codexapis": 3,
+      "deepseek": 1,
+    },
+  },
+  "categories": {
+    "artistry": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "deep": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-pro-think",
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think-max",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "quick": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "ultrabrain": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-pro-think",
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think-max",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-high": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-low": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "visual-engineering": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "writing": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文写作、润色和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+  },
+  "disabled_hooks": [
+    "auto-slash-command",
+  ],
+  "model_fallback": true,
+  "runtime_fallback": {
+    "cooldown_seconds": 60,
+    "enabled": true,
+    "max_fallback_attempts": 1,
+    "model_whitelist": [
+      "codexapis/gpt-5.5",
+      "deepseek/deepseek-v4-pro-think-max",
+      "codexapis/gpt-5.4-mini",
+    ],
+    "notify_on_fallback": true,
+    "retry_on_errors": [
+      429,
+      503,
+      529,
+    ],
+    "timeout_seconds": 30,
+  },
+  "tmux": {
+    "enabled": true,
+  },
+}
+`;
+
+exports[`generator config snapshots strategy research matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/ai-share-strategy.json",
+  "oh_my_openagent": {
+    "checkpoint": {
+      "enabled": true,
+      "max_entries": 24,
+      "mode": "agent-session",
+      "require_verification_note": true,
+      "restore_policy": "manual-only",
+      "trigger": "before-edit-and-before-delegation",
+    },
+    "dcp": {
+      "context_budget_tokens": 50000,
+      "enabled": true,
+      "handoff_policy": "summarize-before-delegate",
+      "mode": "shared",
+      "required_sections": [
+        "task",
+        "expected_outcome",
+        "required_tools",
+        "must_do",
+        "must_not_do",
+        "context",
+      ],
+      "share": {
+        "decisions": true,
+        "plans": true,
+        "research_notes": true,
+        "secrets": false,
+        "verification": true,
+      },
+    },
+    "memory": {
+      "enabled": true,
+      "mode": "shared",
+      "read_policy": "load-before-plan",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+        "cookie",
+      ],
+      "scope": "project",
+      "strategy": "evidence-summary",
+      "write_policy": "facts-decisions-and-runbooks-only",
+    },
+  },
+  "opencode": {
+    "checkpoint": {
+      "enabled": true,
+      "exclude": [
+        "node_modules/**",
+        ".git/**",
+        "bun.lock",
+      ],
+      "include": [
+        "config/*.yaml",
+        "src/**/*.ts",
+        "bin/*",
+        "plugins/**",
+      ],
+      "max_entries": 24,
+      "mode": "session",
+      "restore_policy": "manual-only",
+      "root": ".opencode/checkpoints",
+      "trigger": "before-risky-change",
+    },
+    "dcp": {
+      "context_budget_tokens": 50000,
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        "bun.lock",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "GIT_COMMIT_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "memory/**",
+      ],
+      "mode": "shared",
+      "root": ".opencode/dcp",
+      "secrets_policy": "env-only",
+      "strategy": "local-first",
+      "sync": "manual",
+    },
+    "memory": {
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "memory/**",
+      ],
+      "mode": "shared",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+      ],
+      "retention": "project",
+      "root": ".opencode/memory",
+      "strategy": "evidence-summary",
+      "write_policy": "verified-facts-only",
+    },
+  },
+  "profile": "research",
+  "workspace": {
+    "ignore": [
+      ".git/**",
+      ".opencode/context-guard-watch/**",
+      ".opencode/handoff/**",
+      ".opencode/checkpoints/**",
+      ".opencode/dcp/**",
+      ".opencode/memory/**",
+      ".opencode-rescue/**",
+      ".sisyphus/evidence/**",
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      "target/**",
+      ".next/**",
+      ".nuxt/**",
+      ".svelte-kit/**",
+      "coverage/**",
+      ".cache/**",
+      ".turbo/**",
+      ".vite/**",
+      "bun.lock",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      ".env",
+      ".env.*",
+    ],
+  },
+}
+`;
+
+exports[`generator config snapshots opencode writing matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+    },
+    "compaction": {
+      "model": "deepseek/deepseek-v4-pro-think",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.5",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "title": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 55000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+    "D:\\ai-share\\memory\\stable\\workflows.yaml",
+  ],
+  "model": "codexapis/gpt-5.5",
+  "plugin": [
+    "oh-my-openagent@3.17.5",
+    "./plugins/omo-agent-monitor",
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "codexapis/gpt-5.4-mini",
+}
+`;
+
+exports[`generator config snapshots aioc writing matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+    },
+    "compaction": {
+      "model": "deepseek/deepseek-v4-pro-think",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.5",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+    "title": {
+      "model": "codexapis/gpt-5.4-mini",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 55000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+    "D:\\ai-share\\memory\\stable\\workflows.yaml",
+  ],
+  "model": "codexapis/gpt-5.5",
+  "plugin": [
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "codexapis/gpt-5.4-mini",
+}
+`;
+
+exports[`generator config snapshots omo writing matches snapshot 1`] = `
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "atlas": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "explorer": {
+      "model": "codexapis/gpt-5.4-mini",
+      "permission": {
+        "edit": "deny",
+      },
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "hephaestus": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "librarian": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "metis": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "momus": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "multimodal-looker": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "oracle": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "prometheus": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "sisyphus": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+    "sisyphus-junior": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+  },
+  "background_task": {
+    "modelConcurrency": {
+      "codexapis/gpt-5.4-mini": 6,
+      "codexapis/gpt-5.5": 2,
+      "deepseek/deepseek-v4-pro-think": 1,
+    },
+    "providerConcurrency": {
+      "codexapis": 3,
+      "deepseek": 1,
+    },
+  },
+  "categories": {
+    "artistry": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "deep": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "quick": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "ultrabrain": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-high": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-low": {
+      "model": "codexapis/gpt-5.4-mini",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "visual-engineering": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "writing": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文写作、润色和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+  },
+  "disabled_hooks": [
+    "auto-slash-command",
+  ],
+  "model_fallback": true,
+  "runtime_fallback": {
+    "cooldown_seconds": 60,
+    "enabled": true,
+    "max_fallback_attempts": 1,
+    "model_whitelist": [
+      "codexapis/gpt-5.5",
+      "deepseek/deepseek-v4-pro-think",
+      "codexapis/gpt-5.4-mini",
+    ],
+    "notify_on_fallback": true,
+    "retry_on_errors": [
+      429,
+      503,
+      529,
+    ],
+    "timeout_seconds": 30,
+  },
+  "tmux": {
+    "enabled": true,
+  },
+}
+`;
+
+exports[`generator config snapshots strategy writing matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/ai-share-strategy.json",
+  "oh_my_openagent": {
+    "checkpoint": {
+      "enabled": true,
+      "max_entries": 16,
+      "mode": "agent-session",
+      "require_verification_note": true,
+      "restore_policy": "manual-only",
+      "trigger": "before-edit-and-before-delegation",
+    },
+    "dcp": {
+      "context_budget_tokens": 22000,
+      "enabled": true,
+      "handoff_policy": "summarize-before-delegate",
+      "mode": "shared",
+      "required_sections": [
+        "task",
+        "expected_outcome",
+        "required_tools",
+        "must_do",
+        "must_not_do",
+        "context",
+      ],
+      "share": {
+        "decisions": true,
+        "plans": true,
+        "secrets": false,
+        "verification": true,
+      },
+    },
+    "memory": {
+      "enabled": true,
+      "mode": "shared",
+      "read_policy": "load-before-plan",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+        "cookie",
+      ],
+      "scope": "project",
+      "strategy": "prose-summary",
+      "write_policy": "facts-decisions-and-runbooks-only",
+    },
+  },
+  "opencode": {
+    "checkpoint": {
+      "enabled": true,
+      "exclude": [
+        "node_modules/**",
+        ".git/**",
+        "bun.lock",
+      ],
+      "include": [
+        "config/*.yaml",
+        "src/**/*.ts",
+        "bin/*",
+        "plugins/**",
+      ],
+      "max_entries": 16,
+      "mode": "session",
+      "restore_policy": "manual-only",
+      "root": ".opencode/checkpoints",
+      "trigger": "before-risky-change",
+    },
+    "dcp": {
+      "context_budget_tokens": 22000,
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        "bun.lock",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "GIT_COMMIT_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "memory/**",
+      ],
+      "mode": "shared",
+      "root": ".opencode/dcp",
+      "secrets_policy": "env-only",
+      "strategy": "local-first",
+      "sync": "manual",
+    },
+    "memory": {
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "memory/**",
+      ],
+      "mode": "shared",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+      ],
+      "retention": "project",
+      "root": ".opencode/memory",
+      "strategy": "prose-summary",
+      "write_policy": "verified-facts-only",
+    },
+  },
+  "profile": "writing",
+  "workspace": {
+    "ignore": [
+      ".git/**",
+      ".opencode/context-guard-watch/**",
+      ".opencode/handoff/**",
+      ".opencode/checkpoints/**",
+      ".opencode/dcp/**",
+      ".opencode/memory/**",
+      ".opencode-rescue/**",
+      ".sisyphus/evidence/**",
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      "target/**",
+      ".next/**",
+      ".nuxt/**",
+      ".svelte-kit/**",
+      "coverage/**",
+      ".cache/**",
+      ".turbo/**",
+      ".vite/**",
+      "bun.lock",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      ".env",
+      ".env.*",
+    ],
+  },
+}
+`;
+
+exports[`generator config snapshots opencode max matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+    },
+    "compaction": {
+      "model": "deepseek/deepseek-v4-pro-think-max",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.5",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "codexapis/gpt-5.4",
+    },
+    "title": {
+      "model": "codexapis/gpt-5.4",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 110000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+    "D:\\ai-share\\memory\\stable\\workflows.yaml",
+    "D:\\ai-share\\memory\\stable\\devices.yaml",
+    "D:\\ai-share\\memory\\profiles\\coding.yaml",
+    "D:\\ai-share\\memory\\profiles\\research.yaml",
+    "D:\\ai-share\\memory\\profiles\\infra.yaml",
+    "D:\\ai-share\\memory\\policies\\memory-policy.yaml",
+  ],
+  "model": "codexapis/gpt-5.5",
+  "plugin": [
+    "oh-my-openagent@3.17.5",
+    "./plugins/omo-agent-monitor",
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "codexapis/gpt-5.4",
+}
+`;
+
+exports[`generator config snapshots aioc max matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "build": {
+      "max_tokens": 8192,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+    },
+    "compaction": {
+      "model": "deepseek/deepseek-v4-pro-think-max",
+    },
+    "explore": {
+      "max_tokens": 2048,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.4",
+      "permission": {
+        "edit": "deny",
+      },
+    },
+    "general": {
+      "max_tokens": 4096,
+      "mode": "subagent",
+      "model": "codexapis/gpt-5.5",
+    },
+    "plan": {
+      "max_tokens": 4096,
+      "mode": "primary",
+      "model": "codexapis/gpt-5.5",
+      "permission": {
+        "bash": "ask",
+        "edit": "deny",
+      },
+    },
+    "summary": {
+      "model": "codexapis/gpt-5.4",
+    },
+    "title": {
+      "model": "codexapis/gpt-5.4",
+    },
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 110000,
+  },
+  "instructions": [
+    "D:\\ai-share\\AI_GUIDELINES.md",
+    "D:\\ai-share\\memory\\user\\profile.md",
+    "D:\\ai-share\\memory\\user\\profile.yaml",
+    "D:\\ai-share\\memory\\user\\workflow.md",
+    "D:\\ai-share\\memory\\user\\workflows.yaml",
+    "D:\\ai-share\\memory\\user\\preferences.md",
+    "D:\\ai-share\\memory\\user\\devices.md",
+    "D:\\ai-share\\memory\\user\\devices.yaml",
+    "D:\\ai-share\\memory\\user\\toolchain.md",
+    "D:\\ai-share\\memory\\user\\prompts.md",
+    "D:\\ai-share\\memory\\user\\models.yaml",
+    "D:\\ai-share\\memory\\architecture\\coding-philosophy.md",
+    "D:\\ai-share\\memory\\architecture\\agent-patterns.md",
+    "D:\\ai-share\\memory\\architecture\\ai-desktop.md",
+    "D:\\ai-share\\memory\\stack\\opencode.md",
+    "D:\\ai-share\\memory\\stack\\oh-my-openagent.md",
+    "D:\\ai-share\\memory\\stack\\wsl.md",
+    "D:\\ai-share\\memory\\stack\\models.md",
+    "D:\\ai-share\\memory\\stable\\user.yaml",
+    "D:\\ai-share\\memory\\stable\\workflows.yaml",
+    "D:\\ai-share\\memory\\stable\\devices.yaml",
+    "D:\\ai-share\\memory\\profiles\\coding.yaml",
+    "D:\\ai-share\\memory\\profiles\\research.yaml",
+    "D:\\ai-share\\memory\\profiles\\infra.yaml",
+    "D:\\ai-share\\memory\\policies\\memory-policy.yaml",
+  ],
+  "model": "codexapis/gpt-5.5",
+  "plugin": [
+    "./plugins/dingtalk-notifier",
+  ],
+  "provider": {
+    "codexapis": {
+      "models": {
+        "gpt-5.3-codex": {
+          "name": "GPT 5.3 Codex (CodexAPI)",
+        },
+        "gpt-5.4": {
+          "name": "GPT 5.4 (CodexAPI)",
+        },
+        "gpt-5.4-mini": {
+          "name": "GPT 5.4 Mini (CodexAPI)",
+        },
+        "gpt-5.5": {
+          "name": "GPT 5.5 (CodexAPI)",
+        },
+      },
+      "name": "Codex APIs",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:CODEXAPIS_API_KEY}",
+        "baseURL": "https://www.codexapis.com/v1",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+    "deepseek": {
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "Deepseek V4 Flash (DeepSeek)",
+        },
+        "deepseek-v4-flash-think": {
+          "id": "deepseek-v4-flash",
+          "name": "Deepseek V4 Flash Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think (DeepSeek)",
+          "options": {
+            "reasoning_effort": "high",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+        "deepseek-v4-pro-think-max": {
+          "id": "deepseek-v4-pro",
+          "name": "Deepseek V4 PRO Think MAX (DeepSeek)",
+          "options": {
+            "reasoning_effort": "max",
+            "thinking": {
+              "type": "enabled",
+            },
+          },
+        },
+      },
+      "name": "DeepSeek",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "{env:DEEPSEEK_API_KEY}",
+        "baseURL": "https://api.deepseek.com",
+        "chunkTimeout": 30000,
+        "timeout": 600000,
+      },
+    },
+  },
+  "small_model": "codexapis/gpt-5.4",
+}
+`;
+
+exports[`generator config snapshots omo max matches snapshot 1`] = `
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "atlas": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "explorer": {
+      "fallback_models": [
+        "codexapis/gpt-5.4-mini",
+      ],
+      "model": "codexapis/gpt-5.4",
+      "permission": {
+        "edit": "deny",
+      },
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "hephaestus": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "librarian": {
+      "fallback_models": [
+        "codexapis/gpt-5.4-mini",
+      ],
+      "model": "codexapis/gpt-5.4",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "metis": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-pro-think",
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think-max",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "momus": {
+      "fallback_models": [
+        "codexapis/gpt-5.4-mini",
+      ],
+      "model": "codexapis/gpt-5.4",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "multimodal-looker": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "oracle": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-pro-think",
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think-max",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "prometheus": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-pro-think",
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think-max",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "sisyphus": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+    "sisyphus-junior": {
+      "fallback_models": [
+        "codexapis/gpt-5.4-mini",
+      ],
+      "model": "codexapis/gpt-5.4",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+  },
+  "background_task": {
+    "modelConcurrency": {
+      "codexapis/gpt-5.4": 6,
+      "codexapis/gpt-5.5": 2,
+      "deepseek/deepseek-v4-pro-think-max": 1,
+    },
+    "providerConcurrency": {
+      "codexapis": 3,
+      "deepseek": 1,
+    },
+  },
+  "categories": {
+    "artistry": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "deep": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-pro-think",
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think-max",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "quick": {
+      "fallback_models": [
+        "codexapis/gpt-5.4-mini",
+      ],
+      "model": "codexapis/gpt-5.4",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "ultrabrain": {
+      "fallback_models": [
+        "deepseek/deepseek-v4-pro-think",
+        "deepseek/deepseek-v4-flash-think",
+      ],
+      "model": "deepseek/deepseek-v4-pro-think-max",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-high": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "unspecified-low": {
+      "fallback_models": [
+        "codexapis/gpt-5.4-mini",
+      ],
+      "model": "codexapis/gpt-5.4",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "visual-engineering": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": "遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。",
+    },
+    "writing": {
+      "fallback_models": [
+        "codexapis/gpt-5.4",
+      ],
+      "model": "codexapis/gpt-5.5",
+      "prompt_append": 
+"遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+
+默认使用简体中文写作、润色和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。"
+,
+    },
+  },
+  "disabled_hooks": [
+    "auto-slash-command",
+  ],
+  "model_fallback": true,
+  "runtime_fallback": {
+    "cooldown_seconds": 60,
+    "enabled": true,
+    "max_fallback_attempts": 1,
+    "model_whitelist": [
+      "codexapis/gpt-5.5",
+      "deepseek/deepseek-v4-pro-think-max",
+      "codexapis/gpt-5.4",
+    ],
+    "notify_on_fallback": true,
+    "retry_on_errors": [
+      429,
+      503,
+      529,
+    ],
+    "timeout_seconds": 30,
+  },
+  "tmux": {
+    "enabled": true,
+  },
+}
+`;
+
+exports[`generator config snapshots strategy max matches snapshot 1`] = `
+{
+  "$schema": "https://opencode.ai/ai-share-strategy.json",
+  "oh_my_openagent": {
+    "checkpoint": {
+      "enabled": true,
+      "max_entries": 64,
+      "mode": "agent-session",
+      "require_verification_note": true,
+      "restore_policy": "manual-only",
+      "trigger": "before-edit-and-before-delegation",
+    },
+    "dcp": {
+      "context_budget_tokens": 120000,
+      "enabled": true,
+      "handoff_policy": "summarize-before-delegate",
+      "mode": "shared",
+      "required_sections": [
+        "task",
+        "expected_outcome",
+        "required_tools",
+        "must_do",
+        "must_not_do",
+        "context",
+      ],
+      "share": {
+        "decisions": true,
+        "plans": true,
+        "research_notes": true,
+        "secrets": false,
+        "verification": true,
+        "verification_artifacts": true,
+      },
+    },
+    "memory": {
+      "enabled": true,
+      "mode": "shared",
+      "read_policy": "load-before-plan",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+        "cookie",
+      ],
+      "scope": "project",
+      "strategy": "detailed-summary",
+      "write_policy": "facts-decisions-and-runbooks-only",
+    },
+  },
+  "opencode": {
+    "checkpoint": {
+      "enabled": true,
+      "exclude": [
+        "node_modules/**",
+        ".git/**",
+        "bun.lock",
+      ],
+      "include": [
+        "config/*.yaml",
+        "src/**/*.ts",
+        "bin/*",
+        "plugins/**",
+      ],
+      "max_entries": 64,
+      "mode": "session",
+      "restore_policy": "manual-only",
+      "root": ".opencode/checkpoints",
+      "trigger": "before-risky-change",
+    },
+    "dcp": {
+      "context_budget_tokens": 120000,
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        "bun.lock",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "GIT_COMMIT_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "memory/**",
+      ],
+      "mode": "shared",
+      "root": ".opencode/dcp",
+      "secrets_policy": "env-only",
+      "strategy": "local-first",
+      "sync": "manual",
+    },
+    "memory": {
+      "enabled": true,
+      "exclude": [
+        ".env",
+        ".env.*",
+        "node_modules/**",
+        ".git/**",
+      ],
+      "include": [
+        "AI_GUIDELINES.md",
+        "README.md",
+        "config/*.yaml",
+        "memory/**",
+      ],
+      "mode": "shared",
+      "redact": [
+        "api_key",
+        "token",
+        "password",
+        "secret",
+      ],
+      "retention": "project",
+      "root": ".opencode/memory",
+      "strategy": "detailed-summary",
+      "write_policy": "verified-facts-only",
+    },
+  },
+  "profile": "max",
+  "workspace": {
+    "ignore": [
+      ".git/**",
+      ".opencode/context-guard-watch/**",
+      ".opencode/handoff/**",
+      ".opencode/checkpoints/**",
+      ".opencode/dcp/**",
+      ".opencode/memory/**",
+      ".opencode-rescue/**",
+      ".sisyphus/evidence/**",
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      "target/**",
+      ".next/**",
+      ".nuxt/**",
+      ".svelte-kit/**",
+      "coverage/**",
+      ".cache/**",
+      ".turbo/**",
+      ".vite/**",
+      "bun.lock",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      ".env",
+      ".env.*",
+    ],
+  },
+}
+`;
+
+exports[`generator config snapshots context-guard config matches snapshot 1`] = `
+{
+  "absolute_block_tokens": 250000,
+  "alert_file": ".opencode/context-guard-watch/alert.json",
+  "block_ratio": 0.95,
+  "danger_ratio": 0.8,
+  "diagnostics": true,
+  "enabled": true,
+  "history_dir": ".opencode/context-guard-watch/history",
+  "rescue_dir": ".opencode-rescue",
+  "warn_ratio": 0.6,
+  "watch_action": "stop",
+  "watch_interval_ms": 5000,
+  "zero_output_limit": 3,
+}
+`;
+
+exports[`generator config snapshots context-guard profile configs match snapshot 1`] = `
+{
+  "balanced": {
+    "max_input_tokens": 120000,
+  },
+  "cheap": {
+    "max_input_tokens": 80000,
+  },
+  "coding": {
+    "max_input_tokens": 120000,
+  },
+  "economy": {
+    "max_input_tokens": 1000000000,
+  },
+  "lite": {
+    "max_input_tokens": 80000,
+  },
+  "max": {
+    "max_input_tokens": 250000,
+  },
+  "research": {
+    "max_input_tokens": 180000,
+  },
+  "writing": {
+    "max_input_tokens": 120000,
+  },
+}
+`;
+
+exports[`generator config snapshots dingtalk-notifier config matches snapshot 1`] = `
+{
+  "enabled": true,
+  "events": [
+    "session.idle",
+  ],
+  "keyword_env": "AI_SHARE_DINGTALK_KEYWORD",
+  "message_type": "markdown",
+  "min_interval_ms": 60000,
+  "require_review_before_send": true,
+  "review_items": [
+    "会话内容摘要",
+    "任务结果",
+    "验证结论",
+    "剩余风险或后续事项",
+  ],
+  "secret_env": "AI_SHARE_DINGTALK_SECRET",
+  "timeout_ms": 10000,
+  "webhook_env": "AI_SHARE_DINGTALK_WEBHOOK",
+}
+`;

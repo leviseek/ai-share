@@ -44,3 +44,7 @@ docs/superpowers/
 .playwright-mcp/
 .env
 .env.*
+
+### Migrated memory runtime/sync
+memory/runtime/
+memory/sync/

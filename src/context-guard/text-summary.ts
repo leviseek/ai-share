@@ -60,10 +60,14 @@ export function buildRescueSummary(
     role: typeof message.data.role === "string" ? message.data.role : "unknown",
     text: messageText(message.data),
   }));
-  const userMessages = entries
+
+  // Goal: first 3 user messages represent what was being worked on
+  const goalMessages = entries
     .filter((entry) => entry.role === "user")
-    .slice(-20)
+    .slice(0, 3)
     .map((entry) => truncate(cleanText(entry.text), 1200));
+
+  // Progress: assistant messages with summary/done markers
   const assistantSummaries = entries
     .filter(
       (entry) =>
@@ -72,31 +76,36 @@ export function buildRescueSummary(
     )
     .slice(-6)
     .map((entry) => truncate(cleanText(entry.text), 1800));
+
+  // Key Decisions: lines matching decision-related keywords
+  const decisionLines = uniqueLines(
+    entries
+      .flatMap((entry) => cleanText(entry.text).split("\n"))
+      .filter((line) => /决策|决定|decided|architecture|方案|取舍|trade.?off|选择|chose[n]?/i.test(line)),
+  ).slice(-20);
+
+  // Unresolved Issues: errors, blockers, failures
   const errorLines = uniqueLines(
     entries
       .flatMap((entry) => cleanText(entry.text).split("\n"))
       .filter((line) => /error|failed|exception|报错|失败|卡住/i.test(line)),
   ).slice(-30);
+
+  // Relevant Files: paths mentioned in conversation
   const files = uniqueLines(
     entries.flatMap((entry) => cleanText(entry.text).match(/[A-Za-z]:\\[^\s`"']+|(?:[\w.-]+\/)+[\w.-]+/g) ?? []),
   )
     .filter((file) => !isIgnoredPath(file, ignore))
     .slice(-60);
-  const commands = uniqueLines(
-    entries
-      .flatMap((entry) => cleanText(entry.text).split("\n"))
-      .filter((line) => /^\s*(bun|npm|pnpm|git|aiomo|aioc|opencode|tsc|eslint|pytest)\b/.test(line)),
-  ).slice(-40);
 
   return (
     `# OpenCode Session Rescue\n\n` +
     `## Session\n${sessionId}\n\n` +
-    `## Goal\n从旧会话迁移关键上下文，避免直接恢复超长 session 导致模型调用卡住。\n\n` +
-    `## Recent User Requests\n${bulletList(userMessages)}\n\n` +
-    `## Existing Summaries\n${bulletList(assistantSummaries)}\n\n` +
-    `## Errors And Blockers\n${bulletList(errorLines)}\n\n` +
-    `## Relevant Files\n${bulletList(files)}\n\n` +
-    `## Commands Mentioned\n${bulletList(commands)}\n\n` +
+    `## Goal — what was being worked on\n${bulletList(goalMessages)}\n\n` +
+    `## Progress — what was accomplished\n${bulletList(assistantSummaries)}\n\n` +
+    `## Key Decisions — architecture/approach decisions made\n${bulletList(decisionLines)}\n\n` +
+    `## Unresolved Issues — blockers, errors, pending items\n${bulletList(errorLines)}\n\n` +
+    `## Relevant Files — files modified or discussed\n${bulletList(files)}\n\n` +
     `## Context Diagnostics\n` +
     `- messages: ${stats.messageCount}\n` +
     `- tool_results: ${stats.toolResultCount}\n` +

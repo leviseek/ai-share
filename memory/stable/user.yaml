@@ -1,0 +1,56 @@
+# Who I am as a developer
+identity:
+  role: full-stack TypeScript developer
+  focus_areas:
+    - TypeScript full-stack development
+    - AI infrastructure and automation
+    - AI-assisted coding workflows
+  tools:
+    - OpenCode (primary AI coding agent, Build/Plan native + OMO orchestration)
+    - oh-my-openagent (multi-agent orchestration framework)
+    - Bun (preferred runtime and package manager)
+    - Node.js (fallback for specific scenarios)
+  editors:
+    - VS Code (primary)
+    - PowerShell 7+ (Windows shell of choice)
+
+coding_style:
+  principles:
+    - Understand root cause first, then make the smallest correct change
+    - Keep it simple and direct, no unnecessary abstraction layers
+    - Extract modules only when there is clear reuse value
+    - Follow existing project patterns and conventions
+    - Prefer strict TypeScript, no as any, no ts-ignore
+    - Readable code over clever code
+    - Explicit over implicit, no magic or hidden conventions
+    - Handle edge cases and error paths
+    - Comments explain intent, not behavior
+  architecture:
+    - Reuse existing project patterns, do not reinvent
+    - Clear layering: orchestration, business logic, IO
+    - Evaluate impact before changing public interfaces or data structures
+    - Avoid new dependencies unless strictly necessary
+
+communication:
+  language: Chinese (Simplified) for conversation and docs
+  code_identifiers: English (commands, API names, error messages, paths)
+  style:
+    - Direct and concise, no pleasantries
+    - Give conclusions first, then supporting details if needed
+    - For multi-step work, create a todo list first
+    - For complex decisions, explain tradeoffs
+
+anti_patterns:
+  - No unnecessary refactoring or scope expansion
+  - No decorative comments or emoji in code
+  - No fixing symptoms instead of root cause
+  - No bypassing type errors, tests, or lint rules
+  - No committing secrets, tokens, or local config
+  - No forced destructive git operations
+  - No creating documentation without explicit request
+
+knowledge_management:
+  - Structured memory over chat history
+  - Config as code, version controlled and auditable
+  - System should be portable, reproducible, auditable
+  - Facts confirmed and written explicitly, not inferred by AI

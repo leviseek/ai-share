@@ -1,0 +1,70 @@
+# Verified workflow rules for development, git, and debugging
+
+development:
+  phases:
+    - phase: understand
+      actions:
+        - Read project context, existing patterns, and conventions
+        - Break down core requirements, identify risks, define acceptance criteria
+        - Confirm uncertainties before proceeding
+    - phase: plan
+      actions:
+        - Convert approved approach into executable steps
+        - Specify files to change, test scope, execution order
+        - Use git worktree for isolation on critical changes
+    - phase: implement
+      actions:
+        - Follow test-driven development for new features and bugfixes
+        - Write failing test first, then minimal implementation to pass
+        - Refactor only after tests pass
+        - Each step completed with related checks
+    - phase: verify
+      actions:
+        - Run type checks, lint, build, and relevant tests
+        - Distinguish newly introduced issues from pre-existing ones
+        - Manually verify functionality, not just type correctness
+        - Run lsp_diagnostics after any code change
+  task_management:
+    - Complex tasks break into independent parallel sub-tasks
+    - Use todo list for multi-step work, one task in progress at a time
+    - Mark completed immediately after finishing, no batch completions
+
+git:
+  rules:
+    - No commits without explicit user request
+    - Commit message format: "option: 中文描述"
+    - No destructive operations: force push, amend, rebase -i
+    - No auto-push or branch creation unless asked
+    - Only commit task-relevant changes, check diff before committing
+    - Respect existing user working tree changes, avoid them unless necessary
+  if_commit_fails:
+    - Fix the issue, create a new commit
+    - Do not amend unless conditions are met
+
+debugging:
+  strategy:
+    - Always find root cause first, never surface patch
+    - After 3 consecutive failures, stop and roll back to known working state
+    - For complex issues, consult Oracle agent before continuing
+    - Confirm key uncertainties via project search or exploration tools
+  context_management:
+    - Compress tool output actively during long debug sessions
+    - Do not accumulate raw logs, summarize failures and key paths
+    - Rescue old sessions before restoring if context guard warns
+
+agent_orchestration:
+  roles:
+    Sisyphus: primary orchestrator, task decomposition, delegation, quality control
+    Oracle: read-only advisor for architecture and deep debugging
+    Explore_Librarian: codebase search and external documentation
+  delegation:
+    - Always delegate to the most matching agent
+    - Frontend/UI: visual-engineering + frontend-ui-ux
+    - Complex logic: ultrabrain or oracle
+    - Research: explore + librarian in parallel
+    - Simple changes: quick agent
+    - Documentation: writing agent
+  quality_gates:
+    - Run lsp_diagnostics after every change
+    - Manual verification for functional changes
+    - Evidence required before confirming completion

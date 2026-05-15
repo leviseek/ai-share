@@ -1,0 +1,60 @@
+# Device configuration for cross-platform development
+
+devices:
+  - name: windows-desktop
+    os: Windows 11
+    role: primary development machine
+    shell: PowerShell 7+
+    paths:
+      user_bin: ~/.local/bin/
+      user_bin_win: '%USERPROFILE%\.local\bin\'
+      opencode_config: ~/.config/opencode/
+      ai_memory: ~/ai-memory/
+    notes: >-
+      Daily driver. All AI config generation and most development happen here.
+      OpenCode starts via aiomo/aioc cmds added to user PATH.
+
+  - name: wsl2
+    os: Ubuntu (WSL2)
+    role: Linux development environment
+    shell: bash
+    paths:
+      user_bin: ~/.local/bin/
+      opencode_config: ~/.config/opencode/
+      ai_memory: ~/ai-memory/
+    notes: >-
+      Used for Linux-native builds and when some tooling works better on Linux.
+      ai-share git repo synced from Windows or cloned separately.
+
+  - name: macbook
+    os: macOS
+    role: backup development device
+    shell: zsh
+    paths:
+      user_bin: ~/.local/bin/
+      opencode_config: ~/.config/opencode/
+      ai_memory: ~/ai-memory/
+    notes: >-
+      Backup or travel device. Runs same ai-share configs with env vars set per machine.
+
+model_preferences:
+  daily_coding: gpt-5 series (balanced profile)
+  deep_reasoning: deepseek series (research/max profile)
+  light_tasks: gpt-5.4-mini (cheap/lite profile)
+  compaction_model: fast (gpt-5.4-mini)
+  profiles:
+    - lite
+    - economy
+    - cheap
+    - balanced
+    - coding
+    - research
+    - writing
+    - max
+
+cross_device_rules:
+  - ai-share config source synced via git, configs regenerated per device
+  - Generated JSON config is not committed, each device generates independently
+  - API keys and proxy settings set via environment variables per device, never in repo
+  - ai-memory repo cloned to ~/ai-memory on every device, independently managed
+  - Tools installed to ~/.local/bin/ on all platforms, Windows auto-added to PATH

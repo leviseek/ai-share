@@ -1,7 +1,6 @@
-import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { getMemoryFilesForProfile } from "../../loaders/memory-loader.ts";
-import { compileMemory } from "../../loaders/memory-compiler.ts";
+import { searchMemory } from "../../memory/retrieval.ts";
 import type {
   GlobalYaml,
   ModelRoleMap,
@@ -16,11 +15,21 @@ import { modelRef } from "../model-refs.ts";
 import { buildProviders } from "./provider.ts";
 import { requireRecord, requireString } from "../validation.ts";
 
-export function buildInstructionsPaths(projectRoot: string, profile?: string): string[] {
+export function buildInstructionsPaths(projectRoot: string, profile?: string, taskDescription?: string): string[] {
   const memoryBase = resolve(projectRoot, "memory");
-  const aiMemoryBase = resolve(projectRoot, "..", "ai-memory");
+
+  // Task-based memory retrieval: top 3 relevant memory files prepended for priority
+  const taskMemories: string[] = [];
+  const effectiveTask = taskDescription ?? process.env.AIOMO_TASK;
+  if (effectiveTask) {
+    const results = searchMemory(effectiveTask, projectRoot);
+    taskMemories.push(...results.slice(0, 3).map((r) => resolve(projectRoot, r.path)));
+  }
+
   return [
     resolve(projectRoot, "AI_GUIDELINES.md"),
+    // Task-specific memories (top priority, inserted before structured memory)
+    ...taskMemories,
     // memory/user/
     resolve(memoryBase, "user", "profile.md"),
     resolve(memoryBase, "user", "profile.yaml"),
@@ -41,41 +50,9 @@ export function buildInstructionsPaths(projectRoot: string, profile?: string): s
     resolve(memoryBase, "stack", "oh-my-openagent.md"),
     resolve(memoryBase, "stack", "wsl.md"),
     resolve(memoryBase, "stack", "models.md"),
-    // external: ai-memory/ (profile-aware)
-    ...(profile
-      ? getMemoryFilesForProfile(profile, aiMemoryBase)
-      : existsSync(aiMemoryBase)
-        ? [
-            resolve(aiMemoryBase, "stable", "user.yaml"),
-            resolve(aiMemoryBase, "stable", "workflows.yaml"),
-            resolve(aiMemoryBase, "stable", "devices.yaml"),
-            resolve(aiMemoryBase, "profiles", "coding.yaml"),
-            resolve(aiMemoryBase, "profiles", "research.yaml"),
-            resolve(aiMemoryBase, "profiles", "infra.yaml"),
-            resolve(aiMemoryBase, "policies", "memory-policy.yaml"),
-          ]
-        : []),
-    // compiled memory context (profile-aware)
-    ...(profile && existsSync(aiMemoryBase) ? [createCompiledMemoryContext(profile, aiMemoryBase)] : []),
+    // profile-specific migrated memory
+    ...(profile ? getMemoryFilesForProfile(profile, projectRoot) : []),
   ];
-}
-
-/**
- * Creates a compiled memory context string for a given profile.
- * Gets the profile's ai-memory files, compiles them to natural language,
- * and prefixes with a marker to ensure it's treated as inline text.
- * Falls back to empty string if compilation fails or no files exist.
- */
-function createCompiledMemoryContext(profile: string, aiMemoryBase: string): string {
-  const memoryFiles = getMemoryFilesForProfile(profile, aiMemoryBase);
-  if (memoryFiles.length === 0) return "";
-  try {
-    const compiled = compileMemory({ profile, aiMemoryBase, memoryFiles });
-    if (!compiled) return "";
-    return `# compiled memory context\n${compiled}`;
-  } catch {
-    return "";
-  }
 }
 
 export function buildOpenCodeConfigs(

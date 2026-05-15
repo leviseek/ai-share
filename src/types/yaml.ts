@@ -44,6 +44,8 @@ export type ModelSource = {
 
 export type GlobalYaml = {
   default_profile?: string;
+  opencode_min_version?: string;
+  omo_min_version?: string;
   env?: GlobalEnvironment;
   features?: GlobalFeatures;
   runtime?: GlobalRuntime;

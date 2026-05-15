@@ -1,0 +1,12 @@
+{
+  "name": "omo-agent-monitor",
+  "version": "0.1.0",
+  "description": "OMO agents status monitor plugin for OpenCode",
+  "source_url": "https://github.com/leviseek/ai-share",
+  "permissions": ["fs:read", "fs:write", "network:localhost"],
+  "aioc_compatible": false,
+  "entrypoints": {
+    "server": "server.ts",
+    "tui": "tui.ts"
+  }
+}

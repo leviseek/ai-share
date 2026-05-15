@@ -237,34 +237,3 @@ max:
         max_entries: 64
       memory:
         strategy: detailed-summary
-
-ds-max:
-  name: 纯DeepSeek强力编排
-  models:
-    primary: deepseek-v4-pro-think
-    reasoning: deepseek-v4-pro-think-max
-    fast: deepseek-v4-flash-think
-  compaction:
-    enabled: true
-    threshold: 640000
-    model: reasoning
-    max_input_tokens: 960000
-  strategies:
-    opencode:
-      dcp:
-        context_budget_tokens: 480000
-      checkpoint:
-        max_entries: 64
-      memory:
-        retention: project
-        strategy: detailed-summary
-    oh_my_openagent:
-      dcp:
-        context_budget_tokens: 480000
-        share:
-          research_notes: true
-          verification_artifacts: true
-      checkpoint:
-        max_entries: 64
-      memory:
-        strategy: detailed-summary
