@@ -19,7 +19,7 @@ YAML source of truth for every generated OpenCode, aioc, OMO, strategy, profile,
 - Edit YAML first; generated files under user config are outputs.
 - Stable keys matter: generator code references provider/model/profile/agent IDs.
 - Prefer shared defaults in `global.yaml`; use profile overrides only for real profile differences.
-- `profiles.yaml` currently defines `lite`, `economy`, `cheap`, `balanced`, `coding`, `research`, `writing`, `max`.
+- `profiles.yaml` currently defines `lite`, `economy`, `cheap`, `balanced`, `coding`, `research`, `writing`, `max`, `ds-max`.
 - `agents.yaml` model values normally reference roles (`primary`, `reasoning`, `fast`), not raw provider model strings.
 - `shared_prompt.append` is Chinese and injects `AI_GUIDELINES.md` workflow expectations into OMO agents.
 - Optional plugins default empty; do not add unknown package names or paths speculatively.

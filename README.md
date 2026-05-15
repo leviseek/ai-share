@@ -82,6 +82,8 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.config/opencode/profiles/aioc/writing.json
 ~/.config/opencode/profiles/opencode/max.json
 ~/.config/opencode/profiles/aioc/max.json
+~/.config/opencode/profiles/opencode/ds-max.json
+~/.config/opencode/profiles/aioc/ds-max.json
 ~/.config/opencode/oh-my-openagent.json
 ~/.config/opencode/profiles/oh-my-openagent/lite.json
 ~/.config/opencode/profiles/oh-my-openagent/cheap.json
@@ -90,6 +92,7 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.config/opencode/profiles/oh-my-openagent/research.json
 ~/.config/opencode/profiles/oh-my-openagent/writing.json
 ~/.config/opencode/profiles/oh-my-openagent/max.json
+~/.config/opencode/profiles/oh-my-openagent/ds-max.json
 ~/.config/opencode/strategy.json
 ~/.config/opencode/profiles/strategy/lite.json
 ~/.config/opencode/profiles/strategy/cheap.json
@@ -98,6 +101,7 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.config/opencode/profiles/strategy/research.json
 ~/.config/opencode/profiles/strategy/writing.json
 ~/.config/opencode/profiles/strategy/max.json
+~/.config/opencode/profiles/strategy/ds-max.json
 ~/.config/opencode/profiles/context-guard/lite.json
 ~/.config/opencode/profiles/context-guard/cheap.json
 ~/.config/opencode/profiles/context-guard/balanced.json
@@ -105,6 +109,7 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.config/opencode/profiles/context-guard/research.json
 ~/.config/opencode/profiles/context-guard/writing.json
 ~/.config/opencode/profiles/context-guard/max.json
+~/.config/opencode/profiles/context-guard/ds-max.json
 ~/.config/opencode/dingtalk-notifier.json
 ~/.config/opencode/proxy.json
 ~/.config/opencode/.omo-profiles.json
@@ -299,6 +304,7 @@ aiomo coding
 aiomo research
 aiomo writing
 aiomo max
+aiomo ds-max
 
 # 也支持显式参数形式，后续参数继续透传给 opencode
 aiomo --omo-profile=max run "请分析当前项目"
@@ -406,7 +412,7 @@ opencode:
 
 默认 OMO 编排级别由 `config/global.yaml` 的 `default_profile` 控制。当前默认值为 `balanced`，因此直接运行 `aiomo` 等价于 `aiomo balanced`。如果修改 `default_profile`，需要重新运行 `bun run ai:gen -- --force` 生成 `.omo-profiles.json` 后才会影响启动器默认行为。
 
-当前内置 8 个 OMO 编排级别，每个级别固定使用 3 个模型角色：
+当前内置 9 个 OMO 编排级别，每个级别固定使用 3 个模型角色：
 
 ```text
 lite：primary=gpt-5.4，reasoning=deepseek-v4-flash-think，fast=gpt-5.4-mini
@@ -417,6 +423,7 @@ coding：primary=gpt-5.3-codex，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-
 research：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4-mini
 writing：primary=gpt-5.5，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-mini
 max：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4
+ds-max：primary=deepseek-v4-pro-think，reasoning=deepseek-v4-pro-think-max，fast=deepseek-v4-flash-think
 ```
 
 `config/agents.yaml` 中的 agents/categories 引用 `primary`、`reasoning`、`fast` 这 3 个中间层角色；具体模型由 `config/profiles.yaml` 决定。

@@ -39,6 +39,10 @@ profile_mapping:
     model: deepseek-v4-pro-think-max
     role: reasoning
     use: 全力模式，最大上下文预算，最强推理
+  ds-max:
+    model: deepseek-v4-pro-think-max
+    role: reasoning
+    use: 纯 DeepSeek 强力模式，全链路 DeepSeek，超大上下文预算，最强推理
 
 compaction:
   model: fast
@@ -56,15 +60,21 @@ selection_rules:
     profile: coding
     reason: Codex 模型代码生成能力更强
   - condition: 架构设计、深度调试、研究问题
-    profile: research 或 max
+    profile: research、max 或 ds-max
     reason: 需要 DeepSeek 深度推理能力
+  - condition: 全链路 DeepSeek + 超长上下文
+    profile: ds-max
+    reason: 纯 DeepSeek 全链路，~960K 上下文预算，适合超大型分析和长链推理
   - condition: 文档写作、README、注释
     profile: writing
     reason: 文字连贯性和风格一致性优先
   - condition: 资源极度受限或扫描任务
     profile: economy
     reason: 全部使用低成本 DeepSeek 模型
-  - condition: 上下文太长逼近警戒线
+  - condition: 上下文太长逼近警戒线但需要继续深度工作
+    profile: ds-max
+    reason: ds-max 提供 960K 上下文预算，可容纳超大上下文继续工作
+  - condition: 上下文太长逼近警戒线且不需要超大上下文
     action: 先 rescue 再新 session，不强制恢复
     reason: 避免卡死，保护上下文预算
   - condition: subagent 或 background task 无特殊要求
