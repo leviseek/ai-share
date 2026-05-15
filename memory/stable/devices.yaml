@@ -1,9 +1,9 @@
-# Device configuration for cross-platform development
+# 跨设备配置
 
 devices:
   - name: windows-desktop
     os: Windows 11
-    role: primary development machine
+    role: 主力开发机
     shell: PowerShell 7+
     paths:
       user_bin: ~/.local/bin/
@@ -11,37 +11,35 @@ devices:
       opencode_config: ~/.config/opencode/
       ai_memory: ~/ai-memory/
     notes: >-
-      Daily driver. All AI config generation and most development happen here.
-      OpenCode starts via aiomo/aioc cmds added to user PATH.
+      日常主力机。所有 AI 配置生成和大部分开发在此进行。OpenCode 通过 aiomo/aioc 命令启动，已加入用户 PATH。
 
   - name: wsl2
     os: Ubuntu (WSL2)
-    role: Linux development environment
+    role: Linux 开发环境
     shell: bash
     paths:
       user_bin: ~/.local/bin/
       opencode_config: ~/.config/opencode/
       ai_memory: ~/ai-memory/
     notes: >-
-      Used for Linux-native builds and when some tooling works better on Linux.
-      ai-share git repo synced from Windows or cloned separately.
+      用于 Linux 原生构建，以及某些工具链在 Linux 下表现更好的场景。ai-share Git 仓库从 Windows 同步或单独克隆。
 
   - name: macbook
     os: macOS
-    role: backup development device
+    role: 备用开发设备
     shell: zsh
     paths:
       user_bin: ~/.local/bin/
       opencode_config: ~/.config/opencode/
       ai_memory: ~/ai-memory/
     notes: >-
-      Backup or travel device. Runs same ai-share configs with env vars set per machine.
+      备用或出差设备。运行相同的 ai-share 配置，环境变量按本机单独设置。
 
 model_preferences:
-  daily_coding: gpt-5 series (balanced profile)
-  deep_reasoning: deepseek series (research/max profile)
-  light_tasks: gpt-5.4-mini (cheap/lite profile)
-  compaction_model: fast (gpt-5.4-mini)
+  daily_coding: gpt-5 系列
+  deep_reasoning: deepseek 系列
+  light_tasks: gpt-5.4-mini
+  compaction_model: fast
   profiles:
     - lite
     - economy
@@ -53,8 +51,8 @@ model_preferences:
     - max
 
 cross_device_rules:
-  - ai-share config source synced via git, configs regenerated per device
-  - Generated JSON config is not committed, each device generates independently
-  - API keys and proxy settings set via environment variables per device, never in repo
-  - ai-memory repo cloned to ~/ai-memory on every device, independently managed
-  - Tools installed to ~/.local/bin/ on all platforms, Windows auto-added to PATH
+  - ai-share 配置源通过 Git 同步，每个设备独立生成配置
+  - 生成的 JSON 配置不提交到仓库，每个设备独立生成
+  - API Key 和代理设置通过环境变量按设备单独设置，永不写入仓库
+  - ai-memory 仓库克隆到各设备的 ~/ai-memory，独立管理
+  - 工具安装到所有平台的 ~/.local/bin/，Windows 自动加入 PATH

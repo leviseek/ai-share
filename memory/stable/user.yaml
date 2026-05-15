@@ -1,56 +1,56 @@
-# Who I am as a developer
+# 我是谁——开发者画像
 identity:
-  role: full-stack TypeScript developer
+  role: 全栈 TypeScript 开发者
   focus_areas:
-    - TypeScript full-stack development
-    - AI infrastructure and automation
-    - AI-assisted coding workflows
+    - TypeScript 全栈开发
+    - AI 基础设施与自动化
+    - AI 辅助编码工作流
   tools:
-    - OpenCode (primary AI coding agent, Build/Plan native + OMO orchestration)
-    - oh-my-openagent (multi-agent orchestration framework)
-    - Bun (preferred runtime and package manager)
-    - Node.js (fallback for specific scenarios)
+    - OpenCode（主力 AI 编码 agent，Build/Plan 原生 + OMO 编排）
+    - oh-my-openagent（多 agent 编排框架）
+    - Bun（首选运行时和包管理器）
+    - Node.js（特定场景备选）
   editors:
-    - VS Code (primary)
-    - PowerShell 7+ (Windows shell of choice)
+    - VS Code（主力编辑器）
+    - PowerShell 7+（Windows 首选 Shell）
 
 coding_style:
   principles:
-    - Understand root cause first, then make the smallest correct change
-    - Keep it simple and direct, no unnecessary abstraction layers
-    - Extract modules only when there is clear reuse value
-    - Follow existing project patterns and conventions
-    - Prefer strict TypeScript, no as any, no ts-ignore
-    - Readable code over clever code
-    - Explicit over implicit, no magic or hidden conventions
-    - Handle edge cases and error paths
-    - Comments explain intent, not behavior
+    - 先理解根因，再做最小正确改动
+    - 保持简单直接，不引入不必要的抽象层
+    - 只在有明确复用价值时才抽取模块
+    - 遵循项目已有模式和约定
+    - 优先使用 strict TypeScript，不用 as any、不用 ts-ignore
+    - 可读性胜过巧妙性
+    - 显式优于隐式，不依赖魔法或隐藏约定
+    - 处理边界情况和错误路径
+    - 注释说明意图，不重复描述行为
   architecture:
-    - Reuse existing project patterns, do not reinvent
-    - Clear layering: orchestration, business logic, IO
-    - Evaluate impact before changing public interfaces or data structures
-    - Avoid new dependencies unless strictly necessary
+    - 复用项目已有模式，不另起炉灶
+    - 分层清晰：编排、业务逻辑、IO 分离
+    - 变更公共接口或数据结构前评估影响面
+    - 不主动引入新依赖，除非严格必要
 
 communication:
-  language: Chinese (Simplified) for conversation and docs
-  code_identifiers: English (commands, API names, error messages, paths)
+  language: 简体中文用于会话和文档
+  code_identifiers: 英文（命令、API 名称、错误信息、路径保持英文）
   style:
-    - Direct and concise, no pleasantries
-    - Give conclusions first, then supporting details if needed
-    - For multi-step work, create a todo list first
-    - For complex decisions, explain tradeoffs
+    - 直接简洁，不寒暄
+    - 先给结论，必要时补充细节
+    - 多步骤工作时先建 todo 列表
+    - 复杂决策说明取舍
 
 anti_patterns:
-  - No unnecessary refactoring or scope expansion
-  - No decorative comments or emoji in code
-  - No fixing symptoms instead of root cause
-  - No bypassing type errors, tests, or lint rules
-  - No committing secrets, tokens, or local config
-  - No forced destructive git operations
-  - No creating documentation without explicit request
+  - 不做无关重构或扩大范围
+  - 代码中不用装饰性注释或 emoji
+  - 不治标不治本
+  - 不绕过类型错误、测试或 lint 规则
+  - 不提交密钥、令牌或本地配置
+  - 不执行强制性破坏性 Git 操作
+  - 不被要求时不创建文档
 
 knowledge_management:
-  - Structured memory over chat history
-  - Config as code, version controlled and auditable
-  - System should be portable, reproducible, auditable
-  - Facts confirmed and written explicitly, not inferred by AI
+  - 结构化记忆优于聊天记录
+  - 配置即代码，可版本控制、可审计
+  - 系统可迁移、可复现、可审计
+  - 事实经确认后显式记录，不由 AI 推断

@@ -1,70 +1,70 @@
-# Verified workflow rules for development, git, and debugging
+# 经过验证的开发、Git 和调试工作流规则
 
 development:
   phases:
-    - phase: understand
+    - phase: 理解上下文
       actions:
-        - Read project context, existing patterns, and conventions
-        - Break down core requirements, identify risks, define acceptance criteria
-        - Confirm uncertainties before proceeding
-    - phase: plan
+        - 阅读项目上下文、已有模式和约定
+        - 拆解核心需求、识别风险、定义验收标准
+        - 推进前确认不确定项
+    - phase: 制定计划
       actions:
-        - Convert approved approach into executable steps
-        - Specify files to change, test scope, execution order
-        - Use git worktree for isolation on critical changes
-    - phase: implement
+        - 将确认方案转化为可执行步骤
+        - 明确变更文件、测试范围、执行顺序
+        - 关键改动使用 Git worktree 隔离
+    - phase: 实现
       actions:
-        - Follow test-driven development for new features and bugfixes
-        - Write failing test first, then minimal implementation to pass
-        - Refactor only after tests pass
-        - Each step completed with related checks
-    - phase: verify
+        - 新功能和 bugfix 遵循测试驱动开发
+        - 先写失败测试，再写最小实现让测试通过
+        - 测试通过后再重构
+        - 每个步骤完成后运行相关检查
+    - phase: 验证
       actions:
-        - Run type checks, lint, build, and relevant tests
-        - Distinguish newly introduced issues from pre-existing ones
-        - Manually verify functionality, not just type correctness
-        - Run lsp_diagnostics after any code change
+        - 运行类型检查、lint、构建和相关测试
+        - 区分当前改动引入的问题和既有问题
+        - 手动验证功能，不只依赖类型正确性
+        - 任何代码改动后运行 lsp_diagnostics
   task_management:
-    - Complex tasks break into independent parallel sub-tasks
-    - Use todo list for multi-step work, one task in progress at a time
-    - Mark completed immediately after finishing, no batch completions
+    - 复杂任务拆解为独立并行子任务
+    - 多步骤工作使用 todo 列表，一次只进行一个任务
+    - 完成后立即标记，不批量完成
 
 git:
   rules:
-    - No commits without explicit user request
-    - Commit message format: "option: 中文描述"
-    - No destructive operations: force push, amend, rebase -i
-    - No auto-push or branch creation unless asked
-    - Only commit task-relevant changes, check diff before committing
-    - Respect existing user working tree changes, avoid them unless necessary
+    - 无明确用户要求不提交
+    - 提交信息格式："option: 中文描述"
+    - 不做破坏性操作：force push、amend、rebase -i
+    - 不自动推送或创建分支，除非被要求
+    - 只提交与任务相关的改动，提交前检查 diff
+    - 尊重用户已有的工作区改动，避免触碰除非必要
   if_commit_fails:
-    - Fix the issue, create a new commit
-    - Do not amend unless conditions are met
+    - 修复问题后创建新提交
+    - 不 amend 除非满足条件
 
 debugging:
   strategy:
-    - Always find root cause first, never surface patch
-    - After 3 consecutive failures, stop and roll back to known working state
-    - For complex issues, consult Oracle agent before continuing
-    - Confirm key uncertainties via project search or exploration tools
+    - 始终先定位根因，不表面修补
+    - 连续失败 3 次后停止，回滚到已知工作状态
+    - 复杂问题先咨询 Oracle agent 再继续
+    - 通过项目搜索或探索工具确认关键不确定性
   context_management:
-    - Compress tool output actively during long debug sessions
-    - Do not accumulate raw logs, summarize failures and key paths
-    - Rescue old sessions before restoring if context guard warns
+    - 长调试过程中主动压缩工具输出
+    - 不堆积原始日志，只保留失败摘要和关键路径
+    - 上下文守卫告警时先 rescue 旧 session 再恢复
 
 agent_orchestration:
   roles:
-    Sisyphus: primary orchestrator, task decomposition, delegation, quality control
-    Oracle: read-only advisor for architecture and deep debugging
-    Explore_Librarian: codebase search and external documentation
+    Sisyphus: 主编排 agent，任务分解、委派、质量控制
+    Oracle: 只读顾问，用于架构决策和深度调试
+    Explore_Librarian: 代码库搜索和外部文档查询
   delegation:
-    - Always delegate to the most matching agent
-    - Frontend/UI: visual-engineering + frontend-ui-ux
-    - Complex logic: ultrabrain or oracle
-    - Research: explore + librarian in parallel
-    - Simple changes: quick agent
-    - Documentation: writing agent
+    - 始终委托给最匹配的 agent
+    - 前端/UI：visual-engineering + frontend-ui-ux
+    - 复杂逻辑：ultrabrain 或 oracle
+    - 调研探索：explore + librarian 并行发起
+    - 简单改动：quick agent
+    - 文档：writing agent
   quality_gates:
-    - Run lsp_diagnostics after every change
-    - Manual verification for functional changes
-    - Evidence required before confirming completion
+    - 每次改动后运行 lsp_diagnostics
+    - 功能改动手动验证
+    - 确认完成前必须有证据
