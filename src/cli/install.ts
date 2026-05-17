@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { cp, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, cp, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import type { GeneratorPaths } from "./paths.ts";
 import { pathExists } from "./fs.ts";
@@ -45,6 +45,9 @@ export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): 
       continue;
     }
     await copyFile(sourcePath, targetPath);
+    if (process.platform !== "win32" && isPosixLauncher(fileName)) {
+      await chmod(targetPath, 0o755);
+    }
   }
   await writeFile(
     resolve(paths.targetBinDir, "opencode-context-guard.ts"),
@@ -115,6 +118,10 @@ function nativeSkillPath(paths: GeneratorPaths, skillName: string): string {
 
 function withUtf8Bom(content: string): string {
   return content.startsWith("\uFEFF") ? content : `\uFEFF${content}`;
+}
+
+function isPosixLauncher(fileName: string): boolean {
+  return !fileName.endsWith(".ts");
 }
 
 function installedContextGuardCli(content: string): string {
