@@ -211,7 +211,7 @@ export AI_SHARE_DINGTALK_KEYWORD="ai-share"
 
 另外还会安装一个本地 TUI 插件 `./plugins/live2d-pet`，它会在 OpenCode TUI 中提供 `Live2D pet` 命令与 `/live2d-pet` slash 入口，优先通过 Tauri 打开本地独立透明置顶窗口并加载白猫 `Tororo`。如果本机还没有可用的 Tauri 二进制，会回退到浏览器 app 窗口；模型资源只通过公开 CDN 读取，不会把第三方模型文件打包进仓库或生成配置。
 
-如果你想直接以桌面独立方式打开它，也可以运行 `live2d-pet`。首次使用 Tauri 前，可以在仓库根目录运行 `bun run live2d-pet:build`，它会通过 `@tauri-apps/cli` 构建 `plugins/live2d-pet/src-tauri` 并生成 `plugins/live2d-pet/src-tauri/target/release/live2d-pet`（Windows 下为 `live2d-pet.exe`）。随后运行 `bun run ai:gen -- --force` 时，安装器会在用户插件目录保留 `src-tauri/` 源码、排除构建缓存，并在检测到发布二进制时复制该可执行文件。未构建时仍会使用原来的 Chromium/Edge/Chrome 回退窗口。`aiomo` / `aioc` 启动时会自动拉起同一套本地独立窗口，退出时会一并关闭。
+如果你想直接以桌面独立方式打开它，也可以运行 `live2d-pet`。首次使用 Tauri 前，可以在仓库根目录运行 `bun run live2d-pet:build`，它会通过 `@tauri-apps/cli` 构建 `plugins/live2d-pet/src-tauri` 并生成 `plugins/live2d-pet/src-tauri/target/release/live2d-pet`（Windows 下为 `live2d-pet.exe`）。随后运行 `bun run ai:gen -- --force` 时，安装器会在用户插件目录保留 `src-tauri/` 源码、排除构建缓存，并在检测到发布二进制时复制该可执行文件。未构建时仍会使用原来的 Chromium/Edge/Chrome 回退窗口。`aiomo` / `aioc` 默认不会自动拉起桌面宠物；如需随本次会话启动，可传入 `--pet` 或 `--with-pet`，退出时会一并关闭。`--no-pet` 作为兼容参数保留，等价于默认不启动。
 
 Linux 上构建 Tauri 还需要系统依赖 `pkg-config` 和 `libdbus-1-dev`。如果本机没有这些包，`cargo check` / `cargo tauri build` 会先在 `libdbus-sys` 阶段失败。
 

@@ -78,12 +78,13 @@ fi
 
 cp "$AIOC_CONFIG" "$ACTIVE_CONFIG"
 
-# Parse --no-pet flag from remaining args
-skip_live2d_pet="false"
+# Parse Live2D pet flags from remaining args. Default is off; --no-pet is kept as a compatible no-op.
+start_live2d_pet="false"
 _rest=""
 for _arg in "$@"; do
   case "$_arg" in
-    --no-pet) skip_live2d_pet="true" ;;
+    --pet|--with-pet) start_live2d_pet="true" ;;
+    --no-pet) start_live2d_pet="false" ;;
     *)
       _rest="$_rest${_rest:+ }'$(printf '%s' "$_arg" | sed "s/'/'\\\\''/g")'"
       ;;
@@ -91,7 +92,7 @@ for _arg in "$@"; do
 done
 eval "set -- $_rest"
 
-if [ "$skip_live2d_pet" = "false" ]; then
+if [ "$start_live2d_pet" = "true" ]; then
   opencode_live2d_pet_start "$CONFIG_DIR"
   trap 'status=$?; opencode_restore_terminal; opencode_live2d_pet_stop; exit $status' EXIT HUP INT TERM
 else
@@ -100,7 +101,7 @@ fi
 opencode "$@"
 status=$?
 opencode_restore_terminal
-if [ "$skip_live2d_pet" = "false" ]; then
+if [ "$start_live2d_pet" = "true" ]; then
   opencode_live2d_pet_stop
 fi
 trap - EXIT HUP INT TERM
