@@ -16,9 +16,13 @@ agents:
     prompt:
       append: |
         默认使用简体中文交流、解释和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。
+        DeepSeek coding 任务必须先建立工程上下文再动手：明确目标、相关文件、现有模式、允许修改范围、禁止修改范围和验证命令。执行时只做最小正确 diff，优先复用项目约定，不输出冗长推理过程；修改后必须回灌验证结果并基于失败根因修复。
 
   hephaestus:
     model: primary
+    prompt:
+      append: |
+        DeepSeek-only coding 执行约束：修改前先定位相关文件和现有实现模式，给出简短计划和风险边界；修改时保持最小 diff，不做无关重构，不放宽类型或测试；修改后运行 LSP、相关测试、typecheck/build，并把失败输出压缩为根因、关键路径和下一步。
 
   prometheus:
     model: reasoning
@@ -34,6 +38,9 @@ agents:
 
   atlas:
     model: primary
+    prompt:
+      append: |
+        处理跨模块工程任务时先生成 repo map / call chain / affected files 摘要，再执行 patch。优先保留稳定上下文前缀，只注入与当前任务相关的源码和验证证据；不要把完整无关日志、生成物或锁文件长期放入上下文。
 
   sisyphus-junior:
     model: fast
@@ -64,6 +71,9 @@ categories:
 
   unspecified-high:
     model: primary
+    prompt:
+      append: |
+        高复杂度实现任务采用 planner → executor → reviewer → validator 闭环：先拆解方案和边界条件，再修改；修改后必须审查需求符合性、类型安全、项目风格和验证结果。
 
   writing:
     model: primary
