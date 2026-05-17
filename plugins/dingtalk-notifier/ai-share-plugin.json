@@ -1,0 +1,12 @@
+{
+  "name": "dingtalk-notifier",
+  "version": "0.1.0",
+  "description": "Review-first DingTalk notification plugin for OpenCode",
+  "source_url": "https://github.com/leviseek/ai-share",
+  "permissions": ["fs:read", "fs:write", "network:external", "exec:shell"],
+  "aioc_compatible": false,
+  "entrypoints": {
+    "server": "server.ts",
+    "tui": "tui.ts"
+  }
+}

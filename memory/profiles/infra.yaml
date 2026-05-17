@@ -1,0 +1,31 @@
+# infra profile — 基础设施与运维模式
+# 用于 CI/CD 配置、容器编排、脚本编写和环境管理
+# 经济模型优先，自动化为主
+
+name: infra
+description: 基础设施与运维模式，适合自动化脚本和环境管理
+
+model_roles:
+  primary:
+    deepseek-v4-flash
+    # 经济高效，足够处理脚本和配置任务
+  reasoning:
+    deepseek-v4-flash-think
+    # 快速推理，适合排查环境问题和依赖冲突
+  fast:
+    deepseek-v4-flash
+    # 全链路经济模型，无跨提供商切换
+
+use_case:
+  - CI/CD 流水线配置与维护
+  - Docker、Kubernetes 等容器编排
+  - 环境搭建与依赖管理
+  - 自动化脚本与工具链维护
+  - 基础设施即代码（IaC）
+
+context_hint:
+  # 经济型上下文预算，任务通常小而独立
+  primary_context: 40000 tokens
+  max_input: 80000 tokens
+  compaction_model: fast
+  checkpoint_entries: 4

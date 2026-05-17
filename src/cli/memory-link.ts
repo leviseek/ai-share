@@ -6,6 +6,7 @@ import type { GeneratorPaths } from "./paths.ts";
 export async function ensureAiWorkspaceLinks(paths: GeneratorPaths, dryRun: boolean): Promise<void> {
   await ensureAiWorkspaceDir(paths, dryRun);
   await ensureAiShareWorkspaceLink(paths, dryRun);
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
   await ensureAiMemoryWorkspaceLink(paths, dryRun);
 }
 
@@ -62,6 +63,11 @@ async function ensureAiShareWorkspaceLink(paths: GeneratorPaths, dryRun: boolean
   await createDirectoryLink("ai-share", sourcePath, targetPath);
 }
 
+/**
+ * @deprecated ai-memory 已不再作为独立仓库维护。`memory/` 目录已完全整合到 ai-share 仓库内，
+ * 通过 `buildInstructionsPaths()` 直接读取。此函数保留以处理遗留的 `../ai-memory` 目录链接。
+ * 在未来的版本中可能被移除。
+ */
 export async function ensureAiMemoryWorkspaceLink(paths: GeneratorPaths, dryRun: boolean): Promise<void> {
   const sourcePath = paths.externalAiMemoryDir;
   const targetPath = paths.workspaceAiMemoryDir;

@@ -3,6 +3,7 @@ import { cp, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import type { GeneratorPaths } from "./paths.ts";
 import { pathExists } from "./fs.ts";
+import { scanPlugins } from "./plugin-scanner.ts";
 import { NATIVE_SKILLS } from "./native-skills.ts";
 
 export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): Promise<void> {
@@ -63,12 +64,14 @@ export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): 
 }
 
 export async function installPlugins(paths: GeneratorPaths, dryRun: boolean): Promise<void> {
-  const pluginDirectories = ["omo-agent-monitor", "dingtalk-notifier", "live2d-pet"];
+  const scanResults = scanPlugins(paths.pluginDir);
+  const validPluginDirs = scanResults.filter((r) => r.manifest !== null).map((r) => r.dirName);
+
   if (dryRun) {
-    for (const directoryName of pluginDirectories) {
-      console.log(`将安装 OpenCode 本地插件：${resolve(paths.targetPluginDir, directoryName)}`);
-      if (directoryName === "live2d-pet") {
-        console.log(`将安装 Live2D pet 桌面壳源码：${resolve(paths.targetPluginDir, directoryName, "src-tauri")}`);
+    for (const dirName of validPluginDirs) {
+      console.log(`将安装 OpenCode 本地插件：${resolve(paths.targetPluginDir, dirName)}`);
+      if (dirName === "live2d-pet") {
+        console.log(`将安装 Live2D pet 桌面壳源码：${resolve(paths.targetPluginDir, dirName, "src-tauri")}`);
         console.log(`如已构建，将安装 Live2D pet 桌面壳二进制：${live2dPetInstalledBinary(paths)}`);
       }
     }
@@ -76,9 +79,9 @@ export async function installPlugins(paths: GeneratorPaths, dryRun: boolean): Pr
   }
 
   await mkdir(paths.targetPluginDir, { recursive: true });
-  for (const directoryName of pluginDirectories) {
-    const builtPluginDir = await buildPlugin(paths, directoryName);
-    await cp(builtPluginDir, resolve(paths.targetPluginDir, directoryName), {
+  for (const dirName of validPluginDirs) {
+    const builtPluginDir = await buildPlugin(paths, dirName);
+    await cp(builtPluginDir, resolve(paths.targetPluginDir, dirName), {
       recursive: true,
       force: true,
     });

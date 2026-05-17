@@ -1,0 +1,67 @@
+{
+  "active_plan": "D:\\ai-share\\.sisyphus\\plans\\ai-share-strategic-roadmap.md",
+  "started_at": "2026-05-14T19:01:33.151Z",
+  "session_ids": [
+    "ses_1d8226cbcffezgnsmfZW543rvZ"
+  ],
+  "session_origins": {
+    "ses_1d8226cbcffezgnsmfZW543rvZ": "direct"
+  },
+  "plan_name": "ai-share-strategic-roadmap",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "**记忆迁移脚本：从 ai-memory 迁移到 ai-share/memory/**",
+      "session_id": "ses_1d82161d6ffe1UmbnqrjxkU6EI",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-14T19:04:11.270Z"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "**更新 memory-loader 移除外部 ai-memory 路径依赖**",
+      "session_id": "ses_1d81f612fffeEiH6vCaWO615lN",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-14T19:05:52.133Z"
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "**更新 buildInstructionsPaths 单仓库逻辑 + 移除双路径**",
+      "session_id": "ses_1d81d5230ffe5FilUgvW5bbjyE",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-14T19:08:54.325Z"
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "**YAML schema 业务规则校验器**",
+      "session_id": "ses_1d81b1b2fffetEiQFUVi4p1Lx8",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-14T19:12:34.940Z"
+    },
+    "todo:6": {
+      "task_key": "todo:6",
+      "task_label": "6",
+      "task_title": "**生成器 JSON snapshot 测试体系 + 测试 fixture 基础设施**",
+      "session_id": "ses_1d817be3fffevuS32mGX4XAO1f",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-14T19:15:57.490Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "**Plan Compliance Audit** — `oracle`",
+      "session_id": "ses_1d7ee5577ffeYzUpEsI7XbZgcS",
+      "agent": "oracle",
+      "updated_at": "2026-05-14T20:06:47.254Z"
+    }
+  }
+}

@@ -1,5 +1,9 @@
 default_profile: balanced
 
+# Version compatibility requirements
+opencode_min_version: 0.23.0
+omo_min_version: 3.17.5
+
 env:
   mode: dev # dev / staging / prod
   log_level: info # debug / info / warn / error

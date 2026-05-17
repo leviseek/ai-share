@@ -1,0 +1,80 @@
+# memory-policy — 记忆治理规则
+# 定义 ai-memory 仓库中各类记忆的生命周期和操作约束
+# 目标是保持记忆可靠、可追溯、低成本维护
+
+name: memory-policy
+description: 记忆生命周期管理规则
+
+# ---- 存储层级 ----
+
+layers:
+  stable:
+    description: 已确认的稳定记忆
+    path: stable/
+    lifecycle: 一旦确认写入即为不可变，仅通过新增版本更新
+    rules:
+      - 提交前必须经过 human 确认
+      - 确认后不允许直接修改；如有修正需求，写入新版本并记录变更原因
+      - 版本号格式：v{major}.{minor}，major 为内容结构性变更
+
+  inferred:
+    description: AI 推断得出的记忆
+    path: inferred/
+    lifecycle: 必须经过 human review 后才能转入 stable
+    rules:
+      - AI 可自动写入推断内容
+      - 写入后需要通知 human 审查
+      - 审查通过后手动迁移到 stable/ 或 distilled/
+      - 审查不通过则删除或标记为 rejected
+      - 超过 30 天未审查的条目自动标记为 stale
+
+  runtime:
+    description: 运行时临时记忆
+    path: runtime/
+    lifecycle: 仅当前会话有效，不持久化到仓库
+    rules:
+      - 用于工作流状态、临时笔记、会话上下文
+      - 不提交到 Git
+      - 会话结束后自动清理
+      - 有价值的内容应提炼后写入 inferred/ 或 distilled/
+
+  distilled:
+    description: 经过人工提炼和组织的知识
+    path: distilled/
+    lifecycle: 由 inferred 或 stable 中提炼的精华知识
+    rules:
+      - 人工筛选、组织和重写的结构化知识
+      - 进入 distilled 前需经过 human review
+      - 一旦发布即为不可变，如需更新走版本追加
+
+  sync:
+    description: 跨设备同步暂存
+    path: sync/
+    lifecycle: Git 同步中间层，不直接读写
+    rules:
+      - 由同步脚本自动管理
+      - 不手动编辑此目录
+      - 冲突时以最近修改为准
+
+# ---- 写入策略 ----
+
+write_policy:
+  # 所有写入 stable/distilled 的操作需要 human 确认
+  human_confirmation_required:
+    - stable
+    - distilled
+
+  # AI 可自动写入 inferred，但需要标记来源
+  ai_auto_write:
+    - inferred
+    - runtime
+
+# ---- 反模式 ----
+
+anti_patterns:
+  - 把整个对话历史存入 memory：应提炼关键信息，不保留原始对话
+  - 重复存储相同信息：写入前检查是否已有等价条目
+  - 不标记信息来源：每项记忆应注明来源（AI 推断 / 人工总结 / 外部文档）
+  - 过度结构化：记忆的价值在于可检索和可理解，不需要严格的分类层级
+  - 不及时清理 stale 条目：过时记忆应标记或删除，避免干扰决策
+  - 把 API Key 和密钥存入 memory：只存引用方式，不存真实凭证

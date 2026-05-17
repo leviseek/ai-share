@@ -1,0 +1,13 @@
+{
+  "name": "live2d-pet",
+  "version": "0.1.0",
+  "description": "Live2D pet TUI command and desktop/Tauri pet window",
+  "source_url": "https://github.com/leviseek/ai-share",
+  "permissions": ["fs:read", "network:external", "exec:shell"],
+  "aioc_compatible": true,
+  "entrypoints": {
+    "server": "server.ts",
+    "tui": "tui.ts",
+    "standalone": "standalone.ts"
+  }
+}

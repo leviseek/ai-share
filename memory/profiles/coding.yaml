@@ -1,0 +1,30 @@
+# coding profile — 代码实施优先
+# 用于日常编码、调试、代码审查和架构调整
+# 强调 codex/coding 模型的代码能力，辅以深度推理处理复杂 bug
+
+name: coding
+description: 代码实施优先模式，适合日常编码和调试
+
+model_roles:
+  primary:
+    gpt-5.3-codex
+    # 编码专用模型，代码生成和理解能力最强
+  reasoning:
+    deepseek-v4-pro-think
+    # 深度推理，用于分析复杂 bug 和架构决策
+  fast:
+    gpt-5.4-mini
+    # 快速搜索、文件浏览、轻量重构
+
+use_case:
+  - 日常编码与功能实现
+  - 代码审查与重构
+  - 调试与根因分析
+  - 代码库探索
+
+context_hint:
+  # 中等上下文预算，代码密集型任务需要足够空间
+  primary_context: 65000 tokens
+  max_input: 120000 tokens
+  compaction_model: fast
+  checkpoint_trigger: before-edit-and-before-risky-change

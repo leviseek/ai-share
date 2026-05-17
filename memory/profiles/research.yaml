@@ -1,0 +1,30 @@
+# research profile — 深度研究模式
+# 用于架构调研、技术选型、根因分析和复杂问题拆解
+# deepseek 深度优先，扩大上下文窗口容纳完整分析
+
+name: research
+description: 深度研究模式，适合架构决策和技术调研
+
+model_roles:
+  primary:
+    gpt-5.5
+    # 通用最强模型，理解能力和指令跟随最好
+  reasoning:
+    deepseek-v4-pro-think-max
+    # 深度推理增强版，长链推理和复杂分析
+  fast:
+    gpt-5.4-mini
+    # 检索和基础操作，不消耗推理配额
+
+use_case:
+  - 技术调研与技术选型
+  - 架构设计与决策分析
+  - 复杂 bug 根因深度分析
+  - 大型代码库理解与文档梳理
+
+context_hint:
+  # 大上下文窗口，容纳完整分析和证据链
+  primary_context: 100000 tokens
+  max_input: 180000 tokens
+  compaction_model: reasoning
+  strategy: evidence-summary

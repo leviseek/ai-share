@@ -30,7 +30,6 @@ export function printCheckSummary(input: {
   } else {
     console.log(color.green("API Key 环境变量已设置。"));
   }
-  process.exit(0);
 }
 
 export function printGenerationSummary(input: {

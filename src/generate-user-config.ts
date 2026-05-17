@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+import { existsSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { AgentsYaml, GlobalProxy, GlobalYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "./types.ts";
@@ -23,6 +24,8 @@ import { writeJson } from "./cli/fs.ts";
 import { installLaunchers, installNativeSkills, installPlugins } from "./cli/install.ts";
 import { ensureAiWorkspaceLinks } from "./cli/memory-link.ts";
 import { parseCliOptions } from "./cli/options.ts";
+import { scanPlugins, formatPluginScan } from "./cli/plugin-scanner.ts";
+import { color } from "./cli/color.ts";
 import { printCheckSummary, printGenerationSummary } from "./cli/output.ts";
 import {
   buildGeneratorPaths,
@@ -32,14 +35,23 @@ import {
   profileOpenCodePath,
   profileStrategyPath,
 } from "./cli/paths.ts";
-import { agentRegistryMismatches } from "./cli/registry-check.ts";
+import { agentRegistryMismatches, checkVersions } from "./cli/registry-check.ts";
+import { validateYamlConsistency } from "./config/validation.ts";
 import { parseYamlObject } from "./yaml.ts";
 
 const cliOptions = parseCliOptions();
 const { force, dryRun, checkOnly, providerGroups } = cliOptions;
 const paths = buildGeneratorPaths();
 
-if (!checkOnly) await ensureAiWorkspaceLinks(paths, dryRun);
+if (!checkOnly) {
+  await ensureAiWorkspaceLinks(paths, dryRun);
+  // Deprecation notice: ai-memory external repo no longer needed
+  if (existsSync(resolve(paths.projectRoot, "..", "ai-memory"))) {
+    console.warn(
+      `${color.yellow("检测到 ../ai-memory 仓库仍存在")}：记忆已迁移到 ${color.cyan("memory/")}，外部 ai-memory 已不再使用。请手动归档此目录。`,
+    );
+  }
+}
 
 const [globalConfig, providersConfig, modelsConfig, profilesConfig, agentsConfig] = await Promise.all([
   loadYaml<GlobalYaml>("global.yaml"),
@@ -63,6 +75,16 @@ const missingApiKeys = missingProviderApiKeyEnvNames(providers);
 const registryMismatches = await agentRegistryMismatches(paths.pluginDir, agentsConfig);
 
 if (checkOnly) {
+  const checkValidationErrors = validateYamlConsistency(profilesConfig, modelsConfig, providersConfig, globalConfig);
+  if (checkValidationErrors.length > 0) {
+    for (const err of checkValidationErrors) {
+      console.error(`${color.yellow(`[${err.file}]`)} ${err.message}（${err.path}）`);
+    }
+    if (!force) {
+      console.error("校验失败。使用 --force 可忽略校验继续生成。");
+      process.exit(1);
+    }
+  }
   printCheckSummary({
     selectedOpenCodeProviderCount: Object.keys(selectedOpenCodeConfig.provider).length,
     configuredProviderCount: Object.keys(providers).length,
@@ -73,11 +95,40 @@ if (checkOnly) {
     missingApiKeys,
     registryMismatches,
   });
+
+  // Version compatibility checks
+  const versionResults = checkVersions(globalConfig, paths.pluginDir);
+  if (versionResults.length > 0) {
+    console.log("");
+    for (const vr of versionResults) {
+      if (!vr.ok) {
+        console.warn(`${color.yellow(vr.name)} 版本 ${vr.current} 低于最低要求 ${vr.minimum}。建议升级。`);
+      } else {
+        console.log(`${color.green("✓")} ${vr.name} 版本 ${vr.current}（最低要求 ${vr.minimum}，通过）`);
+      }
+    }
+  }
+
+  // Plugin manifest auto-discovery
+  const pluginScan = scanPlugins(paths.pluginDir);
+  console.log(`\n本地插件扫描（${pluginScan.length} 个目录）：`);
+  console.log(formatPluginScan(pluginScan));
+
   process.exit(0);
 }
 
 if (registryMismatches.length > 0) {
   throw new Error(`OMO monitor agent registry 与 config/agents.yaml 不一致：${registryMismatches.join(" / ")}`);
+}
+
+const genValidationErrors = validateYamlConsistency(profilesConfig, modelsConfig, providersConfig, globalConfig);
+if (genValidationErrors.length > 0) {
+  for (const err of genValidationErrors) {
+    console.error(`${color.yellow(`[${err.file}]`)} ${err.message}（${err.path}）`);
+  }
+  if (!force) {
+    throw new Error("YAML 配置校验失败。使用 --force 可忽略。");
+  }
 }
 
 if (!dryRun) await mkdir(paths.targetConfigDir, { recursive: true });
