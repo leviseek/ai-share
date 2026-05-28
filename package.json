@@ -9,6 +9,7 @@
     "check": "bun run format:check && bun run lint && bun run typecheck && bun run ai:check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "ai:bootstrap": "bun run ./src/cli/bootstrap.ts",
     "ai:gen": "bun run ./src/generate-user-config.ts",
     "live2d-pet:build": "cd plugins/live2d-pet/src-tauri && bun x @tauri-apps/cli build",
     "lint": "eslint .",

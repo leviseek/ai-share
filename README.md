@@ -16,6 +16,20 @@
 
 ## 使用
 
+新电脑从零同步后，推荐在仓库根目录直接执行 bootstrap。它会安装依赖、检查配置、生成并安装用户级 Codex+OMX/OpenCode 配置，然后运行 `aiomx doctor install`：
+
+```sh
+bun run ai:bootstrap
+```
+
+如果只是想跳过 `bun install`，可运行：
+
+```sh
+bun run ai:bootstrap -- --skip-install
+```
+
+bootstrap 要求本机已安装 Bun、Codex CLI、OMX，并且已在环境变量中设置所需 API Key；缺失时会在检查阶段输出具体变量名，不会写入真实密钥。
+
 安装依赖：
 
 ```sh
