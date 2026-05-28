@@ -113,6 +113,7 @@ if (checkOnly) {
     modelGroups: modelProviderGroups(modelsConfig),
     profileIds: Object.keys(ohMyOpenAgentConfigs),
     codexProfileIds: Object.keys(codexCliConfigs),
+    mcpServerIds: Object.keys(mcpConfig.servers ?? {}),
     codexHome: paths.targetCodexConfigDir,
     selectedDefaultProfileId,
     providerGroups,
@@ -221,7 +222,12 @@ await writeJson(paths.targetOmxConfig, requireValue(omxConfigs[selectedDefaultPr
 });
 await writeJson(
   paths.targetRuntimeManifest,
-  buildRuntimeManifest(paths, Object.keys(codexCliConfigs), Object.keys(codexAgentConfigs)),
+  buildRuntimeManifest(
+    paths,
+    Object.keys(codexCliConfigs),
+    Object.keys(codexAgentConfigs),
+    Object.keys(mcpConfig.servers ?? {}),
+  ),
   { dryRun, force },
 );
 await writeJson(
@@ -303,10 +309,16 @@ type RuntimeManifest = {
     omx_profiles: string[];
     opencode_profiles: string[];
     codex_agents: string[];
+    mcp_servers: string[];
   };
 };
 
-function buildRuntimeManifest(paths: GeneratorPaths, profileIds: string[], agentIds: string[]): RuntimeManifest {
+function buildRuntimeManifest(
+  paths: GeneratorPaths,
+  profileIds: string[],
+  agentIds: string[],
+  mcpServerIds: string[],
+): RuntimeManifest {
   return {
     version: 1,
     scope: "user",
@@ -330,6 +342,7 @@ function buildRuntimeManifest(paths: GeneratorPaths, profileIds: string[], agent
       omx_profiles: profileIds,
       opencode_profiles: profileIds,
       codex_agents: agentIds,
+      mcp_servers: mcpServerIds,
     },
   };
 }
