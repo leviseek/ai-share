@@ -724,7 +724,10 @@ config/provider.yaml  -> 模型提供商、baseURL、API Key 环境变量名
 config/models.yaml    -> 模型列表、provider/provider_group、上游模型名、参数、fallback
 config/profiles.yaml  -> OMO 编排级别、模型角色映射和 profile 级策略覆盖；默认级别由 global.yaml 的 default_profile 指定
 config/agents.yaml    -> oh-my-openagent agents/categories/runtime_fallback/background_task
+config/mcp.yaml       -> 用户级 Codex MCP servers；HTTP token 使用 bearer_token_env_var，stdio 敏感 env 使用 ${ENV_NAME} 占位
 ```
+
+`config/mcp.yaml` 不允许写入明文 token/cookie/API key。`bun run ai:check` 会阻止 HTTP MCP URL 中的敏感查询参数，也会阻止 stdio MCP 的敏感 env 写成明文。
 
 修改这些 YAML 后，运行：
 

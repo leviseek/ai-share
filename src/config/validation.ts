@@ -132,6 +132,14 @@ export function validateYamlConsistency(
           path: `servers.${serverId}.url`,
           message: `HTTP MCP server '${serverId}' 缺少 url 字段`,
         });
+      } else {
+        for (const queryKey of sensitiveUrlQueryKeys(server.url)) {
+          errors.push({
+            file: "mcp.yaml",
+            path: `servers.${serverId}.url`,
+            message: `HTTP MCP server '${serverId}' 的 url 不应包含敏感查询参数 '${queryKey}'，请改用 bearer_token_env_var 或 OAuth 环境变量`,
+          });
+        }
       }
       if (server.command) {
         errors.push({
@@ -164,6 +172,7 @@ export function validateYamlConsistency(
         message: `stdio MCP server '${serverId}' 不应配置 url 字段`,
       });
     }
+    validateMcpEnv(errors, serverId, server.env);
   }
 
   return errors;
@@ -171,4 +180,54 @@ export function validateYamlConsistency(
 
 function isEnvName(value: string): boolean {
   return /^[A-Z_][A-Z0-9_]*$/.test(value);
+}
+
+function validateMcpEnv(errors: ValidationError[], serverId: string, env: Record<string, string> | undefined): void {
+  for (const [envKey, envValue] of Object.entries(env ?? {})) {
+    if (!isEnvName(envKey)) {
+      errors.push({
+        file: "mcp.yaml",
+        path: `servers.${serverId}.env.${envKey}`,
+        message: `stdio MCP server '${serverId}' 的 env key '${envKey}' 必须是环境变量名`,
+      });
+    }
+
+    if (isSensitiveName(envKey) && !isEnvReference(envValue)) {
+      errors.push({
+        file: "mcp.yaml",
+        path: `servers.${serverId}.env.${envKey}`,
+        message: `stdio MCP server '${serverId}' 的敏感 env '${envKey}' 必须使用 \${ENV_NAME} 占位，不允许写入明文`,
+      });
+    }
+
+    if (looksLikeSecretLiteral(envValue)) {
+      errors.push({
+        file: "mcp.yaml",
+        path: `servers.${serverId}.env.${envKey}`,
+        message: `stdio MCP server '${serverId}' 的 env '${envKey}' 疑似包含明文 secret，请改为 \${ENV_NAME} 环境变量引用`,
+      });
+    }
+  }
+}
+
+function sensitiveUrlQueryKeys(url: string): string[] {
+  try {
+    return [...new URL(url).searchParams.keys()].filter(isSensitiveName);
+  } catch {
+    return [];
+  }
+}
+
+function isSensitiveName(value: string): boolean {
+  return /(API[_-]?KEY|TOKEN|SECRET|PASSWORD|PASSWD|COOKIE|AUTH|BEARER|ACCESS[_-]?KEY|PRIVATE[_-]?KEY)/i.test(value);
+}
+
+function isEnvReference(value: string): boolean {
+  return /^\$\{[A-Z_][A-Z0-9_]*\}$/.test(value);
+}
+
+function looksLikeSecretLiteral(value: string): boolean {
+  return /^(sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]+|xox[baprs]-[A-Za-z0-9-]{20,}|SEC[A-Za-z0-9]{16,}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/.test(
+    value,
+  );
 }

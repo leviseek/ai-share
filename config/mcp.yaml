@@ -7,9 +7,14 @@
 #     transport: http
 #     url: https://example.com/mcp
 #     bearer_token_env_var: DOCS_MCP_TOKEN
+#     # 不要把 access_token/api_key/token 放进 url 查询参数。
 #   local-tool:
 #     transport: stdio
 #     command: node
 #     args:
 #       - server.js
+#     # 对 TOKEN / SECRET / API_KEY / COOKIE 等敏感 env，必须写成 ${ENV_NAME} 占位。
+#     # 生成器只同步占位，不写入真实密钥。
+#     env:
+#       LOCAL_TOOL_API_KEY: ${LOCAL_TOOL_API_KEY}
 servers:
