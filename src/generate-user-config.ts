@@ -111,6 +111,8 @@ if (checkOnly) {
     configuredProviderCount: Object.keys(providers).length,
     modelGroups: modelProviderGroups(modelsConfig),
     profileIds: Object.keys(ohMyOpenAgentConfigs),
+    codexProfileIds: Object.keys(codexCliConfigs),
+    codexHome: paths.targetCodexConfigDir,
     selectedDefaultProfileId,
     providerGroups,
     missingApiKeys,

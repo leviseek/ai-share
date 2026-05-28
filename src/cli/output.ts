@@ -7,6 +7,8 @@ export function printCheckSummary(input: {
   configuredProviderCount: number;
   modelGroups: string[];
   profileIds: string[];
+  codexProfileIds: string[];
+  codexHome: string;
   selectedDefaultProfileId: string;
   providerGroups: ProviderGroupMap;
   missingApiKeys: string[];
@@ -17,6 +19,8 @@ export function printCheckSummary(input: {
   console.log(`${color.cyan("已配置 provider 数量")}：${color.bold(String(input.configuredProviderCount))}`);
   console.log(`${color.cyan("模型分组")}：${color.magenta(input.modelGroups.join(" / "))}`);
   console.log(`${color.cyan("OMO 编排级别")}：${color.magenta(input.profileIds.join(" / "))}`);
+  console.log(`${color.cyan("Codex CLI profile")}：${color.magenta(input.codexProfileIds.join(" / "))}`);
+  console.log(`${color.cyan("Codex home")}：${color.bold(input.codexHome)}`);
   console.log(`${color.cyan("默认 OMO 编排级别")}：${color.bold(input.selectedDefaultProfileId)}`);
   console.log(`${color.cyan("模型组提供商")}：${formatProviderGroups(input.providerGroups)}`);
   if (input.missingApiKeys.length > 0) {
