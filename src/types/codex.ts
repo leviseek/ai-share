@@ -22,6 +22,8 @@ export type CodexCliAgentsConfig = {
 export type CodexAgentConfig = {
   name: string;
   description: string;
+  model?: string;
+  sandbox_mode?: "read-only";
   developer_instructions: string;
 };
 

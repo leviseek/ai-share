@@ -51,13 +51,21 @@ export function buildCodexInstructions(projectRoot: string, profileId: string): 
   ].join("\n");
 }
 
-export function buildCodexAgentConfigs(agentsConfig: AgentsYaml): Record<string, CodexAgentConfig> {
+export function buildCodexAgentConfigs(
+  agentsConfig: AgentsYaml,
+  modelSources: ModelsYaml,
+  profilesConfig: ProfilesYaml,
+  profileId: string,
+): Record<string, CodexAgentConfig> {
+  const profileModels = requireRecord(profilesConfig[profileId]?.models, `profiles.${profileId}.models`);
   return Object.fromEntries(
     Object.entries(requireRecord(agentsConfig.agents, "agents")).map(([agentId, agent]) => [
       agentId,
       {
         name: agentId,
         description: `ai-share ${agentId} agent migrated from OpenCode/OMO configuration`,
+        ...(agent.model ? { model: upstreamModelName(agent.model, modelSources, profileModels) } : {}),
+        ...(agent.permission?.edit === "deny" ? { sandbox_mode: "read-only" as const } : {}),
         developer_instructions: [sharedPromptAppend(agentsConfig), agent.prompt?.append ?? agent.prompt?.system]
           .map((part) => part?.trim())
           .filter((part): part is string => Boolean(part))
@@ -110,6 +118,8 @@ export function formatCodexAgentToml(config: CodexAgentConfig): string {
   return `${[
     `name = ${tomlString(config.name)}`,
     `description = ${tomlString(config.description)}`,
+    ...(config.model ? [`model = ${tomlString(config.model)}`] : []),
+    ...(config.sandbox_mode ? [`sandbox_mode = ${tomlString(config.sandbox_mode)}`] : []),
     `developer_instructions = ${tomlMultilineBasicString(config.developer_instructions || "Follow the shared ai-share instructions.")}`,
   ].join("\n")}\n`;
 }

@@ -79,13 +79,13 @@ const aiocOpenCodeConfigs = buildAiocOpenCodeConfigs(openCodeConfigs, globalConf
 const codexCliConfigs = buildCodexCliConfigs(providers, models, profilesConfig, (profileId) =>
   profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
 );
-const codexAgentConfigs = buildCodexAgentConfigs(agentsConfig);
+const selectedDefaultProfileId = defaultProfileId(globalConfig, profilesConfig);
+const codexAgentConfigs = buildCodexAgentConfigs(agentsConfig, models, profilesConfig, selectedDefaultProfileId);
 const tuiConfig = buildTuiConfig(globalConfig);
 const ohMyOpenAgentConfigs = buildOhMyOpenAgentConfigs(models, profilesConfig, agentsConfig);
 const omxConfigs = buildOmxConfigs(models, profilesConfig);
 const strategyConfigs = buildStrategyConfigs(globalConfig, profilesConfig, agentsConfig);
 const contextGuardProfileConfigs = buildContextGuardProfileConfigs(globalConfig, profilesConfig);
-const selectedDefaultProfileId = defaultProfileId(globalConfig, profilesConfig);
 const selectedOpenCodeConfig = requireValue(openCodeConfigs[selectedDefaultProfileId], "默认 OpenCode profile");
 const selectedCodexCliConfig = requireValue(codexCliConfigs[selectedDefaultProfileId], "默认 Codex profile");
 const selectedCodexBaseConfig = {
