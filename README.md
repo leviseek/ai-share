@@ -1,15 +1,18 @@
 # ai-share
 
-这个仓库用于集中管理多台电脑、多个项目共用的 OpenCode 与 oh-my-openagent 配置。
+这个仓库用于集中管理多台电脑、多个项目共用的 AI 配置、技能、插件、提示词和用户级记忆。
+
+当前主线是 **Codex + OMX**：新电脑同步本仓库后，应能恢复用户级 AI 执行环境并直接启动 Codex/OMX 会话。**OpenCode + OMO** 保留为最小兼容备选。
 
 主要目标：
 
 - 以 `config/*.yaml` 作为唯一权威配置源，统一维护模型提供商、模型列表、默认模型和 agents/categories。
-- 从 YAML 生成用户级 OpenCode 配置，避免在多个静态 JSON/JSONC 文件之间手工同步。
+- 从 YAML 生成用户级 Codex/OMX 主配置，并保留 OpenCode/OMO 最小兼容输出。
+- 同步用户级 skills、agents、plugins、prompts、AGENTS.md 和运行时清单。
 - 统一维护通用 AI 协作规范和 Git 提交规范。
 - 通过 Git 在不同电脑之间同步配置源。
 - API Key 不写入仓库，只通过环境变量引用。
-- `memory/` 提供持久化用户级记忆，跨项目跨设备注入 AI 工作流。
+- `memory/` 提供持久化用户级记忆，v1 负责加载与同步，记忆蒸馏流水线留到 v2。
 
 ## 使用
 
@@ -63,7 +66,7 @@ AI_SHARE_GPT_PROVIDER=packyapi bun run ai:gen -- --force
 AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ```
 
-生成结果位于当前用户的 OpenCode 配置目录：
+生成结果位于当前用户的 Codex / OpenCode 用户级配置目录。Codex 目录优先读取 `CODEX_HOME`，未设置时使用 `~/.codex`：
 
 ```text
 ~/.config/opencode/opencode.json
