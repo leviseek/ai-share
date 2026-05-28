@@ -3,6 +3,9 @@ import type {
   CodexAgentConfig,
   CodexCliProfileConfig,
   CodexCliProvider,
+  CodexMcpServer,
+  McpYaml,
+  McpServerSource,
   ModelRoleMap,
   ModelsYaml,
   OmxConfig,
@@ -17,6 +20,7 @@ export function buildCodexCliConfigs(
   providerSources: Record<string, ProviderSource>,
   modelSources: ModelsYaml,
   profilesConfig: ProfilesYaml,
+  mcpConfig: McpYaml,
   instructionsFileForProfile: (profileId: string) => string,
 ): Record<string, CodexCliProfileConfig> {
   return Object.fromEntries(
@@ -26,6 +30,7 @@ export function buildCodexCliConfigs(
         providerSources,
         modelSources,
         profilesConfig,
+        mcpConfig,
         profileId,
         instructionsFileForProfile(profileId),
       ),
@@ -111,6 +116,24 @@ export function formatCodexConfigToml(config: CodexCliProfileConfig): string {
     lines.push("");
   }
 
+  for (const [serverId, server] of Object.entries(config.mcp_servers ?? {})) {
+    lines.push(`[mcp_servers.${tomlBareKey(serverId)}]`);
+    if (server.command) lines.push(`command = ${tomlString(server.command)}`);
+    if (server.args) lines.push(`args = ${tomlStringArray(server.args)}`);
+    if (server.url) lines.push(`url = ${tomlString(server.url)}`);
+    if (server.bearer_token_env_var) lines.push(`bearer_token_env_var = ${tomlString(server.bearer_token_env_var)}`);
+    if (server.oauth_client_id) lines.push(`oauth_client_id = ${tomlString(server.oauth_client_id)}`);
+    if (server.oauth_resource) lines.push(`oauth_resource = ${tomlString(server.oauth_resource)}`);
+    if (server.env && Object.keys(server.env).length > 0) {
+      lines.push("");
+      lines.push(`[mcp_servers.${tomlBareKey(serverId)}.env]`);
+      for (const [envKey, envValue] of Object.entries(server.env)) {
+        lines.push(`${tomlBareKey(envKey)} = ${tomlString(envValue)}`);
+      }
+    }
+    lines.push("");
+  }
+
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
@@ -128,6 +151,7 @@ function buildCodexCliConfig(
   providerSources: Record<string, ProviderSource>,
   modelSources: ModelsYaml,
   profilesConfig: ProfilesYaml,
+  mcpConfig: McpYaml,
   profileId: string,
   instructionsFile: string,
 ): CodexCliProfileConfig {
@@ -145,6 +169,7 @@ function buildCodexCliConfig(
     model_instructions_file: instructionsFile,
     agents: { max_threads: 6, max_depth: 2, job_max_runtime_seconds: 600 },
     model_providers: buildCodexProviders(providerSources),
+    ...nonEmptyMcpServers(buildCodexMcpServers(mcpConfig)),
   };
 }
 
@@ -188,6 +213,36 @@ function buildCodexProviders(providerSources: Record<string, ProviderSource>): R
   );
 }
 
+function buildCodexMcpServers(mcpConfig: McpYaml): Record<string, CodexMcpServer> {
+  return Object.fromEntries(
+    Object.entries(mcpConfig.servers ?? {}).map(([serverId, server]) => [
+      serverId,
+      buildCodexMcpServer(serverId, server),
+    ]),
+  );
+}
+
+function buildCodexMcpServer(serverId: string, server: McpServerSource): CodexMcpServer {
+  if (server.transport === "http" || server.url) {
+    return {
+      url: requireString(server.url, `mcp.servers.${serverId}.url`),
+      ...(server.bearer_token_env_var ? { bearer_token_env_var: server.bearer_token_env_var } : {}),
+      ...(server.oauth_client_id ? { oauth_client_id: server.oauth_client_id } : {}),
+      ...(server.oauth_resource ? { oauth_resource: server.oauth_resource } : {}),
+    };
+  }
+
+  return {
+    command: requireString(server.command, `mcp.servers.${serverId}.command`),
+    ...(server.args ? { args: server.args } : {}),
+    ...(server.env ? { env: server.env } : {}),
+  };
+}
+
+function nonEmptyMcpServers(servers: Record<string, CodexMcpServer>): Pick<CodexCliProfileConfig, "mcp_servers"> {
+  return Object.keys(servers).length > 0 ? { mcp_servers: servers } : {};
+}
+
 function upstreamModelName(modelRole: string, modelSources: ModelsYaml, profileModels: ModelRoleMap): string {
   const ref = modelRef(modelRole, modelSources, profileModels);
   const modelId = modelIdFromRef(ref);
@@ -223,6 +278,10 @@ function tomlBareKey(value: string): string {
 
 function tomlString(value: string): string {
   return JSON.stringify(value);
+}
+
+function tomlStringArray(values: string[]): string {
+  return `[${values.map(tomlString).join(", ")}]`;
 }
 
 function tomlMultilineBasicString(value: string): string {

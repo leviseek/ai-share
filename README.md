@@ -1,6 +1,6 @@
 # ai-share
 
-这个仓库用于集中管理多台电脑、多个项目共用的 AI 配置、技能、插件、提示词和用户级记忆。
+这个仓库用于集中管理多台电脑、多个项目共用的 AI 配置、MCP、技能、插件、提示词和用户级记忆。
 
 当前主线是 **Codex + OMX**：新电脑同步本仓库后，应能恢复用户级 AI 执行环境并直接启动 Codex/OMX 会话。**OpenCode + OMO** 保留为最小兼容备选。
 
@@ -8,7 +8,7 @@
 
 - 以 `config/*.yaml` 作为唯一权威配置源，统一维护模型提供商、模型列表、默认模型和 agents/categories。
 - 从 YAML 生成用户级 Codex/OMX 主配置，并保留 OpenCode/OMO 最小兼容输出。
-- 同步用户级 skills、agents、plugins、prompts、AGENTS.md 和运行时清单。
+- 同步用户级 MCP、skills、agents、plugins、prompts、AGENTS.md 和运行时清单。
 - 统一维护通用 AI 协作规范和 Git 提交规范。
 - 通过 Git 在不同电脑之间同步配置源。
 - API Key 不写入仓库，只通过环境变量引用。

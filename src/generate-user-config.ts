@@ -3,7 +3,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { AgentsYaml, GlobalProxy, GlobalYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "./types.ts";
+import type { AgentsYaml, GlobalProxy, GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "./types.ts";
 import {
   applyProviderGroups,
   buildAiocOpenCodeConfigs,
@@ -64,19 +64,20 @@ if (!checkOnly) {
   }
 }
 
-const [globalConfig, providersConfig, modelsConfig, profilesConfig, agentsConfig] = await Promise.all([
+const [globalConfig, providersConfig, modelsConfig, profilesConfig, agentsConfig, mcpConfig] = await Promise.all([
   loadYaml<GlobalYaml>("global.yaml"),
   loadYaml<ProviderYaml>("provider.yaml"),
   loadYaml<ModelsYaml>("models.yaml"),
   loadYaml<ProfilesYaml>("profiles.yaml"),
   loadYaml<AgentsYaml>("agents.yaml"),
+  loadYaml<McpYaml>("mcp.yaml"),
 ]);
 
 const providers = providersConfig.providers ?? {};
 const models = applyProviderGroups(modelsConfig, providers, providerGroups);
 const openCodeConfigs = buildOpenCodeConfigs(paths.projectRoot, globalConfig, providers, models, profilesConfig);
 const aiocOpenCodeConfigs = buildAiocOpenCodeConfigs(openCodeConfigs, globalConfig);
-const codexCliConfigs = buildCodexCliConfigs(providers, models, profilesConfig, (profileId) =>
+const codexCliConfigs = buildCodexCliConfigs(providers, models, profilesConfig, mcpConfig, (profileId) =>
   profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
 );
 const selectedDefaultProfileId = defaultProfileId(globalConfig, profilesConfig);

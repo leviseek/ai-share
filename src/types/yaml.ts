@@ -8,6 +8,21 @@ export type ProviderYaml = {
   providers?: Record<string, ProviderSource>;
 };
 
+export type McpYaml = {
+  servers?: Record<string, McpServerSource>;
+};
+
+export type McpServerSource = {
+  transport?: "stdio" | "http";
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string;
+  bearer_token_env_var?: string;
+  oauth_client_id?: string;
+  oauth_resource?: string;
+};
+
 export type ProviderSource = {
   name?: string;
   short_name?: string;

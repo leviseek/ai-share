@@ -1,0 +1,15 @@
+# 用户级 MCP server 源配置。
+# v1 只负责同步配置，不写入真实密钥；token/cookie 等敏感值必须通过环境变量引用。
+#
+# 示例：
+# servers:
+#   docs:
+#     transport: http
+#     url: https://example.com/mcp
+#     bearer_token_env_var: DOCS_MCP_TOKEN
+#   local-tool:
+#     transport: stdio
+#     command: node
+#     args:
+#       - server.js
+servers:

@@ -4,6 +4,7 @@ export type CodexCliProfileConfig = {
   model_reasoning_effort?: "low" | "medium" | "high";
   model_instructions_file: string;
   model_providers: Record<string, CodexCliProvider>;
+  mcp_servers?: Record<string, CodexMcpServer>;
   agents?: CodexCliAgentsConfig;
 };
 
@@ -17,6 +18,16 @@ export type CodexCliAgentsConfig = {
   max_threads?: number;
   max_depth?: number;
   job_max_runtime_seconds?: number;
+};
+
+export type CodexMcpServer = {
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string;
+  bearer_token_env_var?: string;
+  oauth_client_id?: string;
+  oauth_resource?: string;
 };
 
 export type CodexAgentConfig = {
