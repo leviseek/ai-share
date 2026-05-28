@@ -14,6 +14,9 @@ export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): 
           "aiomo.ps1",
           "aioc.cmd",
           "aioc.ps1",
+          "aiomx.cmd",
+          "aiomx.ps1",
+          "aiomx.ts",
           "opencode-launcher-common.ps1",
           "opencode-install-doctor.ts",
           "aiomo-monitor.cmd",
@@ -21,7 +24,16 @@ export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): 
           "live2d-pet.cmd",
           "live2d-pet.ps1",
         ]
-      : ["aiomo", "aioc", "opencode-launcher-common.sh", "opencode-install-doctor.ts", "aiomo-monitor", "live2d-pet"];
+      : [
+          "aiomo",
+          "aioc",
+          "aiomx",
+          "aiomx.ts",
+          "opencode-launcher-common.sh",
+          "opencode-install-doctor.ts",
+          "aiomo-monitor",
+          "live2d-pet",
+        ];
   if (dryRun) {
     for (const fileName of launcherFiles) {
       console.log(`将安装启动命令：${resolve(paths.targetBinDir, fileName)}`);

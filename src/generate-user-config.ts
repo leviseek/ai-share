@@ -31,6 +31,7 @@ import { installLaunchers, installNativeSkills, installPlugins } from "./cli/ins
 import { ensureAiWorkspaceLinks } from "./cli/memory-link.ts";
 import { parseCliOptions } from "./cli/options.ts";
 import { scanPlugins, formatPluginScan } from "./cli/plugin-scanner.ts";
+import { NATIVE_SKILLS } from "./cli/native-skills.ts";
 import { color } from "./cli/color.ts";
 import { printCheckSummary, printGenerationSummary } from "./cli/output.ts";
 import {
@@ -236,9 +237,14 @@ await writeJson(
   paths.targetRuntimeManifest,
   buildRuntimeManifest(
     paths,
+    selectedDefaultProfileId,
     Object.keys(codexCliConfigs),
     Object.keys(codexAgentConfigs),
     Object.keys(mcpConfig.servers ?? {}),
+    NATIVE_SKILLS.map((skill) => skill.name),
+    scanPlugins(paths.pluginDir)
+      .filter((plugin) => plugin.manifest !== null)
+      .map((plugin) => plugin.dirName),
   ),
   { dryRun, force },
 );
@@ -303,6 +309,7 @@ type RuntimeManifest = {
   scope: "user";
   primary_stack: "codex+omx";
   fallback_stack: "opencode+omo";
+  default_profile: string;
   platforms: ["windows", "macos"];
   memory: {
     v1: "load-existing-memory";
@@ -322,20 +329,26 @@ type RuntimeManifest = {
     opencode_profiles: string[];
     codex_agents: string[];
     mcp_servers: string[];
+    skills: string[];
+    plugins: string[];
   };
 };
 
 function buildRuntimeManifest(
   paths: GeneratorPaths,
+  defaultProfileId: string,
   profileIds: string[],
   agentIds: string[],
   mcpServerIds: string[],
+  skillIds: string[],
+  pluginIds: string[],
 ): RuntimeManifest {
   return {
     version: 1,
     scope: "user",
     primary_stack: "codex+omx",
     fallback_stack: "opencode+omo",
+    default_profile: defaultProfileId,
     platforms: ["windows", "macos"],
     memory: {
       v1: "load-existing-memory",
@@ -355,6 +368,8 @@ function buildRuntimeManifest(
       opencode_profiles: profileIds,
       codex_agents: agentIds,
       mcp_servers: mcpServerIds,
+      skills: skillIds,
+      plugins: pluginIds,
     },
   };
 }

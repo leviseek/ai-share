@@ -34,7 +34,7 @@ bun run ai:check
 bun run ai:gen -- --dry-run
 ```
 
-生成 OpenCode 与 oh-my-openagent 用户级配置，并安装全局启动命令：
+生成 Codex/OMX 主路径与 OpenCode/OMO 兼容路径的用户级配置，并安装全局启动命令：
 
 ```sh
 bun run ai:gen
@@ -207,6 +207,7 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ```text
 ~/.local/bin/aiomo
 ~/.local/bin/aioc
+~/.local/bin/aiomx
 ~/.local/bin/aiomo-monitor
 ```
 
@@ -217,13 +218,15 @@ Windows 下对应为：
 %USERPROFILE%\.local\bin\aiomo.ps1
 %USERPROFILE%\.local\bin\aioc.cmd
 %USERPROFILE%\.local\bin\aioc.ps1
+%USERPROFILE%\.local\bin\aiomx.cmd
+%USERPROFILE%\.local\bin\aiomx.ps1
 %USERPROFILE%\.local\bin\aiomo-monitor.cmd
 %USERPROFILE%\.local\bin\aiomo-monitor.ps1
 ```
 
-`opencode-install-doctor.ts` 与 `opencode-context-guard.ts` 也会安装到同一目录，作为 `aiomo` / `aioc` 内部使用的检查和上下文守卫脚本；它们需要启动器通过 Bun 传入参数，不作为普通启动命令直接使用。上下文守卫实现源代码位于 `src/context-guard/`，安装时复制为用户 bin 下的 `opencode-context-guard.ts` 和 `context-guard/*.ts`。
+`aiomx.ts`、`opencode-install-doctor.ts` 与 `opencode-context-guard.ts` 也会安装到同一目录。`aiomx.ts` 是 Codex+OMX 启动器的 Bun 入口；doctor 和 context guard 脚本由启动器内部调用，不作为普通启动命令直接使用。上下文守卫实现源代码位于 `src/context-guard/`，安装时复制为用户 bin 下的 `opencode-context-guard.ts` 和 `context-guard/*.ts`。
 
-Windows 会自动把该目录加入用户级 PATH。已经打开的终端可能需要重启后才能直接使用 `aiomo` / `aioc` / `aiomo-monitor`。
+Windows 会自动把该目录加入用户级 PATH。已经打开的终端可能需要重启后才能直接使用 `aiomx` / `aiomo` / `aioc` / `aiomo-monitor`。
 
 macOS/Linux 不会自动修改 shell 配置；请确认 `~/.local/bin` 已在 PATH 中。
 
@@ -291,13 +294,16 @@ memory/
 
 Git 提交规范在 `GIT_COMMIT_GUIDELINES.md`，提交信息使用 `option: 中文描述` 格式。
 
-## 启动 OpenCode
+## 启动 Codex + OMX / OpenCode
 
 本仓库不通过 `bun run start` 启动 agent。执行 `bun run ai:gen` 后，切换到其他项目也可以直接使用全局启动命令。
 
-当前推荐把启动方式分成两类：
+当前推荐把启动方式分成三类，优先使用 Codex + OMX：
 
 ```sh
+# Codex + OMX 主路径，加载 Codex profile、OMX profile、MCP、skills、agents 和用户级 AGENTS.md
+aiomx
+
 # oh-my-openagent 多 agents 编排模式，加载完整共享插件
 aiomo
 
@@ -305,12 +311,16 @@ aiomo
 aioc
 ```
 
-为了减少记忆成本，同时避免和常见开发工具命名重合，不建议使用 `oc`（OpenShift 常用）、`code`（VS Code）、`op`（1Password）这类短名。本仓库会安装 `aiomo` / `aioc` 启动包装器：
+为了减少记忆成本，同时避免和常见开发工具命名重合，不建议使用 `oc`（OpenShift 常用）、`code`（VS Code）、`op`（1Password）这类短名。本仓库会安装 `aiomx` / `aiomo` / `aioc` 启动包装器：
 
 ```text
+bin/aiomx     -> omx，并在启动前切换 Codex/OMX profile
+bin/aiomx.ts  -> aiomx 的 Bun 启动入口
 bin/aiomo      -> opencode，并可选择 OMO 编排级别
 bin/aioc       -> opencode，并切换到过滤 OMO 插件后的 aioc 配置
 bin/aiomo-monitor -> Windows 桌面独立监控浮窗
+bin/aiomx.cmd  -> aiomx.ps1 启动包装器
+bin/aiomx.ps1  -> Windows Codex/OMX profile 切换启动逻辑
 bin/aiomo.cmd  -> opencode，并可选择 OMO 编排级别
 bin/aiomo.ps1  -> aiomo.cmd 使用的 PowerShell 启动逻辑
 bin/aioc.cmd   -> opencode，并切换到过滤 OMO 插件后的 aioc 配置
@@ -330,12 +340,21 @@ export PATH="$HOME/.local/bin:$PATH"
 ```sh
 ~/.local/bin/aiomo
 ~/.local/bin/aioc
+~/.local/bin/aiomx
 ~/.local/bin/aiomo-monitor
 ```
 
 之后可以在任意项目目录使用：
 
 ```sh
+# Codex + OMX 主路径；默认等价于 aiomx balanced
+aiomx
+aiomx coding
+aiomx max
+
+# 透传给 OMX/Codex，例如非交互执行
+aiomx max exec "请分析当前项目"
+
 # OMO 编排模式：Tab 通常切换 Sisyphus / Hephaestus / Prometheus / Atlas
 aiomo
 
@@ -363,6 +382,7 @@ aioc coding
 aioc --profile=max
 
 # 检查 Codex/OMX、共享配置、插件、skills、TUI 插件配置和安装文件是否存在，并核对当前模式的插件配置
+aiomx doctor install
 aiomo doctor install
 aioc doctor install
 

@@ -5,7 +5,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
-type Mode = "aiomo" | "aioc";
+type Mode = "aiomo" | "aioc" | "aiomx";
 type Status = "OK" | "WARN" | "FAIL";
 type Group =
   | "Profile"
@@ -67,7 +67,7 @@ const GROUP_ORDER: Group[] = [
 
 const [modeArg, profileArg] = process.argv.slice(2);
 if (!isMode(modeArg)) {
-  console.error("Usage: opencode-install-doctor.ts <aiomo|aioc> [profile]");
+  console.error("Usage: opencode-install-doctor.ts <aiomo|aioc|aiomx> [profile]");
   process.exit(2);
 }
 
@@ -77,6 +77,7 @@ const configBaseDir =
   process.platform !== "win32" && process.env.XDG_CONFIG_HOME ? process.env.XDG_CONFIG_HOME : join(homeDir, ".config");
 const configDir = join(configBaseDir, "opencode");
 const codexHome = process.env.CODEX_HOME ?? join(homeDir, ".codex");
+const runtimeManifestPath = join(codexHome, "ai-share.runtime.json");
 const activeConfigPath = process.env.OPENCODE_CONFIG ?? join(configDir, "opencode.json");
 const activeConfigDir = process.env.OPENCODE_CONFIG_DIR ?? configDir;
 const binDir = join(homeDir, ".local", "bin");
@@ -98,7 +99,7 @@ const color = {
 };
 
 function isMode(value: string | undefined): value is Mode {
-  return value === "aiomo" || value === "aioc";
+  return value === "aiomo" || value === "aioc" || value === "aiomx";
 }
 
 function shouldUseColor(): boolean {
@@ -191,6 +192,14 @@ function defaultProfileFromManifest(manifest: unknown): string {
     : "balanced";
 }
 
+function defaultProfileFromRuntimeManifest(manifest: unknown): string {
+  if (profileArg) return profileArg;
+  const record = asRecord(manifest);
+  return typeof record?.default_profile === "string" && record.default_profile.trim()
+    ? record.default_profile
+    : "balanced";
+}
+
 function checkSelectedProfile(manifest: unknown, profile: string): void {
   const record = asRecord(manifest);
   if (!record) return;
@@ -203,6 +212,21 @@ function checkSelectedProfile(manifest: unknown, profile: string): void {
       "Profile",
       "selected profile",
       `${profile} not in ${profiles.length ? profiles.join(" / ") : "manifest profile list"}`,
+    );
+}
+
+function checkSelectedCodexProfile(manifest: unknown, profile: string): void {
+  const record = asRecord(manifest);
+  const managed = asRecord(record?.managed);
+  const profiles = Array.isArray(managed?.codex_profiles)
+    ? managed.codex_profiles.filter((item): item is string => typeof item === "string")
+    : [];
+  if (profiles.includes(profile)) ok("Profile", "selected Codex profile", `${profile} in runtime manifest`);
+  else
+    fail(
+      "Profile",
+      "selected Codex profile",
+      `${profile} not in ${profiles.length ? profiles.join(" / ") : "runtime manifest profile list"}`,
     );
 }
 
@@ -325,6 +349,9 @@ function checkInstalledLaunchers(): void {
           "aiomo.ps1",
           "aioc.cmd",
           "aioc.ps1",
+          "aiomx.cmd",
+          "aiomx.ps1",
+          "aiomx.ts",
           "opencode-launcher-common.ps1",
           "opencode-context-guard.ts",
           "aiomo-monitor.cmd",
@@ -332,7 +359,16 @@ function checkInstalledLaunchers(): void {
           "live2d-pet.cmd",
           "live2d-pet.ps1",
         ]
-      : ["aiomo", "aioc", "opencode-launcher-common.sh", "opencode-context-guard.ts", "aiomo-monitor", "live2d-pet"];
+      : [
+          "aiomo",
+          "aioc",
+          "aiomx",
+          "aiomx.ts",
+          "opencode-launcher-common.sh",
+          "opencode-context-guard.ts",
+          "aiomo-monitor",
+          "live2d-pet",
+        ];
   for (const fileName of launcherFiles) {
     checkFile("Launchers", `launcher ${fileName}`, join(binDir, fileName));
   }
@@ -373,10 +409,17 @@ function checkCommonFiles(): void {
   checkOpencodeRuntime();
 }
 
-function checkCodexOmxInstall(profile: string): void {
+function checkCodexOmxOnlyFiles(profile: string, runtimeManifest: unknown): void {
+  checkSelectedCodexProfile(runtimeManifest, profile);
+  checkCodexOmxInstall(profile, false);
+  checkInstalledLaunchers();
+  checkPath();
+}
+
+function checkCodexOmxInstall(profile: string, checkRuntimeManifest = true): void {
   checkFile("Codex + OMX", "Codex home", codexHome);
   checkFile("Codex + OMX", "Codex config", join(codexHome, "config.toml"));
-  readJsonIfExists("Codex + OMX", "AI runtime manifest", join(codexHome, "ai-share.runtime.json"), true);
+  if (checkRuntimeManifest) readJsonIfExists("Codex + OMX", "AI runtime manifest", runtimeManifestPath, true);
   checkFile("Codex + OMX", "default AGENTS", join(codexHome, "AGENTS.md"));
   checkFile("Codex + OMX", "profile config", join(codexHome, `${profile}.config.toml`));
   checkFile("Codex + OMX", "profile AGENTS", join(codexHome, `${profile}.AGENTS.md`));
@@ -392,6 +435,7 @@ function checkCodexOmxInstall(profile: string): void {
   }
 
   checkCodexRuntime(profile);
+  checkOmxRuntime();
 }
 
 function checkCodexRuntime(profile: string): void {
@@ -410,6 +454,12 @@ function checkCodexRuntime(profile: string): void {
       "codex strict config",
       (strictConfig.stderr || strictConfig.stdout || `profile ${profile} failed`).trim(),
     );
+}
+
+function checkOmxRuntime(): void {
+  const version = spawnSync("omx", ["version"], { encoding: "utf8", stdio: "pipe" });
+  if (version.status === 0) ok("Codex + OMX", "omx runtime", (version.stdout || version.stderr).trim());
+  else warn("Codex + OMX", "omx runtime", (version.stderr || version.stdout || "omx version failed").trim());
 }
 
 function checkDingTalkNotifierInstall(): void {
@@ -472,9 +522,16 @@ function countByStatus(): Record<Status, number> {
   );
 }
 
-const manifest = readJsonIfExists("Profile", "profile manifest", manifestPath, true);
-const profile = defaultProfileFromManifest(manifest);
-checkSelectedProfile(manifest, profile);
+const runtimeManifest = readJsonIfExists("Codex + OMX", "AI runtime manifest", runtimeManifestPath, true);
+const manifest = mode === "aiomx" ? null : readJsonIfExists("Profile", "profile manifest", manifestPath, true);
+const profile =
+  mode === "aiomx" ? defaultProfileFromRuntimeManifest(runtimeManifest) : defaultProfileFromManifest(manifest);
+
+if (mode === "aiomx") {
+  checkCodexOmxOnlyFiles(profile, runtimeManifest);
+} else {
+  checkSelectedProfile(manifest, profile);
+}
 
 if (mode === "aiomo") {
   const profileConfig = readJsonIfExists(
@@ -507,7 +564,7 @@ if (mode === "aiomo") {
     join(configDir, "profiles", "context-guard", `${profile}.json`),
     join(activeConfigDir, "context-guard.profile.json"),
   );
-} else {
+} else if (mode === "aioc") {
   const profileConfig = readJsonIfExists(
     "Profile",
     "aioc profile config",
@@ -522,7 +579,7 @@ if (mode === "aiomo") {
   checkPluginPresence("Active Config", "active monitor plugin", activeConfig, MONITOR_PLUGIN, false);
 }
 
-checkCommonFiles();
+if (mode !== "aiomx") checkCommonFiles();
 printResults(profile);
 
 process.exit(results.some((entry) => entry.status === "FAIL") ? 1 : 0);

@@ -65,6 +65,9 @@ export function printGenerationSummary(input: {
     `${color.green(prefix)} ${color.cyan("Codex CLI 级别配置")}：${color.magenta(input.codexProfileIds.map((profileId) => `codex --profile ${color.bold(profileId)}`).join(" / "))}`,
   );
   console.log(
+    `${color.green(prefix)} ${color.cyan("Codex+OMX 启动级别")}：${color.magenta(input.codexProfileIds.map((profileId) => `aiomx ${color.bold(profileId)}`).join(" / "))}`,
+  );
+  console.log(
     `${color.green(prefix)} ${color.cyan("aioc 级别配置")}：${color.magenta(formatProfileCommands(input.openCodeProfileIds, "aioc"))}`,
   );
   console.log(
@@ -93,7 +96,11 @@ export function printGenerationSummary(input: {
     `${color.gray("说明")}：provider/model/profiles/agents/categories/runtime_fallback/background_task/tmux/plugin/strategy 均来自 config/*.yaml。`,
   );
   console.log(`${color.cyan("模型组提供商")}：${formatProviderGroups(input.providerGroups)}`);
-  console.log(color.gray("启动命令：aiomo [profile] = OMO 编排模式，aioc = OpenCode 原生 Build/Plan 模式。"));
+  console.log(
+    color.gray(
+      "启动命令：aiomx [profile] = Codex+OMX 主路径，aiomo [profile] = OMO 兼容模式，aioc = OpenCode 原生 Build/Plan 模式。",
+    ),
+  );
 }
 
 function formatProviderGroups(providerGroups: ProviderGroupMap): string {
