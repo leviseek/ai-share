@@ -302,6 +302,8 @@ memory/
 
 记忆文件在 `src/config/builders/opencode.ts` 的 `buildInstructionsPaths()` 中组装，生成的 `instructions` 数组同时用于 `opencode` 和 `aioc` 配置。所有 profile 都共享同一套记忆。修改记忆内容后重新运行 `bun run ai:gen -- --force` 即可生效。
 
+Codex+OMX 主路径会把每个 profile 的 instruction memory 文件列表写入 `~/.codex/ai-share.runtime.json`，`aiomx doctor install` 会检查关键身份、偏好和工作流记忆是否存在，并确认生成的 `AGENTS.md` 引用了这些文件。
+
 生成器会确保 `~/ai-workspace/ai-share` 指向当前 `ai-share` 仓库。`memory/` 目录已完全整合到本仓库内，不再需要独立的 `ai-memory` 仓库。如果检测到旧的 `../ai-memory` 目录，生成器会输出废弃提示并继续运行。
 
 生成的 oh-my-openagent 配置会禁用 `auto-slash-command` hook，避免 native skills（例如 `/git-master`）被插件二次展开并在 TUI 中显示完整内部提示词。

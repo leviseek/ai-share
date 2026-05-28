@@ -12,6 +12,7 @@ export { buildDingTalkNotifierConfig } from "./config/builders/dingtalk-notifier
 export { buildOhMyOpenAgentConfigs } from "./config/builders/omo.ts";
 export {
   buildAiocOpenCodeConfigs,
+  buildInstructionsPaths,
   buildOpenCodeConfigs,
   buildProfileManifest,
   buildTuiConfig,

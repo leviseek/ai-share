@@ -53,6 +53,19 @@ const CODEX_AGENTS = [
   "librarian",
   "multimodal-looker",
 ] as const;
+const CRITICAL_INSTRUCTION_SUFFIXES = [
+  "AI_GUIDELINES.md",
+  "memory/user/profile.md",
+  "memory/user/profile.yaml",
+  "memory/user/preferences.md",
+  "memory/user/workflow.md",
+  "memory/user/workflows.yaml",
+  "memory/user/toolchain.md",
+  "memory/user/prompts.md",
+  "memory/stable/user.yaml",
+  "memory/stable/workflows.yaml",
+  "memory/stable/devices.yaml",
+] as const;
 const OPENCODE_BUILTIN_COMMAND_PROBE = "__ai_share_doctor_missing_command__";
 const GROUP_ORDER: Group[] = [
   "Profile",
@@ -137,6 +150,20 @@ function checkFile(group: Group, label: string, path: string, required = true): 
   if (required) fail(group, label, `missing: ${path}`);
   else warn(group, label, `optional missing: ${path}`);
   return false;
+}
+
+function checkTextContains(group: Group, label: string, path: string, expected: string): void {
+  if (!existsSync(path)) {
+    fail(group, label, `missing: ${path}`);
+    return;
+  }
+  try {
+    const content = readFileSync(path, "utf8");
+    if (content.includes(expected)) ok(group, label, expected);
+    else fail(group, label, `missing reference: ${expected}`);
+  } catch (error) {
+    fail(group, label, error instanceof Error ? error.message : String(error));
+  }
 }
 
 function readJsonIfExists(group: Group, label: string, path: string, required = true): unknown {
@@ -399,7 +426,7 @@ function checkCommonFiles(): void {
   checkDingTalkNotifierInstall();
   checkOpencodeBuiltinCommands();
   checkDiscoveredSkills();
-  checkCodexOmxInstall(defaultProfileFromManifest(manifest));
+  checkCodexOmxInstall(defaultProfileFromManifest(manifest), { runtimeManifest });
   for (const skillName of NATIVE_SKILLS) {
     checkFile("Skills", `local skill ${skillName}`, join(configDir, "skills", skillName, "SKILL.md"));
   }
@@ -411,18 +438,25 @@ function checkCommonFiles(): void {
 
 function checkCodexOmxOnlyFiles(profile: string, runtimeManifest: unknown): void {
   checkSelectedCodexProfile(runtimeManifest, profile);
-  checkCodexOmxInstall(profile, false);
+  checkCodexOmxInstall(profile, { checkRuntimeManifest: false, runtimeManifest });
   checkInstalledLaunchers();
   checkPath();
 }
 
-function checkCodexOmxInstall(profile: string, checkRuntimeManifest = true): void {
+function checkCodexOmxInstall(
+  profile: string,
+  options: { checkRuntimeManifest?: boolean; runtimeManifest?: unknown } = {},
+): void {
+  const checkRuntimeManifest = options.checkRuntimeManifest ?? true;
   checkFile("Codex + OMX", "Codex home", codexHome);
   checkFile("Codex + OMX", "Codex config", join(codexHome, "config.toml"));
   if (checkRuntimeManifest) readJsonIfExists("Codex + OMX", "AI runtime manifest", runtimeManifestPath, true);
-  checkFile("Codex + OMX", "default AGENTS", join(codexHome, "AGENTS.md"));
+  const defaultAgentsPath = join(codexHome, "AGENTS.md");
+  const profileAgentsPath = join(codexHome, `${profile}.AGENTS.md`);
+  checkFile("Codex + OMX", "default AGENTS", defaultAgentsPath);
   checkFile("Codex + OMX", "profile config", join(codexHome, `${profile}.config.toml`));
-  checkFile("Codex + OMX", "profile AGENTS", join(codexHome, `${profile}.AGENTS.md`));
+  checkFile("Codex + OMX", "profile AGENTS", profileAgentsPath);
+  checkCodexInstructionReferences(profile, defaultAgentsPath, profileAgentsPath, options.runtimeManifest);
   readJsonIfExists("Codex + OMX", "default OMX config", join(codexHome, ".omx-config.json"), true);
   readJsonIfExists("Codex + OMX", "profile OMX config", join(codexHome, `${profile}.omx-config.json`), true);
 
@@ -436,6 +470,48 @@ function checkCodexOmxInstall(profile: string, checkRuntimeManifest = true): voi
 
   checkCodexRuntime(profile);
   checkOmxRuntime();
+}
+
+function checkCodexInstructionReferences(
+  profile: string,
+  defaultAgentsPath: string,
+  profileAgentsPath: string,
+  runtimeManifest: unknown,
+): void {
+  const instructionFiles = instructionFilesForProfile(runtimeManifest, profile);
+  if (instructionFiles.length === 0) {
+    fail("Codex + OMX", "instruction manifest", "runtime manifest missing managed instruction files");
+    return;
+  }
+  ok("Codex + OMX", "instruction manifest", `${instructionFiles.length} files for ${profile}`);
+
+  for (const suffix of CRITICAL_INSTRUCTION_SUFFIXES) {
+    const normalizedSuffix = normalizedPath(suffix);
+    const instructionFile = instructionFiles.find((filePath) => normalizedPath(filePath).endsWith(normalizedSuffix));
+    if (!instructionFile) {
+      fail("Codex + OMX", `instruction ${suffix}`, "missing from runtime manifest");
+      continue;
+    }
+    checkFile("Codex + OMX", `instruction file ${suffix}`, instructionFile);
+    checkTextContains("Codex + OMX", `default AGENTS references ${suffix}`, defaultAgentsPath, instructionFile);
+    checkTextContains("Codex + OMX", `profile AGENTS references ${suffix}`, profileAgentsPath, instructionFile);
+  }
+}
+
+function instructionFilesForProfile(runtimeManifest: unknown, profile: string): string[] {
+  const record = asRecord(runtimeManifest);
+  const managed = asRecord(record?.managed);
+  const profileInstructionFiles = asRecord(managed?.profile_instruction_files);
+  const profileFiles = profileInstructionFiles?.[profile];
+  if (Array.isArray(profileFiles)) return profileFiles.filter((item): item is string => typeof item === "string");
+
+  return Array.isArray(managed?.instruction_files)
+    ? managed.instruction_files.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function normalizedPath(path: string): string {
+  return path.replaceAll("\\", "/").toLowerCase();
 }
 
 function checkCodexRuntime(profile: string): void {

@@ -13,6 +13,7 @@ import {
   buildContextGuardConfig,
   buildContextGuardProfileConfigs,
   buildDingTalkNotifierConfig,
+  buildInstructionsPaths,
   buildOhMyOpenAgentConfigs,
   buildOpenCodeConfigs,
   buildOmxConfigs,
@@ -94,6 +95,12 @@ const selectedCodexBaseConfig = {
   ...selectedCodexCliConfig,
   model_instructions_file: paths.targetCodexInstructions,
 };
+const instructionFilesByProfile = Object.fromEntries(
+  Object.keys(codexCliConfigs).map((profileId) => [
+    profileId,
+    buildInstructionsPaths(paths.projectRoot, profileId, ""),
+  ]),
+);
 const missingApiKeys = missingProviderApiKeyEnvNames(providers);
 const registryMismatches = await agentRegistryMismatches(paths.pluginDir, agentsConfig);
 
@@ -245,6 +252,7 @@ await writeJson(
     scanPlugins(paths.pluginDir)
       .filter((plugin) => plugin.manifest !== null)
       .map((plugin) => plugin.dirName),
+    instructionFilesByProfile,
   ),
   { dryRun, force },
 );
@@ -331,6 +339,8 @@ type RuntimeManifest = {
     mcp_servers: string[];
     skills: string[];
     plugins: string[];
+    instruction_files: string[];
+    profile_instruction_files: Record<string, string[]>;
   };
 };
 
@@ -342,6 +352,7 @@ function buildRuntimeManifest(
   mcpServerIds: string[],
   skillIds: string[],
   pluginIds: string[],
+  instructionFilesByProfile: Record<string, string[]>,
 ): RuntimeManifest {
   return {
     version: 1,
@@ -370,6 +381,8 @@ function buildRuntimeManifest(
       mcp_servers: mcpServerIds,
       skills: skillIds,
       plugins: pluginIds,
+      instruction_files: instructionFilesByProfile[defaultProfileId] ?? [],
+      profile_instruction_files: instructionFilesByProfile,
     },
   };
 }
