@@ -28,7 +28,7 @@ bun run ai:bootstrap
 bun run ai:bootstrap -- --skip-install
 ```
 
-bootstrap 要求本机已安装 Bun、Codex CLI、OMX，并且已在环境变量中设置所需 API Key；缺失时会在检查阶段输出具体变量名，不会写入真实密钥。
+bootstrap 要求本机已安装 Bun、Codex CLI、OMX，并且已在环境变量中设置所需 API Key；缺失时会在检查阶段输出具体变量名，不会写入真实密钥。`bun run ai:check` 会同时检查 Codex CLI 和 OMX CLI 是否满足 `config/global.yaml` 中的最低版本。
 
 安装依赖：
 

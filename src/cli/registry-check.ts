@@ -89,6 +89,18 @@ export function checkVersions(globalConfig: GlobalYaml, pluginDir: string): Vers
     });
   }
 
+  const omxMin = globalConfig.omx_min_version;
+  if (omxMin) {
+    const current = getCommandVersion("omx", ["version"]) ?? "unknown";
+    results.push({
+      name: "OMX CLI",
+      field: "omx_min_version",
+      current,
+      minimum: omxMin,
+      ok: current !== "unknown" ? semverGte(current, omxMin) : true,
+    });
+  }
+
   return results;
 }
 
@@ -105,12 +117,12 @@ function getInstalledVersion(pluginDir: string, packageName: string): string | n
   return null;
 }
 
-function getCommandVersion(command: string): string | null {
-  const result = spawnSync(command, ["--version"], { encoding: "utf8", stdio: "pipe" });
+function getCommandVersion(command: string, args: string[] = ["--version"]): string | null {
+  const result = spawnSync(command, args, { encoding: "utf8", stdio: "pipe" });
   if (result.status !== 0) return null;
 
   const output = `${result.stdout}\n${result.stderr}`;
-  return /\b\d+\.\d+\.\d+\b/.exec(output)?.[0] ?? null;
+  return /(?:^|[^0-9])(\d+\.\d+\.\d+)\b/.exec(output)?.[1] ?? null;
 }
 
 function semverGte(current: string, minimum: string): boolean {
