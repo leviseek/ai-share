@@ -97,7 +97,13 @@ const missingApiKeys = missingProviderApiKeyEnvNames(providers);
 const registryMismatches = await agentRegistryMismatches(paths.pluginDir, agentsConfig);
 
 if (checkOnly) {
-  const checkValidationErrors = validateYamlConsistency(profilesConfig, modelsConfig, providersConfig, globalConfig);
+  const checkValidationErrors = validateYamlConsistency(
+    profilesConfig,
+    modelsConfig,
+    providersConfig,
+    globalConfig,
+    mcpConfig,
+  );
   if (checkValidationErrors.length > 0) {
     for (const err of checkValidationErrors) {
       console.error(`${color.yellow(`[${err.file}]`)} ${err.message}（${err.path}）`);
@@ -146,7 +152,13 @@ if (registryMismatches.length > 0) {
   throw new Error(`OMO monitor agent registry 与 config/agents.yaml 不一致：${registryMismatches.join(" / ")}`);
 }
 
-const genValidationErrors = validateYamlConsistency(profilesConfig, modelsConfig, providersConfig, globalConfig);
+const genValidationErrors = validateYamlConsistency(
+  profilesConfig,
+  modelsConfig,
+  providersConfig,
+  globalConfig,
+  mcpConfig,
+);
 if (genValidationErrors.length > 0) {
   for (const err of genValidationErrors) {
     console.error(`${color.yellow(`[${err.file}]`)} ${err.message}（${err.path}）`);

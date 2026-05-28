@@ -1,4 +1,4 @@
-import type { GlobalYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "../types.ts";
+import type { GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "../types.ts";
 
 export function requireString(value: string | undefined, label: string): string {
   if (!value) throw new Error(`缺少必要配置字段：${label}`);
@@ -42,6 +42,7 @@ export function validateYamlConsistency(
   modelsConfig: ModelsYaml,
   providersConfig: ProviderYaml,
   globalConfig: GlobalYaml,
+  mcpConfig: McpYaml = {},
 ): ValidationError[] {
   const errors: ValidationError[] = [];
 
@@ -121,5 +122,53 @@ export function validateYamlConsistency(
     }
   }
 
+  // 5. MCP server shape
+  for (const [serverId, server] of Object.entries(mcpConfig.servers ?? {})) {
+    const isHttp = server.transport === "http" || Boolean(server.url);
+    if (isHttp) {
+      if (!server.url) {
+        errors.push({
+          file: "mcp.yaml",
+          path: `servers.${serverId}.url`,
+          message: `HTTP MCP server '${serverId}' 缺少 url 字段`,
+        });
+      }
+      if (server.command) {
+        errors.push({
+          file: "mcp.yaml",
+          path: `servers.${serverId}.command`,
+          message: `HTTP MCP server '${serverId}' 不应配置 command 字段`,
+        });
+      }
+      if (server.bearer_token_env_var && !isEnvName(server.bearer_token_env_var)) {
+        errors.push({
+          file: "mcp.yaml",
+          path: `servers.${serverId}.bearer_token_env_var`,
+          message: `HTTP MCP server '${serverId}' 的 bearer_token_env_var 必须是环境变量名`,
+        });
+      }
+      continue;
+    }
+
+    if (!server.command) {
+      errors.push({
+        file: "mcp.yaml",
+        path: `servers.${serverId}.command`,
+        message: `stdio MCP server '${serverId}' 缺少 command 字段`,
+      });
+    }
+    if (server.url) {
+      errors.push({
+        file: "mcp.yaml",
+        path: `servers.${serverId}.url`,
+        message: `stdio MCP server '${serverId}' 不应配置 url 字段`,
+      });
+    }
+  }
+
   return errors;
+}
+
+function isEnvName(value: string): boolean {
+  return /^[A-Z_][A-Z0-9_]*$/.test(value);
 }
