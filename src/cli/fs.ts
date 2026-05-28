@@ -8,6 +8,14 @@ export async function writeJson(
   options: { dryRun: boolean; force: boolean },
 ): Promise<void> {
   const content = `${JSON.stringify(value, null, 2)}\n`;
+  await writeText(path, content, options);
+}
+
+export async function writeText(
+  path: string,
+  content: string,
+  options: { dryRun: boolean; force: boolean },
+): Promise<void> {
   if (options.dryRun) {
     console.log(`\n${color.gray("---")} ${color.cyan(path)} ${color.gray("---")}\n${content}`);
     return;

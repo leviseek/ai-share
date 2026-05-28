@@ -36,6 +36,7 @@ export function printGenerationSummary(input: {
   dryRun: boolean;
   paths: GeneratorPaths;
   openCodeProfileIds: string[];
+  codexProfileIds: string[];
   ohMyOpenAgentProfileIds: string[];
   strategyProfileIds: string[];
   providerGroups: ProviderGroupMap;
@@ -45,7 +46,14 @@ export function printGenerationSummary(input: {
   console.log(`${color.green(prefix)} ${color.cyan("OpenCode 配置")}：${color.bold(input.paths.targetOpenCode)}`);
   console.log(`${color.green(prefix)} ${color.cyan("OpenCode TUI 配置")}：${color.bold(input.paths.targetTui)}`);
   console.log(
+    `${color.green(prefix)} ${color.cyan("Codex CLI 默认配置")}：${color.bold(input.paths.targetCodexConfig)}`,
+  );
+  console.log(`${color.green(prefix)} ${color.cyan("OMX 默认配置")}：${color.bold(input.paths.targetOmxConfig)}`);
+  console.log(
     `${color.green(prefix)} ${color.cyan("OpenCode 级别配置")}：${color.magenta(formatProfileCommands(input.openCodeProfileIds))}`,
+  );
+  console.log(
+    `${color.green(prefix)} ${color.cyan("Codex CLI 级别配置")}：${color.magenta(input.codexProfileIds.map((profileId) => `codex --profile ${color.bold(profileId)}`).join(" / "))}`,
   );
   console.log(
     `${color.green(prefix)} ${color.cyan("aioc 级别配置")}：${color.magenta(formatProfileCommands(input.openCodeProfileIds, "aioc"))}`,

@@ -13,13 +13,18 @@ export type GeneratorPaths = {
   externalAiMemoryDir: string;
   homeDir: string;
   targetConfigDir: string;
+  targetCodexConfigDir: string;
   targetProfileDir: string;
   targetOpenCodeProfileDir: string;
   targetAiocProfileDir: string;
   targetOhMyOpenAgentProfileDir: string;
   targetStrategyProfileDir: string;
   targetContextGuardProfileDir: string;
+  targetCodexAgentDir: string;
   targetOpenCode: string;
+  targetCodexConfig: string;
+  targetCodexInstructions: string;
+  targetOmxConfig: string;
   targetTui: string;
   targetOhMyOpenAgent: string;
   targetProfileManifest: string;
@@ -45,12 +50,14 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
   const workspaceAiMemoryDir = resolve(aiWorkspaceDir, "ai-memory");
   const externalAiMemoryDir = resolve(projectRoot, "..", "ai-memory");
   const targetConfigDir = resolve(homeDir, ".config", "opencode");
+  const targetCodexConfigDir = resolve(homeDir, ".codex");
   const targetProfileDir = resolve(targetConfigDir, "profiles");
   const targetOpenCodeProfileDir = resolve(targetProfileDir, "opencode");
   const targetAiocProfileDir = resolve(targetProfileDir, "aioc");
   const targetOhMyOpenAgentProfileDir = resolve(targetProfileDir, "oh-my-openagent");
   const targetStrategyProfileDir = resolve(targetProfileDir, "strategy");
   const targetContextGuardProfileDir = resolve(targetProfileDir, "context-guard");
+  const targetCodexAgentDir = resolve(targetCodexConfigDir, "agents");
 
   if (!targetConfigDir.startsWith(homeDir)) {
     throw new Error("无法解析用户级 OpenCode 配置目录。请检查 HOME 或 USERPROFILE 环境变量。");
@@ -69,13 +76,18 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
     externalAiMemoryDir: externalAiMemoryDir,
     homeDir: homeDir,
     targetConfigDir: targetConfigDir,
+    targetCodexConfigDir: targetCodexConfigDir,
     targetProfileDir: targetProfileDir,
     targetOpenCodeProfileDir: targetOpenCodeProfileDir,
     targetAiocProfileDir: targetAiocProfileDir,
     targetOhMyOpenAgentProfileDir: targetOhMyOpenAgentProfileDir,
     targetStrategyProfileDir: targetStrategyProfileDir,
     targetContextGuardProfileDir: targetContextGuardProfileDir,
+    targetCodexAgentDir: targetCodexAgentDir,
     targetOpenCode: resolve(targetConfigDir, "opencode.json"),
+    targetCodexConfig: resolve(targetCodexConfigDir, "config.toml"),
+    targetCodexInstructions: resolve(targetCodexConfigDir, "AGENTS.md"),
+    targetOmxConfig: resolve(targetCodexConfigDir, ".omx-config.json"),
     targetTui: resolve(targetConfigDir, "tui.json"),
     targetOhMyOpenAgent: resolve(targetConfigDir, "oh-my-openagent.json"),
     targetProfileManifest: resolve(targetConfigDir, ".omo-profiles.json"),
@@ -108,6 +120,18 @@ export function profileOpenCodePath(targetConfigDir: string, profileId: string):
 
 export function profileAiocOpenCodePath(targetConfigDir: string, profileId: string): string {
   return resolve(targetConfigDir, "profiles", "aioc", `${profileId}.json`);
+}
+
+export function profileCodexConfigPath(targetCodexConfigDir: string, profileId: string): string {
+  return resolve(targetCodexConfigDir, `${profileId}.config.toml`);
+}
+
+export function profileOmxConfigPath(targetCodexConfigDir: string, profileId: string): string {
+  return resolve(targetCodexConfigDir, `${profileId}.omx-config.json`);
+}
+
+export function codexAgentConfigPath(targetCodexAgentDir: string, agentId: string): string {
+  return resolve(targetCodexAgentDir, `${agentId}.toml`);
 }
 
 function contextGuardProfilePath(targetConfigDir: string, profileId: string): string {

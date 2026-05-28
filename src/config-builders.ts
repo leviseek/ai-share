@@ -1,4 +1,12 @@
 export { applyProviderGroups, modelProviderGroups, modelRef } from "./config/model-refs.ts";
+export {
+  buildCodexAgentConfigs,
+  buildCodexCliConfigs,
+  buildCodexInstructions,
+  buildOmxConfigs,
+  formatCodexAgentToml,
+  formatCodexConfigToml,
+} from "./config/builders/codex.ts";
 export { buildContextGuardConfig, buildContextGuardProfileConfigs } from "./config/builders/context-guard.ts";
 export { buildDingTalkNotifierConfig } from "./config/builders/dingtalk-notifier.ts";
 export { buildOhMyOpenAgentConfigs } from "./config/builders/omo.ts";

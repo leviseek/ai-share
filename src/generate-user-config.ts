@@ -7,20 +7,26 @@ import type { AgentsYaml, GlobalProxy, GlobalYaml, ModelsYaml, ProfilesYaml, Pro
 import {
   applyProviderGroups,
   buildAiocOpenCodeConfigs,
+  buildCodexAgentConfigs,
+  buildCodexCliConfigs,
+  buildCodexInstructions,
   buildContextGuardConfig,
   buildContextGuardProfileConfigs,
   buildDingTalkNotifierConfig,
   buildOhMyOpenAgentConfigs,
   buildOpenCodeConfigs,
+  buildOmxConfigs,
   buildProfileManifest,
   buildStrategyConfigs,
   buildTuiConfig,
   defaultProfileId,
+  formatCodexAgentToml,
+  formatCodexConfigToml,
   modelProviderGroups,
   requireValue,
 } from "./config-builders.ts";
 import { missingProviderApiKeyEnvNames } from "./cli/api-keys.ts";
-import { writeJson } from "./cli/fs.ts";
+import { writeJson, writeText } from "./cli/fs.ts";
 import { installLaunchers, installNativeSkills, installPlugins } from "./cli/install.ts";
 import { ensureAiWorkspaceLinks } from "./cli/memory-link.ts";
 import { parseCliOptions } from "./cli/options.ts";
@@ -29,9 +35,12 @@ import { color } from "./cli/color.ts";
 import { printCheckSummary, printGenerationSummary } from "./cli/output.ts";
 import {
   buildGeneratorPaths,
+  codexAgentConfigPath,
+  profileCodexConfigPath,
   profileContextGuardPath,
   profileAiocOpenCodePath,
   profileOhMyOpenAgentPath,
+  profileOmxConfigPath,
   profileOpenCodePath,
   profileStrategyPath,
 } from "./cli/paths.ts";
@@ -65,12 +74,16 @@ const providers = providersConfig.providers ?? {};
 const models = applyProviderGroups(modelsConfig, providers, providerGroups);
 const openCodeConfigs = buildOpenCodeConfigs(paths.projectRoot, globalConfig, providers, models, profilesConfig);
 const aiocOpenCodeConfigs = buildAiocOpenCodeConfigs(openCodeConfigs, globalConfig);
+const codexCliConfigs = buildCodexCliConfigs(providers, models, profilesConfig, paths.targetCodexInstructions);
+const codexAgentConfigs = buildCodexAgentConfigs(agentsConfig);
 const tuiConfig = buildTuiConfig(globalConfig);
 const ohMyOpenAgentConfigs = buildOhMyOpenAgentConfigs(models, profilesConfig, agentsConfig);
+const omxConfigs = buildOmxConfigs(models, profilesConfig);
 const strategyConfigs = buildStrategyConfigs(globalConfig, profilesConfig, agentsConfig);
 const contextGuardProfileConfigs = buildContextGuardProfileConfigs(globalConfig, profilesConfig);
 const selectedDefaultProfileId = defaultProfileId(globalConfig, profilesConfig);
 const selectedOpenCodeConfig = requireValue(openCodeConfigs[selectedDefaultProfileId], "默认 OpenCode profile");
+const selectedCodexCliConfig = requireValue(codexCliConfigs[selectedDefaultProfileId], "默认 Codex profile");
 const missingApiKeys = missingProviderApiKeyEnvNames(providers);
 const registryMismatches = await agentRegistryMismatches(paths.pluginDir, agentsConfig);
 
@@ -139,6 +152,8 @@ if (!dryRun) {
     mkdir(paths.targetOhMyOpenAgentProfileDir, { recursive: true }),
     mkdir(paths.targetStrategyProfileDir, { recursive: true }),
     mkdir(paths.targetContextGuardProfileDir, { recursive: true }),
+    mkdir(paths.targetCodexConfigDir, { recursive: true }),
+    mkdir(paths.targetCodexAgentDir, { recursive: true }),
   ]);
 }
 for (const [profileId, openCodeConfig] of Object.entries(openCodeConfigs)) {
@@ -149,9 +164,37 @@ for (const [profileId, aiocOpenCodeConfig] of Object.entries(aiocOpenCodeConfigs
 }
 await writeJson(paths.targetOpenCode, selectedOpenCodeConfig, { dryRun, force });
 await writeJson(paths.targetTui, tuiConfig, { dryRun, force });
+for (const [profileId, codexCliConfig] of Object.entries(codexCliConfigs)) {
+  await writeText(
+    profileCodexConfigPath(paths.targetCodexConfigDir, profileId),
+    formatCodexConfigToml(codexCliConfig),
+    {
+      dryRun,
+      force,
+    },
+  );
+}
+await writeText(paths.targetCodexConfig, formatCodexConfigToml(selectedCodexCliConfig), { dryRun, force });
+await writeText(paths.targetCodexInstructions, buildCodexInstructions(paths.projectRoot, selectedDefaultProfileId), {
+  dryRun,
+  force,
+});
+for (const [agentId, codexAgentConfig] of Object.entries(codexAgentConfigs)) {
+  await writeText(codexAgentConfigPath(paths.targetCodexAgentDir, agentId), formatCodexAgentToml(codexAgentConfig), {
+    dryRun,
+    force,
+  });
+}
+for (const [profileId, omxConfig] of Object.entries(omxConfigs)) {
+  await writeJson(profileOmxConfigPath(paths.targetCodexConfigDir, profileId), omxConfig, { dryRun, force });
+}
 for (const [profileId, ohMyOpenAgentConfig] of Object.entries(ohMyOpenAgentConfigs)) {
   await writeJson(profileOhMyOpenAgentPath(paths.targetConfigDir, profileId), ohMyOpenAgentConfig, { dryRun, force });
 }
+await writeJson(paths.targetOmxConfig, requireValue(omxConfigs[selectedDefaultProfileId], "默认 OMX profile"), {
+  dryRun,
+  force,
+});
 await writeJson(
   paths.targetOhMyOpenAgent,
   requireValue(ohMyOpenAgentConfigs[selectedDefaultProfileId], "默认 OMO profile"),
@@ -193,6 +236,7 @@ printGenerationSummary({
   dryRun,
   paths,
   openCodeProfileIds: Object.keys(openCodeConfigs),
+  codexProfileIds: Object.keys(codexCliConfigs),
   ohMyOpenAgentProfileIds: Object.keys(ohMyOpenAgentConfigs),
   strategyProfileIds: Object.keys(strategyConfigs),
   providerGroups,
