@@ -3,6 +3,7 @@ default_profile: balanced
 # Version compatibility requirements
 opencode_min_version: 0.23.0
 omo_min_version: 3.17.5
+codex_min_version: 0.134.0
 
 env:
   mode: dev # dev / staging / prod

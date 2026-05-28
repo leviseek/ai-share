@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -76,6 +77,18 @@ export function checkVersions(globalConfig: GlobalYaml, pluginDir: string): Vers
     });
   }
 
+  const codexMin = globalConfig.codex_min_version;
+  if (codexMin) {
+    const current = getCommandVersion("codex") ?? "unknown";
+    results.push({
+      name: "Codex CLI",
+      field: "codex_min_version",
+      current,
+      minimum: codexMin,
+      ok: current !== "unknown" ? semverGte(current, codexMin) : true,
+    });
+  }
+
   return results;
 }
 
@@ -90,6 +103,14 @@ function getInstalledVersion(pluginDir: string, packageName: string): string | n
     // not installed
   }
   return null;
+}
+
+function getCommandVersion(command: string): string | null {
+  const result = spawnSync(command, ["--version"], { encoding: "utf8", stdio: "pipe" });
+  if (result.status !== 0) return null;
+
+  const output = `${result.stdout}\n${result.stderr}`;
+  return /\b\d+\.\d+\.\d+\b/.exec(output)?.[0] ?? null;
 }
 
 function semverGte(current: string, minimum: string): boolean {
