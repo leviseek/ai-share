@@ -359,7 +359,7 @@ aioc
 aioc coding
 aioc --profile=max
 
-# 检查共享配置、插件、skills、TUI 插件配置和安装文件是否存在，并核对当前模式的插件配置
+# 检查 Codex/OMX、共享配置、插件、skills、TUI 插件配置和安装文件是否存在，并核对当前模式的插件配置
 aiomo doctor install
 aioc doctor install
 

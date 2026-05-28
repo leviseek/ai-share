@@ -7,7 +7,15 @@ import { join, resolve } from "node:path";
 
 type Mode = "aiomo" | "aioc";
 type Status = "OK" | "WARN" | "FAIL";
-type Group = "Profile" | "Active Config" | "OMO Config" | "TUI & Plugin" | "Skills" | "Launchers" | "Runtime";
+type Group =
+  | "Profile"
+  | "Active Config"
+  | "Codex + OMX"
+  | "OMO Config"
+  | "TUI & Plugin"
+  | "Skills"
+  | "Launchers"
+  | "Runtime";
 type Result = { group: Group; status: Status; label: string; detail: string };
 
 const OMO_PLUGIN = "oh-my-openagent@3.17.5";
@@ -32,10 +40,24 @@ const NATIVE_SKILLS = [
   "find-skills",
   "frontend-design",
 ] as const;
+const CODEX_AGENTS = [
+  "sisyphus",
+  "hephaestus",
+  "prometheus",
+  "oracle",
+  "momus",
+  "metis",
+  "atlas",
+  "sisyphus-junior",
+  "explorer",
+  "librarian",
+  "multimodal-looker",
+] as const;
 const OPENCODE_BUILTIN_COMMAND_PROBE = "__ai_share_doctor_missing_command__";
 const GROUP_ORDER: Group[] = [
   "Profile",
   "Active Config",
+  "Codex + OMX",
   "OMO Config",
   "TUI & Plugin",
   "Skills",
@@ -54,6 +76,7 @@ const homeDir = homedir();
 const configBaseDir =
   process.platform !== "win32" && process.env.XDG_CONFIG_HOME ? process.env.XDG_CONFIG_HOME : join(homeDir, ".config");
 const configDir = join(configBaseDir, "opencode");
+const codexHome = process.env.CODEX_HOME ?? join(homeDir, ".codex");
 const activeConfigPath = process.env.OPENCODE_CONFIG ?? join(configDir, "opencode.json");
 const activeConfigDir = process.env.OPENCODE_CONFIG_DIR ?? configDir;
 const binDir = join(homeDir, ".local", "bin");
@@ -340,6 +363,7 @@ function checkCommonFiles(): void {
   checkDingTalkNotifierInstall();
   checkOpencodeBuiltinCommands();
   checkDiscoveredSkills();
+  checkCodexOmxInstall(defaultProfileFromManifest(manifest));
   for (const skillName of NATIVE_SKILLS) {
     checkFile("Skills", `local skill ${skillName}`, join(configDir, "skills", skillName, "SKILL.md"));
   }
@@ -347,6 +371,45 @@ function checkCommonFiles(): void {
   checkPath();
   checkOpencodeDiscovery();
   checkOpencodeRuntime();
+}
+
+function checkCodexOmxInstall(profile: string): void {
+  checkFile("Codex + OMX", "Codex home", codexHome);
+  checkFile("Codex + OMX", "Codex config", join(codexHome, "config.toml"));
+  readJsonIfExists("Codex + OMX", "AI runtime manifest", join(codexHome, "ai-share.runtime.json"), true);
+  checkFile("Codex + OMX", "default AGENTS", join(codexHome, "AGENTS.md"));
+  checkFile("Codex + OMX", "profile config", join(codexHome, `${profile}.config.toml`));
+  checkFile("Codex + OMX", "profile AGENTS", join(codexHome, `${profile}.AGENTS.md`));
+  readJsonIfExists("Codex + OMX", "default OMX config", join(codexHome, ".omx-config.json"), true);
+  readJsonIfExists("Codex + OMX", "profile OMX config", join(codexHome, `${profile}.omx-config.json`), true);
+
+  for (const agentName of CODEX_AGENTS) {
+    checkFile("Codex + OMX", `Codex agent ${agentName}`, join(codexHome, "agents", `${agentName}.toml`));
+  }
+
+  for (const skillName of NATIVE_SKILLS) {
+    checkFile("Codex + OMX", `Codex skill ${skillName}`, join(codexHome, "skills", skillName, "SKILL.md"));
+  }
+
+  checkCodexRuntime(profile);
+}
+
+function checkCodexRuntime(profile: string): void {
+  const version = spawnSync("codex", ["--version"], { encoding: "utf8", stdio: "pipe" });
+  if (version.status === 0) ok("Codex + OMX", "codex runtime", (version.stdout || version.stderr).trim());
+  else warn("Codex + OMX", "codex runtime", (version.stderr || version.stdout || "codex --version failed").trim());
+
+  const strictConfig = spawnSync("codex", ["--strict-config", "--profile", profile, "--help"], {
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+  if (strictConfig.status === 0) ok("Codex + OMX", "codex strict config", `profile ${profile}`);
+  else
+    fail(
+      "Codex + OMX",
+      "codex strict config",
+      (strictConfig.stderr || strictConfig.stdout || `profile ${profile} failed`).trim(),
+    );
 }
 
 function checkDingTalkNotifierInstall(): void {
