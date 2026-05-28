@@ -25,6 +25,7 @@ export type GeneratorPaths = {
   targetCodexConfig: string;
   targetCodexInstructions: string;
   targetOmxConfig: string;
+  targetRuntimeManifest: string;
   targetTui: string;
   targetOhMyOpenAgent: string;
   targetProfileManifest: string;
@@ -36,6 +37,7 @@ export type GeneratorPaths = {
   targetBinDir: string;
   targetPluginDir: string;
   targetSkillsDir: string;
+  targetCodexSkillsDir: string;
 };
 
 export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.dir, "..", "..")): GeneratorPaths {
@@ -50,7 +52,7 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
   const workspaceAiMemoryDir = resolve(aiWorkspaceDir, "ai-memory");
   const externalAiMemoryDir = resolve(projectRoot, "..", "ai-memory");
   const targetConfigDir = resolve(homeDir, ".config", "opencode");
-  const targetCodexConfigDir = resolve(homeDir, ".codex");
+  const targetCodexConfigDir = resolve(Bun.env.CODEX_HOME ?? resolve(homeDir, ".codex"));
   const targetProfileDir = resolve(targetConfigDir, "profiles");
   const targetOpenCodeProfileDir = resolve(targetProfileDir, "opencode");
   const targetAiocProfileDir = resolve(targetProfileDir, "aioc");
@@ -88,6 +90,7 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
     targetCodexConfig: resolve(targetCodexConfigDir, "config.toml"),
     targetCodexInstructions: resolve(targetCodexConfigDir, "AGENTS.md"),
     targetOmxConfig: resolve(targetCodexConfigDir, ".omx-config.json"),
+    targetRuntimeManifest: resolve(targetCodexConfigDir, "ai-share.runtime.json"),
     targetTui: resolve(targetConfigDir, "tui.json"),
     targetOhMyOpenAgent: resolve(targetConfigDir, "oh-my-openagent.json"),
     targetProfileManifest: resolve(targetConfigDir, ".omo-profiles.json"),
@@ -99,6 +102,7 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
     targetBinDir: resolve(homeDir, ".local", "bin"),
     targetPluginDir: resolve(targetConfigDir, "plugins"),
     targetSkillsDir: resolve(targetConfigDir, "skills"),
+    targetCodexSkillsDir: resolve(targetCodexConfigDir, "skills"),
   };
 }
 
@@ -124,6 +128,10 @@ export function profileAiocOpenCodePath(targetConfigDir: string, profileId: stri
 
 export function profileCodexConfigPath(targetCodexConfigDir: string, profileId: string): string {
   return resolve(targetCodexConfigDir, `${profileId}.config.toml`);
+}
+
+export function profileCodexInstructionsPath(targetCodexConfigDir: string, profileId: string): string {
+  return resolve(targetCodexConfigDir, `${profileId}.AGENTS.md`);
 }
 
 export function profileOmxConfigPath(targetCodexConfigDir: string, profileId: string): string {

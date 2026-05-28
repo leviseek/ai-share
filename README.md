@@ -87,7 +87,17 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.codex/writing.omx-config.json
 ~/.codex/max.omx-config.json
 ~/.codex/ds-max.omx-config.json
+~/.codex/ai-share.runtime.json
 ~/.codex/AGENTS.md
+~/.codex/lite.AGENTS.md
+~/.codex/economy.AGENTS.md
+~/.codex/cheap.AGENTS.md
+~/.codex/balanced.AGENTS.md
+~/.codex/coding.AGENTS.md
+~/.codex/research.AGENTS.md
+~/.codex/writing.AGENTS.md
+~/.codex/max.AGENTS.md
+~/.codex/ds-max.AGENTS.md
 ~/.codex/agents/sisyphus.toml
 ~/.codex/agents/hephaestus.toml
 ~/.codex/agents/prometheus.toml
@@ -167,9 +177,10 @@ AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ~/.config/opencode/skills/skill-creator/SKILL.md
 ~/.config/opencode/skills/find-skills/SKILL.md
 ~/.config/opencode/skills/frontend-design/SKILL.md
+~/.codex/skills/<native-skill>/SKILL.md
 ```
 
-本仓库会安装一组本地 native skills，供 `aiomo` 和 `aioc` 共享使用：
+本仓库会安装一组本地 native skills，供 `Codex + OMX`、`aiomo` 和 `aioc` 共享使用：
 
 - `git-master`：安全 Git 操作、原子提交、历史搜索。
 - `context-guard`：上下文守卫、watch/rescue/handoff 和熔断历史排查。

@@ -26,7 +26,7 @@ import {
   requireValue,
 } from "./config-builders.ts";
 import { missingProviderApiKeyEnvNames } from "./cli/api-keys.ts";
-import { writeJson, writeText } from "./cli/fs.ts";
+import { pathExists, writeJson, writeText } from "./cli/fs.ts";
 import { installLaunchers, installNativeSkills, installPlugins } from "./cli/install.ts";
 import { ensureAiWorkspaceLinks } from "./cli/memory-link.ts";
 import { parseCliOptions } from "./cli/options.ts";
@@ -37,12 +37,14 @@ import {
   buildGeneratorPaths,
   codexAgentConfigPath,
   profileCodexConfigPath,
+  profileCodexInstructionsPath,
   profileContextGuardPath,
   profileAiocOpenCodePath,
   profileOhMyOpenAgentPath,
   profileOmxConfigPath,
   profileOpenCodePath,
   profileStrategyPath,
+  type GeneratorPaths,
 } from "./cli/paths.ts";
 import { agentRegistryMismatches, checkVersions } from "./cli/registry-check.ts";
 import { validateYamlConsistency } from "./config/validation.ts";
@@ -74,7 +76,9 @@ const providers = providersConfig.providers ?? {};
 const models = applyProviderGroups(modelsConfig, providers, providerGroups);
 const openCodeConfigs = buildOpenCodeConfigs(paths.projectRoot, globalConfig, providers, models, profilesConfig);
 const aiocOpenCodeConfigs = buildAiocOpenCodeConfigs(openCodeConfigs, globalConfig);
-const codexCliConfigs = buildCodexCliConfigs(providers, models, profilesConfig, paths.targetCodexInstructions);
+const codexCliConfigs = buildCodexCliConfigs(providers, models, profilesConfig, (profileId) =>
+  profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
+);
 const codexAgentConfigs = buildCodexAgentConfigs(agentsConfig);
 const tuiConfig = buildTuiConfig(globalConfig);
 const ohMyOpenAgentConfigs = buildOhMyOpenAgentConfigs(models, profilesConfig, agentsConfig);
@@ -84,6 +88,10 @@ const contextGuardProfileConfigs = buildContextGuardProfileConfigs(globalConfig,
 const selectedDefaultProfileId = defaultProfileId(globalConfig, profilesConfig);
 const selectedOpenCodeConfig = requireValue(openCodeConfigs[selectedDefaultProfileId], "默认 OpenCode profile");
 const selectedCodexCliConfig = requireValue(codexCliConfigs[selectedDefaultProfileId], "默认 Codex profile");
+const selectedCodexBaseConfig = {
+  ...selectedCodexCliConfig,
+  model_instructions_file: paths.targetCodexInstructions,
+};
 const missingApiKeys = missingProviderApiKeyEnvNames(providers);
 const registryMismatches = await agentRegistryMismatches(paths.pluginDir, agentsConfig);
 
@@ -174,11 +182,24 @@ for (const [profileId, codexCliConfig] of Object.entries(codexCliConfigs)) {
     },
   );
 }
-await writeText(paths.targetCodexConfig, formatCodexConfigToml(selectedCodexCliConfig), { dryRun, force });
+if (dryRun || !(await pathExists(paths.targetCodexConfig))) {
+  await writeText(paths.targetCodexConfig, formatCodexConfigToml(selectedCodexBaseConfig), { dryRun, force });
+} else {
+  console.log(
+    `${color.yellow("保留")} ${color.cyan("Codex CLI 现有默认配置")}：${color.bold(paths.targetCodexConfig)}（只更新 profile/agent/OMX 生成文件）`,
+  );
+}
 await writeText(paths.targetCodexInstructions, buildCodexInstructions(paths.projectRoot, selectedDefaultProfileId), {
   dryRun,
   force,
 });
+for (const profileId of Object.keys(codexCliConfigs)) {
+  await writeText(
+    profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
+    buildCodexInstructions(paths.projectRoot, profileId),
+    { dryRun, force },
+  );
+}
 for (const [agentId, codexAgentConfig] of Object.entries(codexAgentConfigs)) {
   await writeText(codexAgentConfigPath(paths.targetCodexAgentDir, agentId), formatCodexAgentToml(codexAgentConfig), {
     dryRun,
@@ -195,6 +216,11 @@ await writeJson(paths.targetOmxConfig, requireValue(omxConfigs[selectedDefaultPr
   dryRun,
   force,
 });
+await writeJson(
+  paths.targetRuntimeManifest,
+  buildRuntimeManifest(paths, Object.keys(codexCliConfigs), Object.keys(codexAgentConfigs)),
+  { dryRun, force },
+);
 await writeJson(
   paths.targetOhMyOpenAgent,
   requireValue(ohMyOpenAgentConfigs[selectedDefaultProfileId], "默认 OMO profile"),
@@ -250,6 +276,60 @@ async function loadYaml<T extends object>(fileName: string): Promise<T> {
 type ProxyConfig = Required<Pick<GlobalProxy, "enabled" | "host" | "port" | "protocol">> & {
   no_proxy: string[];
 };
+
+type RuntimeManifest = {
+  version: 1;
+  scope: "user";
+  primary_stack: "codex+omx";
+  fallback_stack: "opencode+omo";
+  platforms: ["windows", "macos"];
+  memory: {
+    v1: "load-existing-memory";
+    v2: "proposal-distillation-review";
+  };
+  paths: {
+    codex_home: string;
+    opencode_config: string;
+    bin: string;
+    opencode_skills: string;
+    codex_skills: string;
+    plugins: string;
+  };
+  managed: {
+    codex_profiles: string[];
+    omx_profiles: string[];
+    opencode_profiles: string[];
+    codex_agents: string[];
+  };
+};
+
+function buildRuntimeManifest(paths: GeneratorPaths, profileIds: string[], agentIds: string[]): RuntimeManifest {
+  return {
+    version: 1,
+    scope: "user",
+    primary_stack: "codex+omx",
+    fallback_stack: "opencode+omo",
+    platforms: ["windows", "macos"],
+    memory: {
+      v1: "load-existing-memory",
+      v2: "proposal-distillation-review",
+    },
+    paths: {
+      codex_home: paths.targetCodexConfigDir,
+      opencode_config: paths.targetConfigDir,
+      bin: paths.targetBinDir,
+      opencode_skills: paths.targetSkillsDir,
+      codex_skills: paths.targetCodexSkillsDir,
+      plugins: paths.targetPluginDir,
+    },
+    managed: {
+      codex_profiles: profileIds,
+      omx_profiles: profileIds,
+      opencode_profiles: profileIds,
+      codex_agents: agentIds,
+    },
+  };
+}
 
 function buildProxyConfig(globalConfig: GlobalYaml): ProxyConfig {
   const proxy = globalConfig.proxy ?? {};

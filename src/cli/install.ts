@@ -94,26 +94,35 @@ export async function installPlugins(paths: GeneratorPaths, dryRun: boolean): Pr
 export async function installNativeSkills(paths: GeneratorPaths, dryRun: boolean, force: boolean): Promise<void> {
   if (dryRun) {
     for (const nativeSkill of NATIVE_SKILLS) {
-      console.log(`\n--- ${nativeSkillPath(paths, nativeSkill.name)} ---\n${nativeSkill.content}`);
+      for (const skillPath of nativeSkillPaths(paths, nativeSkill.name)) {
+        console.log(`\n--- ${skillPath} ---\n${nativeSkill.content}`);
+      }
     }
     return;
   }
 
   for (const nativeSkill of NATIVE_SKILLS) {
-    const skillPath = nativeSkillPath(paths, nativeSkill.name);
-    if (!force && (await pathExists(skillPath))) {
-      throw new Error(`目标已存在：${skillPath}\n如需覆盖，请运行：bun run ai:gen -- --force`);
+    for (const skillPath of nativeSkillPaths(paths, nativeSkill.name)) {
+      if (!force && (await pathExists(skillPath))) {
+        throw new Error(`目标已存在：${skillPath}\n如需覆盖，请运行：bun run ai:gen -- --force`);
+      }
     }
   }
 
   for (const nativeSkill of NATIVE_SKILLS) {
-    await mkdir(resolve(paths.targetSkillsDir, nativeSkill.name), { recursive: true });
-    await writeFile(nativeSkillPath(paths, nativeSkill.name), nativeSkill.content);
+    for (const targetDir of nativeSkillDirs(paths, nativeSkill.name)) {
+      await mkdir(targetDir, { recursive: true });
+      await writeFile(resolve(targetDir, "SKILL.md"), nativeSkill.content);
+    }
   }
 }
 
-function nativeSkillPath(paths: GeneratorPaths, skillName: string): string {
-  return resolve(paths.targetSkillsDir, skillName, "SKILL.md");
+function nativeSkillDirs(paths: GeneratorPaths, skillName: string): string[] {
+  return [resolve(paths.targetSkillsDir, skillName), resolve(paths.targetCodexSkillsDir, skillName)];
+}
+
+function nativeSkillPaths(paths: GeneratorPaths, skillName: string): string[] {
+  return nativeSkillDirs(paths, skillName).map((dir) => resolve(dir, "SKILL.md"));
 }
 
 function withUtf8Bom(content: string): string {

@@ -46,9 +46,12 @@ export function printGenerationSummary(input: {
   console.log(`${color.green(prefix)} ${color.cyan("OpenCode 配置")}：${color.bold(input.paths.targetOpenCode)}`);
   console.log(`${color.green(prefix)} ${color.cyan("OpenCode TUI 配置")}：${color.bold(input.paths.targetTui)}`);
   console.log(
-    `${color.green(prefix)} ${color.cyan("Codex CLI 默认配置")}：${color.bold(input.paths.targetCodexConfig)}`,
+    `${color.green(prefix)} ${color.cyan("Codex CLI 默认配置")}：${color.bold(input.paths.targetCodexConfig)}${color.gray("（存在时保留）")}`,
   );
   console.log(`${color.green(prefix)} ${color.cyan("OMX 默认配置")}：${color.bold(input.paths.targetOmxConfig)}`);
+  console.log(
+    `${color.green(prefix)} ${color.cyan("AI runtime 清单")}：${color.bold(input.paths.targetRuntimeManifest)}`,
+  );
   console.log(
     `${color.green(prefix)} ${color.cyan("OpenCode 级别配置")}：${color.magenta(formatProfileCommands(input.openCodeProfileIds))}`,
   );
@@ -76,6 +79,9 @@ export function printGenerationSummary(input: {
   );
   console.log(
     `${color.green(installPrefix)} ${color.cyan("OpenCode native skills 目录")}：${color.bold(input.paths.targetSkillsDir)}`,
+  );
+  console.log(
+    `${color.green(installPrefix)} ${color.cyan("Codex native skills 目录")}：${color.bold(input.paths.targetCodexSkillsDir)}`,
   );
   console.log(
     `${color.gray("说明")}：provider/model/profiles/agents/categories/runtime_fallback/background_task/tmux/plugin/strategy 均来自 config/*.yaml。`,

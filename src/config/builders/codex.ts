@@ -17,12 +17,18 @@ export function buildCodexCliConfigs(
   providerSources: Record<string, ProviderSource>,
   modelSources: ModelsYaml,
   profilesConfig: ProfilesYaml,
-  instructionsFile: string,
+  instructionsFileForProfile: (profileId: string) => string,
 ): Record<string, CodexCliProfileConfig> {
   return Object.fromEntries(
     Object.keys(requireRecord(profilesConfig, "profiles")).map((profileId) => [
       profileId,
-      buildCodexCliConfig(providerSources, modelSources, profilesConfig, profileId, instructionsFile),
+      buildCodexCliConfig(
+        providerSources,
+        modelSources,
+        profilesConfig,
+        profileId,
+        instructionsFileForProfile(profileId),
+      ),
     ]),
   );
 }
