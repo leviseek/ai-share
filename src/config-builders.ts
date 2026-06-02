@@ -9,10 +9,10 @@ export {
 } from "./config/builders/codex.ts";
 export { buildContextGuardConfig, buildContextGuardProfileConfigs } from "./config/builders/context-guard.ts";
 export { buildDingTalkNotifierConfig } from "./config/builders/dingtalk-notifier.ts";
+export { buildInstructionsPaths } from "./config/builders/instructions.ts";
 export { buildOhMyOpenAgentConfigs } from "./config/builders/omo.ts";
 export {
   buildAiocOpenCodeConfigs,
-  buildInstructionsPaths,
   buildOpenCodeConfigs,
   buildProfileManifest,
   buildTuiConfig,

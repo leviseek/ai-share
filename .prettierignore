@@ -8,3 +8,5 @@ target/
 bun.lock
 
 .sisyphus/
+
+.omx/

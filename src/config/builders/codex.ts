@@ -14,7 +14,7 @@ import type {
 } from "../../types.ts";
 import { modelRef } from "../model-refs.ts";
 import { requireRecord, requireString } from "../validation.ts";
-import { buildInstructionsPaths } from "./opencode.ts";
+import { buildInstructionsPaths } from "./instructions.ts";
 
 export function buildCodexCliConfigs(
   providerSources: Record<string, ProviderSource>,

@@ -3,16 +3,16 @@ import { resolve } from "node:path";
 
 /**
  * Profile 到 memory 文件相对路径列表的映射。
- * key 为 OpenCode profile 名称，value 为相对于项目根目录 memory/ 目录的文件路径数组。
+ * key 为 ai-share profile 名称（Codex/OMX 与 OpenCode/OMO 共享），value 为相对于项目根目录 memory/ 目录的文件路径数组。
  */
 export type ProfileMemoryMap = Record<string, readonly string[]>;
 
 /**
- * 各 OpenCode profile 对应的 memory 文件集（仅包含从 ai-memory 仓库迁移的文件）。
+ * 各 ai-share profile 对应的附加 memory 文件集（仅包含从 ai-memory 仓库迁移的文件）。
  *
  * 映射到项目根目录 memory/ 下 stable/、profiles/、policies/ 中的 YAML 文件。
- * user/、architecture/、stack/ 目录下的文件由 {@link buildInstructionsPaths} 硬编码，
- * 对所有 profile 统一加载，不受此映射影响。
+ * user/、architecture/、stack/ 目录下的基础文件由中立的 {@link buildInstructionsPaths}
+ * instruction/memory 边界统一加载，不受此映射影响。
  *
  * 策略说明：
  * - lite / economy / cheap（轻量级 profile）：仅读取用户基础身份信息（stable/user.yaml），
@@ -51,12 +51,12 @@ export const profileMemoryMap: ProfileMemoryMap = {
 };
 
 /**
- * 获取指定 OpenCode profile 对应的 memory 文件绝对路径列表。
+ * 获取指定 ai-share profile 对应的附加 memory 文件绝对路径列表。
  *
  * 会根据 {@link profileMemoryMap} 查找对应文件集，对每个文件拼接 projectRoot 后检查本地是否存在。
  * 不存在的文件会被静默跳过，确保返回的路径都是可读取的。
  *
- * @param profile  - OpenCode profile 名称。
+ * @param profile  - ai-share profile 名称。
  *                   支持：lite、economy、cheap、balanced、coding、research、writing、max。
  *                   未匹配的 profile 名称会回退到仅包含 memory/stable/user.yaml 的默认集。
  * @param projectRoot - 项目根目录绝对路径（如 `D:\ai-share`），memory/ 目录由其解析。

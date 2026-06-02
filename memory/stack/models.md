@@ -21,16 +21,16 @@ OpenCode 和 OMO 共享同一套中间层角色。agents 和 categories 只引�
 
 ## Profile 模型对照表
 
-| Profile  | primary           | reasoning                 | fast              |
-| -------- | ----------------- | ------------------------- | ----------------- |
-| lite     | gpt-5.4           | deepseek-v4-flash-think   | gpt-5.4-mini      |
-| economy  | deepseek-v4-flash | deepseek-v4-flash-think   | deepseek-v4-flash |
-| cheap    | gpt-5.4-mini      | deepseek-v4-flash-think   | gpt-5.4-mini      |
-| balanced | gpt-5.5           | deepseek-v4-pro-think     | gpt-5.4-mini      |
-| coding   | gpt-5.3-codex     | deepseek-v4-pro-think     | gpt-5.4-mini      |
-| research | gpt-5.5           | deepseek-v4-pro-think-max | gpt-5.4-mini      |
-| writing  | gpt-5.5           | deepseek-v4-pro-think     | gpt-5.4-mini      |
-| max      | gpt-5.5           | deepseek-v4-pro-think-max | gpt-5.4           |
+| Profile  | primary               | reasoning                 | fast                    |
+| -------- | --------------------- | ------------------------- | ----------------------- |
+| lite     | gpt-5.4               | deepseek-v4-flash-think   | gpt-5.4-mini            |
+| economy  | deepseek-v4-flash     | deepseek-v4-flash-think   | deepseek-v4-flash       |
+| cheap    | gpt-5.4-mini          | deepseek-v4-flash-think   | gpt-5.4-mini            |
+| balanced | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini            |
+| coding   | gpt-5.3-codex         | deepseek-v4-pro-think     | gpt-5.4-mini            |
+| research | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4-mini            |
+| writing  | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini            |
+| max      | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4                 |
 | ds-max   | deepseek-v4-pro-think | deepseek-v4-pro-think-max | deepseek-v4-flash-think |
 
 ## 模型选择策略
