@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 
 import { createHash } from "node:crypto";
-import { resolve } from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import type { ModelsYaml, ProviderSource, ProviderYaml } from "../types.ts";
 import { applyProviderGroups } from "../config-builders.ts";
 import { loadConfigYamlSync } from "../config/local-overlay.ts";
@@ -26,6 +27,15 @@ export type ProviderCanaryCheckResult = {
   error?: string;
 };
 
+export type ProviderCheckReport = {
+  status: "ok" | "error";
+  canary: boolean;
+  elapsed_ms: number;
+  provider_groups: Record<string, string>;
+  model_results: ProviderModelCheckResult[];
+  canary_results: ProviderCanaryCheckResult[];
+};
+
 type FetchLike = (
   input: string,
   init: RequestInit & { headers: Record<string, string>; signal: AbortSignal },
@@ -40,6 +50,7 @@ if (import.meta.main) {
   const providerGroups = parseCliOptions().providerGroups;
   const canary = Bun.argv.includes("--canary");
   const jsonOutput = Bun.argv.includes("--json");
+  const outputPath = parseOption(Bun.argv.slice(2), "--output");
   const models = applyProviderGroups(modelConfig, providerConfig.providers ?? {}, providerGroups);
   const results = await checkProviderModels({
     providers: providerConfig.providers ?? {},
@@ -53,34 +64,29 @@ if (import.meta.main) {
         env: Bun.env,
       })
     : [];
+  const report: ProviderCheckReport = {
+    status:
+      results.every((result) => result.status === "ok") && canaryResults.every((result) => result.status === "ok")
+        ? "ok"
+        : "error",
+    canary,
+    elapsed_ms: elapsedSince(startedAt),
+    provider_groups: providerGroups,
+    model_results: results,
+    canary_results: canaryResults,
+  };
   if (jsonOutput) {
-    console.log(
-      JSON.stringify(
-        {
-          status:
-            results.every((result) => result.status === "ok") && canaryResults.every((result) => result.status === "ok")
-              ? "ok"
-              : "error",
-          canary,
-          elapsed_ms: elapsedSince(startedAt),
-          provider_groups: providerGroups,
-          model_results: results,
-          canary_results: canaryResults,
-        },
-        null,
-        2,
-      ),
-    );
+    console.log(JSON.stringify(report, null, 2));
   } else {
     printProviderModelResults(results);
     if (canary) printProviderCanaryResults(canaryResults);
-    console.log(`provider check elapsed: ${elapsedSince(startedAt)}ms`);
+    console.log(`provider check elapsed: ${report.elapsed_ms}ms`);
   }
-  process.exit(
-    results.every((result) => result.status === "ok") && canaryResults.every((result) => result.status === "ok")
-      ? 0
-      : 1,
-  );
+  if (outputPath) {
+    writeJsonReport(outputPath, report);
+    if (!jsonOutput) console.log(`provider check report: ${outputPath}`);
+  }
+  process.exit(report.status === "ok" ? 0 : 1);
 }
 
 export async function checkProviderModels(input: {
@@ -372,6 +378,21 @@ function envKeyName(value: string | undefined): string | undefined {
 
 function loadYaml(fileName: string): object {
   return loadConfigYamlSync(resolve(projectRoot, "config"), fileName);
+}
+
+function parseOption(values: readonly string[], name: string): string | undefined {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (value === name) return values[index + 1];
+    if (value?.startsWith(`${name}=`)) return value.slice(name.length + 1);
+  }
+  return undefined;
+}
+
+function writeJsonReport(path: string, report: ProviderCheckReport): void {
+  const resolvedPath = resolve(path);
+  mkdirSync(dirname(resolvedPath), { recursive: true });
+  writeFileSync(resolvedPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 }
 
 function printProviderModelResults(results: readonly ProviderModelCheckResult[]): void {
