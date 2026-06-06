@@ -30,15 +30,7 @@ omo-agent-monitor-state.json
 ### Local AI planning artifacts
 docs/superpowers/
 
-### Local OpenCode / aiomo runtime state
-.opencode/context-guard-alert.json
-.opencode/context-guard-history/
-.opencode/context-guard-watch/
-.opencode/handoff/
-.opencode/checkpoints/
-.opencode/dcp/
-.opencode/memory/
-.opencode-rescue/
+### Local AI runtime state
 .sisyphus/evidence/
 .sisyphus/*.local.*
 .playwright-mcp/

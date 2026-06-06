@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { access, writeFile } from "node:fs/promises";
+import { access, rename, unlink, writeFile } from "node:fs/promises";
+import { basename, dirname, resolve } from "node:path";
 import { color } from "./color.ts";
 
 export async function writeJson(
@@ -25,7 +27,7 @@ export async function writeText(
     throw new Error(`目标已存在：${path}\n如需覆盖，请运行：bun run ai:gen -- --force`);
   }
 
-  await writeFile(path, content);
+  await atomicWriteFile(path, content);
 }
 
 export async function pathExists(path: string): Promise<boolean> {
@@ -40,4 +42,25 @@ export async function pathExists(path: string): Promise<boolean> {
 
 function isNotFound(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+}
+
+async function atomicWriteFile(path: string, content: string): Promise<void> {
+  const targetPath = resolve(path);
+  const tempPath = resolve(dirname(targetPath), `.${basename(targetPath)}.${process.pid}.${randomUUID()}.tmp`);
+
+  try {
+    await writeFile(tempPath, content);
+    await rename(tempPath, targetPath);
+  } catch (error) {
+    await removeTempFile(tempPath);
+    throw error;
+  }
+}
+
+async function removeTempFile(path: string): Promise<void> {
+  try {
+    await unlink(path);
+  } catch (error) {
+    if (!isNotFound(error)) throw error;
+  }
 }
