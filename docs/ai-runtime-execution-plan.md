@@ -142,3 +142,11 @@ bun run check
 - provider canary 依赖网络和第三方服务稳定性，默认不能阻断日常 `check`。
 - 事务化生成涉及跨平台文件替换，Windows 需单独验证。
 - 不写入真实 API key、token、cookie 或私人 `.env` 内容。
+
+## 持续增强记录
+
+- runtime manifest 已记录 `local_config_overlays`，便于审计当前生成结果是否叠加了 `config/local/*.yaml`。
+- `profile:eval` 写报告后同时显示 JSON 与 Markdown 输出路径，减少人工查找报告文件的成本。
+- provider canary JSON 已增加 `request_fingerprint`，用于区分同一 upstream model 在不同参数组合下的 canary 请求。
+- `memory:check` 已汇总 `ai-share-privacy-allow` 指令使用数量，提醒定期复核 allow 是否仍有必要。
+- `ai:doctor` 每个检查项已记录 `elapsed_ms`，人类可读输出和 JSON 输出均可用于定位诊断耗时。
