@@ -17,19 +17,20 @@ import {
   buildCodexAgentConfigs,
   buildCodexCliConfigs,
   buildCodexInstructions,
+  buildCodexEnvFileWithManagedBlock,
   buildInstructionsPaths,
   buildOmxConfigs,
   buildRuntimeManifest,
+  codexEnvManagedBlockIsCurrent,
   defaultProfileId,
   formatCodexAgentToml,
   formatCodexConfigToml,
-  formatCodexEnvFile,
   modelProviderGroups,
   requireValue,
 } from "./config-builders.ts";
 import { missingProviderApiKeyEnvNames } from "./cli/api-keys.ts";
 import { checkCodexEnvLocalProxies } from "./cli/env-runtime-check.ts";
-import { pathExists, writeJson, writeText } from "./cli/fs.ts";
+import { atomicWriteFile, pathExists, writeJson, writeText } from "./cli/fs.ts";
 import { installLaunchers, installNativeSkills } from "./cli/install.ts";
 import { ensureAiWorkspaceLinks } from "./cli/memory-link.ts";
 import { parseCliOptions } from "./cli/options.ts";
@@ -124,6 +125,10 @@ if (checkOnly) {
     formatCodexConfigToml(selectedCodexBaseConfig),
   );
   const localProxyChecks = await checkCodexEnvLocalProxies(envConfig);
+  const envManagedBlockCurrent = codexEnvManagedBlockIsCurrent(
+    envConfig,
+    (await pathExists(paths.targetCodexEnv)) ? await readFile(paths.targetCodexEnv, "utf8") : undefined,
+  );
 
   printCheckSummary({
     configuredProviderCount: Object.keys(providers).length,
@@ -137,6 +142,7 @@ if (checkOnly) {
     missingApiKeys,
     defaultConfigDrift,
     localProxyChecks,
+    envManagedBlockCurrent,
   });
 
   const versionResults = checkVersions(globalConfig);
@@ -216,11 +222,15 @@ await writeJson(
   { dryRun, force },
 );
 
-if (dryRun || force || !(await pathExists(paths.targetCodexEnv))) {
-  await writeText(paths.targetCodexEnv, formatCodexEnvFile(envConfig), { dryRun, force });
+if (dryRun) {
+  await writeText(paths.targetCodexEnv, buildCodexEnvFileWithManagedBlock(envConfig), { dryRun, force: true });
 } else {
+  const existingEnv = (await pathExists(paths.targetCodexEnv))
+    ? await readFile(paths.targetCodexEnv, "utf8")
+    : undefined;
+  await atomicWriteFile(paths.targetCodexEnv, buildCodexEnvFileWithManagedBlock(envConfig, existingEnv));
   console.log(
-    `${color.yellow("保留")} ${color.cyan("Codex CLI 现有 .env")}：${color.bold(paths.targetCodexEnv)}（如需覆盖请运行 bun run ai:gen -- --force）`,
+    `${color.green("已更新")} ${color.cyan("Codex CLI .env managed block")}：${color.bold(paths.targetCodexEnv)}（保留 block 外用户内容）`,
   );
 }
 

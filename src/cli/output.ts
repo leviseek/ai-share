@@ -16,6 +16,7 @@ export function printCheckSummary(input: {
   missingApiKeys: string[];
   defaultConfigDrift: DefaultConfigDrift;
   localProxyChecks: LocalProxyRuntimeCheck[];
+  envManagedBlockCurrent: boolean;
 }): void {
   console.log(color.green("配置检查通过。"));
   console.log(`${color.cyan("已配置 provider 数量")}：${color.bold(String(input.configuredProviderCount))}`);
@@ -23,6 +24,11 @@ export function printCheckSummary(input: {
   console.log(`${color.cyan("Codex CLI profile")}：${color.magenta(input.codexProfileIds.join(" / "))}`);
   console.log(`${color.cyan("MCP servers")}：${color.magenta(input.mcpServerIds.join(" / ") || "none")}`);
   console.log(`${color.cyan("Codex .env 变量")}：${color.magenta(input.codexEnvVarNames.join(" / ") || "none")}`);
+  console.log(
+    `${color.cyan("Codex .env managed block")}：${
+      input.envManagedBlockCurrent ? color.green("current") : color.yellow("missing/drifted")
+    }`,
+  );
   printLocalProxyChecks(input.localProxyChecks);
   console.log(`${color.cyan("Codex home")}：${color.bold(input.codexHome)}`);
   console.log(`${color.cyan("默认 Codex profile")}：${color.bold(input.selectedDefaultProfileId)}`);

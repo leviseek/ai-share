@@ -244,15 +244,20 @@ all_proxy=socks5://127.0.0.1:7897
 no_proxy=localhost,127.0.0.1,::1
 ```
 
-`bun run ai:gen` 会在 `CODEX_HOME/.env` 不存在时创建它；已有 `.env` 会保留，避免覆盖手工私有项。需要按 `config/env.yaml` 强制刷新时运行：
+`bun run ai:gen` 只更新 `CODEX_HOME/.env` 中的 ai-share managed block，并保留 block 外的用户手写内容：
 
-```sh
-bun run ai:gen -- --force
+```dotenv
+# BEGIN ai-share managed env
+# Non-secret Codex runtime environment only. Keep API keys and tokens outside this file.
+...
+# END ai-share managed env
 ```
+
+如果检测到旧版 ai-share 全量生成头，会自动迁移为 managed block；未知 `.env` 文件只追加或更新 managed block。
 
 不要把 API key、token、cookie、password、`CODEX_HOME`、`PATH`、`AI_SHARE_*` 或 `OMX_DEFAULT_*` 写入 `config/env.yaml`。
 
-`bun run ai:check` 会轻量检查 `config/env.yaml` 中的 loopback 代理端口是否可达；不可达时只输出告警，不阻断离线验证。
+`bun run ai:check` 会轻量检查 managed block 是否缺失/漂移，以及 `config/env.yaml` 中的 loopback 代理端口是否可达；这些运行态差异只输出告警，不阻断离线验证。
 
 ## Profile 导入/导出
 
@@ -305,6 +310,15 @@ bun run provider:check
 ```
 
 该命令会访问各 provider 的 `/models` 端点，需要本机已设置对应 API key。它是显式网络检查，不放入默认 `bun run check`。
+
+聚合运行态诊断：
+
+```sh
+bun run ai:doctor
+bun run ai:doctor -- --json
+```
+
+`ai:doctor` 聚合 YAML 一致性、默认配置漂移、Codex/OMX 版本、`.env` managed block、本地代理、memory privacy 和 provider model 检查。provider/network 问题默认是 warning；需要阻断时使用 `--strict-provider`。
 
 ## Templates / Privacy
 
