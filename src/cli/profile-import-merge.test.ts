@@ -78,6 +78,66 @@ coding:
     expect(validProfiles).toEqual([]);
     expect(errors).toContain("[with-strategies] strategies: 不支持的字段");
   });
+
+  test("rejects YAML-unsafe profile ids and nested extension fields", () => {
+    const unsafeProfileId: unknown = profile("bad:id", "gpt-5.5");
+    const nestedExtension: unknown = {
+      ...profile("nested-extension", "gpt-5.5"),
+      roles: {
+        ...profile("nested-extension", "gpt-5.5").roles,
+        primary: {
+          model: "gpt-5.5",
+          provider: "custom",
+        },
+        custom: {
+          model: "gpt-5.5",
+        },
+      },
+      compaction: {
+        threshold: 65000,
+        max_input_tokens: 120000,
+        model_role: "fast",
+        strategy: "custom",
+      },
+    };
+    const malformedCompaction: unknown = {
+      ...profile("malformed-compaction", "gpt-5.5"),
+      compaction: "fast",
+    };
+
+    const { validProfiles, errors } = validateImportedProfiles([unsafeProfileId, nestedExtension, malformedCompaction]);
+
+    expect(validProfiles).toEqual([]);
+    expect(errors).toContain("[bad:id] profile_id: 只能包含字母、数字、下划线和连字符");
+    expect(errors).toContain("[nested-extension] roles.custom: 不支持的字段");
+    expect(errors).toContain("[nested-extension] roles.primary.provider: 不支持的字段");
+    expect(errors).toContain("[nested-extension] compaction.strategy: 不支持的字段");
+    expect(errors).toContain("[malformed-compaction] compaction: 必须是对象");
+  });
+
+  test("rejects YAML-unsafe imported scalar values", () => {
+    const unsafeScalars: unknown = {
+      ...profile("unsafe-scalars", "gpt-5.5"),
+      name: "unsafe\n  models:",
+      roles: {
+        primary: { model: "gpt-5.5 # injected" },
+        reasoning: { model: "deepseek-v4-pro-think" },
+        fast: { model: "gpt-5.4-mini" },
+      },
+      compaction: {
+        threshold: 65000,
+        max_input_tokens: 120000,
+        model_role: "fast # injected",
+      },
+    };
+
+    const { validProfiles, errors } = validateImportedProfiles([unsafeScalars]);
+
+    expect(validProfiles).toEqual([]);
+    expect(errors).toContain("[unsafe-scalars] name: 不能包含换行");
+    expect(errors).toContain("[unsafe-scalars] roles.primary.model: model ID 包含不安全字符");
+    expect(errors).toContain("[unsafe-scalars] compaction.model_role: model_role 包含不安全字符");
+  });
 });
 
 function profile(profileId: string, primary: string): TriRoleProfile {

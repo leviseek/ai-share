@@ -92,8 +92,11 @@ Fallback 链定义在 `models.yaml` 的 `fallback` 字段中。链条应保持�
 必须验证：
 
 - `protocol` 等于 `tri-role/v1`
-- `profile_id` 非空
+- `profile_id` 非空，且只能包含字母、数字、下划线和连字符
+- 不接受协议未定义的 top-level、`roles.*`、`compaction.*` 扩展字段
 - `roles.primary.model`、`roles.reasoning.model`、`roles.fast.model` 均非空
+- `name` 必须是单行字符串，模型引用必须是安全的模型 ID/角色名
+- `compaction` 必须是对象
 - 模型 ID 在本地模型注册表中存在
 - `compaction.threshold <= compaction.max_input_tokens`（当二者都存在）
 
