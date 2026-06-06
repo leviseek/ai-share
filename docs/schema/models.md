@@ -86,7 +86,7 @@ deepseek-v4-pro-think-max:
 | `gpt-5.5`                   | gpt            | 200K           | $0.01 / $0.03              | —                     |
 | `gpt-5.4`                   | gpt            | 160K           | $0.008 / $0.025            | —                     |
 | `gpt-5.4-mini`              | gpt            | 128K           | $0.0012 / $0.0024          | —                     |
-| `gpt-5.3-codex`             | gpt            | 128K           | $0.007 / $0.021            | —                     |
+| `gpt-5.5-coding`            | gpt            | 200K           | $0.01 / $0.03              | —                     |
 | `deepseek-v4-pro-think-max` | deepseek       | 1M             | $0.005 / $0.012            | enabled (effort=max)  |
 | `deepseek-v4-pro-think`     | deepseek       | 1M             | $0.003 / $0.006            | enabled (effort=high) |
 | `deepseek-v4-flash-think`   | deepseek       | 1M             | $0.003 / $0.006            | enabled (effort=high) |

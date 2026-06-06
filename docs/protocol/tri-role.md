@@ -53,7 +53,7 @@ Agent -> Role -> Profile -> Model -> Provider
 | `economy`  | 激进省钱         | deepseek-v4-flash     | deepseek-v4-flash-think   | deepseek-v4-flash |
 | `cheap`    | 极低成本         | gpt-5.4-mini          | deepseek-v4-flash-think   | gpt-5.4-mini      |
 | `balanced` | 均衡编排（默认） | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini      |
-| `coding`   | 代码实施优先     | gpt-5.3-codex         | deepseek-v4-pro-think     | gpt-5.4-mini      |
+| `coding`   | 代码实施优先     | gpt-5.5-coding        | deepseek-v4-pro-think     | gpt-5.4-mini      |
 | `research` | 深度研究         | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4-mini      |
 | `writing`  | 写作润色         | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini      |
 | `max`      | 全力模式         | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4           |

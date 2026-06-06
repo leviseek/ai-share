@@ -32,6 +32,10 @@ src/
 | CLI flags                  | `cli/options.ts`                  | `--force`, `--dry-run`, `--check`, provider groups/env    |
 | Install/copy behavior      | `cli/install.ts`                  | Launchers and Codex native skills                         |
 | Output paths               | `cli/paths.ts`                    | Codex home, agents, skills, user bin                      |
+| Codex `.env` runtime check | `cli/env-runtime-check.ts`        | Loopback proxy reachability checks for `ai:check`         |
+| Provider/model live check  | `cli/provider-model-check.ts`     | Optional `/models` availability check                     |
+| Memory privacy check       | `cli/memory-privacy-check.ts`     | Enforces memory privacy layers and secret scanning        |
+| Profile eval harness       | `cli/profile-eval.ts`             | Fixed task-set reports, cost estimates, manual scoring    |
 | YAML schema source         | `config/schema-spec.ts`           | Single source for JSON Schema and runtime shape checks    |
 | Runtime validation         | `config/validation.ts`            | Runs schema-derived shape checks plus business rules      |
 
@@ -52,6 +56,7 @@ src/
 ```sh
 bun run typecheck
 bun run lint
+bun run memory:check
 bun run ai:check
 ```
 

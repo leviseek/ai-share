@@ -55,7 +55,7 @@ balanced:
 coding:
   name: 代码实施优先模式
   models:
-    primary: gpt-5.3-codex
+    primary: gpt-5.5-coding
     reasoning: deepseek-v4-pro-think
     fast: gpt-5.4-mini
   compaction:

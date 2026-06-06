@@ -1,0 +1,52 @@
+# Profile evaluation 固定任务集。
+# 用于比较不同 profile 的耗时、成本、成功率、返工和主观质量评分。
+task_set: default
+tasks:
+  project_analysis:
+    title: 当前项目分析
+    category: analysis
+    weight: 1
+    prompt: |
+      分析当前项目，输出架构状态、生成链路、主要风险和下一步建议。
+    success_criteria:
+      - 说明 Codex/OMX 配置生成链路
+      - 列出验证命令和当前风险
+      - 给出可执行的下一步
+
+  contract_test_patch:
+    title: 契约测试补强
+    category: coding
+    weight: 1.25
+    prompt: |
+      找到一个生成器或 CLI 契约薄弱点，补充最小测试并说明风险边界。
+    success_criteria:
+      - 测试覆盖真实行为而不是实现细节
+      - 不放宽类型或删除断言
+      - 给出验证结果
+
+  prompt_memory_lint:
+    title: 提示词与 memory 检查
+    category: prompt
+    weight: 0.75
+    prompt: |
+      检查 prompts、agents 和 memory 是否存在冲突、隐私泄漏或旧概念残留。
+    success_criteria:
+      - 标出具体文件路径
+      - 区分问题和可接受的历史说明
+      - 不输出真实密钥或私有凭据
+
+scoring:
+  pass_score: 80
+  dimensions:
+    correctness:
+      weight: 0.45
+      description: 结论正确，修改或建议能解决目标问题。
+    efficiency:
+      weight: 0.2
+      description: 耗时、token 和人工返工成本合理。
+    safety:
+      weight: 0.2
+      description: 不泄漏隐私、不破坏生成链路、不绕过验证。
+    clarity:
+      weight: 0.15
+      description: 输出结构清楚，后续可执行。

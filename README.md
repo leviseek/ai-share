@@ -167,7 +167,7 @@ lite：primary=gpt-5.4，reasoning=deepseek-v4-flash-think，fast=gpt-5.4-mini
 economy：primary=deepseek-v4-flash，reasoning=deepseek-v4-flash-think，fast=deepseek-v4-flash
 cheap：primary=gpt-5.4-mini，reasoning=deepseek-v4-flash-think，fast=gpt-5.4-mini
 balanced：primary=gpt-5.5，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-mini
-coding：primary=gpt-5.3-codex，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-mini
+coding：primary=gpt-5.5-coding，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-mini
 research：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4-mini
 writing：primary=gpt-5.5，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-mini
 max：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4
@@ -195,6 +195,7 @@ config/profiles.yaml  -> Codex/OMX profile、模型角色映射和 compaction me
 config/agents.yaml    -> Codex agent 运行时参数、OMX slot/reasoning 映射和 prompt append
 config/mcp.yaml       -> 用户级 Codex MCP servers
 config/env.yaml       -> 写入 CODEX_HOME/.env 的非密钥 Codex 运行时环境变量
+config/profile-eval.yaml -> profile evaluation 固定任务集和手工评分维度
 ```
 
 `config/mcp.yaml` 不允许写入明文 token/cookie/API key。`bun run ai:check` 会阻止 HTTP MCP URL 中的敏感查询参数，也会阻止 stdio MCP 的敏感 env 写成明文。
@@ -233,13 +234,13 @@ export DEEPSEEK_API_KEY="your-key"
 Codex CLI 会读取 `CODEX_HOME/.env`。`config/env.yaml` 管理适合写入该文件的非密钥运行时变量，当前默认写入本地代理：
 
 ```dotenv
-HTTP_PROXY=http://127.0.0.1:7890
-HTTPS_PROXY=http://127.0.0.1:7890
-ALL_PROXY=socks5://127.0.0.1:7890
+HTTP_PROXY=http://127.0.0.1:7897
+HTTPS_PROXY=http://127.0.0.1:7897
+ALL_PROXY=socks5://127.0.0.1:7897
 NO_PROXY=localhost,127.0.0.1,::1
-http_proxy=http://127.0.0.1:7890
-https_proxy=http://127.0.0.1:7890
-all_proxy=socks5://127.0.0.1:7890
+http_proxy=http://127.0.0.1:7897
+https_proxy=http://127.0.0.1:7897
+all_proxy=socks5://127.0.0.1:7897
 no_proxy=localhost,127.0.0.1,::1
 ```
 
@@ -250,6 +251,8 @@ bun run ai:gen -- --force
 ```
 
 不要把 API key、token、cookie、password、`CODEX_HOME`、`PATH`、`AI_SHARE_*` 或 `OMX_DEFAULT_*` 写入 `config/env.yaml`。
+
+`bun run ai:check` 会轻量检查 `config/env.yaml` 中的 loopback 代理端口是否可达；不可达时只输出告警，不阻断离线验证。
 
 ## Profile 导入/导出
 
@@ -278,6 +281,12 @@ MCP 条件规则和 secret 策略。
 生成 profile 评测计划，不执行模型调用：
 
 ```sh
+bun run profile:eval -- --tasks project_analysis,contract_test_patch --profiles coding,max
+```
+
+也可以继续用临时任务：
+
+```sh
 bun run profile:eval -- --task "分析当前项目" --profiles coding,max
 ```
 
@@ -287,13 +296,29 @@ bun run profile:eval -- --task "分析当前项目" --profiles coding,max
 bun run profile:eval -- --task "分析当前项目" --profiles coding,max --execute
 ```
 
-默认报告写入 `.sisyphus/evidence/profile-eval/`，包含耗时、退出码、估算输入成本、最大输出成本、人工成功/返工字段。
+默认报告写入 `.sisyphus/evidence/profile-eval/`，报告协议为 `ai-share/profile-eval/v2`，包含固定任务权重、成功标准、耗时、退出码、估算成本、人工成功/返工/评分字段和 profile 加权汇总。
+
+检查 provider 是否真实暴露了当前配置中的上游模型名：
+
+```sh
+bun run provider:check
+```
+
+该命令会访问各 provider 的 `/models` 端点，需要本机已设置对应 API key。它是显式网络检查，不放入默认 `bun run check`。
 
 ## Templates / Privacy
 
 `templates/shareable/config/` 提供可共享最小配置模板；`templates/personal-overlay/` 描述个人 overlay 边界。当前生成器仍以 `config/*.yaml` 为实际输入。
 
 memory 隐私分层见 `docs/memory-privacy.md`：shareable、personal、local、project。`memory/local/`、`memory/private/`、`memory/project/` 默认不进入 Git。
+
+自动检查 memory 分层和疑似 secret：
+
+```sh
+bun run memory:check
+```
+
+`bun run check` 已包含 `memory:check`。
 
 ## Memory
 

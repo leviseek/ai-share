@@ -83,7 +83,7 @@ model_instructions_file = "C:\\\\Users\\\\levi\\\\.codex\\\\balanced.AGENTS.md"
 
       const omxConfig = {
         env: {
-          OMX_DEFAULT_FRONTIER_MODEL: "gpt-5.3-codex",
+          OMX_DEFAULT_FRONTIER_MODEL: "gpt-5.5",
         },
       };
       writeFileSync(
@@ -98,7 +98,7 @@ model_instructions_file = "C:\\\\Users\\\\levi\\\\.codex\\\\balanced.AGENTS.md"
       writeFileSync(
         join(codexHome, "coding.config.toml"),
         [
-          'model = "gpt-5.3-codex"',
+          'model = "gpt-5.5"',
           'model_provider = "codexapis"',
           'model_reasoning_effort = "high"',
           `model_instructions_file = ${JSON.stringify(join(codexHome, "coding.AGENTS.md"))}`,
@@ -127,7 +127,7 @@ model_instructions_file = "C:\\\\Users\\\\levi\\\\.codex\\\\balanced.AGENTS.md"
       ).toBe(false);
       const log = readFileSync(logPath, "utf8");
       expect(log).toContain(`CODEX_HOME=${codexHome}`);
-      expect(log).toContain("OMX_DEFAULT_FRONTIER_MODEL=gpt-5.3-codex");
+      expect(log).toContain("OMX_DEFAULT_FRONTIER_MODEL=gpt-5.5");
       expect(log).toContain("ARGS=exec");
       expect(log).toContain("model_provider");
       expect(log).toContain("codexapis");

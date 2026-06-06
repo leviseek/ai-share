@@ -24,7 +24,7 @@ profile_mapping:
     role: primary
     use: 默认日常编码，均衡质量与成本
   coding:
-    model: gpt-5.3-codex
+    model: gpt-5.5-coding
     role: primary
     use: 代码实施优先，强调代码生成能力
   research:

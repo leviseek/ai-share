@@ -17,6 +17,30 @@ export type EnvYaml = {
   variables?: Record<string, string>;
 };
 
+export type ProfileEvalYaml = {
+  task_set?: string;
+  tasks?: Record<string, ProfileEvalTaskSource>;
+  scoring?: ProfileEvalScoringSource;
+};
+
+export type ProfileEvalTaskSource = {
+  title?: string;
+  category?: string;
+  weight?: number;
+  prompt?: string;
+  success_criteria?: string[];
+};
+
+export type ProfileEvalScoringSource = {
+  pass_score?: number;
+  dimensions?: Record<string, ProfileEvalScoringDimensionSource>;
+};
+
+export type ProfileEvalScoringDimensionSource = {
+  weight?: number;
+  description?: string;
+};
+
 export type McpServerSource = {
   transport?: "stdio" | "http";
   command?: string;

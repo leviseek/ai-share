@@ -30,6 +30,7 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.sisyphus/evidence/`, `
 | --------------------------------------- | ----------------------------------------------- | -------------------------------------------------- |
 | Change providers/models/profiles/agents | `config/*.yaml`                                 | Canonical inputs; generated files are outputs      |
 | Codex `.env` runtime variables          | `config/env.yaml`                               | Non-secret runtime env only                        |
+| Profile evaluation task set             | `config/profile-eval.yaml`                      | Fixed tasks and manual scoring dimensions          |
 | Generator orchestration                 | `src/generate-user-config.ts`                   | Loads YAML, builds configs, writes/install outputs |
 | Codex/OMX config shape                  | `src/config/builders/codex.ts`                  | Codex TOML, agents, MCP, OMX JSON                  |
 | YAML schema and runtime shape checks    | `src/config/schema-spec.ts`                     | Single source for JSON Schema and shape validation |
@@ -68,7 +69,7 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.sisyphus/evidence/`, `
 - TypeScript is strict: `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `noUnused*`, `isolatedDeclarations`, `erasableSyntaxOnly`.
 - User-facing thrown errors in generator code are Chinese.
 - Prettier: 2 spaces, double quotes, semicolons, trailing commas, LF, print width 120.
-- Generated `~/.codex/config.toml` is preserved when it already exists; profile-specific files are regenerated.
+- Generated `~/.codex/config.toml` is preserved when it already exists unless `--force` is used; profile-specific files are regenerated.
 - Git commits require explicit user request; format is `option: 中文描述`.
 
 ## ANTI-PATTERNS
@@ -87,11 +88,13 @@ bun run ai:check
 bun run ai:gen -- --dry-run
 bun run ai:gen -- --force
 bun run check
+bun run memory:check
+bun run provider:check
 bun run lint
 bun run typecheck
 bun run format:check
 bun run schema:gen
-bun run profile:eval -- --task "分析当前项目" --profiles coding,max
+bun run profile:eval -- --tasks project_analysis,contract_test_patch --profiles coding,max
 ```
 
 ## NOTES

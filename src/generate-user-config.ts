@@ -2,7 +2,16 @@
 
 import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { AgentsYaml, EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "./types.ts";
+import type {
+  AgentsYaml,
+  EnvYaml,
+  GlobalYaml,
+  McpYaml,
+  ModelsYaml,
+  ProfileEvalYaml,
+  ProfilesYaml,
+  ProviderYaml,
+} from "./types.ts";
 import {
   applyProviderGroups,
   buildCodexAgentConfigs,
@@ -19,6 +28,7 @@ import {
   requireValue,
 } from "./config-builders.ts";
 import { missingProviderApiKeyEnvNames } from "./cli/api-keys.ts";
+import { checkCodexEnvLocalProxies } from "./cli/env-runtime-check.ts";
 import { pathExists, writeJson, writeText } from "./cli/fs.ts";
 import { installLaunchers, installNativeSkills } from "./cli/install.ts";
 import { ensureAiWorkspaceLinks } from "./cli/memory-link.ts";
@@ -46,16 +56,25 @@ if (!checkOnly) {
   await ensureAiWorkspaceLinks(paths, dryRun);
 }
 
-const [globalConfig, providersConfig, modelsConfig, profilesConfig, agentsConfig, mcpConfig, envConfig] =
-  await Promise.all([
-    loadYaml<GlobalYaml>("global.yaml"),
-    loadYaml<ProviderYaml>("provider.yaml"),
-    loadYaml<ModelsYaml>("models.yaml"),
-    loadYaml<ProfilesYaml>("profiles.yaml"),
-    loadYaml<AgentsYaml>("agents.yaml"),
-    loadYaml<McpYaml>("mcp.yaml"),
-    loadYaml<EnvYaml>("env.yaml"),
-  ]);
+const [
+  globalConfig,
+  providersConfig,
+  modelsConfig,
+  profilesConfig,
+  agentsConfig,
+  mcpConfig,
+  envConfig,
+  profileEvalConfig,
+] = await Promise.all([
+  loadYaml<GlobalYaml>("global.yaml"),
+  loadYaml<ProviderYaml>("provider.yaml"),
+  loadYaml<ModelsYaml>("models.yaml"),
+  loadYaml<ProfilesYaml>("profiles.yaml"),
+  loadYaml<AgentsYaml>("agents.yaml"),
+  loadYaml<McpYaml>("mcp.yaml"),
+  loadYaml<EnvYaml>("env.yaml"),
+  loadYaml<ProfileEvalYaml>("profile-eval.yaml"),
+]);
 
 const validationErrors = validateYamlConsistency(
   profilesConfig,
@@ -65,6 +84,7 @@ const validationErrors = validateYamlConsistency(
   mcpConfig,
   agentsConfig,
   envConfig,
+  profileEvalConfig,
 );
 if (validationErrors.length > 0) {
   printValidationErrors(validationErrors);
@@ -103,6 +123,7 @@ if (checkOnly) {
     paths.targetCodexConfig,
     formatCodexConfigToml(selectedCodexBaseConfig),
   );
+  const localProxyChecks = await checkCodexEnvLocalProxies(envConfig);
 
   printCheckSummary({
     configuredProviderCount: Object.keys(providers).length,
@@ -115,6 +136,7 @@ if (checkOnly) {
     providerGroups,
     missingApiKeys,
     defaultConfigDrift,
+    localProxyChecks,
   });
 
   const versionResults = checkVersions(globalConfig);
@@ -146,11 +168,11 @@ for (const [profileId, codexCliConfig] of Object.entries(codexCliConfigs)) {
     { dryRun, force },
   );
 }
-if (dryRun || !(await pathExists(paths.targetCodexConfig))) {
+if (dryRun || force || !(await pathExists(paths.targetCodexConfig))) {
   await writeText(paths.targetCodexConfig, formatCodexConfigToml(selectedCodexBaseConfig), { dryRun, force });
 } else {
   console.log(
-    `${color.yellow("保留")} ${color.cyan("Codex CLI 现有默认配置")}：${color.bold(paths.targetCodexConfig)}（只更新 profile/agent/OMX 生成文件）`,
+    `${color.yellow("保留")} ${color.cyan("Codex CLI 现有默认配置")}：${color.bold(paths.targetCodexConfig)}（如需覆盖请运行 bun run ai:gen -- --force）`,
   );
 }
 
@@ -207,6 +229,7 @@ await installLaunchers(paths, dryRun);
 
 printGenerationSummary({
   dryRun,
+  force,
   paths,
   codexProfileIds: Object.keys(codexCliConfigs),
   providerGroups,

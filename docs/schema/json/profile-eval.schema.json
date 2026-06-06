@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ai-share profile-eval.yaml",
+  "type": "object",
+  "properties": {
+    "task_set": {
+      "type": "string",
+      "description": "Profile evaluation task set id.",
+      "minLength": 1
+    },
+    "tasks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Human-readable task title.",
+            "minLength": 1
+          },
+          "category": {
+            "type": "string",
+            "description": "Evaluation category label.",
+            "minLength": 1
+          },
+          "weight": {
+            "type": "number",
+            "description": "Task weight in aggregate profile scoring.",
+            "exclusiveMinimum": 0
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Task prompt sent to aiomx when --execute is enabled.",
+            "minLength": 1
+          },
+          "success_criteria": {
+            "type": "array",
+            "description": "Manual success criteria for scoring.",
+            "items": {
+              "type": "string",
+              "description": "Manual success criteria for scoring.",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "scoring": {
+      "type": "object",
+      "properties": {
+        "pass_score": {
+          "type": "number",
+          "description": "Manual score threshold treated as passing.",
+          "exclusiveMinimum": 0
+        },
+        "dimensions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "weight": {
+                "type": "number",
+                "description": "Scoring dimension weight.",
+                "exclusiveMinimum": 0
+              },
+              "description": {
+                "type": "string",
+                "description": "Scoring dimension description.",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

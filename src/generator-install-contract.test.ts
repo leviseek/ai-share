@@ -59,11 +59,11 @@ describe("generator install contract", () => {
       expect(manifest.managed?.skills).toContain("ai-share-generator");
       expect(JSON.stringify(manifest).toLowerCase()).not.toContain("opencode");
 
-      expect(readText(join(codexHome, "coding.config.toml"))).toContain('model = "gpt-5.3-codex"');
+      expect(readText(join(codexHome, "coding.config.toml"))).toContain('model = "gpt-5.5"');
       expect(readText(join(codexHome, "coding.config.toml"))).toContain('model_provider = "codexapis"');
       expect(readText(join(codexHome, "AGENTS.md"))).toContain("AI_GUIDELINES.md");
       expect(readText(join(codexHome, "AGENTS.md"))).toContain("memory");
-      expect(readText(join(codexHome, ".env"))).toContain("HTTP_PROXY=http://127.0.0.1:7890");
+      expect(readText(join(codexHome, ".env"))).toContain("HTTP_PROXY=http://127.0.0.1:7897");
       expect(readText(join(codexHome, ".env"))).not.toContain("CODEXAPIS_API_KEY");
       expect(existsSync(join(codexHome, "agents", "sisyphus.toml"))).toBe(true);
       expect(existsSync(join(codexHome, "skills", "git-master", "SKILL.md"))).toBe(true);
@@ -71,7 +71,7 @@ describe("generator install contract", () => {
       const defaultOmx = readJson(join(codexHome, ".omx-config.json")) as OmxConfigContract;
       const codingOmx = readJson(join(codexHome, "coding.omx-config.json")) as OmxConfigContract;
       expect(defaultOmx.env?.OMX_DEFAULT_FRONTIER_MODEL).toBe("gpt-5.5");
-      expect(codingOmx.env?.OMX_DEFAULT_FRONTIER_MODEL).toBe("gpt-5.3-codex");
+      expect(codingOmx.env?.OMX_DEFAULT_FRONTIER_MODEL).toBe("gpt-5.5");
       expect(codingOmx.models?.team_low_complexity).toBe("gpt-5.4-mini");
 
       for (const launcher of expectedLaunchers()) {

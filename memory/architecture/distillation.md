@@ -30,7 +30,7 @@ AI 生成记忆提案（Markdown 格式，含操作类型+内容+理由+来源�
      ↓
 用户审查 → 可选：修改内容 / 切换操作类型（add/update/delete）/ 拒绝部分条目
      ↓
-用户确认后，AI 执行写入（parse→modify→serialize）到 D:\ai-share\memory\stable\ 或对应目录
+用户确认后，AI 执行写入（parse→modify→serialize）到 <repo>\memory\stable\ 或对应目录
      ↓
 下次运行 `bun run ai:gen` → buildInstructionsPaths() 加载
      ↓
@@ -132,7 +132,7 @@ zh-CN（简体中文）
 AI 写入后，建议提交 ai-share 仓库以同步到其他设备：
 
 ```powershell
-cd D:\ai-share
+cd <repo>
 git add -A
 git commit -m "记忆: 添加 xxx 记录"
 git push

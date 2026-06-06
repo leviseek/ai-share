@@ -29,7 +29,8 @@ export type YamlSchemaSourceFile =
   | "profiles.yaml"
   | "agents.yaml"
   | "mcp.yaml"
-  | "env.yaml";
+  | "env.yaml"
+  | "profile-eval.yaml";
 
 type BaseSchemaNode = {
   description?: string;
@@ -263,6 +264,41 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
         variables: objectSchema({
           propertyNames: { pattern: ENV_FILE_NAME_PATTERN },
           additionalProperties: stringSchema("Codex .env variable value."),
+        }),
+      },
+    }),
+  },
+  {
+    sourceFile: "profile-eval.yaml",
+    schemaFileName: "profile-eval.schema.json",
+    title: "ai-share profile-eval.yaml",
+    root: objectSchema({
+      properties: {
+        task_set: stringSchema("Profile evaluation task set id."),
+        tasks: objectSchema({
+          additionalProperties: objectSchema({
+            required: ["prompt"],
+            properties: {
+              title: stringSchema("Human-readable task title."),
+              category: stringSchema("Evaluation category label."),
+              weight: positiveNumberSchema("Task weight in aggregate profile scoring."),
+              prompt: stringSchema("Task prompt sent to aiomx when --execute is enabled."),
+              success_criteria: stringArraySchema("Manual success criteria for scoring."),
+            },
+          }),
+        }),
+        scoring: objectSchema({
+          properties: {
+            pass_score: positiveNumberSchema("Manual score threshold treated as passing."),
+            dimensions: objectSchema({
+              additionalProperties: objectSchema({
+                properties: {
+                  weight: positiveNumberSchema("Scoring dimension weight."),
+                  description: stringSchema("Scoring dimension description."),
+                },
+              }),
+            }),
+          },
         }),
       },
     }),

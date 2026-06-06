@@ -4,7 +4,7 @@
 
 两个 provider group，通过 `--gpt-provider` / `--deepseek-provider` 或环境变量切换：
 
-- **gpt**：默认 codexapis，可选 packyapi。系列包括 gpt-5.5、gpt-5.4、gpt-5.4-mini、gpt-5.3-codex。
+- **gpt**：默认 codexapis，可选 packyapi。系列包括 gpt-5.5、gpt-5.4、gpt-5.4-mini、gpt-5.5-coding。
 - **deepseek**：deepseek。系列包括 deepseek-v4-pro-think-max、deepseek-v4-pro-think、deepseek-v4-flash-think、deepseek-v4-flash。
 
 API Key 通过环境变量引用，不写入仓库。
@@ -15,7 +15,7 @@ Codex CLI 和 OMX 共享同一套中间层角色。agents 只引用角色名，�
 
 | 角色        | 用途                                | 典型模型                                          |
 | ----------- | ----------------------------------- | ------------------------------------------------- |
-| `primary`   | 主编码/执行 agent                   | gpt-5.5 / gpt-5.3-codex                           |
+| `primary`   | 主编码/执行 agent                   | gpt-5.5 / gpt-5.5-coding                          |
 | `reasoning` | 深度推理/规划 agent                 | deepseek-v4-pro-think / deepseek-v4-pro-think-max |
 | `fast`      | 轻量/搜索/低复杂度任务和 compaction | gpt-5.4-mini                                      |
 
@@ -27,7 +27,7 @@ Codex CLI 和 OMX 共享同一套中间层角色。agents 只引用角色名，�
 | economy  | deepseek-v4-flash     | deepseek-v4-flash-think   | deepseek-v4-flash |
 | cheap    | gpt-5.4-mini          | deepseek-v4-flash-think   | gpt-5.4-mini      |
 | balanced | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini      |
-| coding   | gpt-5.3-codex         | deepseek-v4-pro-think     | gpt-5.4-mini      |
+| coding   | gpt-5.5-coding        | deepseek-v4-pro-think     | gpt-5.4-mini      |
 | research | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4-mini      |
 | writing  | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini      |
 | max      | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4           |
@@ -41,7 +41,7 @@ Codex CLI 和 OMX 共享同一套中间层角色。agents 只引用角色名，�
 
 ### 纯代码实施
 
-coding 模式。primary 换为 gpt-5.3-codex，编码能力更强，temperature 更低（0.1）。适合大量代码生成的场景。
+coding 模式。primary 换为 gpt-5.5-coding，编码能力更强，temperature 更低（0.1）。适合大量代码生成的场景。
 
 ### 深度推理/研究
 
@@ -70,7 +70,7 @@ writing 模式。模型与 balanced 一致，但 compaction 使用 reasoning 模
 | gpt-5.5                   | 200K   | 0.01               | 全能，带 reasoning、planning、long_context         |
 | gpt-5.4                   | 160K   | 0.008              | gpt-5.5 降级备选                                   |
 | gpt-5.4-mini              | 128K   | 0.0012             | 极低成本，cheap+fast+general                       |
-| gpt-5.3-codex             | 128K   | 0.007              | 编码专精，低 temperature（0.1）                    |
+| gpt-5.5-coding            | 200K   | 0.01               | 映射上游 gpt-5.5，编码专精，低 temperature（0.1）  |
 | deepseek-v4-pro-think-max | 1M     | 0.005              | 最强推理，thinking enabled + reasoning_effort=max  |
 | deepseek-v4-pro-think     | 1M     | 0.003              | 标准推理，thinking enabled + reasoning_effort=high |
 | deepseek-v4-flash-think   | 1M     | 0.003              | 快速推理，与 pro-think 同价                        |
@@ -113,7 +113,7 @@ research/writing/max/ds-max 使用 reasoning 模型做 compaction，压缩质量
 
 ## 已知模型行为
 
-- gpt-5.3-codex：temperature=0.1，输出更确定，适合代码生成但不适合创意任务。
+- gpt-5.5-coding：上游模型名为 gpt-5.5，temperature=0.1，输出更确定，适合代码生成但不适合创意任务。
 - deepseek 带 thinking 的模型（pro-think、pro-think-max、flash-think）会在请求中启用 thinking 参数，响应速度比非 thinking 模型慢，但推理质量更高。
 - deepseek-v4-pro-think-max：reasoning_effort=max，适合需要长链推理的架构决策和复杂调试。
 - gpt-5.4-mini：128K 上下文但 max_output 只有 4K，不适合需要超长输出的任务。

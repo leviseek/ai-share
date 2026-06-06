@@ -6,16 +6,17 @@ YAML source of truth for generated Codex CLI, OMX, profile, agent, MCP, and inst
 
 ## WHERE TO LOOK
 
-| Need                                                   | File            | Notes                                         |
-| ------------------------------------------------------ | --------------- | --------------------------------------------- |
-| Default profile and Codex/OMX version requirements     | `global.yaml`   | Only fields consumed by generator/check       |
-| Provider base URLs and API-key env vars                | `provider.yaml` | Secrets stay env-only                         |
-| Model catalog, upstream IDs, provider groups, fallback | `models.yaml`   | Referenced by profile role names              |
-| Codex/OMX profile role mapping                         | `profiles.yaml` | `lite`, `cheap`, `balanced`, `coding`, etc.   |
-| Codex agent runtime, role mapping, and prompt rules    | `agents.yaml`   | Codex `[agents]`, OMX slots, agent roles      |
-| Codex MCP servers                                      | `mcp.yaml`      | Tokens and sensitive env values stay env-only |
-| Codex `.env` runtime variables                         | `env.yaml`      | Non-secret local runtime env only             |
-| Shareable onboarding templates                         | `../templates/` | Not consumed directly by generator            |
+| Need                                                   | File                | Notes                                         |
+| ------------------------------------------------------ | ------------------- | --------------------------------------------- |
+| Default profile and Codex/OMX version requirements     | `global.yaml`       | Only fields consumed by generator/check       |
+| Provider base URLs and API-key env vars                | `provider.yaml`     | Secrets stay env-only                         |
+| Model catalog, upstream IDs, provider groups, fallback | `models.yaml`       | Referenced by profile role names              |
+| Codex/OMX profile role mapping                         | `profiles.yaml`     | `lite`, `cheap`, `balanced`, `coding`, etc.   |
+| Codex agent runtime, role mapping, and prompt rules    | `agents.yaml`       | Codex `[agents]`, OMX slots, agent roles      |
+| Codex MCP servers                                      | `mcp.yaml`          | Tokens and sensitive env values stay env-only |
+| Codex `.env` runtime variables                         | `env.yaml`          | Non-secret local runtime env only             |
+| Profile evaluation task set                            | `profile-eval.yaml` | Fixed tasks and manual scoring dimensions     |
+| Shareable onboarding templates                         | `../templates/`     | Not consumed directly by generator            |
 
 ## CONVENTIONS
 
@@ -27,6 +28,7 @@ YAML source of truth for generated Codex CLI, OMX, profile, agent, MCP, and inst
 - `agents.yaml` model values normally reference roles (`primary`, `reasoning`, `fast`), not raw provider model strings.
 - `agents.yaml` owns Codex `[agents]` concurrency settings and OMX `model_slots` / `agent_reasoning` mappings.
 - `env.yaml` only owns non-secret Codex runtime env such as local proxy; do not put API keys, tokens, `CODEX_HOME`, `PATH`, `AI_SHARE_*`, or `OMX_DEFAULT_*`.
+- `profile-eval.yaml` defines fixed evaluation prompts and scoring dimensions; it is schema-checked but does not change generated Codex/OMX runtime config.
 - `config/local/` is reserved for future machine-local overlays and is ignored by Git.
 - `shared_prompt.append` is Chinese and injects `AI_GUIDELINES.md` workflow expectations into Codex agents.
 - Workspace excludes must keep `.env*`, `.git/**`, `node_modules/**`, lockfiles, and runtime state out.
@@ -37,6 +39,7 @@ YAML source of truth for generated Codex CLI, OMX, profile, agent, MCP, and inst
 bun run ai:check
 bun run ai:gen -- --dry-run
 bun run schema:gen
+bun run profile:eval -- --tasks project_analysis --profiles coding,max
 ```
 
 ## ANTI-PATTERNS

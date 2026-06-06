@@ -45,6 +45,7 @@ Use this skill when modifying YAML source files, Codex/OMX config builders, gene
 - \`config/agents.yaml\`: Codex agent runtime settings, OMX slot/reasoning policy, role mapping, and prompt append rules.
 - \`config/mcp.yaml\`: Codex MCP server definitions.
 - \`config/env.yaml\`: non-secret Codex .env runtime variables such as local proxy settings.
+- \`config/profile-eval.yaml\`: fixed profile evaluation tasks and manual scoring dimensions.
 
 ## Implementation Map
 
@@ -62,6 +63,7 @@ Use this skill when modifying YAML source files, Codex/OMX config builders, gene
 3. If schema or behavior changes, update README or project knowledge.
 4. Add or update focused tests near the builder/runtime when possible.
 5. Run \`bun run ai:check\`, \`bun run ai:gen -- --dry-run\`, and \`bun run check\` for cross-cutting changes.
+6. Run \`bun run memory:check\` when touching memory privacy layers or generated instruction sources.
 
 ## Safety
 
@@ -82,6 +84,7 @@ Use this skill when tuning model roles, profile defaults, compaction metadata, f
 - \`config/models.yaml\`: model group definitions, provider selection, parameters, limits, and fallback chains.
 - \`config/agents.yaml\`: agent-to-role mapping, Codex agent runtime settings, and OMX slot/reasoning policy.
 - \`config/global.yaml\`: default profile and version requirements.
+- \`config/profile-eval.yaml\`: fixed benchmark tasks and scoring dimensions for profile comparison.
 
 ## Tuning Principles
 
@@ -94,8 +97,9 @@ Use this skill when tuning model roles, profile defaults, compaction metadata, f
 
 1. Run \`bun run ai:check\` after YAML changes.
 2. Run \`bun run ai:gen -- --dry-run\` and inspect generated Codex/OMX files.
-3. For builder changes, run \`bun run typecheck\` and focused tests under \`src/config/builders/\`.
-4. For broad changes, run \`bun run check\`.`,
+3. Run \`bun run profile:eval -- --tasks project_analysis --profiles coding,max\` for planned comparison reports.
+4. For builder changes, run \`bun run typecheck\` and focused tests under \`src/config/builders/\`.
+5. For broad changes, run \`bun run check\`.`,
   ),
   skill(
     "context-compiler",

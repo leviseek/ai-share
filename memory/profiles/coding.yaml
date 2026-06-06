@@ -7,7 +7,7 @@ description: 代码实施优先模式，适合日常编码和调试
 
 model_roles:
   primary:
-    gpt-5.3-codex
+    gpt-5.5-coding
     # 编码专用模型，代码生成和理解能力最强
   reasoning:
     deepseek-v4-pro-think

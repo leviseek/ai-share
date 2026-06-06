@@ -1,4 +1,13 @@
-import type { AgentsYaml, EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "../types.ts";
+import type {
+  AgentsYaml,
+  EnvYaml,
+  GlobalYaml,
+  McpYaml,
+  ModelsYaml,
+  ProfileEvalYaml,
+  ProfilesYaml,
+  ProviderYaml,
+} from "../types.ts";
 import { validateAgents } from "./validators/agents.ts";
 import type { ValidationError } from "./validators/common.ts";
 import { validateCodexEnv } from "./validators/env.ts";
@@ -50,6 +59,7 @@ export function validateYamlConsistency(
   mcpConfig: McpYaml = {},
   agentsConfig: AgentsYaml = {},
   envConfig: EnvYaml = {},
+  profileEvalConfig: ProfileEvalYaml = {},
 ): ValidationError[] {
   const errors = validateYamlSchemaShapes({
     "global.yaml": globalConfig,
@@ -59,6 +69,7 @@ export function validateYamlConsistency(
     "agents.yaml": agentsConfig,
     "mcp.yaml": mcpConfig,
     "env.yaml": envConfig,
+    "profile-eval.yaml": profileEvalConfig,
   });
 
   const modelIds = new Set(Object.keys(modelsConfig));

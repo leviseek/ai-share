@@ -1,5 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import type { AgentsYaml, EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "../types.ts";
+import type {
+  AgentsYaml,
+  EnvYaml,
+  GlobalYaml,
+  McpYaml,
+  ModelsYaml,
+  ProfileEvalYaml,
+  ProfilesYaml,
+  ProviderYaml,
+} from "../types.ts";
 import { validateYamlConsistency } from "./validation.ts";
 
 describe("validateYamlConsistency", () => {
@@ -270,7 +279,7 @@ describe("validateYamlConsistency", () => {
     };
     const envConfig = {
       variables: {
-        HTTP_PROXY: "http://127.0.0.1:7890",
+        HTTP_PROXY: "http://127.0.0.1:7897",
         CODEX_HOME: "/tmp/codex",
         AI_SHARE_TASK: "local-task",
         OMX_DEFAULT_FRONTIER_MODEL: "gpt",
@@ -295,6 +304,60 @@ describe("validateYamlConsistency", () => {
       "env.yaml:variables.OMX_DEFAULT_FRONTIER_MODEL:env 'OMX_DEFAULT_FRONTIER_MODEL' 不应写入 Codex .env；请保留给系统环境、生成器参数或 aiomx profile 管理",
       "env.yaml:variables.CODEXAPIS_API_KEY:env 'CODEXAPIS_API_KEY' 看起来是敏感变量，不允许通过 config/env.yaml 写入 Codex .env",
       "env.yaml:variables.LITERAL_VALUE:env 'LITERAL_VALUE' 疑似包含明文 secret，不允许写入 config/env.yaml",
+    ]) {
+      expect(errors).toContain(expectedError);
+    }
+  });
+
+  test("reports invalid profile evaluation task schema fields", () => {
+    const models: ModelsYaml = {
+      "valid-model": model("valid-model"),
+    };
+    const profiles: ProfilesYaml = {
+      valid: {
+        models: {
+          primary: "valid-model",
+          reasoning: "valid-model",
+          fast: "valid-model",
+        },
+      },
+    };
+    const profileEvalConfig = {
+      tasks: {
+        malformed: {
+          weight: 0,
+          success_criteria: ["ok", 1],
+        },
+      },
+      scoring: {
+        pass_score: 0,
+        dimensions: {
+          quality: {
+            weight: 0,
+            description: 1,
+          },
+        },
+      },
+    } as unknown as ProfileEvalYaml;
+
+    const errors = validateYamlConsistency(
+      profiles,
+      models,
+      providers(),
+      { default_profile: "valid" },
+      mcp(),
+      validAgents(),
+      {},
+      profileEvalConfig,
+    ).map(formatError);
+
+    for (const expectedError of [
+      "profile-eval.yaml:tasks.malformed.prompt:缺少 tasks.malformed.prompt 字段",
+      "profile-eval.yaml:tasks.malformed.weight:tasks.malformed.weight 必须大于 0",
+      "profile-eval.yaml:tasks.malformed.success_criteria[1]:tasks.malformed.success_criteria[1] 必须是非空字符串",
+      "profile-eval.yaml:scoring.pass_score:scoring.pass_score 必须大于 0",
+      "profile-eval.yaml:scoring.dimensions.quality.weight:scoring.dimensions.quality.weight 必须大于 0",
+      "profile-eval.yaml:scoring.dimensions.quality.description:scoring.dimensions.quality.description 必须是非空字符串",
     ]) {
       expect(errors).toContain(expectedError);
     }

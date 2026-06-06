@@ -54,21 +54,26 @@ gpt-5.4-mini:
   parameters:
     reasoningEffort: low
 
-gpt-5.3-codex:
+gpt-5.5-coding:
   provider_group: gpt
-  model_name: gpt-5.3-codex
+  model_name: gpt-5.5
   capabilities:
     - coding
     - reasoning
+    - planning
+    - long_context
   cost:
-    input: 0.007
-    output: 0.021
+    input: 0.01
+    output: 0.03
   limits:
-    context_window: 128000
+    context_window: 200000
     max_output: 8192
   temperature: 0.1
   parameters:
     reasoningEffort: high
+  fallback:
+    - gpt-5.5
+    - gpt-5.4
 
 # ==================== DeepSeek 兼容模型组 ====================
 deepseek-v4-pro-think-max:

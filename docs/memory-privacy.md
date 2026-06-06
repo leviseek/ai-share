@@ -16,6 +16,7 @@
 - personal layer 可以保留在个人私有仓库，但不进入模板包。
 - local/project layer 默认由 `.gitignore` 排除。
 - `AI_GUIDELINES.md` 和 generated `AGENTS.md` 不自动加载 ignored privacy layers。
+- `bun run memory:check` 会检查 ignore 规则、共享层本机路径和疑似明文 secret；`bun run check` 会自动运行它。
 
 ## Current Loader Behavior
 

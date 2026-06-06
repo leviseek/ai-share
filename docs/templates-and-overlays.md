@@ -29,6 +29,7 @@ templates/shareable/config/*.yaml
 - `models.yaml` 和 `profiles.yaml` 优先保持 shareable。
 - `provider.yaml` 只能存 env-var references，不能存真实 key。
 - `env.yaml` 只能存非密钥运行时变量，例如本地代理默认值；真实 token、cookie、password 不进入模板或 Git。
+- `profile-eval.yaml` 可以存通用 benchmark prompts 和 scoring dimensions，不能包含私有项目、客户或本机细节。
 - `global.yaml` 的 `default_profile` 属于 personal overlay。
 - `memory/user/`、`memory/stable/` 属于个人上下文；团队导出时默认排除。
 - `config/local/` 只允许本机覆盖，不进入 Git。

@@ -1,6 +1,7 @@
 import type { ProviderGroupMap } from "../types.ts";
 import { color } from "./color.ts";
 import type { DefaultConfigDrift } from "./default-config-drift.ts";
+import type { LocalProxyRuntimeCheck } from "./env-runtime-check.ts";
 import type { GeneratorPaths } from "./paths.ts";
 
 export function printCheckSummary(input: {
@@ -14,6 +15,7 @@ export function printCheckSummary(input: {
   providerGroups: ProviderGroupMap;
   missingApiKeys: string[];
   defaultConfigDrift: DefaultConfigDrift;
+  localProxyChecks: LocalProxyRuntimeCheck[];
 }): void {
   console.log(color.green("配置检查通过。"));
   console.log(`${color.cyan("已配置 provider 数量")}：${color.bold(String(input.configuredProviderCount))}`);
@@ -21,6 +23,7 @@ export function printCheckSummary(input: {
   console.log(`${color.cyan("Codex CLI profile")}：${color.magenta(input.codexProfileIds.join(" / "))}`);
   console.log(`${color.cyan("MCP servers")}：${color.magenta(input.mcpServerIds.join(" / ") || "none")}`);
   console.log(`${color.cyan("Codex .env 变量")}：${color.magenta(input.codexEnvVarNames.join(" / ") || "none")}`);
+  printLocalProxyChecks(input.localProxyChecks);
   console.log(`${color.cyan("Codex home")}：${color.bold(input.codexHome)}`);
   console.log(`${color.cyan("默认 Codex profile")}：${color.bold(input.selectedDefaultProfileId)}`);
   printDefaultConfigDrift(input.defaultConfigDrift, input.selectedDefaultProfileId);
@@ -30,6 +33,25 @@ export function printCheckSummary(input: {
     process.exit(1);
   }
   console.log(color.green("API Key 环境变量已设置。"));
+}
+
+function printLocalProxyChecks(checks: readonly LocalProxyRuntimeCheck[]): void {
+  if (checks.length === 0) {
+    console.log(`${color.cyan("Codex .env 本地代理")}：${color.gray("none")}`);
+    return;
+  }
+
+  for (const check of checks) {
+    const target = `${check.host}:${check.port}`;
+    const envNames = check.envNames.join(" / ");
+    if (check.ok) {
+      console.log(`${color.cyan("Codex .env 本地代理")}：${color.green("可达")} ${target}（${envNames}）`);
+    } else {
+      console.warn(
+        `${color.yellow("Codex .env 本地代理不可达")}：${color.yellow(target)}（${envNames}）；请启动代理或修改 config/env.yaml。`,
+      );
+    }
+  }
 }
 
 function printDefaultConfigDrift(drift: DefaultConfigDrift, defaultProfileId: string): void {
@@ -48,14 +70,16 @@ function printDefaultConfigDrift(drift: DefaultConfigDrift, defaultProfileId: st
 
 export function printGenerationSummary(input: {
   dryRun: boolean;
+  force: boolean;
   paths: GeneratorPaths;
   codexProfileIds: string[];
   providerGroups: ProviderGroupMap;
 }): void {
   const prefix = input.dryRun ? "将生成" : "已生成";
   const installPrefix = input.dryRun ? "将安装" : "已安装";
+  const preserveHint = input.force ? "（--force 覆盖）" : "（存在时保留，--force 覆盖）";
   console.log(
-    `${color.green(prefix)} ${color.cyan("Codex CLI 默认配置")}：${color.bold(input.paths.targetCodexConfig)}${color.gray("（存在时保留）")}`,
+    `${color.green(prefix)} ${color.cyan("Codex CLI 默认配置")}：${color.bold(input.paths.targetCodexConfig)}${color.gray(preserveHint)}`,
   );
   console.log(
     `${color.green(prefix)} ${color.cyan("Codex CLI .env")}：${color.bold(input.paths.targetCodexEnv)}${color.gray("（存在时保留，--force 覆盖）")}`,
