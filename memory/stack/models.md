@@ -45,7 +45,7 @@ coding 模式。primary 换为 gpt-5.3-codex，编码能力更强，temperature 
 
 ### 深度推理/研究
 
-research 或 max 模式。reasoning 升级为 deepseek-v4-pro-think-max，带 thinking enabled + reasoning_effort=max，context window 256K。适合架构分析、复杂调试、长上下文理解。
+research 或 max 模式。reasoning 升级为 deepseek-v4-pro-think-max，带 thinking enabled + reasoning_effort=max，context window 1M。适合架构分析、复杂调试、长上下文理解。
 
 ### 轻量/低成本
 
@@ -65,16 +65,16 @@ writing 模式。模型与 balanced 一致，但 compaction 使用 reasoning 模
 
 ## 模型能力速览
 
-| 模型                      | 上下文 | 成本（$/M input） | 特点                                               |
-| ------------------------- | ------ | ----------------- | -------------------------------------------------- |
-| gpt-5.5                   | 200K   | 0.01              | 全能，带 reasoning、planning、long_context         |
-| gpt-5.4                   | 160K   | 0.008             | gpt-5.5 降级备选                                   |
-| gpt-5.4-mini              | 128K   | 0.0012            | 极低成本，cheap+fast+general                       |
-| gpt-5.3-codex             | 128K   | 0.007             | 编码专精，低 temperature（0.1）                    |
-| deepseek-v4-pro-think-max | 1M     | 0.005             | 最强推理，thinking enabled + reasoning_effort=max  |
-| deepseek-v4-pro-think     | 1M     | 0.003             | 标准推理，thinking enabled + reasoning_effort=high |
-| deepseek-v4-flash-think   | 1M     | 0.003             | 快速推理，与 pro-think 同价                        |
-| deepseek-v4-flash         | 1M     | 0.0008            | 最便宜，fast+cheap+coding+general                  |
+| 模型                      | 上下文 | 成本（$/1K input） | 特点                                               |
+| ------------------------- | ------ | ------------------ | -------------------------------------------------- |
+| gpt-5.5                   | 200K   | 0.01               | 全能，带 reasoning、planning、long_context         |
+| gpt-5.4                   | 160K   | 0.008              | gpt-5.5 降级备选                                   |
+| gpt-5.4-mini              | 128K   | 0.0012             | 极低成本，cheap+fast+general                       |
+| gpt-5.3-codex             | 128K   | 0.007              | 编码专精，低 temperature（0.1）                    |
+| deepseek-v4-pro-think-max | 1M     | 0.005              | 最强推理，thinking enabled + reasoning_effort=max  |
+| deepseek-v4-pro-think     | 1M     | 0.003              | 标准推理，thinking enabled + reasoning_effort=high |
+| deepseek-v4-flash-think   | 1M     | 0.003              | 快速推理，与 pro-think 同价                        |
+| deepseek-v4-flash         | 1M     | 0.0008             | 最便宜，fast+cheap+coding+general                  |
 
 ## Cost 意识
 

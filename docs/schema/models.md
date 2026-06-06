@@ -32,7 +32,7 @@ Each top-level key is a model ID. Model IDs must be unique and kebab-case.
 - **parameters.reasoning_effort**: `high`, `max` (only meaningful when thinking is enabled)
 - **temperature**: 0.0–2.0 (common range: 0.1–0.7)
 - **cost**: Positive numbers in USD per 1K tokens
-- **context_window**: 4000–256000
+- **context_window**: 4000–1000000
 - **max_output**: 1024–16384
 
 ## Examples
@@ -67,7 +67,7 @@ deepseek-v4-pro-think-max:
     input: 0.005
     output: 0.012
   limits:
-    context_window: 256000
+    context_window: 1000000
     max_output: 16384
   temperature: 0.1
   parameters:
@@ -87,10 +87,10 @@ deepseek-v4-pro-think-max:
 | `gpt-5.4`                   | gpt            | 160K           | $0.008 / $0.025            | —                     |
 | `gpt-5.4-mini`              | gpt            | 128K           | $0.0012 / $0.0024          | —                     |
 | `gpt-5.3-codex`             | gpt            | 128K           | $0.007 / $0.021            | —                     |
-| `deepseek-v4-pro-think-max` | deepseek       | 256K           | $0.005 / $0.012            | enabled (effort=max)  |
-| `deepseek-v4-pro-think`     | deepseek       | 128K           | $0.003 / $0.006            | enabled (effort=high) |
-| `deepseek-v4-flash-think`   | deepseek       | 128K           | $0.003 / $0.006            | enabled (effort=high) |
-| `deepseek-v4-flash`         | deepseek       | 64K            | $0.0008 / $0.0016          | —                     |
+| `deepseek-v4-pro-think-max` | deepseek       | 1M             | $0.005 / $0.012            | enabled (effort=max)  |
+| `deepseek-v4-pro-think`     | deepseek       | 1M             | $0.003 / $0.006            | enabled (effort=high) |
+| `deepseek-v4-flash-think`   | deepseek       | 1M             | $0.003 / $0.006            | enabled (effort=high) |
+| `deepseek-v4-flash`         | deepseek       | 1M             | $0.0008 / $0.0016          | —                     |
 
 ## Cross-File References
 
