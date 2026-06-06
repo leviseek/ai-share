@@ -12,7 +12,7 @@ devices:
       - 主力开发设备
       - 所有 AI 生成命令必须使用 PowerShell 语法
       - 路径使用反斜杠 \\ 或原始字符串
-      - 配置文件在 %APPDATA%\\opencode
+      - Codex 配置文件在 %USERPROFILE%\\.codex
 
   wsl:
     os: Ubuntu (WSL2)

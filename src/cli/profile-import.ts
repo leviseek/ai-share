@@ -3,8 +3,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseYamlObject } from "../yaml.ts";
-import { validateTriRoleProfile, type TriRoleProfile } from "../protocol/tri-role.ts";
 import type { ProfilesYaml } from "../types.ts";
+import { mergeProfileYaml, validateImportedProfiles, validateImportSecurity } from "./profile-import-merge.ts";
 
 function main(args: string[]) {
   const dryRun = args.includes("--dry-run");
@@ -34,23 +34,7 @@ function main(args: string[]) {
     process.exit(1);
   }
 
-  // Validate each profile
-  const errors: string[] = [];
-  const validProfiles: TriRoleProfile[] = [];
-  for (const obj of profiles) {
-    const validationErrors = validateTriRoleProfile(obj);
-    if (validationErrors.length > 0) {
-      for (const e of validationErrors) {
-        const profileId =
-          typeof (obj as Record<string, unknown>).profile_id === "string"
-            ? String((obj as Record<string, unknown>).profile_id)
-            : "unknown";
-        errors.push(`[${profileId}] ${e.path}: ${e.message}`);
-      }
-    } else {
-      validProfiles.push(obj as TriRoleProfile);
-    }
-  }
+  const { validProfiles, errors } = validateImportedProfiles(profiles);
 
   if (errors.length > 0) {
     for (const e of errors) console.error(e);
@@ -86,72 +70,29 @@ function main(args: string[]) {
     process.exit(1);
   }
 
-  // Build YAML entries for new profiles
-  const newEntries = validProfiles.filter((p) => force || !existingConfig[p.profile_id]).map((p) => buildYamlEntry(p));
+  const profilesToImport = validProfiles.filter((profile) => force || !existingConfig[profile.profile_id]);
 
-  if (newEntries.length === 0) {
+  if (profilesToImport.length === 0) {
     console.log("没有需要导入的 profile。");
     process.exit(0);
   }
 
+  const merged = mergeProfileYaml(existingYaml, profilesToImport);
+
   if (dryRun) {
     console.log("将导入以下 profile：");
-    for (const entry of newEntries) {
-      console.log(`\n${entry}\n---`);
+    for (const profileId of merged.replacedProfileIds) {
+      console.log(`  覆盖：${profileId}`);
     }
+    for (const profileId of merged.appendedProfileIds) {
+      console.log(`  追加：${profileId}`);
+    }
+    console.log(`\n--- ${profilesPath} ---\n${merged.yaml}`);
     process.exit(0);
   }
 
-  // Append to profiles.yaml
-  const fullYaml = existingYaml.trimEnd() + "\n\n" + newEntries.join("\n") + "\n";
-  writeFileSync(profilesPath, fullYaml, "utf8");
-  console.log(`已导入 ${newEntries.length} 个 profile 到 ${profilesPath}`);
-}
-
-function buildYamlEntry(profile: TriRoleProfile): string {
-  const name = profile.name ? `\n  name: ${profile.name}` : "";
-  const compaction = profile.compaction ? buildYamlCompaction(profile.compaction) : "";
-  return `${profile.profile_id}:${name}
-  models:
-    primary: ${profile.roles.primary.model}
-    reasoning: ${profile.roles.reasoning.model}
-    fast: ${profile.roles.fast.model}${compaction}`;
-}
-
-function buildYamlCompaction(c: NonNullable<TriRoleProfile["compaction"]>): string {
-  let yaml = "\n  compaction:";
-  if (c.threshold !== undefined) yaml += `\n    threshold: ${c.threshold}`;
-  if (c.max_input_tokens !== undefined) yaml += `\n    max_input_tokens: ${c.max_input_tokens}`;
-  if (c.model_role) yaml += `\n    model: ${c.model_role}`;
-  return yaml;
-}
-
-function validateImportSecurity(profiles: TriRoleProfile[], modelsConfig: Record<string, unknown>): string[] {
-  const validModels = new Set(Object.keys(modelsConfig));
-  const warnings: string[] = [];
-  const urlPattern = /:\/\/|^https?[.:]/i;
-
-  for (const profile of profiles) {
-    for (const [role, { model }] of Object.entries(profile.roles)) {
-      if (!validModels.has(model)) {
-        warnings.push(`[${profile.profile_id}] roles.${role}.model '${model}' 不在已知模型列表中`);
-      }
-      if (urlPattern.test(model)) {
-        warnings.push(`[${profile.profile_id}] roles.${role}.model '${model}' 包含可疑 URL，非标准模型 ID`);
-      }
-    }
-
-    const compactionModel = profile.compaction?.model_role;
-    if (
-      compactionModel &&
-      !validModels.has(compactionModel) &&
-      !["primary", "reasoning", "fast"].includes(compactionModel)
-    ) {
-      warnings.push(`[${profile.profile_id}] compaction.model_role '${compactionModel}' 不是已知模型或角色`);
-    }
-  }
-
-  return warnings;
+  writeFileSync(profilesPath, merged.yaml, "utf8");
+  console.log(`已导入 ${merged.changedProfileIds.length} 个 profile 到 ${profilesPath}`);
 }
 
 main(process.argv.slice(2));

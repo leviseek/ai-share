@@ -21,7 +21,6 @@ type ExportedProfile = {
         model_role: string | undefined;
       }
     | undefined;
-  strategies: Record<string, unknown> | undefined;
 };
 
 function loadProfiles(): ProfilesYaml {
@@ -52,7 +51,6 @@ function exportProfile(profileId: string, profilesConfig: ProfilesYaml): Exporte
           model_role: profile.compaction.model,
         }
       : undefined,
-    strategies: profile.strategies as Record<string, unknown> | undefined,
   };
 }
 

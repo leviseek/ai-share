@@ -58,9 +58,8 @@ export function compileMemory(options: MemoryCompileOptions): string {
 
   const result = segments.join("\n");
 
-  // No length limit — the compiled context should be complete.
-  // OpenCode's instruction system handles large strings gracefully;
-  // truncation would lose important user context.
+  // No length limit: generated instructions should preserve complete user context.
+  // Truncation here would silently drop important memory.
   return result;
 }
 

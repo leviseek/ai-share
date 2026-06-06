@@ -64,7 +64,7 @@ development:
       - 不使用跳过钩子（--no-verify）
       - 提交推送前若本地有测试代码改动，先询问是否保留
     sisyphus_attribution:
-      - "Ultraworked with [Sisyphus](https://github.com/code-yeongyu/oh-my-openagent)"
+      - "Ultraworked with Sisyphus"
       - "Co-authored-by: Sisyphus <clio-agent@sisyphuslabs.ai>"
 
   debugging:

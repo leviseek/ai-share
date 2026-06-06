@@ -1,7 +1,7 @@
 # ============================================================
-# OMO 编排级别配置
+# Codex + OMX profile 配置
 # profiles 提供 primary / reasoning / fast 三个模型角色映射。
-# agents.yaml 中的 agents/categories/runtime_fallback/background_task 引用这些角色。
+# agents.yaml 中的 agents 引用这些角色。
 # ============================================================
 
 lite:
@@ -15,22 +15,6 @@ lite:
     threshold: 40000
     model: fast
     max_input_tokens: 80000
-  strategies:
-    opencode:
-      dcp:
-        context_budget_tokens: 12000
-      checkpoint:
-        max_entries: 8
-      memory:
-        retention: session
-        strategy: compact-summary
-    oh_my_openagent:
-      dcp:
-        context_budget_tokens: 12000
-      checkpoint:
-        max_entries: 8
-      memory:
-        strategy: compact-summary
 
 economy:
   name: 激进低成本模式
@@ -43,22 +27,6 @@ economy:
     threshold: 500000000
     model: fast
     max_input_tokens: 1000000000
-  strategies:
-    opencode:
-      dcp:
-        context_budget_tokens: 100000000
-      checkpoint:
-        max_entries: 4
-      memory:
-        retention: session
-        strategy: compact-summary
-    oh_my_openagent:
-      dcp:
-        context_budget_tokens: 10000000
-      checkpoint:
-        max_entries: 4
-      memory:
-        strategy: compact-summary
 
 cheap:
   name: 极低成本日常模式
@@ -71,22 +39,6 @@ cheap:
     threshold: 40000
     model: fast
     max_input_tokens: 80000
-  strategies:
-    opencode:
-      dcp:
-        context_budget_tokens: 8000
-      checkpoint:
-        max_entries: 6
-      memory:
-        retention: session
-        strategy: compact-summary
-    oh_my_openagent:
-      dcp:
-        context_budget_tokens: 8000
-      checkpoint:
-        max_entries: 6
-      memory:
-        strategy: compact-summary
 
 balanced:
   name: 均衡编排
@@ -99,22 +51,6 @@ balanced:
     threshold: 65000
     model: fast
     max_input_tokens: 120000
-  strategies:
-    opencode:
-      dcp:
-        context_budget_tokens: 24000
-      checkpoint:
-        max_entries: 20
-      memory:
-        retention: project
-        strategy: summary-first
-    oh_my_openagent:
-      dcp:
-        context_budget_tokens: 24000
-      checkpoint:
-        max_entries: 20
-      memory:
-        strategy: verified-summary
 
 coding:
   name: 代码实施优先模式
@@ -127,27 +63,6 @@ coding:
     threshold: 65000
     model: fast
     max_input_tokens: 120000
-  strategies:
-    opencode:
-      dcp:
-        context_budget_tokens: 26000
-      checkpoint:
-        trigger: before-edit-and-before-risky-change
-        max_entries: 24
-      memory:
-        include:
-          - AI_GUIDELINES.md
-          - README.md
-          - config/*.yaml
-          - src/**/*.ts
-    oh_my_openagent:
-      dcp:
-        context_budget_tokens: 26000
-      checkpoint:
-        trigger: before-edit-and-before-delegation
-        max_entries: 24
-      memory:
-        read_policy: load-before-edit-plan
 
 research:
   name: 深度研究模式
@@ -160,24 +75,6 @@ research:
     threshold: 100000
     model: reasoning
     max_input_tokens: 180000
-  strategies:
-    opencode:
-      dcp:
-        context_budget_tokens: 50000
-      checkpoint:
-        max_entries: 24
-      memory:
-        retention: project
-        strategy: evidence-summary
-    oh_my_openagent:
-      dcp:
-        context_budget_tokens: 50000
-        share:
-          research_notes: true
-      checkpoint:
-        max_entries: 24
-      memory:
-        strategy: evidence-summary
 
 writing:
   name: 写作润色模式
@@ -190,22 +87,6 @@ writing:
     threshold: 65000
     model: reasoning
     max_input_tokens: 120000
-  strategies:
-    opencode:
-      dcp:
-        context_budget_tokens: 22000
-      checkpoint:
-        max_entries: 16
-      memory:
-        retention: project
-        strategy: prose-summary
-    oh_my_openagent:
-      dcp:
-        context_budget_tokens: 22000
-      checkpoint:
-        max_entries: 16
-      memory:
-        strategy: prose-summary
 
 max:
   name: 强力编排
@@ -218,25 +99,6 @@ max:
     threshold: 140000
     model: reasoning
     max_input_tokens: 250000
-  strategies:
-    opencode:
-      dcp:
-        context_budget_tokens: 120000
-      checkpoint:
-        max_entries: 64
-      memory:
-        retention: project
-        strategy: detailed-summary
-    oh_my_openagent:
-      dcp:
-        context_budget_tokens: 120000
-        share:
-          research_notes: true
-          verification_artifacts: true
-      checkpoint:
-        max_entries: 64
-      memory:
-        strategy: detailed-summary
 
 ds-max:
   name: 纯DeepSeek强力编排
@@ -249,22 +111,3 @@ ds-max:
     threshold: 640000
     model: reasoning
     max_input_tokens: 960000
-  strategies:
-    opencode:
-      dcp:
-        context_budget_tokens: 480000
-      checkpoint:
-        max_entries: 64
-      memory:
-        retention: project
-        strategy: detailed-summary
-    oh_my_openagent:
-      dcp:
-        context_budget_tokens: 480000
-        share:
-          research_notes: true
-          verification_artifacts: true
-      checkpoint:
-        max_entries: 64
-      memory:
-        strategy: detailed-summary

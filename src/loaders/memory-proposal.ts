@@ -28,7 +28,7 @@ export type ProposalEntry = {
  */
 export type ProposalDocument = {
   metadata: {
-    /** OpenCode session identifier */
+    /** Session identifier */
     sessionId: string;
     /** ISO date string when the proposal was generated */
     date: string;
@@ -144,7 +144,7 @@ export const MEMORY_PROPOSAL_INSTRUCTIONS: string = [
  * Creates a proposal document with the given session metadata and no entries.
  * Useful as a starting template for AI to fill in.
  *
- * @param sessionId - OpenCode session identifier.
+ * @param sessionId - Session identifier.
  * @param summary   - One-line summary of what the conversation covered.
  * @returns A ProposalDocument with initialized metadata and empty entries array.
  */

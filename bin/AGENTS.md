@@ -2,56 +2,38 @@
 
 ## OVERVIEW
 
-Installable launcher wrappers copied by `src/cli/install.ts` into the user's bin directory. Context-guard implementation lives in `src/context-guard/` and is installed from there.
+Installable `aiomx` launcher wrappers copied by `src/cli/install.ts` into the user's bin directory.
 
 ## STRUCTURE
 
 ```text
 bin/
-├── aiomo / aiomo.cmd / aiomo.ps1
-├── aioc / aioc.cmd / aioc.ps1
-├── aiomo-monitor / aiomo-monitor.cmd / aiomo-monitor.ps1
-├── opencode-launcher-common.sh
-├── opencode-launcher-common.ps1
-└── opencode-install-doctor.ts
+├── aiomx
+├── aiomx.cmd
+├── aiomx.ps1
+└── aiomx.ts
 ```
 
 ## WHERE TO LOOK
 
-| Need                             | Location                       | Notes                                         |
-| -------------------------------- | ------------------------------ | --------------------------------------------- |
-| POSIX shared launcher behavior   | `opencode-launcher-common.sh`  | Used by shell launchers                       |
-| Windows shared launcher behavior | `opencode-launcher-common.ps1` | Used by `.cmd`/`.ps1` launchers               |
-| Install health checks            | `opencode-install-doctor.ts`   | `aiomo doctor install`, `aioc doctor install` |
-| Installed context guard entry    | `opencode-context-guard.ts`    | Copied from `src/context-guard/cli.ts`        |
-| Installed guard modules          | `context-guard/*.ts`           | Copied from `src/context-guard/`              |
+| Need                           | Location             | Notes                                      |
+| ------------------------------ | -------------------- | ------------------------------------------ |
+| Cross-platform launcher logic  | `aiomx.ts`           | Selects generated Codex/OMX profile        |
+| POSIX entry                    | `aiomx`              | Invokes `bun aiomx.ts`                     |
+| Windows PowerShell entry       | `aiomx.ps1`          | Invokes `bun aiomx.ts` with UTF-8 settings |
+| Windows cmd shim               | `aiomx.cmd`          | Delegates to `aiomx.ps1`                   |
+| Launcher install/copy behavior | `src/cli/install.ts` | Copies launchers and updates PATH          |
 
 ## CONVENTIONS
 
-- Pair user-facing launcher changes across POSIX and Windows unless platform difference is intentional.
+- Pair user-facing launcher changes across POSIX and Windows unless the platform difference is intentional.
 - PowerShell files are installed with UTF-8 BOM by `installLaunchers`; preserve Windows behavior.
-- Windows install updates user PATH, but current terminals may need restart.
-- `aiomo` selects OMO profile and copies matching `opencode.<profile>.json` / OMO sidecars.
-- `aiomo` also copies matching strategy, proxy, and context-guard sidecars before launching OpenCode.
-- `aioc` selects native profile and excludes `oh-my-openagent` + monitor while keeping shared plugins.
-- Do not put TypeScript business implementation here; keep it under `src/` and install/copy it from there.
-- Context guard writes local alerts/history/rescue files under `.opencode/` and `.opencode-rescue/` per generated config.
-- `aiomo-monitor` reads user config state; it should not depend on repo-local plugin runtime files after install.
-- Doctor output should be actionable: `OK` / `WARN` / `FAIL` with exact missing path/config item.
+- `aiomx` selects a generated Codex/OMX profile, copies the matching `.omx-config.json`, and forwards arguments to `omx`.
+- Do not hard-code user-specific absolute paths outside generated Codex config and user bin targets.
 
 ## VALIDATION
 
 ```sh
-aiomo doctor install
-aioc doctor install
+bun run ai:gen -- --dry-run
+aiomx version
 ```
-
-When changing generated install artifacts, also run `bun run ai:gen -- --dry-run` from repo root.
-
-## ANTI-PATTERNS
-
-- Do not hard-code user-specific absolute paths outside generated config/bin targets.
-- Do not let guard rescue/watch paths drift from `config/global.yaml` and generated sidecars.
-- Do not reintroduce `.mjs` context-guard implementation under `bin/`; use `src/context-guard/*.ts`.
-- Do not add broad shell advice or README duplication here.
-- Do not write credentials, logs, or temporary debug files into `bin/`.

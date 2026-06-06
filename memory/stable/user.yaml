@@ -6,8 +6,8 @@ identity:
     - AI 基础设施与自动化
     - AI 辅助编码工作流
   tools:
-    - OpenCode（主力 AI 编码 agent，Build/Plan 原生 + OMO 编排）
-    - oh-my-openagent（多 agent 编排框架）
+    - Codex CLI（主力 AI 编码 agent，本地 Build/Plan/Review 协作）
+    - OMX（多 agent 编排与任务分解入口）
     - Bun（首选运行时和包管理器）
     - Node.js（特定场景备选）
   editors:

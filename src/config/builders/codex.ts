@@ -68,7 +68,7 @@ export function buildCodexAgentConfigs(
       agentId,
       {
         name: agentId,
-        description: `ai-share ${agentId} agent migrated from OpenCode/OMO configuration`,
+        description: `ai-share ${agentId} Codex agent`,
         ...(agent.model ? { model: upstreamModelName(agent.model, modelSources, profileModels) } : {}),
         ...(agent.permission?.edit === "deny" ? { sandbox_mode: "read-only" as const } : {}),
         developer_instructions: [sharedPromptAppend(agentsConfig), agent.prompt?.append ?? agent.prompt?.system]

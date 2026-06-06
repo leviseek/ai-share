@@ -8,8 +8,8 @@
 
 ## 核心工具
 
-- **OpenCode**：AI Coding agent，支持 Build/Plan 原生模式和 OMO 编排
-- **oh-my-openagent**：多 agent 编排框架，用于复杂任务分解
+- **Codex CLI**：主力 AI Coding agent，承载 Build/Plan/Review 等本地协作模式
+- **OMX**：多 agent 编排与任务分解入口，通过 `aiomx` 启动
 - **Git**：版本控制和多设备同步
 
 ## 代码质量
@@ -24,5 +24,5 @@
 - 配置源在 `config/*.yaml`
 - 生成器在 `src/`
 - 启动器在 `bin/`
-- 插件在 `plugins/`
+- Codex 原生 skills 由生成器安装到 `~/.codex/skills/`
 - 用户级记忆在 `memory/`

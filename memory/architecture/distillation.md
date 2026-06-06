@@ -125,7 +125,7 @@ zh-CN（简体中文）
 | `src/loaders/memory-proposal.ts` | 提案类型定义、模板生成、格式化输出、写入执行（parse→modify→serialize）、系统指令 |
 | `src/loaders/memory-compiler.ts` | YAML 解析（`parseMemYaml`）、序列化（`serializeMemYaml`）、→自然语言编译 |
 | `src/loaders/memory-loader.ts` | profile→memory 文件映射、文件存在检查 |
-| `src/config/builders/opencode.ts` | 调用 `buildInstructionsPaths()` 加载 memory 文件 |
+| `src/config/builders/instructions.ts` | 调用 `buildInstructionsPaths()` 加载 memory 文件 |
 
 ## 确认写入
 

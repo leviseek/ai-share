@@ -99,5 +99,5 @@ deepseek-v4-pro-think-max:
 - **agents.yaml**: Agent `model` fields reference role names resolved through profile model maps
 - **global.yaml**: `models.default` and `models.small` reference model IDs from this file
 - **provider.yaml**: The `provider_group` field is resolved to a concrete provider at generation time
-- **Generated OpenCode config**: Models are materialized into `provider.<group>.models` blocks
-- **Generated OMO config**: Model roles are resolved to concrete model IDs with provider prefixes
+- **Generated Codex config**: Profile roles resolve to upstream model names and provider IDs
+- **Generated OMX config**: `primary`, `reasoning`, and `fast` roles map to OMX model slots

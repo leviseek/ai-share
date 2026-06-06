@@ -2,9 +2,8 @@
 
 import { copyFileSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 
 type RuntimeManifest = {
   default_profile?: string;
@@ -24,21 +23,9 @@ type CodexProfileRoot = {
   model_instructions_file?: string;
 };
 
-type ProxyConfig = {
-  enabled?: boolean;
-  protocol?: string;
-  host?: string;
-  port?: string | number;
-  no_proxy?: string[];
-};
-
 const homeDir = homedir();
 const codexHome = process.env.CODEX_HOME ?? join(homeDir, ".codex");
-const opencodeConfigDir = join(homeDir, ".config", "opencode");
-applyProxyEnv(join(opencodeConfigDir, "proxy.json"));
 const runtimeManifestPath = join(codexHome, "ai-share.runtime.json");
-const scriptDir = dirname(fileURLToPath(import.meta.url));
-const doctorScript = join(scriptDir, "opencode-install-doctor.ts");
 
 const runtimeManifest = asRuntimeManifest(readJson(runtimeManifestPath));
 const availableProfiles = discoverProfiles(runtimeManifest);
@@ -50,15 +37,6 @@ const parsed = parseArgs(Bun.argv.slice(2), availableProfiles, defaultProfile ??
 if (parsed.help) {
   showHelp(availableProfiles, parsed.profile);
   process.exit(0);
-}
-
-if (parsed.doctorInstall) {
-  if (!existsSync(doctorScript)) {
-    console.error(`缺少 install doctor 脚本：${doctorScript}`);
-    process.exit(1);
-  }
-  const result = spawnSync("bun", [doctorScript, "aiomx", parsed.profile], { stdio: "inherit", env: process.env });
-  process.exit(result.status ?? 1);
 }
 
 if (!availableProfiles.includes(parsed.profile)) {
@@ -113,50 +91,8 @@ function asOmxProfileConfig(value: unknown): OmxProfileConfig | null {
   return isRecord(value) ? value : null;
 }
 
-function asProxyConfig(value: unknown): ProxyConfig | null {
-  return isRecord(value) ? value : null;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function applyProxyEnv(proxyConfigPath: string): void {
-  if (process.env.AI_SHARE_PROXY === "0" || process.env.AI_SHARE_PROXY === "false") return;
-
-  const proxyConfig = asProxyConfig(readJson(proxyConfigPath));
-  if (proxyConfig?.enabled === false) return;
-
-  const proxyUrl = process.env.AI_SHARE_PROXY_URL ?? proxyUrlFromConfig(proxyConfig);
-  if (!proxyUrl) return;
-
-  setEnvIfMissing("HTTP_PROXY", proxyUrl);
-  setEnvIfMissing("HTTPS_PROXY", proxyUrl);
-  setEnvIfMissing("ALL_PROXY", proxyUrl);
-  setEnvIfMissing("http_proxy", process.env.HTTP_PROXY);
-  setEnvIfMissing("https_proxy", process.env.HTTPS_PROXY);
-  setEnvIfMissing("all_proxy", process.env.ALL_PROXY);
-
-  const noProxy = process.env.AI_SHARE_NO_PROXY ?? noProxyFromConfig(proxyConfig);
-  if (!noProxy) return;
-  setEnvIfMissing("NO_PROXY", noProxy);
-  setEnvIfMissing("no_proxy", process.env.NO_PROXY);
-}
-
-function proxyUrlFromConfig(proxyConfig: ProxyConfig | null): string {
-  const protocol = process.env.AI_SHARE_PROXY_PROTOCOL ?? proxyConfig?.protocol ?? "http";
-  const host = process.env.AI_SHARE_PROXY_HOST ?? proxyConfig?.host ?? "127.0.0.1";
-  const port = process.env.AI_SHARE_PROXY_PORT ?? proxyConfig?.port ?? "7897";
-  return `${protocol}://${host}:${port}`;
-}
-
-function noProxyFromConfig(proxyConfig: ProxyConfig | null): string {
-  return (proxyConfig?.no_proxy ?? ["localhost", "127.0.0.1", "::1"]).join(",");
-}
-
-function setEnvIfMissing(name: string, value: string | undefined): void {
-  if (!value || process.env[name]) return;
-  process.env[name] = value;
 }
 
 function discoverProfiles(manifest: RuntimeManifest | null): string[] {
@@ -177,17 +113,13 @@ function parseArgs(
   args: string[],
   profiles: string[],
   fallbackProfile: string,
-): { profile: string; remainingArgs: string[]; help: boolean; doctorInstall: boolean } {
+): { profile: string; remainingArgs: string[]; help: boolean } {
   let profile = fallbackProfile;
   const remainingArgs: string[] = [];
   let index = 0;
 
   if (args[0] === "-h" || args[0] === "--help") {
-    return { profile, remainingArgs, help: true, doctorInstall: false };
-  }
-
-  if (args[0] === "doctor" && args[1] === "install") {
-    return { profile, remainingArgs, help: false, doctorInstall: true };
+    return { profile, remainingArgs, help: true };
   }
 
   while (index < args.length) {
@@ -231,7 +163,7 @@ function parseArgs(
     index += 1;
   }
 
-  return { profile, remainingArgs, help: false, doctorInstall: false };
+  return { profile, remainingArgs, help: false };
 }
 
 function parseCodexProfileRoot(content: string): CodexProfileRoot {
@@ -312,7 +244,6 @@ function showHelp(profiles: string[], profile: string): void {
   console.log("用法：");
   console.log("  aiomx [profile] [omx/codex args...]");
   console.log("  aiomx --profile <profile> [omx/codex args...]");
-  console.log("  aiomx doctor install");
   console.log("");
   console.log("说明：启动 Codex + OMX 主路径，并在启动前切换 ai-share 生成的 Codex/OMX profile。");
   console.log(`默认 profile：${profile}`);
@@ -322,5 +253,4 @@ function showHelp(profiles: string[], profile: string): void {
   console.log("  aiomx");
   console.log("  aiomx coding");
   console.log('  aiomx max exec "请分析当前项目"');
-  console.log("  aiomx doctor install");
 }

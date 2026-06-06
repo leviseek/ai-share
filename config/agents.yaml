@@ -1,14 +1,11 @@
 # ============================================================
-# oh-my-openagent 配置
-# agents 使用插件内置代理名；categories 使用 task() 支持的类别名。
-# 模型名称引用 models.yaml 顶层 key，生成脚本会自动补 provider 前缀。
+# Codex agent 配置
+# agents 使用 Codex agent 名称；模型名称引用 primary / reasoning / fast 角色。
 # ============================================================
-
-model_fallback: true
 
 shared_prompt:
   append: |
-    遵循当前 OpenCode instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
+    遵循当前 Codex instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
 
 agents:
   sisyphus:
@@ -55,101 +52,3 @@ agents:
 
   multimodal-looker:
     model: primary
-
-categories:
-  ultrabrain:
-    model: reasoning
-
-  deep:
-    model: reasoning
-
-  quick:
-    model: fast
-
-  unspecified-low:
-    model: fast
-
-  unspecified-high:
-    model: primary
-    prompt:
-      append: |
-        高复杂度实现任务采用 planner → executor → reviewer → validator 闭环：先拆解方案和边界条件，再修改；修改后必须审查需求符合性、类型安全、项目风格和验证结果。
-
-  writing:
-    model: primary
-    prompt:
-      append: |
-        默认使用简体中文写作、润色和总结；代码标识符、命令、错误信息和 API 名称保持原文。除非用户明确要求英文，否则不要切换到英文。
-
-  visual-engineering:
-    model: primary
-
-  artistry:
-    model: primary
-
-runtime_fallback:
-  enabled: true
-  retry_on_errors:
-    - 429
-    - 503
-    - 529
-  max_fallback_attempts: 1
-  cooldown_seconds: 60
-  timeout_seconds: 30
-  notify_on_fallback: true
-  model_whitelist:
-    - primary
-    - reasoning
-    - fast
-
-background_task:
-  providerConcurrency:
-    gpt: 3
-    deepseek: 1
-  modelConcurrency:
-    primary: 2
-    reasoning: 1
-    fast: 6
-
-dcp:
-  enabled: true
-  mode: shared
-  handoff_policy: summarize-before-delegate
-  context_budget_tokens: 24000
-  share:
-    plans: true
-    decisions: true
-    verification: true
-    secrets: false
-  required_sections:
-    - task
-    - expected_outcome
-    - required_tools
-    - must_do
-    - must_not_do
-    - context
-
-checkpoint:
-  enabled: true
-  mode: agent-session
-  trigger: before-edit-and-before-delegation
-  max_entries: 20
-  require_verification_note: true
-  restore_policy: manual-only
-
-memory:
-  enabled: true
-  mode: shared
-  scope: project
-  strategy: verified-summary
-  write_policy: facts-decisions-and-runbooks-only
-  read_policy: load-before-plan
-  redact:
-    - api_key
-    - token
-    - password
-    - secret
-    - cookie
-
-tmux:
-  enabled: true

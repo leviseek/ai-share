@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 /**
  * Profile 到 memory 文件相对路径列表的映射。
- * key 为 ai-share profile 名称（Codex/OMX 与 OpenCode/OMO 共享），value 为相对于项目根目录 memory/ 目录的文件路径数组。
+ * key 为 ai-share profile 名称（Codex/OMX 共享），value 为相对于项目根目录 memory/ 目录的文件路径数组。
  */
 export type ProfileMemoryMap = Record<string, readonly string[]>;
 
@@ -23,9 +23,19 @@ export type ProfileMemoryMap = Record<string, readonly string[]>;
  *   适合大量代码生成的场景。
  * - research（深度推理/研究）：加载 research profile 特定配置（profiles/research.yaml），
  *   但不加载 workflows 和 devices（研究场景不依赖日常工作流信息）。
- * - max（全力模式）：加载全部可用文件，包括 all stable、profiles 和 policies 配置，
+ * - max / ds-max（全力模式）：加载全部可用文件，包括 all stable、profiles 和 policies 配置，
  *   提供最完整的上下文。
  */
+const fullMemoryFiles = [
+  "memory/stable/user.yaml",
+  "memory/stable/workflows.yaml",
+  "memory/stable/devices.yaml",
+  "memory/profiles/coding.yaml",
+  "memory/profiles/research.yaml",
+  "memory/profiles/infra.yaml",
+  "memory/policies/memory-policy.yaml",
+] as const;
+
 export const profileMemoryMap: ProfileMemoryMap = {
   lite: ["memory/stable/user.yaml"],
   economy: ["memory/stable/user.yaml"],
@@ -39,15 +49,8 @@ export const profileMemoryMap: ProfileMemoryMap = {
   ],
   research: ["memory/stable/user.yaml", "memory/profiles/research.yaml"],
   writing: ["memory/stable/user.yaml", "memory/stable/workflows.yaml"],
-  max: [
-    "memory/stable/user.yaml",
-    "memory/stable/workflows.yaml",
-    "memory/stable/devices.yaml",
-    "memory/profiles/coding.yaml",
-    "memory/profiles/research.yaml",
-    "memory/profiles/infra.yaml",
-    "memory/policies/memory-policy.yaml",
-  ],
+  max: fullMemoryFiles,
+  "ds-max": fullMemoryFiles,
 };
 
 /**
@@ -57,7 +60,7 @@ export const profileMemoryMap: ProfileMemoryMap = {
  * 不存在的文件会被静默跳过，确保返回的路径都是可读取的。
  *
  * @param profile  - ai-share profile 名称。
- *                   支持：lite、economy、cheap、balanced、coding、research、writing、max。
+ *                   支持：lite、economy、cheap、balanced、coding、research、writing、max、ds-max。
  *                   未匹配的 profile 名称会回退到仅包含 memory/stable/user.yaml 的默认集。
  * @param projectRoot - 项目根目录绝对路径（如 `D:\ai-share`），memory/ 目录由其解析。
  * @returns 本地实际存在的 memory 文件绝对路径数组。当没有文件存在时返回空数组。

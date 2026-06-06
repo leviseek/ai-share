@@ -4,126 +4,54 @@ export type GeneratorPaths = {
   projectRoot: string;
   configDir: string;
   binDir: string;
-  contextGuardSourceDir: string;
-  pluginDir: string;
-  distPluginDir: string;
   aiWorkspaceDir: string;
   workspaceAiShareDir: string;
   workspaceAiMemoryDir: string;
   externalAiMemoryDir: string;
   homeDir: string;
-  targetConfigDir: string;
   targetCodexConfigDir: string;
-  targetProfileDir: string;
-  targetOpenCodeProfileDir: string;
-  targetAiocProfileDir: string;
-  targetOhMyOpenAgentProfileDir: string;
-  targetStrategyProfileDir: string;
-  targetContextGuardProfileDir: string;
   targetCodexAgentDir: string;
-  targetOpenCode: string;
   targetCodexConfig: string;
   targetCodexInstructions: string;
   targetOmxConfig: string;
   targetRuntimeManifest: string;
-  targetTui: string;
-  targetOhMyOpenAgent: string;
-  targetProfileManifest: string;
-  targetContextGuard: string;
-  targetContextGuardProfile: string;
-  targetDingTalkNotifier: string;
-  targetProxy: string;
-  targetStrategy: string;
   targetBinDir: string;
-  targetPluginDir: string;
-  targetSkillsDir: string;
   targetCodexSkillsDir: string;
 };
 
 export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.dir, "..", "..")): GeneratorPaths {
   const configDir = resolve(projectRoot, "config");
   const binDir = resolve(projectRoot, "bin");
-  const contextGuardSourceDir = resolve(projectRoot, "src", "context-guard");
-  const pluginDir = resolve(projectRoot, "plugins");
-  const distPluginDir = resolve(projectRoot, "dist", "plugins");
   const homeDir = resolve(Bun.env.HOME ?? Bun.env.USERPROFILE ?? "");
   const aiWorkspaceDir = resolve(homeDir, "ai-workspace");
   const workspaceAiShareDir = resolve(aiWorkspaceDir, "ai-share");
   const workspaceAiMemoryDir = resolve(aiWorkspaceDir, "ai-memory");
   const externalAiMemoryDir = resolve(projectRoot, "..", "ai-memory");
-  const targetConfigDir = resolve(homeDir, ".config", "opencode");
   const targetCodexConfigDir = resolve(Bun.env.CODEX_HOME ?? resolve(homeDir, ".codex"));
-  const targetProfileDir = resolve(targetConfigDir, "profiles");
-  const targetOpenCodeProfileDir = resolve(targetProfileDir, "opencode");
-  const targetAiocProfileDir = resolve(targetProfileDir, "aioc");
-  const targetOhMyOpenAgentProfileDir = resolve(targetProfileDir, "oh-my-openagent");
-  const targetStrategyProfileDir = resolve(targetProfileDir, "strategy");
-  const targetContextGuardProfileDir = resolve(targetProfileDir, "context-guard");
   const targetCodexAgentDir = resolve(targetCodexConfigDir, "agents");
 
-  if (!targetConfigDir.startsWith(homeDir)) {
-    throw new Error("无法解析用户级 OpenCode 配置目录。请检查 HOME 或 USERPROFILE 环境变量。");
+  if (!targetCodexConfigDir.startsWith(homeDir) && !Bun.env.CODEX_HOME) {
+    throw new Error("无法解析用户级 Codex 配置目录。请检查 HOME 或 USERPROFILE 环境变量。");
   }
 
   return {
-    projectRoot: projectRoot,
-    configDir: configDir,
-    binDir: binDir,
-    contextGuardSourceDir: contextGuardSourceDir,
-    pluginDir: pluginDir,
-    distPluginDir: distPluginDir,
-    aiWorkspaceDir: aiWorkspaceDir,
-    workspaceAiShareDir: workspaceAiShareDir,
-    workspaceAiMemoryDir: workspaceAiMemoryDir,
-    externalAiMemoryDir: externalAiMemoryDir,
-    homeDir: homeDir,
-    targetConfigDir: targetConfigDir,
-    targetCodexConfigDir: targetCodexConfigDir,
-    targetProfileDir: targetProfileDir,
-    targetOpenCodeProfileDir: targetOpenCodeProfileDir,
-    targetAiocProfileDir: targetAiocProfileDir,
-    targetOhMyOpenAgentProfileDir: targetOhMyOpenAgentProfileDir,
-    targetStrategyProfileDir: targetStrategyProfileDir,
-    targetContextGuardProfileDir: targetContextGuardProfileDir,
-    targetCodexAgentDir: targetCodexAgentDir,
-    targetOpenCode: resolve(targetConfigDir, "opencode.json"),
+    projectRoot,
+    configDir,
+    binDir,
+    aiWorkspaceDir,
+    workspaceAiShareDir,
+    workspaceAiMemoryDir,
+    externalAiMemoryDir,
+    homeDir,
+    targetCodexConfigDir,
+    targetCodexAgentDir,
     targetCodexConfig: resolve(targetCodexConfigDir, "config.toml"),
     targetCodexInstructions: resolve(targetCodexConfigDir, "AGENTS.md"),
     targetOmxConfig: resolve(targetCodexConfigDir, ".omx-config.json"),
     targetRuntimeManifest: resolve(targetCodexConfigDir, "ai-share.runtime.json"),
-    targetTui: resolve(targetConfigDir, "tui.json"),
-    targetOhMyOpenAgent: resolve(targetConfigDir, "oh-my-openagent.json"),
-    targetProfileManifest: resolve(targetConfigDir, ".omo-profiles.json"),
-    targetContextGuard: resolve(targetConfigDir, "context-guard.json"),
-    targetContextGuardProfile: resolve(targetConfigDir, "context-guard.profile.json"),
-    targetDingTalkNotifier: resolve(targetConfigDir, "dingtalk-notifier.json"),
-    targetProxy: resolve(targetConfigDir, "proxy.json"),
-    targetStrategy: resolve(targetConfigDir, "strategy.json"),
     targetBinDir: resolve(homeDir, ".local", "bin"),
-    targetPluginDir: resolve(targetConfigDir, "plugins"),
-    targetSkillsDir: resolve(targetConfigDir, "skills"),
     targetCodexSkillsDir: resolve(targetCodexConfigDir, "skills"),
   };
-}
-
-export function profileOhMyOpenAgentPath(targetConfigDir: string, profileId: string): string {
-  return resolve(targetConfigDir, "profiles", "oh-my-openagent", `${profileId}.json`);
-}
-
-export function profileStrategyPath(targetConfigDir: string, profileId: string): string {
-  return resolve(targetConfigDir, "profiles", "strategy", `${profileId}.json`);
-}
-
-export function profileContextGuardPath(targetConfigDir: string, profileId: string): string {
-  return contextGuardProfilePath(targetConfigDir, profileId);
-}
-
-export function profileOpenCodePath(targetConfigDir: string, profileId: string): string {
-  return resolve(targetConfigDir, "profiles", "opencode", `${profileId}.json`);
-}
-
-export function profileAiocOpenCodePath(targetConfigDir: string, profileId: string): string {
-  return resolve(targetConfigDir, "profiles", "aioc", `${profileId}.json`);
 }
 
 export function profileCodexConfigPath(targetCodexConfigDir: string, profileId: string): string {
@@ -140,8 +68,4 @@ export function profileOmxConfigPath(targetCodexConfigDir: string, profileId: st
 
 export function codexAgentConfigPath(targetCodexAgentDir: string, agentId: string): string {
   return resolve(targetCodexAgentDir, `${agentId}.toml`);
-}
-
-function contextGuardProfilePath(targetConfigDir: string, profileId: string): string {
-  return resolve(targetConfigDir, "profiles", "context-guard", `${profileId}.json`);
 }

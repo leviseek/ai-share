@@ -20,11 +20,6 @@ const steps: Step[] = [
   { label: "检查 ai-share 配置", command: bunCommand, args: ["run", "ai:check"] },
   { label: "生成并安装用户级 AI 运行时", command: bunCommand, args: ["run", "ai:gen", "--", "--force"] },
   {
-    label: "检查 Codex+OMX 安装产物",
-    command: bunCommand,
-    args: [resolve(paths.targetBinDir, "opencode-install-doctor.ts"), "aiomx"],
-  },
-  {
     label: "验证 aiomx 启动入口",
     command: bunCommand,
     args: [resolve(paths.targetBinDir, "aiomx.ts"), "version"],

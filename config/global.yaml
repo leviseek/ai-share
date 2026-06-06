@@ -1,8 +1,6 @@
 default_profile: balanced
 
 # Version compatibility requirements
-opencode_min_version: 0.23.0
-omo_min_version: 3.17.5
 codex_min_version: 0.134.0
 omx_min_version: 0.18.4
 
@@ -20,31 +18,6 @@ runtime:
   timeout_ms: 120000
   max_retries: 2
 
-proxy:
-  enabled: true
-  host: 127.0.0.1
-  port: 7897
-  protocol: http
-  no_proxy:
-    - localhost
-    - 127.0.0.1
-    - ::1
-
-opencode:
-  plugins:
-    - oh-my-openagent@3.17.5
-    - ./plugins/omo-agent-monitor
-    - ./plugins/dingtalk-notifier
-  aioc_excluded_plugins:
-    - oh-my-openagent@3.17.5
-    - ./plugins/omo-agent-monitor
-  optional_plugins: [] # 例如确认包名后可加入 opencode-dcp；默认不盲装未知插件
-
-tui:
-  plugins:
-    - ./plugins/omo-agent-monitor
-    - ./plugins/live2d-pet
-
 models:
   default: gpt-5.5
   small: gpt-5.4-mini
@@ -52,17 +25,11 @@ models:
 context:
   max_tokens: 120000
   strategy: truncate # truncate / summarize / split
-  cache_enabled: true # 是否启用 DCP / checkpoint / memory 等上下文缓存策略
+  cache_enabled: true
 
 workspace:
   ignore:
     - .git/**
-    - .opencode/context-guard-watch/**
-    - .opencode/handoff/**
-    - .opencode/checkpoints/**
-    - .opencode/dcp/**
-    - .opencode/memory/**
-    - .opencode-rescue/**
     - .sisyphus/evidence/**
     - node_modules/**
     - dist/**
@@ -85,97 +52,6 @@ workspace:
 compaction:
   enabled: true
   threshold: 65000
-
-dcp:
-  enabled: true
-  mode: shared
-  root: .opencode/dcp
-  strategy: local-first
-  sync: manual
-  include:
-    - AI_GUIDELINES.md
-    - GIT_COMMIT_GUIDELINES.md
-    - README.md
-    - config/*.yaml
-    - memory/**
-  exclude:
-    - .env
-    - .env.*
-    - node_modules/**
-    - bun.lock
-    - .git/**
-  secrets_policy: env-only
-
-checkpoint:
-  enabled: true
-  mode: session
-  root: .opencode/checkpoints
-  trigger: before-risky-change
-  max_entries: 20
-  include:
-    - config/*.yaml
-    - src/**/*.ts
-    - bin/*
-    - plugins/**
-  exclude:
-    - node_modules/**
-    - .git/**
-    - bun.lock
-  restore_policy: manual-only
-
-memory:
-  enabled: true
-  mode: shared
-  root: .opencode/memory
-  strategy: summary-first
-  retention: project
-  write_policy: verified-facts-only
-  redact:
-    - api_key
-    - token
-    - password
-    - secret
-  include:
-    - AI_GUIDELINES.md
-    - README.md
-    - config/*.yaml
-    - memory/**
-  exclude:
-    - .env
-    - .env.*
-    - node_modules/**
-    - .git/**
-
-context_guard:
-  enabled: true
-  warn_ratio: 0.6
-  danger_ratio: 0.8
-  block_ratio: 0.95
-  absolute_block_tokens: 250000
-  rescue_dir: .opencode-rescue
-  diagnostics: true
-  watch_interval_ms: 5000
-  zero_output_limit: 3
-  watch_action: stop # alert / stop，仅作用于 aiomo/aioc 启动的进程树
-  alert_file: .opencode/context-guard-watch/alert.json
-  history_dir: .opencode/context-guard-watch/history
-
-dingtalk_notifier:
-  enabled: true
-  webhook_env: AI_SHARE_DINGTALK_WEBHOOK
-  secret_env: AI_SHARE_DINGTALK_SECRET
-  keyword_env: AI_SHARE_DINGTALK_KEYWORD
-  message_type: markdown
-  events:
-    - session.idle
-  require_review_before_send: true
-  review_items:
-    - 会话内容摘要
-    - 任务结果
-    - 验证结论
-    - 剩余风险或后续事项
-  min_interval_ms: 60000
-  timeout_ms: 10000
 
 # telemetry:
 #   enabled: true

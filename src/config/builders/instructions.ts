@@ -7,7 +7,7 @@ export function buildInstructionsPaths(projectRoot: string, profile?: string, ta
 
   // Task-based memory retrieval: top 3 relevant memory files prepended for priority
   const taskMemories: string[] = [];
-  const effectiveTask = taskDescription ?? process.env.AIOMO_TASK;
+  const effectiveTask = taskDescription ?? process.env.AI_SHARE_TASK;
   if (effectiveTask) {
     const results = searchMemory(effectiveTask, projectRoot);
     taskMemories.push(...results.slice(0, 3).map((r) => resolve(projectRoot, r.path)));
@@ -33,8 +33,6 @@ export function buildInstructionsPaths(projectRoot: string, profile?: string, ta
     resolve(memoryBase, "architecture", "agent-patterns.md"),
     resolve(memoryBase, "architecture", "ai-desktop.md"),
     // memory/stack/
-    resolve(memoryBase, "stack", "opencode.md"),
-    resolve(memoryBase, "stack", "oh-my-openagent.md"),
     resolve(memoryBase, "stack", "wsl.md"),
     resolve(memoryBase, "stack", "models.md"),
     // profile-specific migrated memory

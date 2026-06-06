@@ -13,7 +13,7 @@
 ## 路径约定
 
 - 用户级 bin: `~/.local/bin/`（Windows: `%USERPROFILE%\.local\bin\`）
-- OpenCode 用户配置: `~/.config/opencode/`
+- Codex 用户配置: `~/.codex/`
 - ai-share 仓库: 各设备通过 Git 同步
 - ai-memory: 所有设备统一 `~/ai-memory`（独立仓库）
 

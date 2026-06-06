@@ -1,7 +1,7 @@
 ## 提供商名
 ### name
 ### short_name   模型显示名后缀
-### npm          OpenCode 使用的 provider npm 包
+### npm          legacy provider package metadata（当前 Codex 生成不使用）
 ### base_url
 ### api_key
 ### timeout       请求超时（秒）

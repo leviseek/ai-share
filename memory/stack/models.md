@@ -11,27 +11,27 @@ API Key 通过环境变量引用，不写入仓库。
 
 ## 三角色模型映射
 
-OpenCode 和 OMO 共享同一套中间层角色。agents 和 categories 只引用角色名，具体模型由 profile 决定：
+Codex CLI 和 OMX 共享同一套中间层角色。agents 只引用角色名，具体模型由 profile 决定：
 
-| 角色        | 用途                                                               | 典型模型                                          |
-| ----------- | ------------------------------------------------------------------ | ------------------------------------------------- |
-| `primary`   | 主编码/执行 agent（build、sisyphus、hephaestus）                   | gpt-5.5 / gpt-5.3-codex                           |
-| `reasoning` | 深度推理/规划 agent（plan、oracle、prometheus）                    | deepseek-v4-pro-think / deepseek-v4-pro-think-max |
-| `fast`      | 轻量/搜索 agent（explore、librarian、sisyphus-junior、compaction） | gpt-5.4-mini                                      |
+| 角色        | 用途                                | 典型模型                                          |
+| ----------- | ----------------------------------- | ------------------------------------------------- |
+| `primary`   | 主编码/执行 agent                   | gpt-5.5 / gpt-5.3-codex                           |
+| `reasoning` | 深度推理/规划 agent                 | deepseek-v4-pro-think / deepseek-v4-pro-think-max |
+| `fast`      | 轻量/搜索/低复杂度任务和 compaction | gpt-5.4-mini                                      |
 
 ## Profile 模型对照表
 
-| Profile  | primary               | reasoning                 | fast                    |
-| -------- | --------------------- | ------------------------- | ----------------------- |
-| lite     | gpt-5.4               | deepseek-v4-flash-think   | gpt-5.4-mini            |
-| economy  | deepseek-v4-flash     | deepseek-v4-flash-think   | deepseek-v4-flash       |
-| cheap    | gpt-5.4-mini          | deepseek-v4-flash-think   | gpt-5.4-mini            |
-| balanced | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini            |
-| coding   | gpt-5.3-codex         | deepseek-v4-pro-think     | gpt-5.4-mini            |
-| research | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4-mini            |
-| writing  | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini            |
-| max      | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4                 |
-| ds-max   | deepseek-v4-pro-think | deepseek-v4-pro-think-max | deepseek-v4-flash-think |
+| Profile  | primary               | reasoning                 | fast              |
+| -------- | --------------------- | ------------------------- | ----------------- |
+| lite     | gpt-5.4               | deepseek-v4-flash-think   | gpt-5.4-mini      |
+| economy  | deepseek-v4-flash     | deepseek-v4-flash-think   | deepseek-v4-flash |
+| cheap    | gpt-5.4-mini          | deepseek-v4-flash-think   | gpt-5.4-mini      |
+| balanced | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini      |
+| coding   | gpt-5.3-codex         | deepseek-v4-pro-think     | gpt-5.4-mini      |
+| research | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4-mini      |
+| writing  | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini      |
+| max      | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4           |
+| ds-max   | deepseek-v4-pro-think | deepseek-v4-pro-think-max | deepseek-v4-flash |
 
 ## 模型选择策略
 
@@ -53,7 +53,7 @@ cheap 或 lite 模式。primary 用 gpt-5.4-mini 或 gpt-5.4，适合简单问�
 
 ### 写作/润色
 
-writing 模式。模型与 balanced 一致，但 strategy 的 memory 策略为 prose-summary，适合文档和文章处理。
+writing 模式。模型与 balanced 一致，但 compaction 使用 reasoning 模型，适合文档和文章处理。
 
 ### economy（激进省钱）
 
@@ -61,7 +61,7 @@ writing 模式。模型与 balanced 一致，但 strategy 的 memory 策略为 p
 
 ### ds-max（全链路 DeepSeek 强力模式）
 
-纯 DeepSeek 强力编排。primary=deepseek-v4-pro-think（标准推理），reasoning=deepseek-v4-pro-think-max（最强推理），fast=deepseek-v4-flash-think。全链路 DeepSeek，上下文预算约 960K（compact threshold 640K），所有角色均启用 thinking。适合需要超长上下文、全链路 DeepSeek 且对推理质量要求极高的场景，无需跨 provider 调用。
+纯 DeepSeek 强力编排。primary=deepseek-v4-pro-think（标准推理），reasoning=deepseek-v4-pro-think-max（最强推理），fast=deepseek-v4-flash。全链路 DeepSeek，上下文预算约 960K（compact threshold 640K）。适合需要超长上下文、全链路 DeepSeek 且对推理质量要求极高的场景，无需跨 provider 调用。
 
 ## 模型能力速览
 
@@ -71,10 +71,10 @@ writing 模式。模型与 balanced 一致，但 strategy 的 memory 策略为 p
 | gpt-5.4                   | 160K   | 0.008             | gpt-5.5 降级备选                                   |
 | gpt-5.4-mini              | 128K   | 0.0012            | 极低成本，cheap+fast+general                       |
 | gpt-5.3-codex             | 128K   | 0.007             | 编码专精，低 temperature（0.1）                    |
-| deepseek-v4-pro-think-max | 256K   | 0.005             | 最强推理，thinking enabled + reasoning_effort=max  |
-| deepseek-v4-pro-think     | 128K   | 0.003             | 标准推理，thinking enabled + reasoning_effort=high |
-| deepseek-v4-flash-think   | 128K   | 0.003             | 快速推理，与 pro-think 同价                        |
-| deepseek-v4-flash         | 64K    | 0.0008            | 最便宜，fast+cheap+coding+general                  |
+| deepseek-v4-pro-think-max | 1M     | 0.005             | 最强推理，thinking enabled + reasoning_effort=max  |
+| deepseek-v4-pro-think     | 1M     | 0.003             | 标准推理，thinking enabled + reasoning_effort=high |
+| deepseek-v4-flash-think   | 1M     | 0.003             | 快速推理，与 pro-think 同价                        |
+| deepseek-v4-flash         | 1M     | 0.0008            | 最便宜，fast+cheap+coding+general                  |
 
 ## Cost 意识
 
@@ -82,7 +82,7 @@ writing 模式。模型与 balanced 一致，但 strategy 的 memory 策略为 p
 - deepseek-v4-flash 是全局最便宜的模型（$0.0008/$0.0016），economy 模式全链路使用。
 - deepseek 系比 gpt 系便宜 2-10 倍。
 - max profile 虽然用 gpt-5.5 + deepseek-v4-pro-think-max，但总体成本仍可控，因为推理密集型任务走便宜的 DeepSeek。
-- 后台任务并发限制：gpt=3、deepseek=1；modelConcurrency：primary=2、reasoning=1、fast=6。
+- Codex profile 中 agent 并发由生成的 Codex 配置控制；模型 provider 本身不写入仓库密钥。
 
 ## Compaction 策略
 
@@ -109,7 +109,7 @@ research/writing/max/ds-max 使用 reasoning 模型做 compaction，压缩质量
 - deepseek-v4-pro-think → deepseek-v4-flash-think
 - deepseek-v4-flash-think → deepseek-v4-flash
 
-配置了 `model_fallback: true` 和 runtime_fallback（429/503/529 重试）。provider 层面也做了 timeout（600s）和 chunkTimeout（30s）。
+模型 YAML 保留 fallback 链用于生成器和后续工具消费；具体请求重试由 Codex/OMX 运行时处理。
 
 ## 已知模型行为
 

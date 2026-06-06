@@ -1,45 +1,17 @@
 import { spawnSync } from "node:child_process";
-import { chmod, cp, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
-import { resolve, sep } from "node:path";
+import { chmod, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import type { GeneratorPaths } from "./paths.ts";
 import { pathExists } from "./fs.ts";
-import { scanPlugins } from "./plugin-scanner.ts";
 import { NATIVE_SKILLS } from "./native-skills.ts";
 
 export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): Promise<void> {
-  const launcherFiles =
-    process.platform === "win32"
-      ? [
-          "aiomo.cmd",
-          "aiomo.ps1",
-          "aioc.cmd",
-          "aioc.ps1",
-          "aiomx.cmd",
-          "aiomx.ps1",
-          "aiomx.ts",
-          "opencode-launcher-common.ps1",
-          "opencode-install-doctor.ts",
-          "aiomo-monitor.cmd",
-          "aiomo-monitor.ps1",
-          "live2d-pet.cmd",
-          "live2d-pet.ps1",
-        ]
-      : [
-          "aiomo",
-          "aioc",
-          "aiomx",
-          "aiomx.ts",
-          "opencode-launcher-common.sh",
-          "opencode-install-doctor.ts",
-          "aiomo-monitor",
-          "live2d-pet",
-        ];
+  const launcherFiles = process.platform === "win32" ? ["aiomx.cmd", "aiomx.ps1", "aiomx.ts"] : ["aiomx", "aiomx.ts"];
+
   if (dryRun) {
     for (const fileName of launcherFiles) {
       console.log(`将安装启动命令：${resolve(paths.targetBinDir, fileName)}`);
     }
-    console.log(`将安装上下文守卫入口：${resolve(paths.targetBinDir, "opencode-context-guard.ts")}`);
-    console.log(`将安装上下文守卫模块：${resolve(paths.targetBinDir, "context-guard")}`);
     if (process.platform === "win32") {
       console.log(`将确保用户 PATH 包含：${paths.targetBinDir}`);
     } else {
@@ -57,19 +29,10 @@ export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): 
       continue;
     }
     await copyFile(sourcePath, targetPath);
-    if (process.platform !== "win32" && isPosixLauncher(fileName)) {
+    if (process.platform !== "win32" && !fileName.endsWith(".ts")) {
       await chmod(targetPath, 0o755);
     }
   }
-  await writeFile(
-    resolve(paths.targetBinDir, "opencode-context-guard.ts"),
-    installedContextGuardCli(await readFile(resolve(paths.contextGuardSourceDir, "cli.ts"), "utf8")),
-  );
-  await cp(paths.contextGuardSourceDir, resolve(paths.targetBinDir, "context-guard"), {
-    recursive: true,
-    force: true,
-  });
-  await Bun.file(resolve(paths.targetBinDir, "context-guard", "cli.ts")).delete();
 
   if (process.platform === "win32") {
     ensureWindowsUserPath(paths.targetBinDir);
@@ -78,122 +41,35 @@ export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): 
   }
 }
 
-export async function installPlugins(paths: GeneratorPaths, dryRun: boolean): Promise<void> {
-  const scanResults = scanPlugins(paths.pluginDir);
-  const validPluginDirs = scanResults.filter((r) => r.manifest !== null).map((r) => r.dirName);
-
-  if (dryRun) {
-    for (const dirName of validPluginDirs) {
-      console.log(`将安装 OpenCode 本地插件：${resolve(paths.targetPluginDir, dirName)}`);
-      if (dirName === "live2d-pet") {
-        console.log(`将安装 Live2D pet 桌面壳源码：${resolve(paths.targetPluginDir, dirName, "src-tauri")}`);
-        console.log(`如已构建，将安装 Live2D pet 桌面壳二进制：${live2dPetInstalledBinary(paths)}`);
-      }
-    }
-    return;
-  }
-
-  await mkdir(paths.targetPluginDir, { recursive: true });
-  for (const dirName of validPluginDirs) {
-    const builtPluginDir = await buildPlugin(paths, dirName);
-    await cp(builtPluginDir, resolve(paths.targetPluginDir, dirName), {
-      recursive: true,
-      force: true,
-    });
-  }
-}
-
 export async function installNativeSkills(paths: GeneratorPaths, dryRun: boolean, force: boolean): Promise<void> {
   if (dryRun) {
     for (const nativeSkill of NATIVE_SKILLS) {
-      for (const skillPath of nativeSkillPaths(paths, nativeSkill.name)) {
-        console.log(`\n--- ${skillPath} ---\n${nativeSkill.content}`);
-      }
+      const skillPath = nativeSkillPath(paths, nativeSkill.name);
+      console.log(`\n--- ${skillPath} ---\n${nativeSkill.content}`);
     }
     return;
   }
 
   for (const nativeSkill of NATIVE_SKILLS) {
-    for (const skillPath of nativeSkillPaths(paths, nativeSkill.name)) {
-      if (!force && (await pathExists(skillPath))) {
-        throw new Error(`目标已存在：${skillPath}\n如需覆盖，请运行：bun run ai:gen -- --force`);
-      }
+    const skillPath = nativeSkillPath(paths, nativeSkill.name);
+    if (!force && (await pathExists(skillPath))) {
+      throw new Error(`目标已存在：${skillPath}\n如需覆盖，请运行：bun run ai:gen -- --force`);
     }
   }
 
   for (const nativeSkill of NATIVE_SKILLS) {
-    for (const targetDir of nativeSkillDirs(paths, nativeSkill.name)) {
-      await mkdir(targetDir, { recursive: true });
-      await writeFile(resolve(targetDir, "SKILL.md"), nativeSkill.content);
-    }
+    const targetDir = resolve(paths.targetCodexSkillsDir, nativeSkill.name);
+    await mkdir(targetDir, { recursive: true });
+    await writeFile(resolve(targetDir, "SKILL.md"), nativeSkill.content);
   }
 }
 
-function nativeSkillDirs(paths: GeneratorPaths, skillName: string): string[] {
-  return [resolve(paths.targetSkillsDir, skillName), resolve(paths.targetCodexSkillsDir, skillName)];
-}
-
-function nativeSkillPaths(paths: GeneratorPaths, skillName: string): string[] {
-  return nativeSkillDirs(paths, skillName).map((dir) => resolve(dir, "SKILL.md"));
+function nativeSkillPath(paths: GeneratorPaths, skillName: string): string {
+  return resolve(paths.targetCodexSkillsDir, skillName, "SKILL.md");
 }
 
 function withUtf8Bom(content: string): string {
   return content.startsWith("\uFEFF") ? content : `\uFEFF${content}`;
-}
-
-function isPosixLauncher(fileName: string): boolean {
-  return !fileName.endsWith(".ts");
-}
-
-function installedContextGuardCli(content: string): string {
-  return content.replaceAll('from "./', 'from "./context-guard/');
-}
-
-async function buildPlugin(paths: GeneratorPaths, directoryName: string): Promise<string> {
-  const sourceDir = resolve(paths.pluginDir, directoryName);
-  const outputDir = resolve(paths.distPluginDir, directoryName);
-  const entrypoints = [resolve(sourceDir, "server.ts"), resolve(sourceDir, "tui.ts")];
-  const standaloneEntrypoint = resolve(sourceDir, "standalone.ts");
-  if (await pathExists(standaloneEntrypoint)) {
-    entrypoints.push(standaloneEntrypoint);
-  }
-  const result = spawnSync(
-    "bun",
-    ["build", ...entrypoints, "--target=bun", "--outdir", outputDir, "--external", "bun:sqlite"],
-    { cwd: paths.projectRoot, stdio: "pipe", encoding: "utf8" },
-  );
-  if (result.status !== 0) {
-    throw new Error(result.stderr.trim() || result.stdout.trim() || `构建插件失败：${directoryName}`);
-  }
-  await copyFile(resolve(sourceDir, "package.json"), resolve(outputDir, "package.json"));
-  if (directoryName === "live2d-pet") {
-    await cp(resolve(sourceDir, "src-tauri"), resolve(outputDir, "src-tauri"), {
-      recursive: true,
-      force: true,
-      filter: (sourcePath) => !sourcePath.includes(`${sep}target${sep}`) && !sourcePath.endsWith(`${sep}target`),
-    });
-    await cp(resolve(sourceDir, "tauri-client"), resolve(outputDir, "tauri-client"), { recursive: true, force: true });
-    await copyLive2dPetDesktopBinary(sourceDir, outputDir);
-  }
-  if (await pathExists(resolve(sourceDir, "agents-registry.json"))) {
-    await copyFile(resolve(sourceDir, "agents-registry.json"), resolve(outputDir, "agents-registry.json"));
-  }
-  return outputDir;
-}
-
-async function copyLive2dPetDesktopBinary(sourceDir: string, outputDir: string): Promise<void> {
-  const binaryName = process.platform === "win32" ? "live2d-pet.exe" : "live2d-pet";
-  const sourceBinary = resolve(sourceDir, "src-tauri", "target", "release", binaryName);
-  if (!(await pathExists(sourceBinary))) return;
-
-  const targetDir = resolve(outputDir, "src-tauri", "target", "release");
-  await mkdir(targetDir, { recursive: true });
-  await copyFile(sourceBinary, resolve(targetDir, binaryName));
-}
-
-function live2dPetInstalledBinary(paths: GeneratorPaths): string {
-  const binaryName = process.platform === "win32" ? "live2d-pet.exe" : "live2d-pet";
-  return resolve(paths.targetPluginDir, "live2d-pet", "src-tauri", "target", "release", binaryName);
 }
 
 function ensureWindowsUserPath(path: string): void {

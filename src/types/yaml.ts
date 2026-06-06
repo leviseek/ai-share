@@ -59,25 +59,15 @@ export type ModelSource = {
 
 export type GlobalYaml = {
   default_profile?: string;
-  opencode_min_version?: string;
-  omo_min_version?: string;
   codex_min_version?: string;
   omx_min_version?: string;
   env?: GlobalEnvironment;
   features?: GlobalFeatures;
   runtime?: GlobalRuntime;
-  proxy?: GlobalProxy;
-  opencode?: GlobalOpenCode;
-  tui?: GlobalTui;
   models?: GlobalModels;
   context?: GlobalContext;
   workspace?: GlobalWorkspace;
-  context_guard?: GlobalContextGuard;
-  dingtalk_notifier?: GlobalDingTalkNotifier;
   compaction?: GlobalCompaction;
-  dcp?: StrategySource;
-  checkpoint?: StrategySource;
-  memory?: StrategySource;
   telemetry?: GlobalTelemetry;
 };
 
@@ -98,24 +88,6 @@ export type GlobalRuntime = {
   max_retries?: number;
 };
 
-export type GlobalProxy = {
-  enabled?: boolean;
-  host?: string;
-  port?: number;
-  protocol?: "http" | "https" | "socks5";
-  no_proxy?: string[];
-};
-
-export type GlobalOpenCode = {
-  plugins?: string[];
-  optional_plugins?: string[];
-  aioc_excluded_plugins?: string[];
-};
-
-export type GlobalTui = {
-  plugins?: string[];
-};
-
 export type GlobalModels = {
   default?: string;
   small?: string;
@@ -131,34 +103,6 @@ export type GlobalWorkspace = {
   ignore?: string[];
 };
 
-export type GlobalContextGuard = {
-  enabled?: boolean;
-  warn_ratio?: number;
-  danger_ratio?: number;
-  block_ratio?: number;
-  absolute_block_tokens?: number;
-  rescue_dir?: string;
-  diagnostics?: boolean;
-  watch_interval_ms?: number;
-  zero_output_limit?: number;
-  watch_action?: "alert" | "stop";
-  alert_file?: string;
-  history_dir?: string;
-};
-
-export type GlobalDingTalkNotifier = {
-  enabled?: boolean;
-  webhook_env?: string;
-  secret_env?: string;
-  keyword_env?: string;
-  message_type?: "text" | "markdown";
-  events?: string[];
-  require_review_before_send?: boolean;
-  review_items?: string[];
-  min_interval_ms?: number;
-  timeout_ms?: number;
-};
-
 export type GlobalCompaction = {
   enabled?: boolean;
   threshold?: number;
@@ -167,8 +111,6 @@ export type GlobalCompaction = {
   prune?: boolean;
   reserved?: number;
 };
-
-export type StrategySource = Record<string, unknown>;
 
 export type GlobalTelemetry = {
   enabled?: boolean;
@@ -187,16 +129,8 @@ export type AgentSource = {
 };
 
 export type AgentsYaml = {
-  model_fallback?: boolean;
   shared_prompt?: AgentPrompt;
   agents?: Record<string, AgentSource>;
-  categories?: Record<string, AgentSource>;
-  runtime_fallback?: RuntimeFallbackSource;
-  background_task?: BackgroundTaskSource;
-  dcp?: StrategySource;
-  checkpoint?: StrategySource;
-  memory?: StrategySource;
-  tmux?: TmuxSource;
 };
 
 export type ProfilesYaml = Record<string, AgentProfileSource>;
@@ -205,35 +139,4 @@ export type AgentProfileSource = {
   name?: string;
   models?: ModelRoleMap;
   compaction?: GlobalCompaction;
-  strategies?: ProfileStrategies;
-};
-
-export type ProfileStrategies = {
-  opencode?: StrategyOverrides;
-  oh_my_openagent?: StrategyOverrides;
-};
-
-export type StrategyOverrides = {
-  dcp?: StrategySource;
-  checkpoint?: StrategySource;
-  memory?: StrategySource;
-};
-
-export type RuntimeFallbackSource = {
-  enabled?: boolean;
-  retry_on_errors?: number[];
-  max_fallback_attempts?: number;
-  cooldown_seconds?: number;
-  timeout_seconds?: number;
-  notify_on_fallback?: boolean;
-  model_whitelist?: string[];
-};
-
-export type BackgroundTaskSource = {
-  providerConcurrency?: Record<string, number>;
-  modelConcurrency?: Record<string, number>;
-};
-
-export type TmuxSource = {
-  enabled?: boolean;
 };

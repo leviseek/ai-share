@@ -7,16 +7,6 @@ export {
   formatCodexAgentToml,
   formatCodexConfigToml,
 } from "./config/builders/codex.ts";
-export { buildContextGuardConfig, buildContextGuardProfileConfigs } from "./config/builders/context-guard.ts";
-export { buildDingTalkNotifierConfig } from "./config/builders/dingtalk-notifier.ts";
 export { buildInstructionsPaths } from "./config/builders/instructions.ts";
-export { buildOhMyOpenAgentConfigs } from "./config/builders/omo.ts";
-export {
-  buildAiocOpenCodeConfigs,
-  buildOpenCodeConfigs,
-  buildProfileManifest,
-  buildTuiConfig,
-  defaultProfileId,
-} from "./config/builders/opencode.ts";
-export { buildStrategyConfigs } from "./config/builders/strategy.ts";
+export { defaultProfileId } from "./config/builders/profiles.ts";
 export { requireRecord, requireValue } from "./config/validation.ts";
