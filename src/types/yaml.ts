@@ -60,60 +60,15 @@ export type GlobalYaml = {
   default_profile?: string;
   codex_min_version?: string;
   omx_min_version?: string;
-  env?: GlobalEnvironment;
-  features?: GlobalFeatures;
-  runtime?: GlobalRuntime;
-  models?: GlobalModels;
-  context?: GlobalContext;
-  workspace?: GlobalWorkspace;
-  compaction?: GlobalCompaction;
-  telemetry?: GlobalTelemetry;
 };
 
-export type GlobalEnvironment = {
-  mode?: "dev" | "staging" | "prod";
-  log_level?: "debug" | "info" | "warn" | "error";
-};
-
-export type GlobalFeatures = {
-  auto_router?: boolean;
-  memory?: boolean;
-  fallback?: boolean;
-  cost_tracking?: boolean;
-};
-
-export type GlobalRuntime = {
-  timeout_ms?: number;
-  max_retries?: number;
-};
-
-export type GlobalModels = {
-  default?: string;
-  small?: string;
-};
-
-export type GlobalContext = {
-  max_tokens?: number;
-  strategy?: "truncate" | "summarize" | "split";
-  cache_enabled?: boolean;
-};
-
-export type GlobalWorkspace = {
-  ignore?: string[];
-};
-
-export type GlobalCompaction = {
+export type ProfileCompaction = {
   enabled?: boolean;
   threshold?: number;
   model?: string;
   max_input_tokens?: number;
   prune?: boolean;
   reserved?: number;
-};
-
-export type GlobalTelemetry = {
-  enabled?: boolean;
-  endpoint?: string;
 };
 
 export type AgentPrompt = {
@@ -137,5 +92,5 @@ export type ProfilesYaml = Record<string, AgentProfileSource>;
 export type AgentProfileSource = {
   name?: string;
   models?: ModelRoleMap;
-  compaction?: GlobalCompaction;
+  compaction?: ProfileCompaction;
 };

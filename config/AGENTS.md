@@ -8,7 +8,7 @@ YAML source of truth for generated Codex CLI, OMX, profile, agent, MCP, and inst
 
 | Need                                                   | File            | Notes                                             |
 | ------------------------------------------------------ | --------------- | ------------------------------------------------- |
-| Default profile, runtime defaults, ignore paths        | `global.yaml`   | Broad defaults and shared policy                  |
+| Default profile and Codex/OMX version requirements     | `global.yaml`   | Only fields consumed by generator/check           |
 | Provider base URLs and API-key env vars                | `provider.yaml` | Secrets stay env-only                             |
 | Model catalog, upstream IDs, provider groups, fallback | `models.yaml`   | Referenced by profile role names                  |
 | Codex/OMX profile role mapping                         | `profiles.yaml` | `lite`, `cheap`, `balanced`, `coding`, etc.       |
@@ -19,7 +19,7 @@ YAML source of truth for generated Codex CLI, OMX, profile, agent, MCP, and inst
 
 - Edit YAML first; generated files under the user Codex home are outputs.
 - Stable keys matter: generator code references provider/model/profile/agent IDs.
-- Prefer shared defaults in `global.yaml`; use profile overrides only for real profile differences.
+- Keep `global.yaml` small; profile-specific behavior belongs in `profiles.yaml`.
 - `profiles.yaml` currently defines `lite`, `economy`, `cheap`, `balanced`, `coding`, `research`, `writing`, `max`, `ds-max`.
 - `agents.yaml` model values normally reference roles (`primary`, `reasoning`, `fast`), not raw provider model strings.
 - `shared_prompt.append` is Chinese and injects `AI_GUIDELINES.md` workflow expectations into Codex agents.

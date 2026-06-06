@@ -1,4 +1,5 @@
 import type { GeneratorPaths } from "../../cli/paths.ts";
+import type { ProfileCompaction, ProfilesYaml } from "../../types.ts";
 
 export type RuntimeManifest = {
   version: 2;
@@ -23,6 +24,7 @@ export type RuntimeManifest = {
     skills: string[];
     instruction_files: string[];
     profile_instruction_files: Record<string, string[]>;
+    profile_compaction: Record<string, ProfileCompaction>;
   };
 };
 
@@ -34,6 +36,7 @@ export function buildRuntimeManifest(input: {
   mcpServerIds: string[];
   skillIds: string[];
   instructionFilesByProfile: Record<string, string[]>;
+  profilesConfig: ProfilesYaml;
 }): RuntimeManifest {
   return {
     version: 2,
@@ -58,6 +61,16 @@ export function buildRuntimeManifest(input: {
       skills: input.skillIds,
       instruction_files: input.instructionFilesByProfile[input.defaultProfileId] ?? [],
       profile_instruction_files: input.instructionFilesByProfile,
+      profile_compaction: profileCompaction(input.profileIds, input.profilesConfig),
     },
   };
+}
+
+function profileCompaction(profileIds: string[], profilesConfig: ProfilesYaml): Record<string, ProfileCompaction> {
+  return Object.fromEntries(
+    profileIds.flatMap((profileId) => {
+      const compaction = profilesConfig[profileId]?.compaction;
+      return compaction ? [[profileId, compaction]] : [];
+    }),
+  );
 }

@@ -190,6 +190,7 @@ await writeJson(
     mcpServerIds: Object.keys(mcpConfig.servers ?? {}),
     skillIds: NATIVE_SKILLS.map((skill) => skill.name),
     instructionFilesByProfile,
+    profilesConfig,
   }),
   { dryRun, force },
 );

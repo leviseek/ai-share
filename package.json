@@ -6,7 +6,7 @@
   "scripts": {
     "ai:check": "bun run ./src/generate-user-config.ts --check",
     "ai:dry-run": "bun run ./src/generate-user-config.ts --dry-run",
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun run ai:check",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun test && bun run ai:check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "ai:bootstrap": "bun run ./src/cli/bootstrap.ts",

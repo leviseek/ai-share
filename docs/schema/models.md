@@ -97,7 +97,6 @@ deepseek-v4-pro-think-max:
 - **profiles.yaml**: Profile `models.primary`, `models.reasoning`, `models.fast` reference model IDs from this file
 - **profiles.yaml**: `compaction.model` can be a model ID from this file or a role name (`primary`, `reasoning`, `fast`)
 - **agents.yaml**: Agent `model` fields reference role names resolved through profile model maps
-- **global.yaml**: `models.default` and `models.small` reference model IDs from this file
 - **provider.yaml**: The `provider_group` field is resolved to a concrete provider at generation time
 - **Generated Codex config**: Profile roles resolve to upstream model names and provider IDs
 - **Generated OMX config**: `primary`, `reasoning`, and `fast` roles map to OMX model slots

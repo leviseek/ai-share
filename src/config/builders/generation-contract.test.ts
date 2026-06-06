@@ -131,6 +131,17 @@ env_key = "DEEPSEEK_API_KEY"
       agentIds: ["sisyphus", "explorer"],
       mcpServerIds: ["filesystem"],
       skillIds: ["git-master", "ai-share-generator"],
+      profilesConfig: {
+        balanced: {
+          compaction: {
+            enabled: true,
+            threshold: 65000,
+            model: "fast",
+            max_input_tokens: 120000,
+          },
+        },
+        coding: {},
+      },
       instructionFilesByProfile: {
         balanced: ["/repo/AI_GUIDELINES.md", "/repo/memory/user/profile.md"],
         coding: ["/repo/AI_GUIDELINES.md", "/repo/memory/profiles/coding.yaml"],
@@ -162,6 +173,14 @@ env_key = "DEEPSEEK_API_KEY"
         profile_instruction_files: {
           balanced: ["/repo/AI_GUIDELINES.md", "/repo/memory/user/profile.md"],
           coding: ["/repo/AI_GUIDELINES.md", "/repo/memory/profiles/coding.yaml"],
+        },
+        profile_compaction: {
+          balanced: {
+            enabled: true,
+            threshold: 65000,
+            model: "fast",
+            max_input_tokens: 120000,
+          },
         },
       },
     });

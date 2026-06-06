@@ -38,7 +38,7 @@ Use this skill when modifying YAML source files, Codex/OMX config builders, gene
 
 ## Source Of Truth
 
-- \`config/global.yaml\`: default profile, global runtime metadata, context defaults, workspace ignores.
+- \`config/global.yaml\`: default profile and Codex/OMX version requirements.
 - \`config/provider.yaml\`: provider definitions and API key env references.
 - \`config/models.yaml\`: model catalog and provider groups.
 - \`config/profiles.yaml\`: profile role mapping and profile metadata.
@@ -79,7 +79,7 @@ Use this skill when tuning model roles, profile defaults, compaction metadata, f
 - \`config/profiles.yaml\`: profile-level role mapping and profile metadata.
 - \`config/models.yaml\`: model group definitions, provider selection, parameters, limits, and fallback chains.
 - \`config/agents.yaml\`: agent-to-role mapping and prompt append rules.
-- \`config/global.yaml\`: default profile and shared context defaults.
+- \`config/global.yaml\`: default profile and version requirements.
 
 ## Tuning Principles
 
