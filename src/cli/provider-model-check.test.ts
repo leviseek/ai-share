@@ -92,15 +92,15 @@ describe("provider model availability check", () => {
       },
     });
 
-    expect(results).toEqual([
-      {
-        provider: "codexapis",
-        model_id: "gpt-5.5",
-        model_name: "gpt-5.5",
-        base_url: "https://example.test/v1",
-        status: "ok",
-      },
-    ]);
+    expect(results).toHaveLength(1);
+    expect(results[0]?.request_fingerprint).toMatch(/^[a-f0-9]{64}$/);
+    expect(results[0]).toMatchObject({
+      provider: "codexapis",
+      model_id: "gpt-5.5",
+      model_name: "gpt-5.5",
+      base_url: "https://example.test/v1",
+      status: "ok",
+    });
     expect(requests[0]).toMatchObject({
       model: "gpt-5.5",
       max_tokens: 1,
@@ -144,6 +144,7 @@ describe("provider model availability check", () => {
     });
 
     expect(results.map((result) => result.model_id)).toEqual(["gpt-5.5", "gpt-5.5-coding"]);
+    expect(new Set(results.map((result) => result.request_fingerprint)).size).toBe(2);
     expect(requests).toHaveLength(2);
   });
 });

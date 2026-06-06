@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import type { ModelsYaml, ProviderSource, ProviderYaml } from "../types.ts";
 import { applyProviderGroups } from "../config-builders.ts";
@@ -19,6 +20,7 @@ export type ProviderCanaryCheckResult = {
   provider: string;
   model_id: string;
   model_name: string;
+  request_fingerprint: string;
   base_url: string;
   status: "ok" | "missing-api-key" | "unreachable" | "rejected" | "unsupported-response";
   error?: string;
@@ -155,6 +157,7 @@ async function checkProviderCanary(
 ): Promise<ProviderCanaryCheckResult> {
   const baseUrl = provider?.base_url ?? "";
   const modelName = model.model_name ?? modelId;
+  const requestFingerprint = canaryRequestFingerprint(modelName, model);
   const apiKeyName = envKeyName(provider?.api_key);
   const apiKey = apiKeyName ? env[apiKeyName] : undefined;
 
@@ -163,6 +166,7 @@ async function checkProviderCanary(
       provider: providerId,
       model_id: modelId,
       model_name: modelName,
+      request_fingerprint: requestFingerprint,
       base_url: baseUrl,
       status: "missing-api-key",
       error: apiKeyName ? `缺少环境变量：${apiKeyName}` : "provider.api_key 必须是 ${ENV_NAME} 引用",
@@ -186,6 +190,7 @@ async function checkProviderCanary(
         provider: providerId,
         model_id: modelId,
         model_name: modelName,
+        request_fingerprint: requestFingerprint,
         base_url: provider.base_url,
         status: "rejected",
         error: `HTTP ${response.status}: ${await safeResponseText(response)}`,
@@ -198,6 +203,7 @@ async function checkProviderCanary(
         provider: providerId,
         model_id: modelId,
         model_name: modelName,
+        request_fingerprint: requestFingerprint,
         base_url: provider.base_url,
         status: "unsupported-response",
       };
@@ -207,6 +213,7 @@ async function checkProviderCanary(
       provider: providerId,
       model_id: modelId,
       model_name: modelName,
+      request_fingerprint: requestFingerprint,
       base_url: provider.base_url,
       status: "ok",
     };
@@ -215,6 +222,7 @@ async function checkProviderCanary(
       provider: providerId,
       model_id: modelId,
       model_name: modelName,
+      request_fingerprint: requestFingerprint,
       base_url: provider.base_url,
       status: "unreachable",
       error: error instanceof Error ? error.message : String(error),
@@ -335,6 +343,12 @@ function canaryRequestBody(modelName: string, model: ModelsYaml[string]): Record
 
 function canaryFingerprint(model: ModelsYaml[string]): string {
   return JSON.stringify(canaryRequestBody(model.model_name ?? "", model));
+}
+
+function canaryRequestFingerprint(modelName: string, model: ModelsYaml[string]): string {
+  return createHash("sha256")
+    .update(JSON.stringify(canaryRequestBody(modelName, model)))
+    .digest("hex");
 }
 
 function canaryParameters(parameters: Record<string, unknown>): Record<string, unknown> {
