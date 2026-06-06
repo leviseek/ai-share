@@ -99,4 +99,26 @@ describe("writeText/writeJson", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  test("rejects duplicate staged target paths", async () => {
+    const root = mkdtempSync(join(tmpdir(), "ai-share-fs-"));
+    try {
+      const writer = await StagedFileWriter.create(join(root, ".staging"));
+      const targetPath = join(root, "config.toml");
+      await writer.writeText(targetPath, "first\n");
+
+      let error: unknown;
+      try {
+        await writer.writeText(targetPath, "second\n");
+      } catch (caught) {
+        error = caught;
+      }
+
+      expect(error).toBeInstanceOf(Error);
+      expect(String(error)).toContain("重复目标路径");
+      await writer.cleanup();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

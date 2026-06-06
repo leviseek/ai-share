@@ -127,6 +127,9 @@ export class StagedFileWriter {
     if (this.promoted) throw new Error("staged writer 已提交，不能继续写入。");
 
     const targetPath = resolve(path);
+    if (this.files.some((file) => file.targetPath === targetPath)) {
+      throw new Error(`staged writer 重复目标路径：${targetPath}`);
+    }
     const stagedPath = resolve(this.stagingDir, "files", `${this.files.length}-${basename(targetPath)}`);
     const backupPath = resolve(this.backupDir, `${this.files.length}-${basename(targetPath)}`);
     await writeFile(stagedPath, content);
