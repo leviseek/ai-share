@@ -148,6 +148,6 @@ bun run check
 - runtime manifest 已记录 `local_config_overlays`，便于审计当前生成结果是否叠加了 `config/local/*.yaml`。
 - `profile:eval` 写报告后同时显示 JSON 与 Markdown 输出路径，summary 汇总 `average_actual_elapsed_ms`，减少人工查找报告文件和横向比较耗时的成本。
 - provider canary JSON 已增加 `request_fingerprint`，人类可读 canary 输出也显示短指纹摘要，用于区分同一 upstream model 在不同参数组合下的 canary 请求。
-- `provider:check` 已记录顶层 `elapsed_ms`，人类可读输出也显示总耗时，便于区分 provider 网络抖动和本地检查耗时。
+- `provider:check` 已记录顶层 `elapsed_ms`，人类可读输出也显示总耗时，并支持 `--output <path>` 落盘 JSON 报告，便于区分 provider 网络抖动和保留检查证据。
 - `memory:check` 已汇总 `ai-share-privacy-allow` 指令使用数量，提醒定期复核 allow 是否仍有必要。
 - `ai:doctor` 已记录顶层总耗时和每个检查项 `elapsed_ms`，人类可读输出和 JSON 输出均可用于定位诊断耗时。
