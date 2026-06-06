@@ -38,5 +38,9 @@ docs/superpowers/
 .env.*
 
 ### Migrated memory runtime/sync
+config/local/
+memory/local/
+memory/private/
+memory/project/
 memory/runtime/
 memory/sync/

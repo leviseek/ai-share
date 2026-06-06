@@ -1,0 +1,5 @@
+providers:
+  example-openai-compatible:
+    name: Example OpenAI Compatible
+    base_url: https://api.example.test/v1
+    api_key: ${EXAMPLE_API_KEY}

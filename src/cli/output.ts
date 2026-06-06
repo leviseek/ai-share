@@ -1,5 +1,6 @@
 import type { ProviderGroupMap } from "../types.ts";
 import { color } from "./color.ts";
+import type { DefaultConfigDrift } from "./default-config-drift.ts";
 import type { GeneratorPaths } from "./paths.ts";
 
 export function printCheckSummary(input: {
@@ -11,6 +12,7 @@ export function printCheckSummary(input: {
   selectedDefaultProfileId: string;
   providerGroups: ProviderGroupMap;
   missingApiKeys: string[];
+  defaultConfigDrift: DefaultConfigDrift;
 }): void {
   console.log(color.green("配置检查通过。"));
   console.log(`${color.cyan("已配置 provider 数量")}：${color.bold(String(input.configuredProviderCount))}`);
@@ -19,12 +21,27 @@ export function printCheckSummary(input: {
   console.log(`${color.cyan("MCP servers")}：${color.magenta(input.mcpServerIds.join(" / ") || "none")}`);
   console.log(`${color.cyan("Codex home")}：${color.bold(input.codexHome)}`);
   console.log(`${color.cyan("默认 Codex profile")}：${color.bold(input.selectedDefaultProfileId)}`);
+  printDefaultConfigDrift(input.defaultConfigDrift, input.selectedDefaultProfileId);
   console.log(`${color.cyan("模型组提供商")}：${formatProviderGroups(input.providerGroups)}`);
   if (input.missingApiKeys.length > 0) {
     console.warn(`${color.yellow("API Key 环境变量未设置")}：${color.yellow(input.missingApiKeys.join(" / "))}`);
     process.exit(1);
   }
   console.log(color.green("API Key 环境变量已设置。"));
+}
+
+function printDefaultConfigDrift(drift: DefaultConfigDrift, defaultProfileId: string): void {
+  if (drift.status === "current") {
+    console.log(`${color.cyan("默认 config.toml")}：${color.green(`与 ${defaultProfileId} 等价`)}`);
+    return;
+  }
+  if (drift.status === "missing") {
+    console.log(`${color.cyan("默认 config.toml")}：${color.yellow("不存在，生成时会创建")} ${color.gray(drift.path)}`);
+    return;
+  }
+  console.log(
+    `${color.yellow("默认 config.toml 漂移")}：${color.yellow(drift.path)} 与当前默认 profile '${defaultProfileId}' 不等价；如需刷新请运行 bun run ai:gen -- --force。`,
+  );
 }
 
 export function printGenerationSummary(input: {

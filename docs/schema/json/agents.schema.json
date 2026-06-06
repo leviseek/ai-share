@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ai-share agents.yaml",
+  "type": "object",
+  "required": [
+    "codex",
+    "omx",
+    "agents"
+  ],
+  "properties": {
+    "shared_prompt": {
+      "type": "object",
+      "properties": {
+        "system": {
+          "type": "string",
+          "description": "System prompt text.",
+          "minLength": 1
+        },
+        "append": {
+          "type": "string",
+          "description": "Prompt appended to generated agent instructions.",
+          "minLength": 1
+        }
+      }
+    },
+    "codex": {
+      "type": "object",
+      "required": [
+        "agents"
+      ],
+      "properties": {
+        "agents": {
+          "type": "object",
+          "required": [
+            "max_threads",
+            "max_depth",
+            "job_max_runtime_seconds"
+          ],
+          "properties": {
+            "max_threads": {
+              "type": "integer",
+              "description": "Codex max concurrent agent threads.",
+              "minimum": 1
+            },
+            "max_depth": {
+              "type": "integer",
+              "description": "Codex max agent depth.",
+              "minimum": 1
+            },
+            "job_max_runtime_seconds": {
+              "type": "integer",
+              "description": "Codex max agent job runtime.",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "omx": {
+      "type": "object",
+      "required": [
+        "model_slots",
+        "agent_reasoning"
+      ],
+      "properties": {
+        "model_slots": {
+          "type": "object",
+          "required": [
+            "default",
+            "team",
+            "autopilot",
+            "ralph",
+            "team_low_complexity"
+          ],
+          "properties": {
+            "default": {
+              "type": "string",
+              "description": "default model role.",
+              "minLength": 1,
+              "enum": [
+                "primary",
+                "reasoning",
+                "fast"
+              ]
+            },
+            "team": {
+              "type": "string",
+              "description": "team model role.",
+              "minLength": 1,
+              "enum": [
+                "primary",
+                "reasoning",
+                "fast"
+              ]
+            },
+            "autopilot": {
+              "type": "string",
+              "description": "autopilot model role.",
+              "minLength": 1,
+              "enum": [
+                "primary",
+                "reasoning",
+                "fast"
+              ]
+            },
+            "ralph": {
+              "type": "string",
+              "description": "ralph model role.",
+              "minLength": 1,
+              "enum": [
+                "primary",
+                "reasoning",
+                "fast"
+              ]
+            },
+            "team_low_complexity": {
+              "type": "string",
+              "description": "team_low_complexity model role.",
+              "minLength": 1,
+              "enum": [
+                "primary",
+                "reasoning",
+                "fast"
+              ]
+            }
+          },
+          "additionalProperties": {
+            "type": "string",
+            "description": "Profile model role.",
+            "minLength": 1,
+            "enum": [
+              "primary",
+              "reasoning",
+              "fast"
+            ]
+          }
+        },
+        "agent_reasoning": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "description": "OMX agent reasoning level.",
+            "minLength": 1,
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          }
+        }
+      }
+    },
+    "agents": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "model"
+        ],
+        "properties": {
+          "model": {
+            "type": "string",
+            "description": "Profile model role.",
+            "minLength": 1,
+            "enum": [
+              "primary",
+              "reasoning",
+              "fast"
+            ]
+          },
+          "prompt": {
+            "type": "object",
+            "properties": {
+              "system": {
+                "type": "string",
+                "description": "System prompt text.",
+                "minLength": 1
+              },
+              "append": {
+                "type": "string",
+                "description": "Prompt appended to generated agent instructions.",
+                "minLength": 1
+              }
+            }
+          },
+          "permission": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "description": "Permission value.",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}

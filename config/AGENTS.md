@@ -14,15 +14,18 @@ YAML source of truth for generated Codex CLI, OMX, profile, agent, MCP, and inst
 | Codex/OMX profile role mapping                         | `profiles.yaml` | `lite`, `cheap`, `balanced`, `coding`, etc.   |
 | Codex agent runtime, role mapping, and prompt rules    | `agents.yaml`   | Codex `[agents]`, OMX slots, agent roles      |
 | Codex MCP servers                                      | `mcp.yaml`      | Tokens and sensitive env values stay env-only |
+| Shareable onboarding templates                         | `../templates/` | Not consumed directly by generator            |
 
 ## CONVENTIONS
 
 - Edit YAML first; generated files under the user Codex home are outputs.
 - Stable keys matter: generator code references provider/model/profile/agent IDs.
+- YAML field shape rules are defined once in `../src/config/schema-spec.ts`; do not mirror required/type/enum rules in docs or validators by hand.
 - Keep `global.yaml` small; profile-specific behavior belongs in `profiles.yaml`.
 - `profiles.yaml` currently defines `lite`, `economy`, `cheap`, `balanced`, `coding`, `research`, `writing`, `max`, `ds-max`.
 - `agents.yaml` model values normally reference roles (`primary`, `reasoning`, `fast`), not raw provider model strings.
 - `agents.yaml` owns Codex `[agents]` concurrency settings and OMX `model_slots` / `agent_reasoning` mappings.
+- `config/local/` is reserved for future machine-local overlays and is ignored by Git.
 - `shared_prompt.append` is Chinese and injects `AI_GUIDELINES.md` workflow expectations into Codex agents.
 - Workspace excludes must keep `.env*`, `.git/**`, `node_modules/**`, lockfiles, and runtime state out.
 
@@ -31,6 +34,7 @@ YAML source of truth for generated Codex CLI, OMX, profile, agent, MCP, and inst
 ```sh
 bun run ai:check
 bun run ai:gen -- --dry-run
+bun run schema:gen
 ```
 
 ## ANTI-PATTERNS

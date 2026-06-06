@@ -11,6 +11,8 @@
     "format:check": "prettier --check .",
     "ai:bootstrap": "bun run ./src/cli/bootstrap.ts",
     "ai:gen": "bun run ./src/generate-user-config.ts",
+    "profile:eval": "bun run ./src/cli/profile-eval.ts",
+    "schema:gen": "bun run ./src/cli/schema-export.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },

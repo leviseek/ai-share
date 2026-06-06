@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ai-share mcp.yaml",
+  "type": "object",
+  "properties": {
+    "servers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "transport": {
+            "type": "string",
+            "description": "MCP transport.",
+            "minLength": 1,
+            "enum": [
+              "stdio",
+              "http"
+            ]
+          },
+          "command": {
+            "type": "string",
+            "description": "stdio MCP command.",
+            "minLength": 1
+          },
+          "args": {
+            "type": "array",
+            "description": "stdio MCP command args.",
+            "items": {
+              "type": "string",
+              "description": "stdio MCP command args.",
+              "minLength": 1
+            }
+          },
+          "env": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "description": "Environment variable value or env reference.",
+              "minLength": 1
+            },
+            "propertyNames": {
+              "pattern": "^[A-Z_][A-Z0-9_]*$"
+            }
+          },
+          "url": {
+            "type": "string",
+            "description": "HTTP MCP URL.",
+            "minLength": 1
+          },
+          "bearer_token_env_var": {
+            "type": "string",
+            "description": "Bearer token env var name.",
+            "minLength": 1,
+            "pattern": "^[A-Z_][A-Z0-9_]*$"
+          },
+          "oauth_client_id": {
+            "type": "string",
+            "description": "OAuth client id.",
+            "minLength": 1
+          },
+          "oauth_resource": {
+            "type": "string",
+            "description": "OAuth resource.",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

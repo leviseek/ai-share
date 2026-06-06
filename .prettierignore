@@ -4,6 +4,7 @@ target/
 .git/
 .bun/
 *.tsbuildinfo
+docs/schema/json/
 
 bun.lock
 

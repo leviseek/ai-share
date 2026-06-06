@@ -7,6 +7,45 @@ description: 记忆生命周期管理规则
 
 # ---- 存储层级 ----
 
+privacy_layers:
+  shareable:
+    description: 可公开或团队共享的长期知识
+    paths:
+      - architecture/
+      - stack/
+      - profiles/
+      - policies/
+    rules:
+      - 不包含个人身份、设备路径、账号、私有偏好或团队外不可见信息
+      - 可用于模板、团队 onboarding 和公开文档
+
+  personal:
+    description: 个人长期上下文，仅用于当前用户仓库
+    paths:
+      - user/
+      - stable/
+    rules:
+      - 可以包含个人偏好、设备摘要和工作流偏好
+      - 不写真实密钥、token、cookie 或私有凭据
+      - 团队导出或公开模板默认排除
+
+  local:
+    description: 本机私有记忆，不进入 Git
+    paths:
+      - local/
+      - private/
+    rules:
+      - 记录本机路径、临时环境差异和不可共享上下文
+      - 默认由 .gitignore 排除
+
+  project:
+    description: 单项目私有记忆，不进入全局共享包
+    paths:
+      - project/
+    rules:
+      - 只描述当前项目局部上下文
+      - 默认由 .gitignore 排除，项目需要时单独管理
+
 layers:
   stable:
     description: 已确认的稳定记忆

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ai-share global.yaml",
+  "type": "object",
+  "properties": {
+    "default_profile": {
+      "type": "string",
+      "description": "Default profile id from profiles.yaml.",
+      "minLength": 1
+    },
+    "codex_min_version": {
+      "type": "string",
+      "description": "Minimum Codex CLI version checked by ai:check.",
+      "minLength": 1
+    },
+    "omx_min_version": {
+      "type": "string",
+      "description": "Minimum OMX CLI version checked by ai:check.",
+      "minLength": 1
+    }
+  }
+}

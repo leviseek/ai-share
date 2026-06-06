@@ -5,6 +5,7 @@ import { validateMcpServers } from "./validators/mcp.ts";
 import { validateModelCatalog } from "./validators/models.ts";
 import { validateDefaultProfile, validateProfiles } from "./validators/profiles.ts";
 import { validateProviderCatalog } from "./validators/providers.ts";
+import { validateYamlSchemaShapes } from "./validators/schema-shape.ts";
 
 export type { ValidationError } from "./validators/common.ts";
 
@@ -48,7 +49,15 @@ export function validateYamlConsistency(
   mcpConfig: McpYaml = {},
   agentsConfig: AgentsYaml = {},
 ): ValidationError[] {
-  const errors: ValidationError[] = [];
+  const errors = validateYamlSchemaShapes({
+    "global.yaml": globalConfig,
+    "provider.yaml": providersConfig,
+    "models.yaml": modelsConfig,
+    "profiles.yaml": profilesConfig,
+    "agents.yaml": agentsConfig,
+    "mcp.yaml": mcpConfig,
+  });
+
   const modelIds = new Set(Object.keys(modelsConfig));
   const providerInstances = validateProviderCatalog(errors, providersConfig);
 

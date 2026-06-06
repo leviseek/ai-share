@@ -1,3 +1,8 @@
+import { ENV_NAME_PATTERN, ENV_REFERENCE_PATTERN, MODEL_ROLES } from "../schema-spec.ts";
+
+const envNameRegex = new RegExp(ENV_NAME_PATTERN);
+const envReferenceRegex = new RegExp(ENV_REFERENCE_PATTERN);
+
 export type ValidationError = {
   file: string;
   path: string;
@@ -47,15 +52,15 @@ export function validateOptionalBoolean(errors: ValidationError[], file: string,
 }
 
 export function isModelRole(value: string): boolean {
-  return value === "primary" || value === "reasoning" || value === "fast";
+  return MODEL_ROLES.includes(value as (typeof MODEL_ROLES)[number]);
 }
 
 export function isEnvName(value: string): boolean {
-  return /^[A-Z_][A-Z0-9_]*$/.test(value);
+  return envNameRegex.test(value);
 }
 
 export function isEnvReference(value: string): boolean {
-  return /^\$\{[A-Z_][A-Z0-9_]*\}$/.test(value);
+  return envReferenceRegex.test(value);
 }
 
 export function isSensitiveName(value: string): boolean {

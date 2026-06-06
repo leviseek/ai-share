@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ai-share profiles.yaml",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "required": [
+      "models"
+    ],
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Human-readable profile name.",
+        "minLength": 1
+      },
+      "models": {
+        "type": "object",
+        "required": [
+          "primary",
+          "reasoning",
+          "fast"
+        ],
+        "properties": {
+          "primary": {
+            "type": "string",
+            "description": "primary model id.",
+            "minLength": 1
+          },
+          "reasoning": {
+            "type": "string",
+            "description": "reasoning model id.",
+            "minLength": 1
+          },
+          "fast": {
+            "type": "string",
+            "description": "fast model id.",
+            "minLength": 1
+          }
+        }
+      },
+      "compaction": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Compaction enabled flag."
+          },
+          "threshold": {
+            "type": "number",
+            "description": "Compaction threshold metadata."
+          },
+          "model": {
+            "type": "string",
+            "description": "Compaction model id or model role.",
+            "minLength": 1
+          },
+          "max_input_tokens": {
+            "type": "number",
+            "description": "Compaction max input token metadata."
+          },
+          "prune": {
+            "type": "boolean",
+            "description": "Compaction prune flag."
+          },
+          "reserved": {
+            "type": "number",
+            "description": "Reserved token metadata."
+          }
+        }
+      }
+    }
+  }
+}

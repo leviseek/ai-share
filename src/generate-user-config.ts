@@ -24,6 +24,7 @@ import { ensureAiWorkspaceLinks } from "./cli/memory-link.ts";
 import { parseCliOptions } from "./cli/options.ts";
 import { NATIVE_SKILLS } from "./cli/native-skills.ts";
 import { color } from "./cli/color.ts";
+import { detectDefaultConfigDrift } from "./cli/default-config-drift.ts";
 import { printCheckSummary, printGenerationSummary } from "./cli/output.ts";
 import {
   buildGeneratorPaths,
@@ -94,6 +95,11 @@ const instructionFilesByProfile = Object.fromEntries(
 const missingApiKeys = missingProviderApiKeyEnvNames(providers);
 
 if (checkOnly) {
+  const defaultConfigDrift = await detectDefaultConfigDrift(
+    paths.targetCodexConfig,
+    formatCodexConfigToml(selectedCodexBaseConfig),
+  );
+
   printCheckSummary({
     configuredProviderCount: Object.keys(providers).length,
     modelGroups: modelProviderGroups(modelsConfig),
@@ -103,6 +109,7 @@ if (checkOnly) {
     selectedDefaultProfileId,
     providerGroups,
     missingApiKeys,
+    defaultConfigDrift,
   });
 
   const versionResults = checkVersions(globalConfig);

@@ -237,6 +237,39 @@ bun run src/cli/profile-import.ts profiles.json --force
 
 导入时会执行 tri-role 协议格式检查、角色完整性验证和模型注册表引用检查。
 
+## Schema / Evaluation
+
+生成 JSON Schema：
+
+```sh
+bun run schema:gen
+```
+
+JSON Schema 输出到 `docs/schema/json/`。字段类型、必填项、枚举、pattern 和正数约束的单一规格源是
+`src/config/schema-spec.ts`；`src/config/schema.ts` 从它生成 JSON Schema，
+`src/config/validators/schema-shape.ts` 从同一份规格执行运行时 shape 校验。其他 validator 只保留跨文件引用、
+MCP 条件规则和 secret 策略。
+
+生成 profile 评测计划，不执行模型调用：
+
+```sh
+bun run profile:eval -- --task "分析当前项目" --profiles coding,max
+```
+
+实际执行评测需要显式传入 `--execute`：
+
+```sh
+bun run profile:eval -- --task "分析当前项目" --profiles coding,max --execute
+```
+
+默认报告写入 `.sisyphus/evidence/profile-eval/`，包含耗时、退出码、估算输入成本、最大输出成本、人工成功/返工字段。
+
+## Templates / Privacy
+
+`templates/shareable/config/` 提供可共享最小配置模板；`templates/personal-overlay/` 描述个人 overlay 边界。当前生成器仍以 `config/*.yaml` 为实际输入。
+
+memory 隐私分层见 `docs/memory-privacy.md`：shareable、personal、local、project。`memory/local/`、`memory/private/`、`memory/project/` 默认不进入 Git。
+
 ## Memory
 
 `memory/` 提供持久化用户级记忆。生成的 Codex `AGENTS.md` 会加载：

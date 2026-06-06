@@ -31,7 +31,8 @@ src/
 | CLI flags                  | `cli/options.ts`                  | `--force`, `--dry-run`, `--check`, provider groups/env    |
 | Install/copy behavior      | `cli/install.ts`                  | Launchers and Codex native skills                         |
 | Output paths               | `cli/paths.ts`                    | Codex home, agents, skills, user bin                      |
-| Required field guards      | `config/validation.ts`            | Chinese errors for missing config                         |
+| YAML schema source         | `config/schema-spec.ts`           | Single source for JSON Schema and runtime shape checks    |
+| Runtime validation         | `config/validation.ts`            | Runs schema-derived shape checks plus business rules      |
 
 ## CONVENTIONS
 
@@ -40,6 +41,7 @@ src/
 - Use explicit exports/types at module boundaries; `isolatedDeclarations` requires declaration-friendly code.
 - Handle missing indexed values explicitly; `noUncheckedIndexedAccess` is enabled.
 - User-facing errors/messages are Chinese; option names, env vars, paths, schema fields stay English.
+- Do not duplicate YAML field shape rules in validator modules; put them in `config/schema-spec.ts`.
 - `writeJson` / `writeText` calls must preserve dry-run/force semantics.
 - Independent YAML reads/builds may run concurrently with `Promise.all`.
 - Secrets are checked by env-var name only; never materialize real key values into generated config.

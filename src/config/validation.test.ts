@@ -41,9 +41,7 @@ describe("validateYamlConsistency", () => {
     expect(errors).toContain(
       "models.yaml:models.known-model.fallback:模型 'known-model' 的 fallback 引用未定义模型 'missing-fallback'",
     );
-    expect(errors).toContain(
-      "agents.yaml:agents.bad.model:agent 'bad' 的 model 必须引用 primary、reasoning 或 fast 角色",
-    );
+    expect(errors).toContain("agents.yaml:agents.bad.model:agents.bad.model 必须是 primary、reasoning 或 fast");
   });
 
   test("allows profile model ids plus agent and compaction role aliases", () => {
@@ -115,17 +113,17 @@ describe("validateYamlConsistency", () => {
     );
 
     const expectedErrors = [
-      "models.yaml:models.invalid-model.provider_group:模型 'invalid-model' 的 provider_group 必须是非空字符串",
-      "models.yaml:models.invalid-model.model_name:模型 'invalid-model' 缺少 model_name 字段",
-      "models.yaml:models.invalid-model.cost.input:模型 'invalid-model' 的 cost.input 必须是正数",
-      "models.yaml:models.invalid-model.cost.output:模型 'invalid-model' 缺少 cost.output 字段",
-      "models.yaml:models.invalid-model.limits.context_window:模型 'invalid-model' 的 limits.context_window 必须是正数",
-      "models.yaml:models.invalid-model.limits.max_output:模型 'invalid-model' 的 limits.max_output 必须是正数",
-      "models.yaml:models.invalid-model.capabilities:模型 'invalid-model' 的 capabilities 必须是字符串数组",
-      "models.yaml:models.invalid-model.temperature:模型 'invalid-model' 的 temperature 必须是数字",
-      "models.yaml:models.invalid-model.fallback:模型 'invalid-model' 的 fallback 必须是字符串数组",
+      "models.yaml:models.invalid-model.provider_group:models.invalid-model.provider_group 必须是非空字符串",
+      "models.yaml:models.invalid-model.model_name:缺少 models.invalid-model.model_name 字段",
+      "models.yaml:models.invalid-model.cost.input:models.invalid-model.cost.input 必须大于 0",
+      "models.yaml:models.invalid-model.cost.output:缺少 models.invalid-model.cost.output 字段",
+      "models.yaml:models.invalid-model.limits.context_window:models.invalid-model.limits.context_window 必须是数字",
+      "models.yaml:models.invalid-model.limits.max_output:models.invalid-model.limits.max_output 必须大于 0",
+      "models.yaml:models.invalid-model.capabilities[1]:models.invalid-model.capabilities[1] 必须是非空字符串",
+      "models.yaml:models.invalid-model.temperature:models.invalid-model.temperature 必须是数字",
+      "models.yaml:models.invalid-model.fallback[1]:models.invalid-model.fallback[1] 必须是非空字符串",
       "models.yaml:models.unknown-group.provider_group:模型 'unknown-group' 使用了未知 provider_group 'unknown'",
-      "models.yaml:models.not-object:模型 'not-object' 必须是对象",
+      "models.yaml:models.not-object:models.not-object 必须是对象",
     ];
     for (const expectedError of expectedErrors) {
       expect(errors).toContain(expectedError);
@@ -225,33 +223,33 @@ describe("validateYamlConsistency", () => {
     ).map(formatError);
 
     for (const expectedError of [
-      "provider.yaml:providers.codexapis.base_url:provider 'codexapis' 的 base_url 必须是非空字符串",
-      "provider.yaml:providers.codexapis.api_key:provider 'codexapis' 的 api_key 必须使用 ${ENV_NAME} 环境变量引用",
-      "provider.yaml:providers.deepseek:provider 'deepseek' 必须是对象",
-      "profiles.yaml:profiles.not-object:profile 'not-object' 必须是对象",
-      "profiles.yaml:profiles.malformed.name:profile 'malformed' 的 name 必须是字符串",
-      "profiles.yaml:profiles.malformed.models:profile 'malformed' 的 models 必须是对象",
+      "provider.yaml:providers.codexapis.base_url:providers.codexapis.base_url 必须是非空字符串",
+      "provider.yaml:providers.codexapis.api_key:providers.codexapis.api_key 格式不符合要求",
+      "provider.yaml:providers.deepseek:providers.deepseek 必须是对象",
+      "profiles.yaml:profiles.not-object:profiles.not-object 必须是对象",
+      "profiles.yaml:profiles.malformed.name:profiles.malformed.name 必须是非空字符串",
+      "profiles.yaml:profiles.malformed.models:profiles.malformed.models 必须是对象",
       "profiles.yaml:profiles.malformed.compaction.enabled:profiles.malformed.compaction.enabled 必须是布尔值",
       "profiles.yaml:profiles.malformed.compaction.threshold:profiles.malformed.compaction.threshold 必须是数字",
-      "profiles.yaml:profiles.malformed.compaction.model:profile 'malformed' 的 compaction.model 必须是非空字符串",
+      "profiles.yaml:profiles.malformed.compaction.model:profiles.malformed.compaction.model 必须是非空字符串",
       "agents.yaml:shared_prompt:shared_prompt 必须是对象",
-      "agents.yaml:codex.agents.max_threads:codex.agents.max_threads 必须是正整数",
-      "agents.yaml:codex.agents.max_depth:codex.agents.max_depth 必须是正整数",
+      "agents.yaml:codex.agents.max_threads:codex.agents.max_threads 必须大于等于 1",
+      "agents.yaml:codex.agents.max_depth:codex.agents.max_depth 必须是整数",
       "agents.yaml:codex.agents.job_max_runtime_seconds:缺少 codex.agents.job_max_runtime_seconds 字段",
-      "agents.yaml:omx.model_slots.team:omx.model_slots.team 必须引用 primary、reasoning 或 fast 角色",
-      "agents.yaml:omx.model_slots.team_low_complexity:omx.model_slots 缺少 'team_low_complexity' 字段",
+      "agents.yaml:omx.model_slots.team:omx.model_slots.team 必须是 primary、reasoning 或 fast",
+      "agents.yaml:omx.model_slots.team_low_complexity:缺少 omx.model_slots.team_low_complexity 字段",
       "agents.yaml:omx.agent_reasoning.missing-agent:omx.agent_reasoning 引用未定义 agent 'missing-agent'",
       "agents.yaml:omx.agent_reasoning.malformed:omx.agent_reasoning.malformed 必须是 low、medium 或 high",
-      "agents.yaml:agents.not-object:agent 'not-object' 必须是对象",
-      "agents.yaml:agents.malformed.model:agent 'malformed' 的 model 必须引用 primary、reasoning 或 fast 角色",
+      "agents.yaml:agents.not-object:agents.not-object 必须是对象",
+      "agents.yaml:agents.malformed.model:agents.malformed.model 必须是非空字符串",
       "agents.yaml:agents.malformed.prompt.append:agents.malformed.prompt.append 必须是非空字符串",
-      "agents.yaml:agents.malformed.permission.edit:agent 'malformed' 的 permission.edit 必须是非空字符串",
-      "mcp.yaml:servers.not-object:MCP server 'not-object' 必须是对象",
+      "agents.yaml:agents.malformed.permission.edit:agents.malformed.permission.edit 必须是非空字符串",
+      "mcp.yaml:servers.not-object:servers.not-object 必须是对象",
       "mcp.yaml:servers.malformed.command:servers.malformed.command 必须是非空字符串",
-      "mcp.yaml:servers.malformed.args:MCP server 'malformed' 的 args 必须是字符串数组",
+      "mcp.yaml:servers.malformed.args[1]:servers.malformed.args[1] 必须是非空字符串",
       "mcp.yaml:servers.malformed.env.TOKEN:stdio MCP server 'malformed' 的敏感 env 'TOKEN' 必须使用 ${ENV_NAME} 占位，不允许写入明文",
-      "mcp.yaml:servers.malformed.env.BAD_VALUE:stdio MCP server 'malformed' 的 env 'BAD_VALUE' 必须是字符串",
-      "mcp.yaml:servers.malformed.env.bad-name:stdio MCP server 'malformed' 的 env key 'bad-name' 必须是环境变量名",
+      "mcp.yaml:servers.malformed.env.BAD_VALUE:servers.malformed.env.BAD_VALUE 必须是非空字符串",
+      "mcp.yaml:servers.malformed.env.bad-name:servers.malformed.env key 'bad-name' 格式不符合要求",
     ]) {
       expect(errors).toContain(expectedError);
     }
