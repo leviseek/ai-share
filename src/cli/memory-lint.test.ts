@@ -53,6 +53,18 @@ describe("memory lint", () => {
     }
   });
 
+  test("ignores intentional markdown and yaml duplicate pairs", () => {
+    const root = makeRoot();
+    try {
+      writeFile(root, "memory/user/profile.md", "- 先理解项目上下文再修改目标文件\n");
+      writeFile(root, "memory/user/profile.yaml", "rules:\n  - 先理解项目上下文再修改目标文件\n");
+
+      expect(lintMemory(root)).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("reports conflicting durable-memory and git rules as errors", () => {
     const root = makeRoot();
     try {
