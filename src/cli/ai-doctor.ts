@@ -46,9 +46,11 @@ type DoctorCheck = {
 type DoctorReport = {
   status: DoctorStatus;
   strict_provider: boolean;
+  elapsed_ms: number;
   checks: DoctorCheck[];
 };
 
+const doctorStartedAt = performance.now();
 const args = new Set(Bun.argv.slice(2));
 const jsonOutput = args.has("--json");
 const strictProvider = args.has("--strict-provider");
@@ -229,6 +231,7 @@ checks.push({
 const report: DoctorReport = {
   status: aggregateStatus(checks),
   strict_provider: strictProvider,
+  elapsed_ms: elapsedSince(doctorStartedAt),
   checks,
 };
 
@@ -285,7 +288,7 @@ function elapsedSince(startedAt: number): number {
 function printDoctorReport(report: DoctorReport): void {
   const statusText =
     report.status === "ok" ? color.green("OK") : report.status === "warning" ? color.yellow("WARNING") : "ERROR";
-  console.log(`${color.cyan("ai:doctor")}：${statusText}`);
+  console.log(`${color.cyan("ai:doctor")}：${statusText} (${report.elapsed_ms}ms total)`);
   for (const check of report.checks) {
     const mark = check.status === "ok" ? color.green("✓") : check.status === "warning" ? color.yellow("!") : "✗";
     console.log(`${mark} ${check.name}: ${check.summary} (${check.elapsed_ms}ms)`);
