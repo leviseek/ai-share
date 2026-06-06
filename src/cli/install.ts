@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process";
-import { chmod, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { GeneratorPaths } from "./paths.ts";
-import { pathExists } from "./fs.ts";
+import { atomicWriteFile, pathExists, writeText } from "./fs.ts";
 import { NATIVE_SKILLS } from "./native-skills.ts";
 
 export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): Promise<void> {
@@ -25,13 +25,11 @@ export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): 
     const sourcePath = resolve(paths.binDir, fileName);
     const targetPath = resolve(paths.targetBinDir, fileName);
     if (process.platform === "win32" && fileName.endsWith(".ps1")) {
-      await writeFile(targetPath, withUtf8Bom(await readFile(sourcePath, "utf8")));
+      await atomicWriteFile(targetPath, withUtf8Bom(await readFile(sourcePath, "utf8")));
       continue;
     }
-    await copyFile(sourcePath, targetPath);
-    if (process.platform !== "win32" && !fileName.endsWith(".ts")) {
-      await chmod(targetPath, 0o755);
-    }
+    const mode = process.platform !== "win32" && !fileName.endsWith(".ts") ? 0o755 : undefined;
+    await atomicWriteFile(targetPath, await readFile(sourcePath), { ...(mode === undefined ? {} : { mode }) });
   }
 
   if (process.platform === "win32") {
@@ -60,7 +58,7 @@ export async function installNativeSkills(paths: GeneratorPaths, dryRun: boolean
   for (const nativeSkill of NATIVE_SKILLS) {
     const targetDir = resolve(paths.targetCodexSkillsDir, nativeSkill.name);
     await mkdir(targetDir, { recursive: true });
-    await writeFile(resolve(targetDir, "SKILL.md"), nativeSkill.content);
+    await writeText(resolve(targetDir, "SKILL.md"), nativeSkill.content, { dryRun: false, force: true });
   }
 }
 

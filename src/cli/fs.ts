@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { access, rename, unlink, writeFile } from "node:fs/promises";
+import { access, chmod, rename, unlink, writeFile } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 import { color } from "./color.ts";
 
@@ -44,12 +44,17 @@ function isNotFound(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 }
 
-async function atomicWriteFile(path: string, content: string): Promise<void> {
+export async function atomicWriteFile(
+  path: string,
+  content: string | Uint8Array,
+  options: { mode?: number } = {},
+): Promise<void> {
   const targetPath = resolve(path);
   const tempPath = resolve(dirname(targetPath), `.${basename(targetPath)}.${process.pid}.${randomUUID()}.tmp`);
 
   try {
-    await writeFile(tempPath, content);
+    await writeFile(tempPath, content, options.mode === undefined ? undefined : { mode: options.mode });
+    if (options.mode !== undefined) await chmod(tempPath, options.mode);
     await rename(tempPath, targetPath);
   } catch (error) {
     await removeTempFile(tempPath);

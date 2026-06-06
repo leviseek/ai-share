@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { buildOmxArgs, codexConfigOverrides, parseArgs, parseCodexProfileRoot } from "./aiomx.ts";
@@ -122,6 +122,9 @@ model_instructions_file = "C:\\\\Users\\\\levi\\\\.codex\\\\balanced.AGENTS.md"
       }
 
       expect(JSON.parse(readFileSync(join(codexHome, ".omx-config.json"), "utf8"))).toEqual(omxConfig);
+      expect(
+        readdirSync(codexHome).some((entry) => entry.startsWith("..omx-config.json.") && entry.endsWith(".tmp")),
+      ).toBe(false);
       const log = readFileSync(logPath, "utf8");
       expect(log).toContain(`CODEX_HOME=${codexHome}`);
       expect(log).toContain("OMX_DEFAULT_FRONTIER_MODEL=gpt-5.3-codex");

@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 
-import { copyFileSync, existsSync, readdirSync, readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { existsSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
 type RuntimeManifest = {
@@ -72,7 +73,7 @@ function main(): void {
     process.exit(1);
   }
 
-  copyFileSync(profileOmxConfigPath, activeOmxConfigPath);
+  atomicWriteFileSync(activeOmxConfigPath, readFileSync(profileOmxConfigPath));
 
   const codexProfile = parseCodexProfileRoot(readFileSync(profileConfigPath, "utf8"));
   const omxProfile = asOmxProfileConfig(readJson(profileOmxConfigPath));
@@ -93,6 +94,31 @@ function readJson(path: string): unknown {
   } catch {
     return null;
   }
+}
+
+function atomicWriteFileSync(path: string, content: string | Uint8Array): void {
+  const targetPath = resolve(path);
+  const tempPath = resolve(dirname(targetPath), `.${basename(targetPath)}.${process.pid}.${randomUUID()}.tmp`);
+
+  try {
+    writeFileSync(tempPath, content);
+    renameSync(tempPath, targetPath);
+  } catch (error) {
+    removeTempFileSync(tempPath);
+    throw error;
+  }
+}
+
+function removeTempFileSync(path: string): void {
+  try {
+    unlinkSync(path);
+  } catch (error) {
+    if (!isNotFound(error)) throw error;
+  }
+}
+
+function isNotFound(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 }
 
 function asRuntimeManifest(value: unknown): RuntimeManifest | null {

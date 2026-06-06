@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { writeJson, writeText } from "./fs.ts";
+import { atomicWriteFile, writeJson, writeText } from "./fs.ts";
 
 describe("writeText/writeJson", () => {
   test("preserves existing files when force is false", async () => {
@@ -51,6 +51,20 @@ describe("writeText/writeJson", () => {
 
       expect(readFileSync(path, "utf8")).toBe(`{\n  "stack": "codex+omx"\n}\n`);
       expect(readdirSync(root)).toEqual(["manifest.json"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("writes binary content through the same atomic path", async () => {
+    const root = mkdtempSync(join(tmpdir(), "ai-share-fs-"));
+    try {
+      const path = join(root, "launcher.bin");
+
+      await atomicWriteFile(path, new Uint8Array([0, 1, 2, 255]));
+
+      expect(Array.from(readFileSync(path))).toEqual([0, 1, 2, 255]);
+      expect(readdirSync(root)).toEqual(["launcher.bin"]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
