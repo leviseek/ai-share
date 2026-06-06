@@ -39,6 +39,7 @@ type DoctorCheck = {
   name: string;
   status: DoctorStatus;
   summary: string;
+  elapsed_ms: number;
   details?: unknown;
 };
 
@@ -66,6 +67,7 @@ const profileEvalConfig = loadYaml("profile-eval.yaml") as ProfileEvalYaml;
 
 const checks: DoctorCheck[] = [];
 
+const validationStartedAt = performance.now();
 const validationErrors = validateYamlConsistency(
   profilesConfig,
   modelsConfig,
@@ -81,6 +83,7 @@ checks.push({
   status: validationErrors.length === 0 ? "ok" : "error",
   summary:
     validationErrors.length === 0 ? "YAML 配置一致性通过。" : `YAML 配置存在 ${validationErrors.length} 个错误。`,
+  elapsed_ms: elapsedSince(validationStartedAt),
   details: validationErrors,
 });
 
@@ -96,6 +99,7 @@ const selectedCodexBaseConfig = {
   model_instructions_file: paths.targetCodexInstructions,
 };
 
+const apiKeyStartedAt = performance.now();
 const missingApiKeys = missingProviderApiKeyEnvNames(providers);
 const localConfigOverlays = listLocalConfigOverlaysSync(paths.configDir);
 checks.push({
@@ -103,9 +107,11 @@ checks.push({
   status: missingApiKeys.length === 0 ? "ok" : "warning",
   summary:
     missingApiKeys.length === 0 ? "API Key 环境变量已设置。" : `缺少 API Key 环境变量：${missingApiKeys.join(" / ")}`,
+  elapsed_ms: elapsedSince(apiKeyStartedAt),
   details: missingApiKeys,
 });
 
+const defaultConfigDriftStartedAt = performance.now();
 const defaultConfigDrift = await detectDefaultConfigDrift(
   paths.targetCodexConfig,
   formatCodexConfigToml(selectedCodexBaseConfig),
@@ -117,16 +123,20 @@ checks.push({
     defaultConfigDrift.status === "current"
       ? `默认 config.toml 与 ${selectedDefaultProfileId} 等价。`
       : `默认 config.toml 状态：${defaultConfigDrift.status}。`,
+  elapsed_ms: elapsedSince(defaultConfigDriftStartedAt),
   details: defaultConfigDrift,
 });
 
+const envManagedBlockStartedAt = performance.now();
 const envManagedBlockCurrent = codexEnvManagedBlockIsCurrent(envConfig, readOptional(paths.targetCodexEnv));
 checks.push({
   name: "codex_env_managed_block",
   status: envManagedBlockCurrent ? "ok" : "warning",
   summary: envManagedBlockCurrent ? ".env managed block 与 config/env.yaml 等价。" : ".env managed block 缺失或漂移。",
+  elapsed_ms: elapsedSince(envManagedBlockStartedAt),
 });
 
+const runtimeVersionsStartedAt = performance.now();
 const versionResults = checkVersions(globalConfig);
 checks.push({
   name: "runtime_versions",
@@ -134,17 +144,21 @@ checks.push({
   summary: versionResults.every((result) => result.ok)
     ? "Codex/OMX 版本满足最低要求。"
     : "Codex/OMX 版本低于最低要求或不可检测。",
+  elapsed_ms: elapsedSince(runtimeVersionsStartedAt),
   details: versionResults,
 });
 
+const localProxyStartedAt = performance.now();
 const localProxyChecks = await checkCodexEnvLocalProxies(envConfig);
 checks.push({
   name: "local_proxy",
   status: localProxyChecks.every((result) => result.ok) ? "ok" : "warning",
   summary: localProxyChecks.every((result) => result.ok) ? "本地代理可达。" : "存在不可达的本地代理。",
+  elapsed_ms: elapsedSince(localProxyStartedAt),
   details: localProxyChecks,
 });
 
+const memoryPrivacyStartedAt = performance.now();
 const memoryFindings = checkMemoryPrivacy(paths.projectRoot);
 checks.push({
   name: "memory_privacy",
@@ -157,9 +171,11 @@ checks.push({
     memoryFindings.length === 0
       ? "memory privacy check 通过。"
       : `memory privacy 发现 ${memoryFindings.length} 个问题。`,
+  elapsed_ms: elapsedSince(memoryPrivacyStartedAt),
   details: memoryFindings,
 });
 
+const providerModelsStartedAt = performance.now();
 const providerResults = await checkProviderModels({
   providers,
   models,
@@ -174,10 +190,12 @@ checks.push({
     : strictProvider
       ? "provider model 检查失败。"
       : "provider model 检查存在 warning。",
+  elapsed_ms: elapsedSince(providerModelsStartedAt),
   details: providerResults,
 });
 
 if (strictProvider) {
+  const providerCanaryStartedAt = performance.now();
   const providerCanaryResults = await checkProviderCanaries({
     providers,
     models,
@@ -189,14 +207,17 @@ if (strictProvider) {
     summary: providerCanaryResults.every((result) => result.status === "ok")
       ? "provider canary completion 检查通过。"
       : "provider canary completion 检查失败。",
+    elapsed_ms: elapsedSince(providerCanaryStartedAt),
     details: providerCanaryResults,
   });
 }
 
+const generationScopeStartedAt = performance.now();
 checks.push({
   name: "generation_scope",
   status: "ok",
   summary: `配置范围：${Object.keys(providers).length} providers，${modelProviderGroups(modelsConfig).join(" / ")} groups，${Object.keys(codexCliConfigs).length} Codex profiles。`,
+  elapsed_ms: elapsedSince(generationScopeStartedAt),
   details: {
     codex_home: paths.targetCodexConfigDir,
     default_profile: selectedDefaultProfileId,
@@ -257,12 +278,16 @@ function aggregateStatus(input: readonly DoctorCheck[]): DoctorStatus {
   return "ok";
 }
 
+function elapsedSince(startedAt: number): number {
+  return Math.max(0, Math.round(performance.now() - startedAt));
+}
+
 function printDoctorReport(report: DoctorReport): void {
   const statusText =
     report.status === "ok" ? color.green("OK") : report.status === "warning" ? color.yellow("WARNING") : "ERROR";
   console.log(`${color.cyan("ai:doctor")}：${statusText}`);
   for (const check of report.checks) {
     const mark = check.status === "ok" ? color.green("✓") : check.status === "warning" ? color.yellow("!") : "✗";
-    console.log(`${mark} ${check.name}: ${check.summary}`);
+    console.log(`${mark} ${check.name}: ${check.summary} (${check.elapsed_ms}ms)`);
   }
 }
