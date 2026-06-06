@@ -394,12 +394,17 @@ async function safeResponseText(response: Response): Promise<string> {
 
 function printProviderCanaryResults(results: readonly ProviderCanaryCheckResult[]): void {
   for (const result of results) {
+    const fingerprint = ` fingerprint=${shortRequestFingerprint(result.request_fingerprint)}`;
     if (result.status === "ok") {
-      console.log(`✓ ${result.provider}/${result.model_id}: canary ok`);
+      console.log(`✓ ${result.provider}/${result.model_id}: canary ok${fingerprint}`);
       continue;
     }
 
     const error = result.error ? ` ${result.error}` : "";
-    console.log(`✗ ${result.provider}/${result.model_id}: ${result.status}${error}`);
+    console.log(`✗ ${result.provider}/${result.model_id}: ${result.status}${fingerprint}${error}`);
   }
+}
+
+function shortRequestFingerprint(fingerprint: string): string {
+  return fingerprint.slice(0, 12);
 }
