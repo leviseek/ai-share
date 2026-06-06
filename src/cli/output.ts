@@ -10,6 +10,7 @@ export function printCheckSummary(input: {
   codexProfileIds: string[];
   mcpServerIds: string[];
   codexEnvVarNames: string[];
+  localConfigOverlays: string[];
   codexHome: string;
   selectedDefaultProfileId: string;
   providerGroups: ProviderGroupMap;
@@ -23,6 +24,9 @@ export function printCheckSummary(input: {
   console.log(`${color.cyan("模型分组")}：${color.magenta(input.modelGroups.join(" / "))}`);
   console.log(`${color.cyan("Codex CLI profile")}：${color.magenta(input.codexProfileIds.join(" / "))}`);
   console.log(`${color.cyan("MCP servers")}：${color.magenta(input.mcpServerIds.join(" / ") || "none")}`);
+  console.log(
+    `${color.cyan("Local config overlays")}：${color.magenta(input.localConfigOverlays.join(" / ") || "none")}`,
+  );
   console.log(`${color.cyan("Codex .env 变量")}：${color.magenta(input.codexEnvVarNames.join(" / ") || "none")}`);
   console.log(
     `${color.cyan("Codex .env managed block")}：${

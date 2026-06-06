@@ -46,7 +46,7 @@ import {
   profileOmxConfigPath,
 } from "./cli/paths.ts";
 import { checkVersions } from "./cli/registry-check.ts";
-import { loadConfigYaml } from "./config/local-overlay.ts";
+import { listLocalConfigOverlays, loadConfigYaml } from "./config/local-overlay.ts";
 import { validateYamlConsistency } from "./config/validation.ts";
 
 const cliOptions = parseCliOptions();
@@ -125,6 +125,7 @@ if (checkOnly) {
     formatCodexConfigToml(selectedCodexBaseConfig),
   );
   const localProxyChecks = await checkCodexEnvLocalProxies(envConfig);
+  const localConfigOverlays = await listLocalConfigOverlays(paths.configDir);
   const envManagedBlockCurrent = codexEnvManagedBlockIsCurrent(
     envConfig,
     (await pathExists(paths.targetCodexEnv)) ? await readFile(paths.targetCodexEnv, "utf8") : undefined,
@@ -136,6 +137,7 @@ if (checkOnly) {
     codexProfileIds: Object.keys(codexCliConfigs),
     mcpServerIds: Object.keys(mcpConfig.servers ?? {}),
     codexEnvVarNames: Object.keys(envConfig.variables ?? {}),
+    localConfigOverlays,
     codexHome: paths.targetCodexConfigDir,
     selectedDefaultProfileId,
     providerGroups,

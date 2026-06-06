@@ -29,7 +29,7 @@ import { parseCliOptions } from "./options.ts";
 import { buildGeneratorPaths, profileCodexInstructionsPath } from "./paths.ts";
 import { checkProviderCanaries, checkProviderModels } from "./provider-model-check.ts";
 import { checkVersions } from "./registry-check.ts";
-import { loadConfigYamlSync } from "../config/local-overlay.ts";
+import { listLocalConfigOverlaysSync, loadConfigYamlSync } from "../config/local-overlay.ts";
 import { validateYamlConsistency } from "../config/validation.ts";
 
 type DoctorStatus = "ok" | "warning" | "error";
@@ -95,6 +95,7 @@ const selectedCodexBaseConfig = {
 };
 
 const missingApiKeys = missingProviderApiKeyEnvNames(providers);
+const localConfigOverlays = listLocalConfigOverlaysSync(paths.configDir);
 checks.push({
   name: "api_key_env",
   status: missingApiKeys.length === 0 ? "ok" : "warning",
@@ -198,6 +199,7 @@ checks.push({
     codex_home: paths.targetCodexConfigDir,
     default_profile: selectedDefaultProfileId,
     provider_groups: cliOptions.providerGroups,
+    local_config_overlays: localConfigOverlays,
   },
 });
 

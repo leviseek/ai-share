@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadConfigYamlSync, mergeLocalOverlay } from "./local-overlay.ts";
+import { listLocalConfigOverlaysSync, loadConfigYamlSync, mergeLocalOverlay } from "./local-overlay.ts";
 
 describe("local config overlay", () => {
   test("deep merges local objects and replaces arrays/scalars", () => {
@@ -45,10 +45,13 @@ describe("local config overlay", () => {
       mkdirSync(join(root, "local"), { recursive: true });
       writeFileSync(join(root, "global.yaml"), "default_profile: balanced\n", "utf8");
       writeFileSync(join(root, "local", "global.yaml"), "default_profile: coding\n", "utf8");
+      writeFileSync(join(root, "local", "notes.txt"), "ignored\n", "utf8");
+      writeFileSync(join(root, "local", "provider.yml"), "providers: {}\n", "utf8");
 
       expect(loadConfigYamlSync(root, "global.yaml")).toEqual({
         default_profile: "coding",
       });
+      expect(listLocalConfigOverlaysSync(root)).toEqual(["config/local/global.yaml", "config/local/provider.yml"]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

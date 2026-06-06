@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseYamlObject } from "../yaml.ts";
 
@@ -31,6 +31,25 @@ export function mergeLocalOverlay(base: unknown, overlay: unknown): unknown {
         : overlayValue;
   }
   return output;
+}
+
+export async function listLocalConfigOverlays(configDir: string): Promise<string[]> {
+  const localDir = resolve(configDir, "local");
+  if (!existsSync(localDir)) return [];
+  const entries = await readdir(localDir, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile() && /\.(?:ya?ml)$/i.test(entry.name))
+    .map((entry) => `config/local/${entry.name}`)
+    .sort();
+}
+
+export function listLocalConfigOverlaysSync(configDir: string): string[] {
+  const localDir = resolve(configDir, "local");
+  if (!existsSync(localDir)) return [];
+  return readdirSync(localDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && /\.(?:ya?ml)$/i.test(entry.name))
+    .map((entry) => `config/local/${entry.name}`)
+    .sort();
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
