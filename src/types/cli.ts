@@ -5,4 +5,5 @@ export type CliOptions = {
   dryRun: boolean;
   checkOnly: boolean;
   providerGroups: ProviderGroupMap;
+  providerGroupsSpecified: boolean;
 };

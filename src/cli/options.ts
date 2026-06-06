@@ -8,6 +8,7 @@ export function parseCliOptions(): CliOptions {
     dryRun: args.has("--dry-run"),
     checkOnly: args.has("--check"),
     providerGroups: parseProviderGroups(),
+    providerGroupsSpecified: providerGroupsSpecified(),
   };
 }
 
@@ -25,9 +26,20 @@ function parseProviderGroups(): ProviderGroupMap {
   return {
     ...DEFAULT_PROVIDER_GROUPS,
     gpt: parseOption("--gpt-provider") ?? Bun.env.AI_SHARE_GPT_PROVIDER ?? DEFAULT_PROVIDER_GROUPS.gpt,
-    deepseek: Bun.env.AI_SHARE_DEEPSEEK_PROVIDER ?? DEFAULT_PROVIDER_GROUPS.deepseek,
+    deepseek:
+      parseOption("--deepseek-provider") ?? Bun.env.AI_SHARE_DEEPSEEK_PROVIDER ?? DEFAULT_PROVIDER_GROUPS.deepseek,
     ...parseProviderGroupOptions(),
   };
+}
+
+function providerGroupsSpecified(): boolean {
+  return (
+    parseOption("--gpt-provider") !== undefined ||
+    parseOption("--deepseek-provider") !== undefined ||
+    parseOptions("--provider-group").length > 0 ||
+    Bun.env.AI_SHARE_GPT_PROVIDER !== undefined ||
+    Bun.env.AI_SHARE_DEEPSEEK_PROVIDER !== undefined
+  );
 }
 
 function parseProviderGroupOptions(): ProviderGroupMap {

@@ -8,6 +8,8 @@ import type {
   GlobalYaml,
   McpYaml,
   ModelsYaml,
+  ProviderGroupMap,
+  ProviderSource,
   ProfileEvalYaml,
   ProfilesYaml,
   ProviderYaml,
@@ -50,7 +52,8 @@ import { listLocalConfigOverlays, loadConfigYaml } from "./config/local-overlay.
 import { validateYamlConsistency } from "./config/validation.ts";
 
 const cliOptions = parseCliOptions();
-const { force, dryRun, checkOnly, providerGroups } = cliOptions;
+const { force, dryRun, checkOnly } = cliOptions;
+let { providerGroups } = cliOptions;
 const paths = buildGeneratorPaths();
 
 if (!checkOnly) {
@@ -99,6 +102,9 @@ if (validationErrors.length > 0) {
 }
 
 const providers = providersConfig.providers ?? {};
+if (!checkOnly && !cliOptions.providerGroupsSpecified) {
+  providerGroups = await selectProviderGroupsIfInteractive(providerGroups, providers, modelsConfig);
+}
 const models = applyProviderGroups(modelsConfig, providers, providerGroups);
 const codexCliConfigs = buildCodexCliConfigs(providers, models, profilesConfig, agentsConfig, mcpConfig, (profileId) =>
   profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
@@ -295,4 +301,131 @@ async function writeGeneratedJson(path: string, value: unknown): Promise<void> {
     return;
   }
   await writeJson(path, value, { dryRun, force });
+}
+
+async function selectProviderGroupsIfInteractive(
+  currentProviderGroups: ProviderGroupMap,
+  providers: Record<string, ProviderSource>,
+  modelsConfig: ModelsYaml,
+): Promise<ProviderGroupMap> {
+  const providerIds = Object.keys(providers);
+  const providerGroupIds = configuredProviderGroupIds(modelsConfig);
+  if (providerIds.length === 0 || providerGroupIds.length === 0) return currentProviderGroups;
+  if (!process.stdin.isTTY || !process.stdout.isTTY || typeof process.stdin.setRawMode !== "function") {
+    return currentProviderGroups;
+  }
+
+  const selectedProviderGroups: ProviderGroupMap = { ...currentProviderGroups };
+  for (const groupId of providerGroupIds) {
+    selectedProviderGroups[groupId] = await selectProviderForGroup({
+      groupId,
+      providers,
+      providerIds,
+      currentProviderId: selectedProviderGroups[groupId] ?? providerIds[0] ?? "",
+    });
+  }
+  console.log(
+    `${color.green("已选择 provider")}：${Object.entries(selectedProviderGroups)
+      .map(([groupId, providerId]) => `${groupId}=${providerId}`)
+      .join(" / ")}`,
+  );
+  return selectedProviderGroups;
+}
+
+function configuredProviderGroupIds(modelsConfig: ModelsYaml): string[] {
+  const output: string[] = [];
+  const seen = new Set<string>();
+  for (const model of Object.values(modelsConfig)) {
+    if (typeof model.provider_group !== "string" || seen.has(model.provider_group)) continue;
+    seen.add(model.provider_group);
+    output.push(model.provider_group);
+  }
+  return output;
+}
+
+async function selectProviderForGroup(input: {
+  groupId: string;
+  providers: Record<string, ProviderSource>;
+  providerIds: string[];
+  currentProviderId: string;
+}): Promise<string> {
+  const initialIndex = Math.max(0, input.providerIds.indexOf(input.currentProviderId));
+  let selectedIndex = initialIndex;
+
+  return await new Promise<string>((resolve) => {
+    const stdin = process.stdin;
+    const stdout = process.stdout;
+    const cleanup = (): void => {
+      stdin.off("data", onData);
+      stdin.setRawMode(false);
+      stdin.resume();
+      stdout.write("\x1b[?1000l\x1b[?1006l\x1b[?25h\x1b[?1049l");
+    };
+    const finish = (providerId: string): void => {
+      cleanup();
+      resolve(providerId);
+    };
+    const render = (): void => {
+      stdout.write("\x1b[H\x1b[2J");
+      stdout.write(`${color.cyan("ai:gen provider 选择")}：模型组 ${color.bold(input.groupId)}\n`);
+      stdout.write("↑/↓ 切换，Enter 确认；也可按数字键或鼠标点击选择。\n\n");
+      input.providerIds.forEach((providerId, index) => {
+        const provider = input.providers[providerId];
+        const marker = index === selectedIndex ? color.green("›") : " ";
+        const defaultMarker = providerId === input.currentProviderId ? " default" : "";
+        const label = provider?.name ?? providerId;
+        const baseUrl = provider?.base_url ? ` ${provider.base_url}` : "";
+        stdout.write(`${marker} ${index + 1}. ${providerId} (${label})${baseUrl}${defaultMarker}\n`);
+      });
+    };
+    const onData = (data: Buffer): void => {
+      const value = data.toString("utf8");
+      if (value === "\u0003") {
+        cleanup();
+        process.exit(130);
+      }
+      if (value === "\r" || value === "\n") {
+        finish(input.providerIds[selectedIndex] ?? input.currentProviderId);
+        return;
+      }
+      if (value === "\x1b[A") {
+        selectedIndex = (selectedIndex - 1 + input.providerIds.length) % input.providerIds.length;
+        render();
+        return;
+      }
+      if (value === "\x1b[B") {
+        selectedIndex = (selectedIndex + 1) % input.providerIds.length;
+        render();
+        return;
+      }
+      const numberValue = Number(value);
+      if (Number.isInteger(numberValue) && numberValue >= 1 && numberValue <= input.providerIds.length) {
+        finish(input.providerIds[numberValue - 1] ?? input.currentProviderId);
+        return;
+      }
+
+      const mouseClick = sgrMousePattern().exec(value);
+      if (mouseClick?.[1]) {
+        const row = Number(mouseClick[1]);
+        const clickedIndex = row - 4;
+        if (Number.isInteger(clickedIndex) && clickedIndex >= 0 && clickedIndex < input.providerIds.length) {
+          finish(input.providerIds[clickedIndex] ?? input.currentProviderId);
+        }
+      }
+    };
+
+    stdout.write("\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h");
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.on("data", onData);
+    render();
+  });
+}
+
+function sgrMousePattern(): RegExp {
+  return new RegExp(`${escapeSequence()}\\[<0;\\d+;(\\d+)M`);
+}
+
+function escapeSequence(): string {
+  return String.fromCharCode(27);
 }
