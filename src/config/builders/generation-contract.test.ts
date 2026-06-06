@@ -220,7 +220,7 @@ USER_NOTE=keep
       models: {
         default: "gpt-5.4-mini",
         team: "gpt-5.5",
-        autopilot: "deepseek-v4-pro",
+        autopilot: "gpt-5.5",
         ralph: "gpt-5.4-mini",
         team_low_complexity: "gpt-5.4-mini",
       },

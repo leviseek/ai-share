@@ -1,4 +1,4 @@
-import type { AgentProfileSource, GlobalYaml, ProfilesYaml } from "../../types.ts";
+import type { AgentProfileSource, GlobalYaml, ModelsYaml, ProfilesYaml } from "../../types.ts";
 import { MODEL_ROLES } from "../schema-spec.ts";
 import { isFiniteNumber, isModelRole, isRecord, type ValidationError } from "./common.ts";
 
@@ -6,10 +6,12 @@ export function validateProfiles(
   errors: ValidationError[],
   profilesConfig: ProfilesYaml,
   modelIds: ReadonlySet<string>,
+  modelsConfig: ModelsYaml,
 ): void {
   for (const [profileId, profile] of Object.entries(profilesConfig)) {
     if (!isRecord(profile)) continue;
     validateProfileModelReferences(errors, profileId, profile, modelIds);
+    validateProfileProviderGroupConsistency(errors, profileId, profile, modelsConfig);
     validateProfileCompaction(errors, profileId, profile, modelIds);
   }
 }
@@ -45,6 +47,34 @@ function validateProfileModelReferences(
       });
     }
   }
+}
+
+function validateProfileProviderGroupConsistency(
+  errors: ValidationError[],
+  profileId: string,
+  profile: AgentProfileSource,
+  modelsConfig: ModelsYaml,
+): void {
+  const groupsByRole = MODEL_ROLES.map((role) => {
+    const modelId = profile.models?.[role];
+    if (typeof modelId !== "string") return undefined;
+    const groupId = modelsConfig[modelId]?.provider_group;
+    if (typeof groupId !== "string" || !groupId) return undefined;
+    return { role, modelId, groupId };
+  }).filter(
+    (entry): entry is { role: (typeof MODEL_ROLES)[number]; modelId: string; groupId: string } => entry !== undefined,
+  );
+
+  const uniqueGroups = [...new Set(groupsByRole.map((entry) => entry.groupId))];
+  if (uniqueGroups.length <= 1) return;
+
+  errors.push({
+    file: "profiles.yaml",
+    path: `profiles.${profileId}.models`,
+    message: `profile '${profileId}' 的 primary/reasoning/fast 必须使用同一 provider_group，当前为 ${groupsByRole
+      .map((entry) => `${entry.role}=${entry.modelId}(${entry.groupId})`)
+      .join("、")}`,
+  });
 }
 
 function validateProfileCompaction(

@@ -23,19 +23,20 @@ Each top-level key is a profile ID.
 
 | Profile ID | Primary               | Reasoning                 | Fast              |
 | ---------- | --------------------- | ------------------------- | ----------------- |
-| `lite`     | gpt-5.4               | deepseek-v4-flash-think   | gpt-5.4-mini      |
+| `lite`     | gpt-5.4               | gpt-5.4                   | gpt-5.4-mini      |
 | `economy`  | deepseek-v4-flash     | deepseek-v4-flash-think   | deepseek-v4-flash |
-| `cheap`    | gpt-5.4-mini          | deepseek-v4-flash-think   | gpt-5.4-mini      |
-| `balanced` | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini      |
-| `coding`   | gpt-5.5-coding        | deepseek-v4-pro-think     | gpt-5.4-mini      |
-| `research` | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4-mini      |
-| `writing`  | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini      |
-| `max`      | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4           |
+| `cheap`    | gpt-5.4-mini          | gpt-5.4                   | gpt-5.4-mini      |
+| `balanced` | gpt-5.5               | gpt-5.5                   | gpt-5.4-mini      |
+| `coding`   | gpt-5.5-coding        | gpt-5.5-coding            | gpt-5.4-mini      |
+| `research` | gpt-5.5               | gpt-5.5                   | gpt-5.4-mini      |
+| `writing`  | gpt-5.5               | gpt-5.5                   | gpt-5.4-mini      |
+| `max`      | gpt-5.5               | gpt-5.5                   | gpt-5.4           |
 | `ds-max`   | deepseek-v4-pro-think | deepseek-v4-pro-think-max | deepseek-v4-flash |
 
 ## Cross-File References
 
 - **models.yaml**: All `models.*` values reference model IDs defined there.
+- **provider_group**: Each profile's `primary` / `reasoning` / `fast` models must resolve to the same `provider_group`, keeping OMX orchestration single-family so `ai:gen` can select one provider for that profile.
 - **global.yaml**: `default_profile` must equal a profile ID from this file.
 - **agents.yaml**: Agent `model` fields use role names resolved through this file.
 - **Codex profile TOML**: Generated under `~/.codex/<profile>.config.toml`.

@@ -85,6 +85,34 @@ describe("validateYamlConsistency", () => {
     expect(validateYamlConsistency(profiles, models, providers(), global(), mcp(), agents)).toEqual([]);
   });
 
+  test("rejects mixed provider groups in one profile", () => {
+    const models: ModelsYaml = {
+      "gpt-primary": model("gpt-primary"),
+      "gpt-fast": model("gpt-fast"),
+      "deepseek-reasoning": {
+        ...model("deepseek-reasoning"),
+        provider_group: "deepseek",
+      },
+    };
+    const profiles: ProfilesYaml = {
+      coding: {
+        models: {
+          primary: "gpt-primary",
+          reasoning: "deepseek-reasoning",
+          fast: "gpt-fast",
+        },
+      },
+    };
+
+    const errors = validateYamlConsistency(profiles, models, providers(), global(), mcp(), validAgents()).map(
+      formatError,
+    );
+
+    expect(errors).toContain(
+      "profiles.yaml:profiles.coding.models:profile 'coding' 的 primary/reasoning/fast 必须使用同一 provider_group，当前为 primary=gpt-primary(gpt)、reasoning=deepseek-reasoning(deepseek)、fast=gpt-fast(gpt)",
+    );
+  });
+
   test("reports invalid model catalog schema fields", () => {
     const models = {
       "valid-model": model("valid-model"),

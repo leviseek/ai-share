@@ -11,7 +11,7 @@
 ```text
 Agent -> Role -> Profile -> Model -> Provider
          primary     balanced.primary     gpt-5.5      codexapis
-         reasoning   balanced.reasoning   deepseek-v4-pro-think
+         reasoning   balanced.reasoning   gpt-5.5
          fast        balanced.fast        gpt-5.4-mini
 ```
 
@@ -34,7 +34,7 @@ Agent -> Role -> Profile -> Model -> Provider
   "name": "均衡编排",
   "roles": {
     "primary": { "model": "gpt-5.5" },
-    "reasoning": { "model": "deepseek-v4-pro-think" },
+    "reasoning": { "model": "gpt-5.5" },
     "fast": { "model": "gpt-5.4-mini" }
   },
   "compaction": {
@@ -49,14 +49,14 @@ Agent -> Role -> Profile -> Model -> Provider
 
 | Profile ID | 定位             | Primary               | Reasoning                 | Fast              |
 | ---------- | ---------------- | --------------------- | ------------------------- | ----------------- |
-| `lite`     | 轻量日常         | gpt-5.4               | deepseek-v4-flash-think   | gpt-5.4-mini      |
+| `lite`     | 轻量日常         | gpt-5.4               | gpt-5.4                   | gpt-5.4-mini      |
 | `economy`  | 激进省钱         | deepseek-v4-flash     | deepseek-v4-flash-think   | deepseek-v4-flash |
-| `cheap`    | 极低成本         | gpt-5.4-mini          | deepseek-v4-flash-think   | gpt-5.4-mini      |
-| `balanced` | 均衡编排（默认） | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini      |
-| `coding`   | 代码实施优先     | gpt-5.5-coding        | deepseek-v4-pro-think     | gpt-5.4-mini      |
-| `research` | 深度研究         | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4-mini      |
-| `writing`  | 写作润色         | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini      |
-| `max`      | 全力模式         | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4           |
+| `cheap`    | 极低成本         | gpt-5.4-mini          | gpt-5.4                   | gpt-5.4-mini      |
+| `balanced` | 均衡编排（默认） | gpt-5.5               | gpt-5.5                   | gpt-5.4-mini      |
+| `coding`   | 代码实施优先     | gpt-5.5-coding        | gpt-5.5-coding            | gpt-5.4-mini      |
+| `research` | 深度研究         | gpt-5.5               | gpt-5.5                   | gpt-5.4-mini      |
+| `writing`  | 写作润色         | gpt-5.5               | gpt-5.5                   | gpt-5.4-mini      |
+| `max`      | 全力模式         | gpt-5.5               | gpt-5.5                   | gpt-5.4           |
 | `ds-max`   | 纯 DeepSeek 全力 | deepseek-v4-pro-think | deepseek-v4-pro-think-max | deepseek-v4-flash |
 
 ## Agent 映射
@@ -98,6 +98,7 @@ Fallback 链定义在 `models.yaml` 的 `fallback` 字段中。链条应保持�
 - `name` 必须是单行字符串，模型引用必须是安全的模型 ID/角色名
 - `compaction` 必须是对象
 - 模型 ID 在本地模型注册表中存在
+- 单个 profile 的 `primary` / `reasoning` / `fast` 必须来自同一 `provider_group`，避免 OMX 在一次编排中混用不同模型家族
 - `compaction.threshold <= compaction.max_input_tokens`（当二者都存在）
 
 ## 导出

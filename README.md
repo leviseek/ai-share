@@ -62,10 +62,19 @@ bun run ai:gen -- --force
 
 默认模型组提供商为 `gpt=codexapis`、`deepseek=deepseek`。切换 GPT 模型组到 Packy API：
 
-在交互式终端直接运行 `bun run ai:gen` 且未通过参数或环境变量指定 provider 时，生成器会按模型组列出
-`config/provider.yaml` 中所有已配置 provider。选择“保留当前分组”会沿用 `gpt=codexapis`、`deepseek=deepseek`
-等当前映射；选择某个 provider 会把它应用到所有模型组。可用 ↑/↓、数字键、Enter 或支持 SGR mouse 的终端鼠标点击选择。
+在交互式终端直接运行 `bun run ai:gen` 且未通过参数或环境变量指定 provider 时，生成器会列出
+`config/provider.yaml` 中所有已配置 provider。选择某个 provider 后会把它应用到所有模型组，菜单不再显示
+`gpt/deepseek` 分组。可用 ↑/↓、数字键、Enter 或支持 SGR mouse 的终端鼠标点击选择。
 非交互环境、`bun run ai:check`、以及已显式指定 provider 的命令不会进入选择界面。
+
+单 provider 生成会同步模型家族：选择官方 `deepseek` provider 时，所有 profile 会生成 DeepSeek 模型；选择
+`codexapis`、`packyapi`、`axasapi` 等 GPT 兼容 provider 时，所有 profile 会生成 GPT 模型。
+
+如果希望一次指定同一个 provider 给所有模型组，可使用 `--provider`：
+
+```sh
+bun run ai:gen -- --provider packyapi --force
+```
 
 ```sh
 bun run ai:gen -- --gpt-provider packyapi
@@ -82,6 +91,7 @@ bun run ai:gen -- --provider-group gpt=packyapi --provider-group deepseek=packya
 环境变量也支持同样的 provider 选择：
 
 ```sh
+AI_SHARE_PROVIDER=packyapi bun run ai:gen -- --force
 AI_SHARE_GPT_PROVIDER=packyapi bun run ai:gen -- --force
 AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ```
@@ -169,14 +179,14 @@ Windows 会自动把该目录加入用户级 PATH。已经打开的终端可能�
 当前内置 9 个 profile，每个 profile 固定使用 3 个模型角色：
 
 ```text
-lite：primary=gpt-5.4，reasoning=deepseek-v4-flash-think，fast=gpt-5.4-mini
+lite：primary=gpt-5.4，reasoning=gpt-5.4，fast=gpt-5.4-mini
 economy：primary=deepseek-v4-flash，reasoning=deepseek-v4-flash-think，fast=deepseek-v4-flash
-cheap：primary=gpt-5.4-mini，reasoning=deepseek-v4-flash-think，fast=gpt-5.4-mini
-balanced：primary=gpt-5.5，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-mini
-coding：primary=gpt-5.5-coding，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-mini
-research：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4-mini
-writing：primary=gpt-5.5，reasoning=deepseek-v4-pro-think，fast=gpt-5.4-mini
-max：primary=gpt-5.5，reasoning=deepseek-v4-pro-think-max，fast=gpt-5.4
+cheap：primary=gpt-5.4-mini，reasoning=gpt-5.4，fast=gpt-5.4-mini
+balanced：primary=gpt-5.5，reasoning=gpt-5.5，fast=gpt-5.4-mini
+coding：primary=gpt-5.5-coding，reasoning=gpt-5.5-coding，fast=gpt-5.4-mini
+research：primary=gpt-5.5，reasoning=gpt-5.5，fast=gpt-5.4-mini
+writing：primary=gpt-5.5，reasoning=gpt-5.5，fast=gpt-5.4-mini
+max：primary=gpt-5.5，reasoning=gpt-5.5，fast=gpt-5.4
 ds-max：primary=deepseek-v4-pro-think，reasoning=deepseek-v4-pro-think-max，fast=deepseek-v4-flash
 ```
 

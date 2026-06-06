@@ -8,7 +8,7 @@ lite:
   name: 轻量编排
   models:
     primary: gpt-5.4
-    reasoning: deepseek-v4-flash-think
+    reasoning: gpt-5.4
     fast: gpt-5.4-mini
   compaction:
     enabled: true
@@ -32,7 +32,7 @@ cheap:
   name: 极低成本日常模式
   models:
     primary: gpt-5.4-mini
-    reasoning: deepseek-v4-flash-think
+    reasoning: gpt-5.4
     fast: gpt-5.4-mini
   compaction:
     enabled: true
@@ -44,7 +44,7 @@ balanced:
   name: 均衡编排
   models:
     primary: gpt-5.5
-    reasoning: deepseek-v4-pro-think
+    reasoning: gpt-5.5
     fast: gpt-5.4-mini
   compaction:
     enabled: true
@@ -56,7 +56,7 @@ coding:
   name: 代码实施优先模式
   models:
     primary: gpt-5.5-coding
-    reasoning: deepseek-v4-pro-think
+    reasoning: gpt-5.5-coding
     fast: gpt-5.4-mini
   compaction:
     enabled: true
@@ -68,7 +68,7 @@ research:
   name: 深度研究模式
   models:
     primary: gpt-5.5
-    reasoning: deepseek-v4-pro-think-max
+    reasoning: gpt-5.5
     fast: gpt-5.4-mini
   compaction:
     enabled: true
@@ -80,7 +80,7 @@ writing:
   name: 写作润色模式
   models:
     primary: gpt-5.5
-    reasoning: deepseek-v4-pro-think
+    reasoning: gpt-5.5
     fast: gpt-5.4-mini
   compaction:
     enabled: true
@@ -92,7 +92,7 @@ max:
   name: 强力编排
   models:
     primary: gpt-5.5
-    reasoning: deepseek-v4-pro-think-max
+    reasoning: gpt-5.5
     fast: gpt-5.4
   compaction:
     enabled: true

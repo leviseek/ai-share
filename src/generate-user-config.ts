@@ -106,12 +106,23 @@ if (!checkOnly && !cliOptions.providerGroupsSpecified) {
   providerGroups = await selectProviderGroupsIfInteractive(providerGroups, providers, modelsConfig);
 }
 const models = applyProviderGroups(modelsConfig, providers, providerGroups);
-const codexCliConfigs = buildCodexCliConfigs(providers, models, profilesConfig, agentsConfig, mcpConfig, (profileId) =>
-  profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
+const effectiveProfilesConfig = alignProfilesToSingleProvider(profilesConfig, modelsConfig, providerGroups);
+const codexCliConfigs = buildCodexCliConfigs(
+  providers,
+  models,
+  effectiveProfilesConfig,
+  agentsConfig,
+  mcpConfig,
+  (profileId) => profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
 );
-const selectedDefaultProfileId = defaultProfileId(globalConfig, profilesConfig);
-const codexAgentConfigs = buildCodexAgentConfigs(agentsConfig, models, profilesConfig, selectedDefaultProfileId);
-const omxConfigs = buildOmxConfigs(models, profilesConfig, agentsConfig);
+const selectedDefaultProfileId = defaultProfileId(globalConfig, effectiveProfilesConfig);
+const codexAgentConfigs = buildCodexAgentConfigs(
+  agentsConfig,
+  models,
+  effectiveProfilesConfig,
+  selectedDefaultProfileId,
+);
+const omxConfigs = buildOmxConfigs(models, effectiveProfilesConfig, agentsConfig);
 const selectedCodexCliConfig = requireValue(codexCliConfigs[selectedDefaultProfileId], "默认 Codex profile");
 const selectedCodexBaseConfig = {
   ...selectedCodexCliConfig,
@@ -230,7 +241,7 @@ try {
       localConfigOverlays,
       skillIds: NATIVE_SKILLS.map((skill) => skill.name),
       instructionFilesByProfile,
-      profilesConfig,
+      profilesConfig: effectiveProfilesConfig,
     }),
   );
 
@@ -315,23 +326,16 @@ async function selectProviderGroupsIfInteractive(
     return currentProviderGroups;
   }
 
-  const selectedProviderGroups: ProviderGroupMap = { ...currentProviderGroups };
   const selectedProviderId = await selectProviderForGroups({
-    providerGroupIds,
     providers,
     providerIds,
     currentProviderGroups,
   });
-  if (selectedProviderId) {
-    for (const groupId of providerGroupIds) {
-      selectedProviderGroups[groupId] = selectedProviderId;
-    }
+  const selectedProviderGroups: ProviderGroupMap = {};
+  for (const groupId of providerGroupIds) {
+    selectedProviderGroups[groupId] = selectedProviderId;
   }
-  console.log(
-    `${color.green("已选择 provider")}：${Object.entries(selectedProviderGroups)
-      .map(([groupId, providerId]) => `${groupId}=${providerId}`)
-      .join(" / ")}`,
-  );
+  console.log(`${color.green("已选择 provider")}：${selectedProviderId}`);
   return selectedProviderGroups;
 }
 
@@ -346,45 +350,135 @@ function configuredProviderGroupIds(modelsConfig: ModelsYaml): string[] {
   return output;
 }
 
+function alignProfilesToSingleProvider(
+  profilesConfig: ProfilesYaml,
+  modelsConfig: ModelsYaml,
+  providerGroups: ProviderGroupMap,
+): ProfilesYaml {
+  const selectedProviderIds = [...new Set(Object.values(providerGroups))];
+  if (selectedProviderIds.length !== 1) return profilesConfig;
+
+  const targetGroupId = modelGroupForSingleProvider(requireValue(selectedProviderIds[0], "provider"));
+  if (!targetGroupId) return profilesConfig;
+
+  return Object.fromEntries(
+    Object.entries(profilesConfig).map(([profileId, profile]) => {
+      const familyProfiles = familyProfileModels()[targetGroupId];
+      const modelIds = familyProfiles[profileId] ?? familyProfiles.balanced;
+      if (!modelIds || !profile.models) return [profileId, profile];
+      if (!modelIdsExist(modelIds, modelsConfig)) return [profileId, profile];
+      return [
+        profileId,
+        {
+          ...profile,
+          models: {
+            ...profile.models,
+            ...modelIds,
+          },
+        },
+      ];
+    }),
+  );
+}
+
+function modelGroupForSingleProvider(providerId: string): "gpt" | "deepseek" | undefined {
+  if (providerId === "deepseek") return "deepseek";
+  return "gpt";
+}
+
+function modelIdsExist(modelIds: Record<"primary" | "reasoning" | "fast", string>, modelsConfig: ModelsYaml): boolean {
+  return modelIds.primary in modelsConfig && modelIds.reasoning in modelsConfig && modelIds.fast in modelsConfig;
+}
+
+function familyProfileModels(): Readonly<
+  Record<"gpt" | "deepseek", Record<string, Record<"primary" | "reasoning" | "fast", string>>>
+> {
+  return {
+    gpt: {
+      lite: { primary: "gpt-5.4", reasoning: "gpt-5.4", fast: "gpt-5.4-mini" },
+      economy: { primary: "gpt-5.4-mini", reasoning: "gpt-5.4", fast: "gpt-5.4-mini" },
+      cheap: { primary: "gpt-5.4-mini", reasoning: "gpt-5.4", fast: "gpt-5.4-mini" },
+      balanced: { primary: "gpt-5.5", reasoning: "gpt-5.5", fast: "gpt-5.4-mini" },
+      coding: { primary: "gpt-5.5-coding", reasoning: "gpt-5.5-coding", fast: "gpt-5.4-mini" },
+      research: { primary: "gpt-5.5", reasoning: "gpt-5.5", fast: "gpt-5.4-mini" },
+      writing: { primary: "gpt-5.5", reasoning: "gpt-5.5", fast: "gpt-5.4-mini" },
+      max: { primary: "gpt-5.5", reasoning: "gpt-5.5", fast: "gpt-5.4" },
+      "ds-max": { primary: "gpt-5.5", reasoning: "gpt-5.5", fast: "gpt-5.4" },
+    },
+    deepseek: {
+      lite: { primary: "deepseek-v4-flash", reasoning: "deepseek-v4-flash-think", fast: "deepseek-v4-flash" },
+      economy: { primary: "deepseek-v4-flash", reasoning: "deepseek-v4-flash-think", fast: "deepseek-v4-flash" },
+      cheap: { primary: "deepseek-v4-flash", reasoning: "deepseek-v4-flash-think", fast: "deepseek-v4-flash" },
+      balanced: {
+        primary: "deepseek-v4-pro-think",
+        reasoning: "deepseek-v4-pro-think",
+        fast: "deepseek-v4-flash",
+      },
+      coding: {
+        primary: "deepseek-v4-pro-think",
+        reasoning: "deepseek-v4-pro-think",
+        fast: "deepseek-v4-flash",
+      },
+      research: {
+        primary: "deepseek-v4-pro-think",
+        reasoning: "deepseek-v4-pro-think-max",
+        fast: "deepseek-v4-flash",
+      },
+      writing: {
+        primary: "deepseek-v4-pro-think",
+        reasoning: "deepseek-v4-pro-think",
+        fast: "deepseek-v4-flash",
+      },
+      max: {
+        primary: "deepseek-v4-pro-think",
+        reasoning: "deepseek-v4-pro-think-max",
+        fast: "deepseek-v4-flash",
+      },
+      "ds-max": {
+        primary: "deepseek-v4-pro-think",
+        reasoning: "deepseek-v4-pro-think-max",
+        fast: "deepseek-v4-flash",
+      },
+    },
+  };
+}
+
 async function selectProviderForGroups(input: {
-  providerGroupIds: string[];
   providers: Record<string, ProviderSource>;
   providerIds: string[];
   currentProviderGroups: ProviderGroupMap;
-}): Promise<string | undefined> {
-  const choices = [undefined, ...input.providerIds];
-  let selectedIndex = 0;
+}): Promise<string> {
+  const choices = input.providerIds;
+  const currentDefaultProvider = input.currentProviderGroups.gpt ?? input.currentProviderGroups.deepseek;
+  let selectedIndex = Math.max(0, choices.indexOf(currentDefaultProvider ?? ""));
 
-  return await new Promise<string | undefined>((resolve) => {
+  return await new Promise<string>((resolve) => {
     const stdin = process.stdin;
     const stdout = process.stdout;
+    let finished = false;
     const cleanup = (): void => {
       stdin.off("data", onData);
       stdin.setRawMode(false);
-      stdin.resume();
+      stdin.pause();
       stdout.write("\x1b[?1000l\x1b[?1006l\x1b[?25h\x1b[?1049l");
     };
-    const finish = (providerId: string | undefined): void => {
+    const finish = (providerId: string): void => {
+      if (finished) return;
+      finished = true;
       cleanup();
       resolve(providerId);
     };
+    const selectedChoice = (): string => requireValue(choices[selectedIndex] ?? choices[0], "provider 选择");
     const render = (): void => {
       stdout.write("\x1b[H\x1b[2J");
       stdout.write(`${color.cyan("ai:gen provider 选择")}：${color.bold("选择一次后立即生成")}\n`);
       stdout.write("↑/↓ 切换，Enter 确认；也可按数字键或鼠标点击选择。\n\n");
       choices.forEach((providerId, index) => {
-        if (providerId === undefined) {
-          const marker = index === selectedIndex ? color.green("›") : " ";
-          stdout.write(`${marker} ${index + 1}. 保留当前分组 (${formatProviderGroups(input.currentProviderGroups)})\n`);
-          return;
-        }
         const provider = input.providers[providerId];
         const marker = index === selectedIndex ? color.green("›") : " ";
         const label = provider?.name ?? providerId;
         const baseUrl = provider?.base_url ? ` ${provider.base_url}` : "";
-        stdout.write(
-          `${marker} ${index + 1}. ${providerId} (${label})${baseUrl} 应用到 ${input.providerGroupIds.join(" / ")}\n`,
-        );
+        stdout.write(`${marker} ${index + 1}. ${providerId} (${label})${baseUrl}\n`);
       });
     };
     const onData = (data: Buffer): void => {
@@ -393,8 +487,8 @@ async function selectProviderForGroups(input: {
         cleanup();
         process.exit(130);
       }
-      if (value === "\r" || value === "\n") {
-        finish(choices[selectedIndex]);
+      if (value.includes("\r") || value.includes("\n")) {
+        finish(selectedChoice());
         return;
       }
       if (value === "\x1b[A") {
@@ -409,7 +503,7 @@ async function selectProviderForGroups(input: {
       }
       const numberValue = Number(value);
       if (Number.isInteger(numberValue) && numberValue >= 1 && numberValue <= choices.length) {
-        finish(choices[numberValue - 1]);
+        finish(requireValue(choices[numberValue - 1], "provider 选择"));
         return;
       }
 
@@ -418,7 +512,7 @@ async function selectProviderForGroups(input: {
         const row = Number(mouseClick[1]);
         const clickedIndex = row - 4;
         if (Number.isInteger(clickedIndex) && clickedIndex >= 0 && clickedIndex < choices.length) {
-          finish(choices[clickedIndex]);
+          finish(requireValue(choices[clickedIndex], "provider 选择"));
         }
       }
     };
@@ -429,12 +523,6 @@ async function selectProviderForGroups(input: {
     stdin.on("data", onData);
     render();
   });
-}
-
-function formatProviderGroups(providerGroups: ProviderGroupMap): string {
-  return Object.entries(providerGroups)
-    .map(([groupId, providerId]) => `${groupId}=${providerId}`)
-    .join(" / ");
 }
 
 function sgrMousePattern(): RegExp {

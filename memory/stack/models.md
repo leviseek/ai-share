@@ -13,39 +13,39 @@ API Key 通过环境变量引用，不写入仓库。
 
 Codex CLI 和 OMX 共享同一套中间层角色。agents 只引用角色名，具体模型由 profile 决定：
 
-| 角色        | 用途                                | 典型模型                                          |
-| ----------- | ----------------------------------- | ------------------------------------------------- |
-| `primary`   | 主编码/执行 agent                   | gpt-5.5 / gpt-5.5-coding                          |
-| `reasoning` | 深度推理/规划 agent                 | deepseek-v4-pro-think / deepseek-v4-pro-think-max |
-| `fast`      | 轻量/搜索/低复杂度任务和 compaction | gpt-5.4-mini                                      |
+| 角色        | 用途                                | 典型模型                                    |
+| ----------- | ----------------------------------- | ------------------------------------------- |
+| `primary`   | 主编码/执行 agent                   | gpt-5.5 / gpt-5.5-coding                    |
+| `reasoning` | 深度推理/规划 agent                 | 与当前 profile 同 provider_group 的推理模型 |
+| `fast`      | 轻量/搜索/低复杂度任务和 compaction | gpt-5.4-mini / deepseek-v4-flash            |
 
 ## Profile 模型对照表
 
 | Profile  | primary               | reasoning                 | fast              |
 | -------- | --------------------- | ------------------------- | ----------------- |
-| lite     | gpt-5.4               | deepseek-v4-flash-think   | gpt-5.4-mini      |
+| lite     | gpt-5.4               | gpt-5.4                   | gpt-5.4-mini      |
 | economy  | deepseek-v4-flash     | deepseek-v4-flash-think   | deepseek-v4-flash |
-| cheap    | gpt-5.4-mini          | deepseek-v4-flash-think   | gpt-5.4-mini      |
-| balanced | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini      |
-| coding   | gpt-5.5-coding        | deepseek-v4-pro-think     | gpt-5.4-mini      |
-| research | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4-mini      |
-| writing  | gpt-5.5               | deepseek-v4-pro-think     | gpt-5.4-mini      |
-| max      | gpt-5.5               | deepseek-v4-pro-think-max | gpt-5.4           |
+| cheap    | gpt-5.4-mini          | gpt-5.4                   | gpt-5.4-mini      |
+| balanced | gpt-5.5               | gpt-5.5                   | gpt-5.4-mini      |
+| coding   | gpt-5.5-coding        | gpt-5.5-coding            | gpt-5.4-mini      |
+| research | gpt-5.5               | gpt-5.5                   | gpt-5.4-mini      |
+| writing  | gpt-5.5               | gpt-5.5                   | gpt-5.4-mini      |
+| max      | gpt-5.5               | gpt-5.5                   | gpt-5.4           |
 | ds-max   | deepseek-v4-pro-think | deepseek-v4-pro-think-max | deepseek-v4-flash |
 
 ## 模型选择策略
 
 ### 日常编码
 
-默认 balanced 模式。primary=gpt-5.5 负责编码，reasoning=deepseek-v4-pro-think 负责规划和调试。成本和能力的均衡点。
+默认 balanced 模式。primary/reasoning 都使用 gpt-5.5，fast 使用 gpt-5.4-mini，保持单 profile 内同一 provider_group，便于 `ai:gen` 仅指定一种 provider。
 
 ### 纯代码实施
 
-coding 模式。primary 换为 gpt-5.5-coding，编码能力更强，temperature 更低（0.1）。适合大量代码生成的场景。
+coding 模式。primary/reasoning 均换为 gpt-5.5-coding，编码能力更强，temperature 更低（0.1）。适合大量代码生成的场景。
 
 ### 深度推理/研究
 
-research 或 max 模式。reasoning 升级为 deepseek-v4-pro-think-max，带 thinking enabled + reasoning_effort=max，context window 1M。适合架构分析、复杂调试、长上下文理解。
+research 或 max 模式使用 GPT 同族强力编排，reasoning 与 primary 保持 gpt-5.5。需要全链路 DeepSeek 长上下文时使用 ds-max。
 
 ### 轻量/低成本
 
@@ -81,7 +81,7 @@ writing 模式。模型与 balanced 一致，但 compaction 使用 reasoning 模
 - gpt-5.4-mini 是成本最低的 GPT 模型（$0.0012/$0.0024），用作 fast 角色和 compaction。
 - deepseek-v4-flash 是全局最便宜的模型（$0.0008/$0.0016），economy 模式全链路使用。
 - deepseek 系比 gpt 系便宜 2-10 倍。
-- max profile 虽然用 gpt-5.5 + deepseek-v4-pro-think-max，但总体成本仍可控，因为推理密集型任务走便宜的 DeepSeek。
+- GPT profiles 保持 gpt provider_group 内编排；需要 DeepSeek 成本/长上下文优势时切换 economy 或 ds-max。
 - Codex profile 中 agent 并发由生成的 Codex 配置控制；模型 provider 本身不写入仓库密钥。
 
 ## Compaction 策略
@@ -100,7 +100,7 @@ writing 模式。模型与 balanced 一致，但 compaction 使用 reasoning 模
 | max      | 140K               | 250K             | reasoning        |
 | ds-max   | 640K               | 960K             | reasoning        |
 
-research/writing/max/ds-max 使用 reasoning 模型做 compaction，压缩质量更高但成本也高。
+research/writing/max/ds-max 使用 reasoning 模型做 compaction，压缩质量更高但成本也高；每个 profile 的 compaction 仍保持同族模型。
 
 ## Fallback 链
 

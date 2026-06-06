@@ -1,19 +1,21 @@
 import type { CliOptions, ProviderGroupMap } from "../types.ts";
 import { DEFAULT_PROVIDER_GROUPS } from "../config/provider-groups.ts";
 
-export function parseCliOptions(): CliOptions {
-  const args = new Set(Bun.argv.slice(2));
+type EnvSource = Record<string, string | undefined>;
+
+export function parseCliOptions(argv: readonly string[] = Bun.argv, env: EnvSource = Bun.env): CliOptions {
+  const args = new Set(argv.slice(2));
   return {
     force: args.has("--force"),
     dryRun: args.has("--dry-run"),
     checkOnly: args.has("--check"),
-    providerGroups: parseProviderGroups(),
-    providerGroupsSpecified: providerGroupsSpecified(),
+    providerGroups: parseProviderGroups(argv, env),
+    providerGroupsSpecified: providerGroupsSpecified(argv, env),
   };
 }
 
-function parseOption(name: string): string | undefined {
-  const values = Bun.argv.slice(2);
+function parseOption(argv: readonly string[], name: string): string | undefined {
+  const values = argv.slice(2);
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
     if (value === name) return values[index + 1];
@@ -22,29 +24,39 @@ function parseOption(name: string): string | undefined {
   return undefined;
 }
 
-function parseProviderGroups(): ProviderGroupMap {
+function parseProviderGroups(argv: readonly string[], env: EnvSource): ProviderGroupMap {
+  const sharedProvider = parseOption(argv, "--provider") ?? env.AI_SHARE_PROVIDER;
   return {
     ...DEFAULT_PROVIDER_GROUPS,
-    gpt: parseOption("--gpt-provider") ?? Bun.env.AI_SHARE_GPT_PROVIDER ?? DEFAULT_PROVIDER_GROUPS.gpt,
+    ...(sharedProvider
+      ? Object.fromEntries(Object.keys(DEFAULT_PROVIDER_GROUPS).map((groupId) => [groupId, sharedProvider]))
+      : {}),
+    gpt:
+      parseOption(argv, "--gpt-provider") ?? env.AI_SHARE_GPT_PROVIDER ?? sharedProvider ?? DEFAULT_PROVIDER_GROUPS.gpt,
     deepseek:
-      parseOption("--deepseek-provider") ?? Bun.env.AI_SHARE_DEEPSEEK_PROVIDER ?? DEFAULT_PROVIDER_GROUPS.deepseek,
-    ...parseProviderGroupOptions(),
+      parseOption(argv, "--deepseek-provider") ??
+      env.AI_SHARE_DEEPSEEK_PROVIDER ??
+      sharedProvider ??
+      DEFAULT_PROVIDER_GROUPS.deepseek,
+    ...parseProviderGroupOptions(argv),
   };
 }
 
-function providerGroupsSpecified(): boolean {
+function providerGroupsSpecified(argv: readonly string[], env: EnvSource): boolean {
   return (
-    parseOption("--gpt-provider") !== undefined ||
-    parseOption("--deepseek-provider") !== undefined ||
-    parseOptions("--provider-group").length > 0 ||
-    Bun.env.AI_SHARE_GPT_PROVIDER !== undefined ||
-    Bun.env.AI_SHARE_DEEPSEEK_PROVIDER !== undefined
+    parseOption(argv, "--provider") !== undefined ||
+    parseOption(argv, "--gpt-provider") !== undefined ||
+    parseOption(argv, "--deepseek-provider") !== undefined ||
+    parseOptions(argv, "--provider-group").length > 0 ||
+    env.AI_SHARE_PROVIDER !== undefined ||
+    env.AI_SHARE_GPT_PROVIDER !== undefined ||
+    env.AI_SHARE_DEEPSEEK_PROVIDER !== undefined
   );
 }
 
-function parseProviderGroupOptions(): ProviderGroupMap {
+function parseProviderGroupOptions(argv: readonly string[]): ProviderGroupMap {
   const output: ProviderGroupMap = {};
-  for (const value of parseOptions("--provider-group")) {
+  for (const value of parseOptions(argv, "--provider-group")) {
     const separatorIndex = value.indexOf("=");
     if (separatorIndex <= 0 || separatorIndex === value.length - 1) {
       throw new Error(`--provider-group 必须使用 group=provider 格式：${value}`);
@@ -54,9 +66,9 @@ function parseProviderGroupOptions(): ProviderGroupMap {
   return output;
 }
 
-function parseOptions(name: string): string[] {
+function parseOptions(argv: readonly string[], name: string): string[] {
   const output: string[] = [];
-  const values = Bun.argv.slice(2);
+  const values = argv.slice(2);
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
     if (value === name) {

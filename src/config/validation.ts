@@ -75,7 +75,7 @@ export function validateYamlConsistency(
   const modelIds = new Set(Object.keys(modelsConfig));
   const providerInstances = validateProviderCatalog(errors, providersConfig);
 
-  validateProfiles(errors, profilesConfig, modelIds);
+  validateProfiles(errors, profilesConfig, modelIds, modelsConfig);
   validateDefaultProfile(errors, profilesConfig, globalConfig);
   validateModelCatalog(errors, modelsConfig, modelIds, providerInstances);
   validateAgents(errors, agentsConfig);
