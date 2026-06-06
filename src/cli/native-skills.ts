@@ -129,6 +129,94 @@ Use this skill when turning long natural-language context into a compact, audita
 7. **Discarded Noise**: categories of details intentionally omitted.`,
   ),
   skill(
+    "memory-curator",
+    "Use when organizing, reviewing, deduplicating, proposing updates to, or migrating ai-share memory files under memory/; use for memory governance, long-term knowledge capture, and deciding whether facts belong in stable, user, architecture, policies, profiles, inferred, or distilled layers.",
+    `# Memory Curator
+
+Use this skill to classify, review, deduplicate, and propose updates for ai-share memory files.
+
+## Rules
+
+- Read \`memory/policies/memory-lifecycle.md\` and \`memory/policies/ai-execution-contract.md\` before proposing durable memory changes.
+- Treat \`memory/stable/\` and \`memory/distilled/\` as human-confirmed layers; propose patches, but do not write durable facts without explicit user approval.
+- Put AI guesses in \`memory/inferred/\` unless the user explicitly confirms the fact.
+- Prefer references over repeated rules. If a rule already exists in a policy file, point to it instead of duplicating it.
+- Never preserve real secrets, tokens, cookies, private credentials, or unredacted production data.
+
+## Workflow
+
+1. Identify the memory layer that matches the information.
+2. Check for existing equivalent rules or conflicting facts.
+3. Decide whether to keep, merge, move, rewrite, or reject the candidate memory.
+4. Produce a concise proposal with target path, rationale, and validation commands.
+5. Run or recommend \`bun run memory:lint\` and \`bun run memory:check\` after changes.
+
+## Trigger Examples
+
+- "把这段会话沉淀成长期 memory。"
+- "检查 memory 里有没有重复、冲突或过时规则。"
+- "这条偏好应该放到 stable、user、inferred 还是 distilled？"
+
+## Anti Examples
+
+- "解释一下这段 TypeScript 为什么报错。"
+- "帮我提交当前改动。"
+- "写一个新的 React 组件。"
+
+## Output
+
+List findings first, then provide proposed target paths and replacement wording. Mark uncertain facts as needing user confirmation.`,
+  ),
+  skill(
+    "failure-distiller",
+    "Use when converting debugging failures, repeated test failures, production incidents, architecture mistakes, or multi-step troubleshooting sessions into reusable distilled knowledge under memory/distilled/; use for extracting root-cause patterns, bad fixes, correct fixes, detection, and prevention.",
+    `# Failure Distiller
+
+Use this skill to turn failures into reusable knowledge candidates.
+
+## Rules
+
+- Distill patterns, not transcripts. Do not store raw chat logs, full logs, stack traces, secrets, or unredacted production data.
+- Separate confirmed root cause from hypotheses. Put uncertain conclusions behind explicit "needs confirmation" wording.
+- Preserve exact file paths, commands, error names, config keys, and tool names that are necessary for future detection.
+- Propose \`memory/distilled/\` content only after the lesson is general enough to help future tasks.
+
+## Workflow
+
+1. Summarize the failure in one sentence.
+2. Identify the repeating pattern and confirmed root cause.
+3. Record bad fixes that were tempting but wrong.
+4. Record the smallest correct fix and the validation evidence.
+5. Add detection and prevention notes.
+6. Recommend a \`memory/distilled/\` target file or explain why the failure should not become durable memory.
+
+## Distillation Template
+
+- **Pattern**: recurring failure shape.
+- **Root Cause**: confirmed underlying cause.
+- **Bad Fixes**: approaches that hide or worsen the issue.
+- **Correct Fix**: minimal durable remedy.
+- **Detection**: commands, symptoms, or signals that reveal the issue.
+- **Prevention**: rules or checks that reduce recurrence.
+- **Evidence**: validation commands, tests, or observed results.
+
+## Trigger Examples
+
+- "把这次调试失败总结成可复用经验。"
+- "我们连续三次修错了，提炼一下根因模式。"
+- "把这个测试失败的排障过程沉淀到 distilled memory。"
+
+## Anti Examples
+
+- "帮我马上修这个 bug。"
+- "整理一篇用户文档。"
+- "选择哪个模型更适合写作？"
+
+## Output
+
+Return a candidate distilled entry and clearly mark whether it is ready for human-confirmed memory or still needs review.`,
+  ),
+  skill(
     "prompt-lint",
     "Use when reviewing prompts, agents, skills, instructions, or memory files for conflicts, vagueness, unsafe rules, or drift.",
     `# Prompt Lint

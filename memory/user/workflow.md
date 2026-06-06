@@ -6,6 +6,7 @@
 - 分步骤推进：每个步骤完成后运行相关检查
 - 复杂任务拆解为多个独立并行子任务
 - 关键改动前先搭建隔离环境（Git worktree）
+- 执行边界遵循 `memory/policies/ai-execution-contract.md`
 
 ## 验证习惯
 
@@ -16,8 +17,6 @@
 ## Git 协作
 
 - 提交信息格式：`选项: 中文描述`（遵循 GIT_COMMIT_GUIDELINES.md）
-- 不主动提交、推送或创建分支，除非被明确要求
-- 不做破坏性 Git 操作（force push、amend、rebase -i）
 - 提交推送前若本地有测试代码改动，先询问是否保留
 
 ## 调试策略

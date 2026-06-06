@@ -17,6 +17,9 @@ export function buildInstructionsPaths(projectRoot: string, profile?: string, ta
     resolve(projectRoot, "AI_GUIDELINES.md"),
     // Task-specific memories (top priority, inserted before structured memory)
     ...taskMemories,
+    // Global execution and memory governance contracts
+    resolve(memoryBase, "policies", "ai-execution-contract.md"),
+    resolve(memoryBase, "policies", "memory-lifecycle.md"),
     // memory/user/
     resolve(memoryBase, "user", "profile.md"),
     resolve(memoryBase, "user", "profile.yaml"),

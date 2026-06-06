@@ -8,6 +8,8 @@ import { buildInstructionsPaths } from "./instructions.ts";
 type BuildInstructionsPaths = typeof buildInstructionsPaths;
 
 const structuredMemoryRelativePaths = [
+  "memory/policies/ai-execution-contract.md",
+  "memory/policies/memory-lifecycle.md",
   "memory/user/profile.md",
   "memory/user/profile.yaml",
   "memory/user/workflow.md",

@@ -57,6 +57,8 @@ describe("generator install contract", () => {
       expect(manifest.managed?.codex_agents).toContain("sisyphus");
       expect(manifest.managed?.codex_env_vars).toContain("HTTP_PROXY");
       expect(manifest.managed?.skills).toContain("ai-share-generator");
+      expect(manifest.managed?.skills).toContain("memory-curator");
+      expect(manifest.managed?.skills).toContain("failure-distiller");
       expect(JSON.stringify(manifest).toLowerCase()).not.toContain("opencode");
 
       expect(readText(join(codexHome, "coding.config.toml"))).toContain('model = "gpt-5.5"');
