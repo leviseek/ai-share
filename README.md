@@ -307,9 +307,12 @@ bun run profile:eval -- --task "分析当前项目" --profiles coding,max --exec
 
 ```sh
 bun run provider:check
+bun run provider:check -- --canary
+bun run provider:check -- --canary --json
 ```
 
-该命令会访问各 provider 的 `/models` 端点，需要本机已设置对应 API key。它是显式网络检查，不放入默认 `bun run check`。
+该命令会访问各 provider 的 `/models` 端点，需要本机已设置对应 API key。`--canary` 会进一步发起轻量 completion
+验证模型可调用和参数兼容；`--json` 输出机器可读结果。它是显式网络检查，不放入默认 `bun run check`。
 
 聚合运行态诊断：
 

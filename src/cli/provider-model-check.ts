@@ -36,13 +36,13 @@ if (import.meta.main) {
   const modelConfig = loadYaml("models.yaml") as ModelsYaml;
   const providerGroups = parseCliOptions().providerGroups;
   const canary = Bun.argv.includes("--canary");
+  const jsonOutput = Bun.argv.includes("--json");
   const models = applyProviderGroups(modelConfig, providerConfig.providers ?? {}, providerGroups);
   const results = await checkProviderModels({
     providers: providerConfig.providers ?? {},
     models,
     env: Bun.env,
   });
-  printProviderModelResults(results);
   const canaryResults = canary
     ? await checkProviderCanaries({
         providers: providerConfig.providers ?? {},
@@ -50,7 +50,27 @@ if (import.meta.main) {
         env: Bun.env,
       })
     : [];
-  if (canary) printProviderCanaryResults(canaryResults);
+  if (jsonOutput) {
+    console.log(
+      JSON.stringify(
+        {
+          status:
+            results.every((result) => result.status === "ok") && canaryResults.every((result) => result.status === "ok")
+              ? "ok"
+              : "error",
+          canary,
+          provider_groups: providerGroups,
+          model_results: results,
+          canary_results: canaryResults,
+        },
+        null,
+        2,
+      ),
+    );
+  } else {
+    printProviderModelResults(results);
+    if (canary) printProviderCanaryResults(canaryResults);
+  }
   process.exit(
     results.every((result) => result.status === "ok") && canaryResults.every((result) => result.status === "ok")
       ? 0
