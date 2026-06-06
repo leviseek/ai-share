@@ -316,13 +316,16 @@ async function selectProviderGroupsIfInteractive(
   }
 
   const selectedProviderGroups: ProviderGroupMap = { ...currentProviderGroups };
-  for (const groupId of providerGroupIds) {
-    selectedProviderGroups[groupId] = await selectProviderForGroup({
-      groupId,
-      providers,
-      providerIds,
-      currentProviderId: selectedProviderGroups[groupId] ?? providerIds[0] ?? "",
-    });
+  const selectedProviderId = await selectProviderForGroups({
+    providerGroupIds,
+    providers,
+    providerIds,
+    currentProviderGroups,
+  });
+  if (selectedProviderId) {
+    for (const groupId of providerGroupIds) {
+      selectedProviderGroups[groupId] = selectedProviderId;
+    }
   }
   console.log(
     `${color.green("已选择 provider")}：${Object.entries(selectedProviderGroups)
@@ -343,16 +346,16 @@ function configuredProviderGroupIds(modelsConfig: ModelsYaml): string[] {
   return output;
 }
 
-async function selectProviderForGroup(input: {
-  groupId: string;
+async function selectProviderForGroups(input: {
+  providerGroupIds: string[];
   providers: Record<string, ProviderSource>;
   providerIds: string[];
-  currentProviderId: string;
-}): Promise<string> {
-  const initialIndex = Math.max(0, input.providerIds.indexOf(input.currentProviderId));
-  let selectedIndex = initialIndex;
+  currentProviderGroups: ProviderGroupMap;
+}): Promise<string | undefined> {
+  const choices = [undefined, ...input.providerIds];
+  let selectedIndex = 0;
 
-  return await new Promise<string>((resolve) => {
+  return await new Promise<string | undefined>((resolve) => {
     const stdin = process.stdin;
     const stdout = process.stdout;
     const cleanup = (): void => {
@@ -361,21 +364,27 @@ async function selectProviderForGroup(input: {
       stdin.resume();
       stdout.write("\x1b[?1000l\x1b[?1006l\x1b[?25h\x1b[?1049l");
     };
-    const finish = (providerId: string): void => {
+    const finish = (providerId: string | undefined): void => {
       cleanup();
       resolve(providerId);
     };
     const render = (): void => {
       stdout.write("\x1b[H\x1b[2J");
-      stdout.write(`${color.cyan("ai:gen provider 选择")}：模型组 ${color.bold(input.groupId)}\n`);
+      stdout.write(`${color.cyan("ai:gen provider 选择")}：${color.bold("选择一次后立即生成")}\n`);
       stdout.write("↑/↓ 切换，Enter 确认；也可按数字键或鼠标点击选择。\n\n");
-      input.providerIds.forEach((providerId, index) => {
+      choices.forEach((providerId, index) => {
+        if (providerId === undefined) {
+          const marker = index === selectedIndex ? color.green("›") : " ";
+          stdout.write(`${marker} ${index + 1}. 保留当前分组 (${formatProviderGroups(input.currentProviderGroups)})\n`);
+          return;
+        }
         const provider = input.providers[providerId];
         const marker = index === selectedIndex ? color.green("›") : " ";
-        const defaultMarker = providerId === input.currentProviderId ? " default" : "";
         const label = provider?.name ?? providerId;
         const baseUrl = provider?.base_url ? ` ${provider.base_url}` : "";
-        stdout.write(`${marker} ${index + 1}. ${providerId} (${label})${baseUrl}${defaultMarker}\n`);
+        stdout.write(
+          `${marker} ${index + 1}. ${providerId} (${label})${baseUrl} 应用到 ${input.providerGroupIds.join(" / ")}\n`,
+        );
       });
     };
     const onData = (data: Buffer): void => {
@@ -385,22 +394,22 @@ async function selectProviderForGroup(input: {
         process.exit(130);
       }
       if (value === "\r" || value === "\n") {
-        finish(input.providerIds[selectedIndex] ?? input.currentProviderId);
+        finish(choices[selectedIndex]);
         return;
       }
       if (value === "\x1b[A") {
-        selectedIndex = (selectedIndex - 1 + input.providerIds.length) % input.providerIds.length;
+        selectedIndex = (selectedIndex - 1 + choices.length) % choices.length;
         render();
         return;
       }
       if (value === "\x1b[B") {
-        selectedIndex = (selectedIndex + 1) % input.providerIds.length;
+        selectedIndex = (selectedIndex + 1) % choices.length;
         render();
         return;
       }
       const numberValue = Number(value);
-      if (Number.isInteger(numberValue) && numberValue >= 1 && numberValue <= input.providerIds.length) {
-        finish(input.providerIds[numberValue - 1] ?? input.currentProviderId);
+      if (Number.isInteger(numberValue) && numberValue >= 1 && numberValue <= choices.length) {
+        finish(choices[numberValue - 1]);
         return;
       }
 
@@ -408,8 +417,8 @@ async function selectProviderForGroup(input: {
       if (mouseClick?.[1]) {
         const row = Number(mouseClick[1]);
         const clickedIndex = row - 4;
-        if (Number.isInteger(clickedIndex) && clickedIndex >= 0 && clickedIndex < input.providerIds.length) {
-          finish(input.providerIds[clickedIndex] ?? input.currentProviderId);
+        if (Number.isInteger(clickedIndex) && clickedIndex >= 0 && clickedIndex < choices.length) {
+          finish(choices[clickedIndex]);
         }
       }
     };
@@ -420,6 +429,12 @@ async function selectProviderForGroup(input: {
     stdin.on("data", onData);
     render();
   });
+}
+
+function formatProviderGroups(providerGroups: ProviderGroupMap): string {
+  return Object.entries(providerGroups)
+    .map(([groupId, providerId]) => `${groupId}=${providerId}`)
+    .join(" / ");
 }
 
 function sgrMousePattern(): RegExp {

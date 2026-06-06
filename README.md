@@ -63,7 +63,8 @@ bun run ai:gen -- --force
 默认模型组提供商为 `gpt=codexapis`、`deepseek=deepseek`。切换 GPT 模型组到 Packy API：
 
 在交互式终端直接运行 `bun run ai:gen` 且未通过参数或环境变量指定 provider 时，生成器会按模型组列出
-`config/provider.yaml` 中所有已配置 provider，可用 ↑/↓、数字键、Enter 或支持 SGR mouse 的终端鼠标点击选择。
+`config/provider.yaml` 中所有已配置 provider。选择“保留当前分组”会沿用 `gpt=codexapis`、`deepseek=deepseek`
+等当前映射；选择某个 provider 会把它应用到所有模型组。可用 ↑/↓、数字键、Enter 或支持 SGR mouse 的终端鼠标点击选择。
 非交互环境、`bun run ai:check`、以及已显式指定 provider 的命令不会进入选择界面。
 
 ```sh
