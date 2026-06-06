@@ -13,6 +13,10 @@ export type McpYaml = {
   servers?: Record<string, McpServerSource>;
 };
 
+export type EnvYaml = {
+  variables?: Record<string, string>;
+};
+
 export type McpServerSource = {
   transport?: "stdio" | "http";
   command?: string;

@@ -1,0 +1,47 @@
+import type { EnvYaml } from "../../types.ts";
+import { isRecord, isSensitiveName, looksLikeSecretLiteral, type ValidationError } from "./common.ts";
+
+const DISALLOWED_CODEX_ENV_KEYS = new Set([
+  "CODEX_HOME",
+  "HOME",
+  "USERPROFILE",
+  "PATH",
+  "Path",
+  "AI_SHARE_TASK",
+  "AI_SHARE_GPT_PROVIDER",
+  "AI_SHARE_DEEPSEEK_PROVIDER",
+  "OMX_DEFAULT_FRONTIER_MODEL",
+  "OMX_DEFAULT_STANDARD_MODEL",
+  "OMX_DEFAULT_SPARK_MODEL",
+]);
+
+export function validateCodexEnv(errors: ValidationError[], envConfig: EnvYaml): void {
+  const variables = envConfig.variables;
+  if (!isRecord(variables)) return;
+
+  for (const [envName, envValue] of Object.entries(variables)) {
+    if (DISALLOWED_CODEX_ENV_KEYS.has(envName)) {
+      errors.push({
+        file: "env.yaml",
+        path: `variables.${envName}`,
+        message: `env '${envName}' 不应写入 Codex .env；请保留给系统环境、生成器参数或 aiomx profile 管理`,
+      });
+    }
+
+    if (isSensitiveName(envName)) {
+      errors.push({
+        file: "env.yaml",
+        path: `variables.${envName}`,
+        message: `env '${envName}' 看起来是敏感变量，不允许通过 config/env.yaml 写入 Codex .env`,
+      });
+    }
+
+    if (typeof envValue === "string" && looksLikeSecretLiteral(envValue)) {
+      errors.push({
+        file: "env.yaml",
+        path: `variables.${envName}`,
+        message: `env '${envName}' 疑似包含明文 secret，不允许写入 config/env.yaml`,
+      });
+    }
+  }
+}

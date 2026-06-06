@@ -44,4 +44,4 @@ rules:
   - 所有设备共享统一的 ~/ai-workspace 作为 AI 根目录
   - ai-share 仓库通过 Git 跨设备同步
   - 生成的 JSON 配置不提交到仓库，每个设备独立生成
-  - API Key、代理配置等敏感信息通过环境变量引用，不写入仓库
+  - API Key 等敏感信息通过环境变量引用，不写入仓库；非密钥代理默认值可由 config/env.yaml 生成到 CODEX_HOME/.env

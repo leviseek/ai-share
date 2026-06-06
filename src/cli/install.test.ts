@@ -91,6 +91,7 @@ function testPaths(root: string): GeneratorPaths {
     targetCodexConfigDir,
     targetCodexAgentDir: join(targetCodexConfigDir, "agents"),
     targetCodexConfig: join(targetCodexConfigDir, "config.toml"),
+    targetCodexEnv: join(targetCodexConfigDir, ".env"),
     targetCodexInstructions: join(targetCodexConfigDir, "AGENTS.md"),
     targetOmxConfig: join(targetCodexConfigDir, ".omx-config.json"),
     targetRuntimeManifest: join(targetCodexConfigDir, "ai-share.runtime.json"),

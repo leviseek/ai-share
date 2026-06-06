@@ -1,5 +1,6 @@
 export const ENV_REFERENCE_PATTERN = "^\\$\\{[A-Z_][A-Z0-9_]*\\}$";
 export const ENV_NAME_PATTERN = "^[A-Z_][A-Z0-9_]*$";
+export const ENV_FILE_NAME_PATTERN = "^[A-Za-z_][A-Za-z0-9_]*$";
 
 export const MODEL_ROLES = ["primary", "reasoning", "fast"] as const;
 export const REASONING_LEVELS = ["low", "medium", "high"] as const;
@@ -27,7 +28,8 @@ export type YamlSchemaSourceFile =
   | "models.yaml"
   | "profiles.yaml"
   | "agents.yaml"
-  | "mcp.yaml";
+  | "mcp.yaml"
+  | "env.yaml";
 
 type BaseSchemaNode = {
   description?: string;
@@ -248,6 +250,19 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
               oauth_resource: stringSchema("OAuth resource."),
             },
           }),
+        }),
+      },
+    }),
+  },
+  {
+    sourceFile: "env.yaml",
+    schemaFileName: "env.schema.json",
+    title: "ai-share env.yaml",
+    root: objectSchema({
+      properties: {
+        variables: objectSchema({
+          propertyNames: { pattern: ENV_FILE_NAME_PATTERN },
+          additionalProperties: stringSchema("Codex .env variable value."),
         }),
       },
     }),

@@ -1,6 +1,7 @@
-import type { AgentsYaml, GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "../types.ts";
+import type { AgentsYaml, EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "../types.ts";
 import { validateAgents } from "./validators/agents.ts";
 import type { ValidationError } from "./validators/common.ts";
+import { validateCodexEnv } from "./validators/env.ts";
 import { validateMcpServers } from "./validators/mcp.ts";
 import { validateModelCatalog } from "./validators/models.ts";
 import { validateDefaultProfile, validateProfiles } from "./validators/profiles.ts";
@@ -48,6 +49,7 @@ export function validateYamlConsistency(
   globalConfig: GlobalYaml,
   mcpConfig: McpYaml = {},
   agentsConfig: AgentsYaml = {},
+  envConfig: EnvYaml = {},
 ): ValidationError[] {
   const errors = validateYamlSchemaShapes({
     "global.yaml": globalConfig,
@@ -56,6 +58,7 @@ export function validateYamlConsistency(
     "profiles.yaml": profilesConfig,
     "agents.yaml": agentsConfig,
     "mcp.yaml": mcpConfig,
+    "env.yaml": envConfig,
   });
 
   const modelIds = new Set(Object.keys(modelsConfig));
@@ -66,6 +69,7 @@ export function validateYamlConsistency(
   validateModelCatalog(errors, modelsConfig, modelIds, providerInstances);
   validateAgents(errors, agentsConfig);
   validateMcpServers(errors, mcpConfig);
+  validateCodexEnv(errors, envConfig);
 
   return errors;
 }

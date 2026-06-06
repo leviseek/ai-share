@@ -10,6 +10,7 @@ export type GeneratorPaths = {
   targetCodexConfigDir: string;
   targetCodexAgentDir: string;
   targetCodexConfig: string;
+  targetCodexEnv: string;
   targetCodexInstructions: string;
   targetOmxConfig: string;
   targetRuntimeManifest: string;
@@ -40,6 +41,7 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
     targetCodexConfigDir,
     targetCodexAgentDir,
     targetCodexConfig: resolve(targetCodexConfigDir, "config.toml"),
+    targetCodexEnv: resolve(targetCodexConfigDir, ".env"),
     targetCodexInstructions: resolve(targetCodexConfigDir, "AGENTS.md"),
     targetOmxConfig: resolve(targetCodexConfigDir, ".omx-config.json"),
     targetRuntimeManifest: resolve(targetCodexConfigDir, "ai-share.runtime.json"),

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { AgentsYaml, GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "../types.ts";
+import type { AgentsYaml, EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "../types.ts";
 import { validateYamlConsistency } from "./validation.ts";
 
 describe("validateYamlConsistency", () => {
@@ -250,6 +250,51 @@ describe("validateYamlConsistency", () => {
       "mcp.yaml:servers.malformed.env.TOKEN:stdio MCP server 'malformed' 的敏感 env 'TOKEN' 必须使用 ${ENV_NAME} 占位，不允许写入明文",
       "mcp.yaml:servers.malformed.env.BAD_VALUE:servers.malformed.env.BAD_VALUE 必须是非空字符串",
       "mcp.yaml:servers.malformed.env.bad-name:servers.malformed.env key 'bad-name' 格式不符合要求",
+    ]) {
+      expect(errors).toContain(expectedError);
+    }
+  });
+
+  test("rejects sensitive or generator-managed Codex .env variables", () => {
+    const models: ModelsYaml = {
+      "valid-model": model("valid-model"),
+    };
+    const profiles: ProfilesYaml = {
+      valid: {
+        models: {
+          primary: "valid-model",
+          reasoning: "valid-model",
+          fast: "valid-model",
+        },
+      },
+    };
+    const envConfig = {
+      variables: {
+        HTTP_PROXY: "http://127.0.0.1:7890",
+        CODEX_HOME: "/tmp/codex",
+        AI_SHARE_TASK: "local-task",
+        OMX_DEFAULT_FRONTIER_MODEL: "gpt",
+        CODEXAPIS_API_KEY: "sk-not-allowed-here",
+        LITERAL_VALUE: "sk-1234567890abcdef",
+      },
+    } as EnvYaml;
+
+    const errors = validateYamlConsistency(
+      profiles,
+      models,
+      providers(),
+      { default_profile: "valid" },
+      mcp(),
+      validAgents(),
+      envConfig,
+    ).map(formatError);
+
+    for (const expectedError of [
+      "env.yaml:variables.CODEX_HOME:env 'CODEX_HOME' 不应写入 Codex .env；请保留给系统环境、生成器参数或 aiomx profile 管理",
+      "env.yaml:variables.AI_SHARE_TASK:env 'AI_SHARE_TASK' 不应写入 Codex .env；请保留给系统环境、生成器参数或 aiomx profile 管理",
+      "env.yaml:variables.OMX_DEFAULT_FRONTIER_MODEL:env 'OMX_DEFAULT_FRONTIER_MODEL' 不应写入 Codex .env；请保留给系统环境、生成器参数或 aiomx profile 管理",
+      "env.yaml:variables.CODEXAPIS_API_KEY:env 'CODEXAPIS_API_KEY' 看起来是敏感变量，不允许通过 config/env.yaml 写入 Codex .env",
+      "env.yaml:variables.LITERAL_VALUE:env 'LITERAL_VALUE' 疑似包含明文 secret，不允许写入 config/env.yaml",
     ]) {
       expect(errors).toContain(expectedError);
     }

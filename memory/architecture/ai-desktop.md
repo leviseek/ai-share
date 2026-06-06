@@ -45,7 +45,7 @@ Profile 系统的核心价值是"按需切换 AI 工作方式"，而不是固定
 AI Desktop 不是单机系统。用户的工作场景跨 Windows 主力机、WSL Linux 开发环境、macOS 备用设备：
 
 - ai-share 通过 Git 同步配置源（YAML 文件），每个设备独立生成运行时配置。
-- 环境变量管理 API Key 和代理设置，不写入仓库，每个设备独立配置。
+- 环境变量管理 API Key 等敏感凭证，不写入仓库；非密钥代理默认值可通过 config/env.yaml 生成到 CODEX_HOME/.env，每个设备可按需覆盖。
 - ~/ai-workspace 作为统一的 AI 工作区目录约定，与 ~/.codex/ 构成跨设备路径标准。
 - 记忆文件作为唯一的知识源，所有设备共享同一套 memory/ 目录结构，确保跨设备知识连续性。
 

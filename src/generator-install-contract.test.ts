@@ -9,6 +9,7 @@ type RuntimeManifestContract = {
   default_profile?: string;
   paths?: {
     codex_home?: string;
+    codex_env?: string;
     bin?: string;
     codex_skills?: string;
   };
@@ -16,6 +17,7 @@ type RuntimeManifestContract = {
     codex_profiles?: string[];
     omx_profiles?: string[];
     codex_agents?: string[];
+    codex_env_vars?: string[];
     skills?: string[];
   };
 };
@@ -48,10 +50,12 @@ describe("generator install contract", () => {
       expect(manifest.primary_stack).toBe("codex+omx");
       expect(manifest.default_profile).toBe("balanced");
       expect(manifest.paths?.codex_home).toBe(codexHome);
+      expect(manifest.paths?.codex_env).toBe(join(codexHome, ".env"));
       expect(manifest.paths?.bin).toBe(targetBin);
       expect(manifest.managed?.codex_profiles).toContain("coding");
       expect(manifest.managed?.omx_profiles).toEqual(manifest.managed?.codex_profiles);
       expect(manifest.managed?.codex_agents).toContain("sisyphus");
+      expect(manifest.managed?.codex_env_vars).toContain("HTTP_PROXY");
       expect(manifest.managed?.skills).toContain("ai-share-generator");
       expect(JSON.stringify(manifest).toLowerCase()).not.toContain("opencode");
 
@@ -59,6 +63,8 @@ describe("generator install contract", () => {
       expect(readText(join(codexHome, "coding.config.toml"))).toContain('model_provider = "codexapis"');
       expect(readText(join(codexHome, "AGENTS.md"))).toContain("AI_GUIDELINES.md");
       expect(readText(join(codexHome, "AGENTS.md"))).toContain("memory");
+      expect(readText(join(codexHome, ".env"))).toContain("HTTP_PROXY=http://127.0.0.1:7890");
+      expect(readText(join(codexHome, ".env"))).not.toContain("CODEXAPIS_API_KEY");
       expect(existsSync(join(codexHome, "agents", "sisyphus.toml"))).toBe(true);
       expect(existsSync(join(codexHome, "skills", "git-master", "SKILL.md"))).toBe(true);
 

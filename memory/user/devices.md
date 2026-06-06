@@ -21,4 +21,4 @@
 
 - ai-share 配置源通过 Git 跨设备同步
 - 生成的 JSON 配置不提交到仓库，每个设备独立生成
-- 环境变量（API Key、代理配置）每个设备独立设置
+- API Key 等敏感环境变量每个设备独立设置；非密钥代理默认值可由 `config/env.yaml` 生成到 `CODEX_HOME/.env`

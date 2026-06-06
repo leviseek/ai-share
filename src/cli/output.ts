@@ -8,6 +8,7 @@ export function printCheckSummary(input: {
   modelGroups: string[];
   codexProfileIds: string[];
   mcpServerIds: string[];
+  codexEnvVarNames: string[];
   codexHome: string;
   selectedDefaultProfileId: string;
   providerGroups: ProviderGroupMap;
@@ -19,6 +20,7 @@ export function printCheckSummary(input: {
   console.log(`${color.cyan("模型分组")}：${color.magenta(input.modelGroups.join(" / "))}`);
   console.log(`${color.cyan("Codex CLI profile")}：${color.magenta(input.codexProfileIds.join(" / "))}`);
   console.log(`${color.cyan("MCP servers")}：${color.magenta(input.mcpServerIds.join(" / ") || "none")}`);
+  console.log(`${color.cyan("Codex .env 变量")}：${color.magenta(input.codexEnvVarNames.join(" / ") || "none")}`);
   console.log(`${color.cyan("Codex home")}：${color.bold(input.codexHome)}`);
   console.log(`${color.cyan("默认 Codex profile")}：${color.bold(input.selectedDefaultProfileId)}`);
   printDefaultConfigDrift(input.defaultConfigDrift, input.selectedDefaultProfileId);
@@ -54,6 +56,9 @@ export function printGenerationSummary(input: {
   const installPrefix = input.dryRun ? "将安装" : "已安装";
   console.log(
     `${color.green(prefix)} ${color.cyan("Codex CLI 默认配置")}：${color.bold(input.paths.targetCodexConfig)}${color.gray("（存在时保留）")}`,
+  );
+  console.log(
+    `${color.green(prefix)} ${color.cyan("Codex CLI .env")}：${color.bold(input.paths.targetCodexEnv)}${color.gray("（存在时保留，--force 覆盖）")}`,
   );
   console.log(`${color.green(prefix)} ${color.cyan("OMX 默认配置")}：${color.bold(input.paths.targetOmxConfig)}`);
   console.log(

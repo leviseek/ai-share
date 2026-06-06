@@ -26,6 +26,7 @@ src/
 | -------------------------- | --------------------------------- | --------------------------------------------------------- |
 | End-to-end generation flow | `generate-user-config.ts`         | Loads YAML, validates, writes Codex/OMX outputs, installs |
 | Codex/OMX config           | `config/builders/codex.ts`        | Profiles, providers, MCP, agents, OMX model env           |
+| Codex `.env` generation    | `config/builders/env.ts`          | Formats non-secret `CODEX_HOME/.env` variables            |
 | Instruction/memory paths   | `config/builders/instructions.ts` | Shared instruction file ordering                          |
 | Default profile resolution | `config/builders/profiles.ts`     | `global.default_profile` fallback behavior                |
 | CLI flags                  | `cli/options.ts`                  | `--force`, `--dry-run`, `--check`, provider groups/env    |

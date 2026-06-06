@@ -2,7 +2,7 @@
 
 import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { AgentsYaml, GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "./types.ts";
+import type { AgentsYaml, EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "./types.ts";
 import {
   applyProviderGroups,
   buildCodexAgentConfigs,
@@ -14,6 +14,7 @@ import {
   defaultProfileId,
   formatCodexAgentToml,
   formatCodexConfigToml,
+  formatCodexEnvFile,
   modelProviderGroups,
   requireValue,
 } from "./config-builders.ts";
@@ -45,14 +46,16 @@ if (!checkOnly) {
   await ensureAiWorkspaceLinks(paths, dryRun);
 }
 
-const [globalConfig, providersConfig, modelsConfig, profilesConfig, agentsConfig, mcpConfig] = await Promise.all([
-  loadYaml<GlobalYaml>("global.yaml"),
-  loadYaml<ProviderYaml>("provider.yaml"),
-  loadYaml<ModelsYaml>("models.yaml"),
-  loadYaml<ProfilesYaml>("profiles.yaml"),
-  loadYaml<AgentsYaml>("agents.yaml"),
-  loadYaml<McpYaml>("mcp.yaml"),
-]);
+const [globalConfig, providersConfig, modelsConfig, profilesConfig, agentsConfig, mcpConfig, envConfig] =
+  await Promise.all([
+    loadYaml<GlobalYaml>("global.yaml"),
+    loadYaml<ProviderYaml>("provider.yaml"),
+    loadYaml<ModelsYaml>("models.yaml"),
+    loadYaml<ProfilesYaml>("profiles.yaml"),
+    loadYaml<AgentsYaml>("agents.yaml"),
+    loadYaml<McpYaml>("mcp.yaml"),
+    loadYaml<EnvYaml>("env.yaml"),
+  ]);
 
 const validationErrors = validateYamlConsistency(
   profilesConfig,
@@ -61,6 +64,7 @@ const validationErrors = validateYamlConsistency(
   globalConfig,
   mcpConfig,
   agentsConfig,
+  envConfig,
 );
 if (validationErrors.length > 0) {
   printValidationErrors(validationErrors);
@@ -105,6 +109,7 @@ if (checkOnly) {
     modelGroups: modelProviderGroups(modelsConfig),
     codexProfileIds: Object.keys(codexCliConfigs),
     mcpServerIds: Object.keys(mcpConfig.servers ?? {}),
+    codexEnvVarNames: Object.keys(envConfig.variables ?? {}),
     codexHome: paths.targetCodexConfigDir,
     selectedDefaultProfileId,
     providerGroups,
@@ -181,12 +186,21 @@ await writeJson(
     profileIds: Object.keys(codexCliConfigs),
     agentIds: Object.keys(codexAgentConfigs),
     mcpServerIds: Object.keys(mcpConfig.servers ?? {}),
+    codexEnvVarNames: Object.keys(envConfig.variables ?? {}),
     skillIds: NATIVE_SKILLS.map((skill) => skill.name),
     instructionFilesByProfile,
     profilesConfig,
   }),
   { dryRun, force },
 );
+
+if (dryRun || force || !(await pathExists(paths.targetCodexEnv))) {
+  await writeText(paths.targetCodexEnv, formatCodexEnvFile(envConfig), { dryRun, force });
+} else {
+  console.log(
+    `${color.yellow("保留")} ${color.cyan("Codex CLI 现有 .env")}：${color.bold(paths.targetCodexEnv)}（如需覆盖请运行 bun run ai:gen -- --force）`,
+  );
+}
 
 await installNativeSkills(paths, dryRun, force);
 await installLaunchers(paths, dryRun);

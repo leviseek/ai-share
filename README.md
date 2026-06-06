@@ -86,6 +86,7 @@ Codex 目录优先读取 `CODEX_HOME`，未设置时使用 `~/.codex`。
 
 ```text
 ~/.codex/config.toml
+~/.codex/.env
 ~/.codex/lite.config.toml
 ~/.codex/economy.config.toml
 ~/.codex/cheap.config.toml
@@ -193,6 +194,7 @@ config/models.yaml    -> 模型列表、provider/provider_group、上游模型�
 config/profiles.yaml  -> Codex/OMX profile、模型角色映射和 compaction metadata
 config/agents.yaml    -> Codex agent 运行时参数、OMX slot/reasoning 映射和 prompt append
 config/mcp.yaml       -> 用户级 Codex MCP servers
+config/env.yaml       -> 写入 CODEX_HOME/.env 的非密钥 Codex 运行时环境变量
 ```
 
 `config/mcp.yaml` 不允许写入明文 token/cookie/API key。`bun run ai:check` 会阻止 HTTP MCP URL 中的敏感查询参数，也会阻止 stdio MCP 的敏感 env 写成明文。
@@ -225,6 +227,29 @@ export PACKYAPI_API_KEY="your-key"
 export AXASAPI_API_KEY="your-key"
 export DEEPSEEK_API_KEY="your-key"
 ```
+
+## Codex .env
+
+Codex CLI 会读取 `CODEX_HOME/.env`。`config/env.yaml` 管理适合写入该文件的非密钥运行时变量，当前默认写入本地代理：
+
+```dotenv
+HTTP_PROXY=http://127.0.0.1:7890
+HTTPS_PROXY=http://127.0.0.1:7890
+ALL_PROXY=socks5://127.0.0.1:7890
+NO_PROXY=localhost,127.0.0.1,::1
+http_proxy=http://127.0.0.1:7890
+https_proxy=http://127.0.0.1:7890
+all_proxy=socks5://127.0.0.1:7890
+no_proxy=localhost,127.0.0.1,::1
+```
+
+`bun run ai:gen` 会在 `CODEX_HOME/.env` 不存在时创建它；已有 `.env` 会保留，避免覆盖手工私有项。需要按 `config/env.yaml` 强制刷新时运行：
+
+```sh
+bun run ai:gen -- --force
+```
+
+不要把 API key、token、cookie、password、`CODEX_HOME`、`PATH`、`AI_SHARE_*` 或 `OMX_DEFAULT_*` 写入 `config/env.yaml`。
 
 ## Profile 导入/导出
 

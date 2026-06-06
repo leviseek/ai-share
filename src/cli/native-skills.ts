@@ -44,11 +44,13 @@ Use this skill when modifying YAML source files, Codex/OMX config builders, gene
 - \`config/profiles.yaml\`: profile role mapping and profile metadata.
 - \`config/agents.yaml\`: Codex agent runtime settings, OMX slot/reasoning policy, role mapping, and prompt append rules.
 - \`config/mcp.yaml\`: Codex MCP server definitions.
+- \`config/env.yaml\`: non-secret Codex .env runtime variables such as local proxy settings.
 
 ## Implementation Map
 
 - Orchestration: \`src/generate-user-config.ts\`.
 - Codex/OMX config: \`src/config/builders/codex.ts\`.
+- Codex .env config: \`src/config/builders/env.ts\`.
 - Instruction paths: \`src/config/builders/instructions.ts\`.
 - Output paths: \`src/cli/paths.ts\`.
 - Install behavior: \`src/cli/install.ts\` and \`bin/aiomx*\`.

@@ -29,6 +29,7 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.sisyphus/evidence/`, `
 | Task                                    | Location                                        | Notes                                              |
 | --------------------------------------- | ----------------------------------------------- | -------------------------------------------------- |
 | Change providers/models/profiles/agents | `config/*.yaml`                                 | Canonical inputs; generated files are outputs      |
+| Codex `.env` runtime variables          | `config/env.yaml`                               | Non-secret runtime env only                        |
 | Generator orchestration                 | `src/generate-user-config.ts`                   | Loads YAML, builds configs, writes/install outputs |
 | Codex/OMX config shape                  | `src/config/builders/codex.ts`                  | Codex TOML, agents, MCP, OMX JSON                  |
 | YAML schema and runtime shape checks    | `src/config/schema-spec.ts`                     | Single source for JSON Schema and shape validation |
@@ -63,6 +64,7 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.sisyphus/evidence/`, `
 - YAML in `config/` is authoritative. Do not hand-edit generated user config as the durable fix.
 - YAML field shape rules live in `src/config/schema-spec.ts`; JSON Schema output and runtime shape validation must derive from it.
 - Secrets policy is env-only: API keys are env-var references; never write real keys/tokens/cookies into repo files.
+- `config/env.yaml` may manage local proxy variables for `CODEX_HOME/.env`, but must not contain API keys, tokens, `CODEX_HOME`, `PATH`, `AI_SHARE_*`, or `OMX_DEFAULT_*`.
 - TypeScript is strict: `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `noUnused*`, `isolatedDeclarations`, `erasableSyntaxOnly`.
 - User-facing thrown errors in generator code are Chinese.
 - Prettier: 2 spaces, double quotes, semicolons, trailing commas, LF, print width 120.

@@ -13,6 +13,7 @@ export type RuntimeManifest = {
   };
   paths: {
     codex_home: string;
+    codex_env: string;
     bin: string;
     codex_skills: string;
   };
@@ -20,6 +21,7 @@ export type RuntimeManifest = {
     codex_profiles: string[];
     omx_profiles: string[];
     codex_agents: string[];
+    codex_env_vars: string[];
     mcp_servers: string[];
     skills: string[];
     instruction_files: string[];
@@ -34,6 +36,7 @@ export function buildRuntimeManifest(input: {
   profileIds: string[];
   agentIds: string[];
   mcpServerIds: string[];
+  codexEnvVarNames: string[];
   skillIds: string[];
   instructionFilesByProfile: Record<string, string[]>;
   profilesConfig: ProfilesYaml;
@@ -50,6 +53,7 @@ export function buildRuntimeManifest(input: {
     },
     paths: {
       codex_home: input.paths.targetCodexConfigDir,
+      codex_env: input.paths.targetCodexEnv,
       bin: input.paths.targetBinDir,
       codex_skills: input.paths.targetCodexSkillsDir,
     },
@@ -57,6 +61,7 @@ export function buildRuntimeManifest(input: {
       codex_profiles: input.profileIds,
       omx_profiles: input.profileIds,
       codex_agents: input.agentIds,
+      codex_env_vars: input.codexEnvVarNames,
       mcp_servers: input.mcpServerIds,
       skills: input.skillIds,
       instruction_files: input.instructionFilesByProfile[input.defaultProfileId] ?? [],
