@@ -24,8 +24,18 @@ type CodexProfileRoot = {
   model_instructions_file?: string;
 };
 
+type ProxyConfig = {
+  enabled?: boolean;
+  protocol?: string;
+  host?: string;
+  port?: string | number;
+  no_proxy?: string[];
+};
+
 const homeDir = homedir();
 const codexHome = process.env.CODEX_HOME ?? join(homeDir, ".codex");
+const opencodeConfigDir = join(homeDir, ".config", "opencode");
+applyProxyEnv(join(opencodeConfigDir, "proxy.json"));
 const runtimeManifestPath = join(codexHome, "ai-share.runtime.json");
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const doctorScript = join(scriptDir, "opencode-install-doctor.ts");
@@ -103,8 +113,50 @@ function asOmxProfileConfig(value: unknown): OmxProfileConfig | null {
   return isRecord(value) ? value : null;
 }
 
+function asProxyConfig(value: unknown): ProxyConfig | null {
+  return isRecord(value) ? value : null;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function applyProxyEnv(proxyConfigPath: string): void {
+  if (process.env.AI_SHARE_PROXY === "0" || process.env.AI_SHARE_PROXY === "false") return;
+
+  const proxyConfig = asProxyConfig(readJson(proxyConfigPath));
+  if (proxyConfig?.enabled === false) return;
+
+  const proxyUrl = process.env.AI_SHARE_PROXY_URL ?? proxyUrlFromConfig(proxyConfig);
+  if (!proxyUrl) return;
+
+  setEnvIfMissing("HTTP_PROXY", proxyUrl);
+  setEnvIfMissing("HTTPS_PROXY", proxyUrl);
+  setEnvIfMissing("ALL_PROXY", proxyUrl);
+  setEnvIfMissing("http_proxy", process.env.HTTP_PROXY);
+  setEnvIfMissing("https_proxy", process.env.HTTPS_PROXY);
+  setEnvIfMissing("all_proxy", process.env.ALL_PROXY);
+
+  const noProxy = process.env.AI_SHARE_NO_PROXY ?? noProxyFromConfig(proxyConfig);
+  if (!noProxy) return;
+  setEnvIfMissing("NO_PROXY", noProxy);
+  setEnvIfMissing("no_proxy", process.env.NO_PROXY);
+}
+
+function proxyUrlFromConfig(proxyConfig: ProxyConfig | null): string {
+  const protocol = process.env.AI_SHARE_PROXY_PROTOCOL ?? proxyConfig?.protocol ?? "http";
+  const host = process.env.AI_SHARE_PROXY_HOST ?? proxyConfig?.host ?? "127.0.0.1";
+  const port = process.env.AI_SHARE_PROXY_PORT ?? proxyConfig?.port ?? "7897";
+  return `${protocol}://${host}:${port}`;
+}
+
+function noProxyFromConfig(proxyConfig: ProxyConfig | null): string {
+  return (proxyConfig?.no_proxy ?? ["localhost", "127.0.0.1", "::1"]).join(",");
+}
+
+function setEnvIfMissing(name: string, value: string | undefined): void {
+  if (!value || process.env[name]) return;
+  process.env[name] = value;
 }
 
 function discoverProfiles(manifest: RuntimeManifest | null): string[] {
