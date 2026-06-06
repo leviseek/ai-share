@@ -223,8 +223,9 @@ function main(args: readonly string[]): void {
     report.summary = buildSummary(options.profiles, report.runs);
   }
 
-  writeReport(outputPath, report);
-  console.log(`profile evaluation report：${outputPath}`);
+  const writtenReport = writeReport(outputPath, report);
+  console.log(`profile evaluation report：${writtenReport.jsonPath}`);
+  console.log(`profile evaluation markdown：${writtenReport.markdownPath}`);
 }
 
 function buildPlannedRun(
@@ -482,13 +483,17 @@ function defaultOutputPath(): string {
   );
 }
 
-function writeReport(outputPath: string, report: ProfileEvaluationReport): void {
+export function writeReport(
+  outputPath: string,
+  report: ProfileEvaluationReport,
+): { jsonPath: string; markdownPath: string } {
   const resolvedOutputPath = resolve(outputPath);
   const markdownOutputPath = markdownReportPath(resolvedOutputPath);
   report.markdown_output_path = markdownOutputPath;
   mkdirSync(dirname(resolvedOutputPath), { recursive: true });
   writeFileSync(resolvedOutputPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   writeFileSync(markdownOutputPath, formatMarkdownReport(report), "utf8");
+  return { jsonPath: resolvedOutputPath, markdownPath: markdownOutputPath };
 }
 
 function markdownReportPath(outputPath: string): string {

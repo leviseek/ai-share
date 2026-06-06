@@ -1,6 +1,15 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { ModelsYaml, ProfilesYaml } from "../types.ts";
-import { buildEvaluationReport, buildTaskCatalog, formatMarkdownReport, parseProfileEvalArgs } from "./profile-eval.ts";
+import {
+  buildEvaluationReport,
+  buildTaskCatalog,
+  formatMarkdownReport,
+  parseProfileEvalArgs,
+  writeReport,
+} from "./profile-eval.ts";
 
 describe("profile evaluation harness", () => {
   test("parses planned evaluation options without execute", () => {
@@ -192,6 +201,31 @@ describe("profile evaluation harness", () => {
 
     expect(formatMarkdownReport(report)).toContain("bad\\|pipe");
     expect(formatMarkdownReport(report)).toContain("C:\\\\tmp\\\\out\\|1.txt");
+  });
+
+  test("returns JSON and Markdown output paths when writing reports", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "ai-share-profile-eval-"));
+    try {
+      const report = buildEvaluationReport(
+        profilesFixture(),
+        modelsFixture(),
+        {
+          task: "custom",
+          taskIds: [],
+          profiles: ["coding"],
+          execute: false,
+          repeat: 1,
+        },
+        new Date("2026-06-06T00:00:00.000Z"),
+      );
+      const written = writeReport(join(tempDir, "report.json"), report);
+
+      expect(written.jsonPath.endsWith("report.json")).toBe(true);
+      expect(written.markdownPath.endsWith("report.md")).toBe(true);
+      expect(report.markdown_output_path).toBe(written.markdownPath);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });
 
