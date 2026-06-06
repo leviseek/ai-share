@@ -136,7 +136,7 @@ function configuredCanaryModelsByProvider(
   const output = new Map<string, { providerId: string; modelId: string; model: ModelsYaml[string] }>();
   for (const [modelId, model] of Object.entries(models)) {
     if (!model.provider || !model.model_name) continue;
-    const key = `${model.provider}:${model.model_name}`;
+    const key = `${model.provider}:${canaryFingerprint(model)}`;
     if (!output.has(key)) output.set(key, { providerId: model.provider, modelId, model });
   }
   return [...output.values()].sort((left, right) =>
@@ -331,6 +331,10 @@ function canaryRequestBody(modelName: string, model: ModelsYaml[string]): Record
     ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}),
     ...canaryParameters(model.parameters ?? {}),
   };
+}
+
+function canaryFingerprint(model: ModelsYaml[string]): string {
+  return JSON.stringify(canaryRequestBody(model.model_name ?? "", model));
 }
 
 function canaryParameters(parameters: Record<string, unknown>): Record<string, unknown> {

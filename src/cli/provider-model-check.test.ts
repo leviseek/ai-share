@@ -108,6 +108,44 @@ describe("provider model availability check", () => {
       reasoning_effort: "medium",
     });
   });
+
+  test("keeps same upstream model canaries when parameters differ", async () => {
+    const requests: unknown[] = [];
+    const results = await checkProviderCanaries({
+      providers: providersFixture(),
+      models: {
+        "gpt-5.5": {
+          provider: "codexapis",
+          model_name: "gpt-5.5",
+          temperature: 0.2,
+          parameters: {
+            reasoningEffort: "medium",
+          },
+        },
+        "gpt-5.5-coding": {
+          provider: "codexapis",
+          model_name: "gpt-5.5",
+          temperature: 0.1,
+          parameters: {
+            reasoningEffort: "high",
+          },
+        },
+      },
+      env: {
+        CODEXAPIS_API_KEY: "test-key",
+      },
+      fetchImpl: (_url, init) => {
+        if (typeof init.body !== "string") throw new Error("expected JSON request body");
+        requests.push(JSON.parse(init.body));
+        return Promise.resolve(
+          new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200 }),
+        );
+      },
+    });
+
+    expect(results.map((result) => result.model_id)).toEqual(["gpt-5.5", "gpt-5.5-coding"]);
+    expect(requests).toHaveLength(2);
+  });
 });
 
 function providersFixture(): Record<string, ProviderSource> {
