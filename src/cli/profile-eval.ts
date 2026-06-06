@@ -495,7 +495,7 @@ function markdownReportPath(outputPath: string): string {
   return outputPath.endsWith(".json") ? outputPath.replace(/\.json$/, ".md") : `${outputPath}.md`;
 }
 
-function formatMarkdownReport(report: ProfileEvaluationReport): string {
+export function formatMarkdownReport(report: ProfileEvaluationReport): string {
   const lines = [
     "# Profile evaluation report",
     "",
@@ -510,7 +510,7 @@ function formatMarkdownReport(report: ProfileEvaluationReport): string {
     "| --- | ---: | ---: | ---: | ---: |",
     ...report.summary.map(
       (summary) =>
-        `| ${summary.profile} | ${summary.runs} | ${summary.scored_runs} | ${summary.weighted_score ?? ""} | ${summary.estimated_primary_cost_usd} |`,
+        `| ${markdownCell(summary.profile)} | ${summary.runs} | ${summary.scored_runs} | ${summary.weighted_score ?? ""} | ${summary.estimated_primary_cost_usd} |`,
     ),
     "",
     "## Runs",
@@ -519,11 +519,15 @@ function formatMarkdownReport(report: ProfileEvaluationReport): string {
     "| --- | --- | ---: | --- | ---: | ---: | --- | --- | --- |",
     ...report.runs.map(
       (run) =>
-        `| ${run.profile} | ${run.task_id} | ${run.repeat} | ${run.result.status} | ${run.result.score ?? ""} | ${run.result.actual_elapsed_ms ?? ""} | ${run.result.failure_tag ?? ""} | ${run.result.stdout_path ?? ""} | ${run.result.stderr_path ?? ""} |`,
+        `| ${markdownCell(run.profile)} | ${markdownCell(run.task_id)} | ${run.repeat} | ${run.result.status} | ${run.result.score ?? ""} | ${run.result.actual_elapsed_ms ?? ""} | ${markdownCell(run.result.failure_tag ?? "")} | ${markdownCell(run.result.stdout_path ?? "")} | ${markdownCell(run.result.stderr_path ?? "")} |`,
     ),
     "",
   ];
   return `${lines.join("\n")}\n`;
+}
+
+function markdownCell(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll("|", "\\|").replaceAll("\n", " ");
 }
 
 function profileEvalUsage(availableProfiles: readonly string[], availableTaskIds: readonly string[]): string {

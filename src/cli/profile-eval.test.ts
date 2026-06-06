@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ModelsYaml, ProfilesYaml } from "../types.ts";
-import { buildEvaluationReport, buildTaskCatalog, parseProfileEvalArgs } from "./profile-eval.ts";
+import { buildEvaluationReport, buildTaskCatalog, formatMarkdownReport, parseProfileEvalArgs } from "./profile-eval.ts";
 
 describe("profile evaluation harness", () => {
   test("parses planned evaluation options without execute", () => {
@@ -170,6 +170,28 @@ describe("profile evaluation harness", () => {
         estimated_primary_cost_usd: 0.24578,
       },
     ]);
+  });
+
+  test("escapes markdown table cells in reports", () => {
+    const report = buildEvaluationReport(
+      profilesFixture(),
+      modelsFixture(),
+      {
+        task: "custom",
+        taskIds: [],
+        profiles: ["coding"],
+        execute: false,
+        repeat: 1,
+        failureTag: "bad|pipe",
+      },
+      new Date("2026-06-06T00:00:00.000Z"),
+    );
+    const run = report.runs[0];
+    if (!run) throw new Error("missing test run");
+    run.result.stdout_path = "C:\\tmp\\out|1.txt";
+
+    expect(formatMarkdownReport(report)).toContain("bad\\|pipe");
+    expect(formatMarkdownReport(report)).toContain("C:\\\\tmp\\\\out\\|1.txt");
   });
 });
 
