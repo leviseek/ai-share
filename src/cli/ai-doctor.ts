@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import type {
   AgentsYaml,
   EnvYaml,
@@ -50,6 +51,7 @@ type DoctorReport = {
 const args = new Set(Bun.argv.slice(2));
 const jsonOutput = args.has("--json");
 const strictProvider = args.has("--strict-provider");
+const outputPath = parseOption(Bun.argv.slice(2), "--output");
 const cliOptions = parseCliOptions();
 const paths = buildGeneratorPaths();
 
@@ -214,6 +216,10 @@ if (jsonOutput) {
 } else {
   printDoctorReport(report);
 }
+if (outputPath) {
+  writeJsonReport(outputPath, report);
+  if (!jsonOutput) console.log(`${color.cyan("ai:doctor report")}：${outputPath}`);
+}
 
 process.exit(report.status === "error" ? 1 : 0);
 
@@ -228,6 +234,21 @@ function readOptional(path: string): string | undefined {
     if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") return undefined;
     throw error;
   }
+}
+
+function parseOption(values: readonly string[], name: string): string | undefined {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (value === name) return values[index + 1];
+    if (value?.startsWith(`${name}=`)) return value.slice(name.length + 1);
+  }
+  return undefined;
+}
+
+function writeJsonReport(path: string, report: DoctorReport): void {
+  const resolvedPath = resolve(path);
+  mkdirSync(dirname(resolvedPath), { recursive: true });
+  writeFileSync(resolvedPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 }
 
 function aggregateStatus(input: readonly DoctorCheck[]): DoctorStatus {

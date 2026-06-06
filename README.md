@@ -319,6 +319,7 @@ bun run provider:check -- --canary --json
 ```sh
 bun run ai:doctor
 bun run ai:doctor -- --json
+bun run ai:doctor -- --output .sisyphus/evidence/doctor/report.json
 ```
 
 `ai:doctor` 聚合 YAML 一致性、默认配置漂移、Codex/OMX 版本、`.env` managed block、本地代理、memory privacy 和 provider model 检查。provider/network 问题默认是 warning；需要阻断时使用 `--strict-provider`。
