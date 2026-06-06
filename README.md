@@ -322,7 +322,9 @@ bun run ai:doctor -- --json
 
 ## Templates / Privacy
 
-`templates/shareable/config/` 提供可共享最小配置模板；`templates/personal-overlay/` 描述个人 overlay 边界。当前生成器仍以 `config/*.yaml` 为实际输入。
+`templates/shareable/config/` 提供可共享最小配置模板；`templates/personal-overlay/` 描述个人 overlay 边界。生成器会先读取共享
+`config/*.yaml`，再按同名文件合并可选的 `config/local/*.yaml`。`config/local/` 默认被 `.gitignore` 忽略，适合个人 provider
+选择、路径和实验性 profile 覆盖；最终合并结果仍会走同一套 schema/一致性校验。
 
 memory 隐私分层见 `docs/memory-privacy.md`：shareable、personal、local、project。`memory/local/`、`memory/private/`、`memory/project/` 默认不进入 Git。
 

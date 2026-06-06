@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type { ModelsYaml, ProfileEvalYaml, ProfilesYaml } from "../types.ts";
+import { loadConfigYamlSync } from "../config/local-overlay.ts";
 import { parseYamlObject } from "../yaml.ts";
 
 export type ProfileEvalOptions = {
@@ -11,7 +12,9 @@ export type ProfileEvalOptions = {
   taskIds: string[];
   profiles: string[];
   execute: boolean;
+  repeat: number;
   output?: string;
+  failureTag?: string;
   manualSuccess?: "success" | "failed" | "unknown";
   manualReworkMinutes?: number;
   manualScore?: number;
@@ -42,11 +45,13 @@ export type ProfileEvaluationReport = {
   tasks: ProfileEvaluationTask[];
   runs: ProfileEvaluationRun[];
   summary: ProfileEvaluationSummary[];
+  markdown_output_path?: string;
 };
 
 export type ProfileEvaluationRun = {
   profile: string;
   task_id: string;
+  repeat: number;
   task_weight: number;
   models: {
     primary: string;
@@ -62,6 +67,10 @@ export type ProfileEvaluationRun = {
     status: "planned" | "success" | "failed";
     exit_code: number | null;
     elapsed_ms: number | null;
+    actual_elapsed_ms: number | null;
+    stdout_path: string | null;
+    stderr_path: string | null;
+    failure_tag: string | null;
     manual_success: "success" | "failed" | "unknown";
     manual_rework_minutes: number | null;
     manual_score: number | null;
@@ -118,6 +127,8 @@ export function parseProfileEvalArgs(
   const manualReworkValue = parseOption(args, "--manual-rework-minutes");
   const manualSuccess = parseManualSuccess(parseOption(args, "--manual-success"));
   const manualScoreValue = parseOption(args, "--manual-score");
+  const repeat = parsePositiveInteger(parseOption(args, "--repeat") ?? "1", "--repeat");
+  const failureTag = parseOption(args, "--failure-tag");
   const output = parseOption(args, "--output");
   const notes = parseOption(args, "--notes");
 
@@ -126,7 +137,9 @@ export function parseProfileEvalArgs(
     taskIds,
     profiles,
     execute: args.includes("--execute"),
+    repeat,
     ...(output ? { output } : {}),
+    ...(failureTag ? { failureTag } : {}),
     ...(manualSuccess ? { manualSuccess } : {}),
     ...(manualReworkValue ? { manualReworkMinutes: parseNonNegativeNumber(manualReworkValue) } : {}),
     ...(manualScoreValue ? { manualScore: parseScore(manualScoreValue) } : {}),
@@ -145,7 +158,11 @@ export function buildEvaluationReport(
 ): ProfileEvaluationReport {
   const tasks = resolveEvaluationTasks(options, taskCatalog);
   const runs = options.profiles.flatMap((profileId) =>
-    tasks.map((task) => buildPlannedRun(profileId, task, profilesConfig, modelsConfig, options)),
+    tasks.flatMap((task) =>
+      Array.from({ length: options.repeat }, (_, index) =>
+        buildPlannedRun(profileId, task, index + 1, profilesConfig, modelsConfig, options),
+      ),
+    ),
   );
 
   return {
@@ -195,17 +212,17 @@ function main(args: readonly string[]): void {
     evalConfig.scoring ?? {},
     evalConfig.task_set ?? "default",
   );
+  const outputPath = options.output ?? defaultOutputPath();
 
   if (options.execute) {
     for (const run of report.runs) {
       const task = report.tasks.find((candidate) => candidate.id === run.task_id);
       if (!task) throw new Error(`找不到 evaluation task：${run.task_id}`);
-      executeRun(run, task.prompt);
+      executeRun(run, task.prompt, dirname(resolve(outputPath)), options);
     }
     report.summary = buildSummary(options.profiles, report.runs);
   }
 
-  const outputPath = options.output ?? defaultOutputPath();
   writeReport(outputPath, report);
   console.log(`profile evaluation report：${outputPath}`);
 }
@@ -213,6 +230,7 @@ function main(args: readonly string[]): void {
 function buildPlannedRun(
   profileId: string,
   task: ProfileEvaluationTask,
+  repeat: number,
   profilesConfig: ProfilesYaml,
   modelsConfig: ModelsYaml,
   options: ProfileEvalOptions,
@@ -228,6 +246,7 @@ function buildPlannedRun(
   return {
     profile: profileId,
     task_id: task.id,
+    repeat,
     task_weight: task.weight,
     models: {
       primary: profile.models.primary,
@@ -249,6 +268,10 @@ function buildPlannedRun(
       status: "planned",
       exit_code: null,
       elapsed_ms: null,
+      actual_elapsed_ms: null,
+      stdout_path: null,
+      stderr_path: null,
+      failure_tag: options.failureTag ?? null,
       manual_success: options.manualSuccess ?? "unknown",
       manual_rework_minutes: options.manualReworkMinutes ?? null,
       manual_score: options.manualScore ?? null,
@@ -259,17 +282,33 @@ function buildPlannedRun(
   };
 }
 
-function executeRun(run: ProfileEvaluationRun, task: string): void {
+function executeRun(run: ProfileEvaluationRun, task: string, evidenceDir: string, options: ProfileEvalOptions): void {
   const startedAt = performance.now();
+  const stdoutPath = resolve(
+    evidenceDir,
+    `${safeFileName(run.profile)}-${safeFileName(run.task_id)}-r${run.repeat}.stdout.txt`,
+  );
+  const stderrPath = resolve(
+    evidenceDir,
+    `${safeFileName(run.profile)}-${safeFileName(run.task_id)}-r${run.repeat}.stderr.txt`,
+  );
+  mkdirSync(evidenceDir, { recursive: true });
   const result = spawnSync("aiomx", [run.profile, "exec", task], {
     cwd: projectRoot,
-    stdio: "inherit",
+    encoding: "utf8",
+    stdio: "pipe",
     env: process.env,
   });
   const elapsedMs = Math.round(performance.now() - startedAt);
+  writeFileSync(stdoutPath, result.stdout ?? "", "utf8");
+  writeFileSync(stderrPath, result.stderr ?? "", "utf8");
   run.result.elapsed_ms = elapsedMs;
+  run.result.actual_elapsed_ms = elapsedMs;
   run.result.exit_code = result.status ?? 1;
   run.result.status = result.status === 0 ? "success" : "failed";
+  run.result.stdout_path = stdoutPath;
+  run.result.stderr_path = stderrPath;
+  run.result.failure_tag = run.result.status === "failed" ? (options.failureTag ?? "exit_nonzero") : null;
 }
 
 function resolveEvaluationTasks(
@@ -339,6 +378,8 @@ function positionalTask(args: readonly string[]): string | undefined {
     "--manual-success",
     "--manual-rework-minutes",
     "--manual-score",
+    "--repeat",
+    "--failure-tag",
     "--notes",
     "--output",
   ]);
@@ -364,6 +405,12 @@ function parseManualSuccess(value: string | undefined): "success" | "failed" | "
 function parseNonNegativeNumber(value: string): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`必须是非负数字：${value}`);
+  return parsed;
+}
+
+function parsePositiveInteger(value: string, label: string): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`${label} 必须是正整数：${value}`);
   return parsed;
 }
 
@@ -409,13 +456,20 @@ function roundScore(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+function safeFileName(value: string): string {
+  return value.replace(/[^A-Za-z0-9_.-]+/g, "-");
+}
+
 function loadYaml(fileName: string): object {
-  return parseYamlObject(readFileSync(resolve(projectRoot, "config", fileName), "utf8"));
+  return loadConfigYamlSync(resolve(projectRoot, "config"), fileName);
 }
 
 function loadOptionalYaml(fileName: string): object {
-  const path = resolve(projectRoot, "config", fileName);
-  return existsSync(path) ? parseYamlObject(readFileSync(path, "utf8")) : {};
+  const configDir = resolve(projectRoot, "config");
+  const path = resolve(configDir, fileName);
+  const localPath = resolve(configDir, "local", fileName);
+  if (existsSync(path)) return loadConfigYamlSync(configDir, fileName);
+  return existsSync(localPath) ? parseYamlObject(readFileSync(localPath, "utf8")) : {};
 }
 
 function defaultOutputPath(): string {
@@ -429,8 +483,47 @@ function defaultOutputPath(): string {
 }
 
 function writeReport(outputPath: string, report: ProfileEvaluationReport): void {
-  mkdirSync(dirname(resolve(outputPath)), { recursive: true });
-  writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  const resolvedOutputPath = resolve(outputPath);
+  const markdownOutputPath = markdownReportPath(resolvedOutputPath);
+  report.markdown_output_path = markdownOutputPath;
+  mkdirSync(dirname(resolvedOutputPath), { recursive: true });
+  writeFileSync(resolvedOutputPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  writeFileSync(markdownOutputPath, formatMarkdownReport(report), "utf8");
+}
+
+function markdownReportPath(outputPath: string): string {
+  return outputPath.endsWith(".json") ? outputPath.replace(/\.json$/, ".md") : `${outputPath}.md`;
+}
+
+function formatMarkdownReport(report: ProfileEvaluationReport): string {
+  const lines = [
+    "# Profile evaluation report",
+    "",
+    `- protocol: ${report.protocol}`,
+    `- task_set: ${report.task_set}`,
+    `- execute: ${String(report.execute)}`,
+    `- created_at: ${report.created_at}`,
+    "",
+    "## Summary",
+    "",
+    "| profile | runs | scored_runs | weighted_score | estimated_primary_cost_usd |",
+    "| --- | ---: | ---: | ---: | ---: |",
+    ...report.summary.map(
+      (summary) =>
+        `| ${summary.profile} | ${summary.runs} | ${summary.scored_runs} | ${summary.weighted_score ?? ""} | ${summary.estimated_primary_cost_usd} |`,
+    ),
+    "",
+    "## Runs",
+    "",
+    "| profile | task | repeat | status | score | actual_elapsed_ms | failure_tag | stdout | stderr |",
+    "| --- | --- | ---: | --- | ---: | ---: | --- | --- | --- |",
+    ...report.runs.map(
+      (run) =>
+        `| ${run.profile} | ${run.task_id} | ${run.repeat} | ${run.result.status} | ${run.result.score ?? ""} | ${run.result.actual_elapsed_ms ?? ""} | ${run.result.failure_tag ?? ""} | ${run.result.stdout_path ?? ""} | ${run.result.stderr_path ?? ""} |`,
+    ),
+    "",
+  ];
+  return `${lines.join("\n")}\n`;
 }
 
 function profileEvalUsage(availableProfiles: readonly string[], availableTaskIds: readonly string[]): string {

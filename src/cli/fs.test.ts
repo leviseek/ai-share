@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { atomicWriteFile, writeJson, writeText } from "./fs.ts";
+import { atomicWriteFile, StagedFileWriter, writeJson, writeText } from "./fs.ts";
 
 describe("writeText/writeJson", () => {
   test("preserves existing files when force is false", async () => {
@@ -65,6 +65,36 @@ describe("writeText/writeJson", () => {
 
       expect(Array.from(readFileSync(path))).toEqual([0, 1, 2, 255]);
       expect(readdirSync(root)).toEqual(["launcher.bin"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("rolls back staged promote failures and cleans staging files", async () => {
+    const root = mkdtempSync(join(tmpdir(), "ai-share-fs-"));
+    try {
+      const existingPath = join(root, "config.toml");
+      const blockingPath = join(root, "not-dir");
+      const stagingRoot = join(root, ".staging");
+      writeFileSync(existingPath, "old\n");
+      writeFileSync(blockingPath, "file\n");
+
+      const writer = await StagedFileWriter.create(stagingRoot);
+      await writer.writeText(existingPath, "new\n");
+      await writer.writeText(join(blockingPath, "nested.toml"), "cannot promote\n");
+
+      let error: unknown;
+      try {
+        await writer.promote();
+      } catch (caught) {
+        error = caught;
+      }
+
+      expect(error).toBeInstanceOf(Error);
+      expect(readFileSync(existingPath, "utf8")).toBe("old\n");
+      expect(readFileSync(blockingPath, "utf8")).toBe("file\n");
+      expect(existsSync(writer.stagingDir)).toBe(false);
+      expect(existsSync(stagingRoot)).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

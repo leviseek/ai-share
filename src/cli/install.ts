@@ -5,6 +5,8 @@ import type { GeneratorPaths } from "./paths.ts";
 import { atomicWriteFile, pathExists, writeText } from "./fs.ts";
 import { NATIVE_SKILLS } from "./native-skills.ts";
 
+export type TextFileWriter = (path: string, content: string) => Promise<void>;
+
 export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): Promise<void> {
   const launcherFiles = process.platform === "win32" ? ["aiomx.cmd", "aiomx.ps1", "aiomx.ts"] : ["aiomx", "aiomx.ts"];
 
@@ -39,7 +41,12 @@ export async function installLaunchers(paths: GeneratorPaths, dryRun: boolean): 
   }
 }
 
-export async function installNativeSkills(paths: GeneratorPaths, dryRun: boolean, force: boolean): Promise<void> {
+export async function installNativeSkills(
+  paths: GeneratorPaths,
+  dryRun: boolean,
+  force: boolean,
+  writer?: TextFileWriter,
+): Promise<void> {
   if (dryRun) {
     for (const nativeSkill of NATIVE_SKILLS) {
       const skillPath = nativeSkillPath(paths, nativeSkill.name);
@@ -57,8 +64,13 @@ export async function installNativeSkills(paths: GeneratorPaths, dryRun: boolean
 
   for (const nativeSkill of NATIVE_SKILLS) {
     const targetDir = resolve(paths.targetCodexSkillsDir, nativeSkill.name);
+    const targetPath = resolve(targetDir, "SKILL.md");
+    if (writer) {
+      await writer(targetPath, nativeSkill.content);
+      continue;
+    }
     await mkdir(targetDir, { recursive: true });
-    await writeText(resolve(targetDir, "SKILL.md"), nativeSkill.content, { dryRun: false, force: true });
+    await writeText(targetPath, nativeSkill.content, { dryRun: false, force: true });
   }
 }
 

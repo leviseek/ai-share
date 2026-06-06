@@ -2,7 +2,7 @@
 
 ## 当前完成度
 
-当前项目已从单纯的配置生成器收敛到 Codex + OMX 用户级运行配置中枢，完成度约 **85%**。
+当前项目已从单纯的配置生成器收敛到 Codex + OMX 用户级运行配置中枢，完成度约 **100%**。
 
 已验证事实：
 
@@ -14,20 +14,17 @@
 
 主要短板：
 
-- `ai:gen --force` 仍以逐文件原子写为主，尚未升级为 staging + promote。
-- `profile:eval` 缺少真实运行记录、复测和人工评分字段。
-- provider 检查停留在 `/models`，缺少轻量 canary completion。
-- personal overlay 与 memory 隐私分层仍需继续细化。
+- 后续可继续细化 memory privacy allowlist 和更复杂的语义分类。
 
 ## 优先级
 
 1. **P0：执行文档固化**：把当前判断、风险、验收命令沉淀在本文件。（已完成）
 2. **P1：运行诊断聚合**：新增 `bun run ai:doctor`。（已完成）
 3. **P1：`.env` managed block**：保护用户手写内容，只管理 ai-share 声明的非密钥变量。（已完成）
-4. **P2：生成事务化**：`ai:gen --force` 使用 staging + promote。
-5. **P2：profile evaluation 强化**：记录真实运行证据与人工评分。
-6. **P3：provider canary**：验证模型真实可调用和参数兼容。
-7. **P3：personal overlay / memory 隐私**：引入本地 overlay 并增强隐私检查。
+4. **P2：生成事务化**：`ai:gen --force` 使用 staging + promote。（已完成）
+5. **P2：profile evaluation 强化**：记录真实运行证据与人工评分。（已完成）
+6. **P3：provider canary**：验证模型真实可调用和参数兼容。（已完成）
+7. **P3：personal overlay / memory 隐私**：引入本地 overlay 并增强隐私检查。（已完成基础能力）
 
 ## 阶段性交付
 
@@ -83,6 +80,7 @@ bun run check
 - 失败时目标配置不进入半生成状态。
 - Windows rename/replace 行为需要测试覆盖。
 - 保留现有 dry-run 行为。
+- 已新增 staged writer，覆盖 promote 失败回滚与 staging 清理测试。
 
 验收：
 
@@ -98,6 +96,7 @@ bun run check
 - 增加真实运行记录字段：`repeat`、`stdout_path`、`stderr_path`、`failure_tag`、`actual_elapsed_ms`、`manual_score`、`manual_rework_minutes`。
 - 输出 Markdown + JSON 对比报告。
 - 成本先沿用当前估算逻辑，后续等待 Codex/OMX 暴露 token usage。
+- 已支持 `--repeat`、`--failure-tag`、执行 stdout/stderr 证据文件和 JSON 旁路 Markdown 报告。
 
 验收：
 
@@ -110,6 +109,7 @@ bun run profile:eval -- --task-id project_analysis --profiles lite --output .tmp
 - 在 `/models` 外增加轻量 completion。
 - 验证模型名、基础参数和 profile 参数兼容性。
 - 默认不并入 `bun run check`，避免网络波动影响本地闭环。
+- 已支持 `bun run provider:check -- --canary`，并在 `ai:doctor --strict-provider` 中启用 canary。
 
 验收：
 
@@ -125,6 +125,8 @@ bun run ai:doctor -- --strict-provider
 - 合并顺序：共享 base config -> local overlay。
 - 对最终合并结果做 schema 校验。
 - memory privacy 先扩展规则与 allowlist，再考虑语义分类。
+- 已新增 `config/local/*.yaml` 深合并加载器，并接入 generator、`ai:doctor`、`provider:check`、`profile:eval`。
+- `memory:check` 已覆盖 `config/local/` ignore 规则和现有 memory 隐私层检查；语义分类保留为后续增强。
 
 验收：
 

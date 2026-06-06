@@ -15,6 +15,8 @@ describe("profile evaluation harness", () => {
           "unknown",
           "--manual-rework-minutes",
           "0",
+          "--repeat",
+          "2",
           "--notes",
           "baseline",
         ],
@@ -26,6 +28,7 @@ describe("profile evaluation harness", () => {
       taskIds: [],
       profiles: ["coding", "max"],
       execute: false,
+      repeat: 2,
       manualSuccess: "unknown",
       manualReworkMinutes: 0,
       notes: "baseline",
@@ -41,6 +44,7 @@ describe("profile evaluation harness", () => {
         taskIds: [],
         profiles: ["coding"],
         execute: false,
+        repeat: 1,
         manualSuccess: "unknown",
       },
       new Date("2026-06-06T00:00:00.000Z"),
@@ -67,6 +71,7 @@ describe("profile evaluation harness", () => {
         {
           profile: "coding",
           task_id: "custom",
+          repeat: 1,
           task_weight: 1,
           models: {
             primary: "gpt-5.5-coding",
@@ -82,6 +87,10 @@ describe("profile evaluation harness", () => {
             status: "planned",
             exit_code: null,
             elapsed_ms: null,
+            actual_elapsed_ms: null,
+            stdout_path: null,
+            stderr_path: null,
+            failure_tag: null,
             manual_success: "unknown",
             manual_rework_minutes: null,
             manual_score: null,
@@ -118,7 +127,18 @@ describe("profile evaluation harness", () => {
     });
 
     const options = parseProfileEvalArgs(
-      ["--tasks", "project_analysis", "--profiles", "coding", "--manual-score", "88", "--notes", "ok"],
+      [
+        "--tasks",
+        "project_analysis",
+        "--profiles",
+        "coding",
+        "--manual-score",
+        "88",
+        "--failure-tag",
+        "needs-review",
+        "--notes",
+        "ok",
+      ],
       ["coding"],
       Object.keys(taskCatalog),
     );
@@ -136,6 +156,7 @@ describe("profile evaluation harness", () => {
     expect(report.tasks[0]?.success_criteria).toEqual(["列出风险"]);
     expect(report.runs[0]?.result).toMatchObject({
       manual_score: 88,
+      failure_tag: "needs-review",
       score: 88,
       score_basis: "manual_score",
       notes: "ok",

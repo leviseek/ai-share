@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ModelsYaml, ProviderSource } from "../types.ts";
-import { checkProviderModels } from "./provider-model-check.ts";
+import { checkProviderCanaries, checkProviderModels } from "./provider-model-check.ts";
 
 describe("provider model availability check", () => {
   test("checks configured upstream model names against provider /models response", async () => {
@@ -63,6 +63,49 @@ describe("provider model availability check", () => {
       checked_model_names: ["deepseek-v4"],
       missing_model_names: ["deepseek-v4"],
       error: "缺少环境变量：DEEPSEEK_API_KEY",
+    });
+  });
+
+  test("runs canary completions with model parameters", async () => {
+    const requests: unknown[] = [];
+    const results = await checkProviderCanaries({
+      providers: providersFixture(),
+      models: {
+        "gpt-5.5": {
+          provider: "codexapis",
+          model_name: "gpt-5.5",
+          temperature: 0.2,
+          parameters: {
+            reasoningEffort: "medium",
+          },
+        },
+      },
+      env: {
+        CODEXAPIS_API_KEY: "test-key",
+      },
+      fetchImpl: (_url, init) => {
+        if (typeof init.body !== "string") throw new Error("expected JSON request body");
+        requests.push(JSON.parse(init.body));
+        return Promise.resolve(
+          new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200 }),
+        );
+      },
+    });
+
+    expect(results).toEqual([
+      {
+        provider: "codexapis",
+        model_id: "gpt-5.5",
+        model_name: "gpt-5.5",
+        base_url: "https://example.test/v1",
+        status: "ok",
+      },
+    ]);
+    expect(requests[0]).toMatchObject({
+      model: "gpt-5.5",
+      max_tokens: 1,
+      temperature: 0.2,
+      reasoning_effort: "medium",
     });
   });
 });

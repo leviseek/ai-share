@@ -30,7 +30,7 @@ import {
 } from "./config-builders.ts";
 import { missingProviderApiKeyEnvNames } from "./cli/api-keys.ts";
 import { checkCodexEnvLocalProxies } from "./cli/env-runtime-check.ts";
-import { atomicWriteFile, pathExists, writeJson, writeText } from "./cli/fs.ts";
+import { atomicWriteFile, pathExists, StagedFileWriter, writeJson, writeText } from "./cli/fs.ts";
 import { installLaunchers, installNativeSkills } from "./cli/install.ts";
 import { ensureAiWorkspaceLinks } from "./cli/memory-link.ts";
 import { parseCliOptions } from "./cli/options.ts";
@@ -46,8 +46,8 @@ import {
   profileOmxConfigPath,
 } from "./cli/paths.ts";
 import { checkVersions } from "./cli/registry-check.ts";
+import { loadConfigYaml } from "./config/local-overlay.ts";
 import { validateYamlConsistency } from "./config/validation.ts";
-import { parseYamlObject } from "./yaml.ts";
 
 const cliOptions = parseCliOptions();
 const { force, dryRun, checkOnly, providerGroups } = cliOptions;
@@ -167,75 +167,98 @@ if (!dryRun) {
   ]);
 }
 
-for (const [profileId, codexCliConfig] of Object.entries(codexCliConfigs)) {
-  await writeText(
-    profileCodexConfigPath(paths.targetCodexConfigDir, profileId),
-    formatCodexConfigToml(codexCliConfig),
-    { dryRun, force },
-  );
-}
-if (dryRun || force || !(await pathExists(paths.targetCodexConfig))) {
-  await writeText(paths.targetCodexConfig, formatCodexConfigToml(selectedCodexBaseConfig), { dryRun, force });
-} else {
-  console.log(
-    `${color.yellow("保留")} ${color.cyan("Codex CLI 现有默认配置")}：${color.bold(paths.targetCodexConfig)}（如需覆盖请运行 bun run ai:gen -- --force）`,
-  );
-}
+const stagedWriter =
+  !dryRun && force
+    ? await StagedFileWriter.create(resolve(paths.targetCodexConfigDir, ".ai-share-staging"))
+    : undefined;
 
-await writeText(paths.targetCodexInstructions, buildCodexInstructions(paths.projectRoot, selectedDefaultProfileId), {
-  dryRun,
-  force,
-});
-for (const profileId of Object.keys(codexCliConfigs)) {
-  await writeText(
-    profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
-    buildCodexInstructions(paths.projectRoot, profileId),
-    { dryRun, force },
+try {
+  for (const [profileId, codexCliConfig] of Object.entries(codexCliConfigs)) {
+    await writeGeneratedText(
+      profileCodexConfigPath(paths.targetCodexConfigDir, profileId),
+      formatCodexConfigToml(codexCliConfig),
+    );
+  }
+  if (dryRun || force || !(await pathExists(paths.targetCodexConfig))) {
+    await writeGeneratedText(paths.targetCodexConfig, formatCodexConfigToml(selectedCodexBaseConfig));
+  } else {
+    console.log(
+      `${color.yellow("保留")} ${color.cyan("Codex CLI 现有默认配置")}：${color.bold(paths.targetCodexConfig)}（如需覆盖请运行 bun run ai:gen -- --force）`,
+    );
+  }
+
+  await writeGeneratedText(
+    paths.targetCodexInstructions,
+    buildCodexInstructions(paths.projectRoot, selectedDefaultProfileId),
   );
-}
-for (const [agentId, codexAgentConfig] of Object.entries(codexAgentConfigs)) {
-  await writeText(codexAgentConfigPath(paths.targetCodexAgentDir, agentId), formatCodexAgentToml(codexAgentConfig), {
+  for (const profileId of Object.keys(codexCliConfigs)) {
+    await writeGeneratedText(
+      profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
+      buildCodexInstructions(paths.projectRoot, profileId),
+    );
+  }
+  for (const [agentId, codexAgentConfig] of Object.entries(codexAgentConfigs)) {
+    await writeGeneratedText(
+      codexAgentConfigPath(paths.targetCodexAgentDir, agentId),
+      formatCodexAgentToml(codexAgentConfig),
+    );
+  }
+  for (const [profileId, omxConfig] of Object.entries(omxConfigs)) {
+    await writeGeneratedJson(profileOmxConfigPath(paths.targetCodexConfigDir, profileId), omxConfig);
+  }
+  await writeGeneratedJson(
+    paths.targetOmxConfig,
+    requireValue(omxConfigs[selectedDefaultProfileId], "默认 OMX profile"),
+  );
+  await writeGeneratedJson(
+    paths.targetRuntimeManifest,
+    buildRuntimeManifest({
+      paths,
+      defaultProfileId: selectedDefaultProfileId,
+      profileIds: Object.keys(codexCliConfigs),
+      agentIds: Object.keys(codexAgentConfigs),
+      mcpServerIds: Object.keys(mcpConfig.servers ?? {}),
+      codexEnvVarNames: Object.keys(envConfig.variables ?? {}),
+      skillIds: NATIVE_SKILLS.map((skill) => skill.name),
+      instructionFilesByProfile,
+      profilesConfig,
+    }),
+  );
+
+  if (dryRun) {
+    await writeText(paths.targetCodexEnv, buildCodexEnvFileWithManagedBlock(envConfig), { dryRun, force: true });
+  } else if (stagedWriter) {
+    const existingEnv = (await pathExists(paths.targetCodexEnv))
+      ? await readFile(paths.targetCodexEnv, "utf8")
+      : undefined;
+    await stagedWriter.writeText(paths.targetCodexEnv, buildCodexEnvFileWithManagedBlock(envConfig, existingEnv));
+  } else {
+    const existingEnv = (await pathExists(paths.targetCodexEnv))
+      ? await readFile(paths.targetCodexEnv, "utf8")
+      : undefined;
+    await atomicWriteFile(paths.targetCodexEnv, buildCodexEnvFileWithManagedBlock(envConfig, existingEnv));
+    console.log(
+      `${color.green("已更新")} ${color.cyan("Codex CLI .env managed block")}：${color.bold(paths.targetCodexEnv)}（保留 block 外用户内容）`,
+    );
+  }
+
+  await installNativeSkills(
+    paths,
     dryRun,
     force,
-  });
-}
-for (const [profileId, omxConfig] of Object.entries(omxConfigs)) {
-  await writeJson(profileOmxConfigPath(paths.targetCodexConfigDir, profileId), omxConfig, { dryRun, force });
-}
-await writeJson(paths.targetOmxConfig, requireValue(omxConfigs[selectedDefaultProfileId], "默认 OMX profile"), {
-  dryRun,
-  force,
-});
-await writeJson(
-  paths.targetRuntimeManifest,
-  buildRuntimeManifest({
-    paths,
-    defaultProfileId: selectedDefaultProfileId,
-    profileIds: Object.keys(codexCliConfigs),
-    agentIds: Object.keys(codexAgentConfigs),
-    mcpServerIds: Object.keys(mcpConfig.servers ?? {}),
-    codexEnvVarNames: Object.keys(envConfig.variables ?? {}),
-    skillIds: NATIVE_SKILLS.map((skill) => skill.name),
-    instructionFilesByProfile,
-    profilesConfig,
-  }),
-  { dryRun, force },
-);
-
-if (dryRun) {
-  await writeText(paths.targetCodexEnv, buildCodexEnvFileWithManagedBlock(envConfig), { dryRun, force: true });
-} else {
-  const existingEnv = (await pathExists(paths.targetCodexEnv))
-    ? await readFile(paths.targetCodexEnv, "utf8")
-    : undefined;
-  await atomicWriteFile(paths.targetCodexEnv, buildCodexEnvFileWithManagedBlock(envConfig, existingEnv));
-  console.log(
-    `${color.green("已更新")} ${color.cyan("Codex CLI .env managed block")}：${color.bold(paths.targetCodexEnv)}（保留 block 外用户内容）`,
+    stagedWriter ? (path, content) => stagedWriter.writeText(path, content) : undefined,
   );
+  if (stagedWriter) {
+    await stagedWriter.promote();
+    console.log(
+      `${color.green("已提交")} ${color.cyan("Codex 配置 staging")}：${color.bold(paths.targetCodexConfigDir)}`,
+    );
+  }
+  await installLaunchers(paths, dryRun);
+} catch (error) {
+  await stagedWriter?.cleanup();
+  throw error;
 }
-
-await installNativeSkills(paths, dryRun, force);
-await installLaunchers(paths, dryRun);
 
 printGenerationSummary({
   dryRun,
@@ -246,12 +269,27 @@ printGenerationSummary({
 });
 
 async function loadYaml<T extends object>(fileName: string): Promise<T> {
-  const value = parseYamlObject(await readFile(resolve(paths.configDir, fileName), "utf8"));
-  return value as T;
+  return (await loadConfigYaml(paths.configDir, fileName)) as T;
 }
 
 function printValidationErrors(errors: readonly { file: string; path: string; message: string }[]): void {
   for (const err of errors) {
     console.error(`${color.yellow(`[${err.file}]`)} ${err.message}（${err.path}）`);
   }
+}
+
+async function writeGeneratedText(path: string, content: string): Promise<void> {
+  if (stagedWriter) {
+    await stagedWriter.writeText(path, content);
+    return;
+  }
+  await writeText(path, content, { dryRun, force });
+}
+
+async function writeGeneratedJson(path: string, value: unknown): Promise<void> {
+  if (stagedWriter) {
+    await stagedWriter.writeJson(path, value);
+    return;
+  }
+  await writeJson(path, value, { dryRun, force });
 }

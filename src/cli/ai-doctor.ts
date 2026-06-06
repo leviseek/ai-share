@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import type {
   AgentsYaml,
   EnvYaml,
@@ -28,10 +27,10 @@ import { checkCodexEnvLocalProxies } from "./env-runtime-check.ts";
 import { checkMemoryPrivacy } from "./memory-privacy-check.ts";
 import { parseCliOptions } from "./options.ts";
 import { buildGeneratorPaths, profileCodexInstructionsPath } from "./paths.ts";
-import { checkProviderModels } from "./provider-model-check.ts";
+import { checkProviderCanaries, checkProviderModels } from "./provider-model-check.ts";
 import { checkVersions } from "./registry-check.ts";
+import { loadConfigYamlSync } from "../config/local-overlay.ts";
 import { validateYamlConsistency } from "../config/validation.ts";
-import { parseYamlObject } from "../yaml.ts";
 
 type DoctorStatus = "ok" | "warning" | "error";
 
@@ -175,6 +174,22 @@ checks.push({
   details: providerResults,
 });
 
+if (strictProvider) {
+  const providerCanaryResults = await checkProviderCanaries({
+    providers,
+    models,
+    env: Bun.env,
+  });
+  checks.push({
+    name: "provider_canary",
+    status: providerCanaryResults.every((result) => result.status === "ok") ? "ok" : "error",
+    summary: providerCanaryResults.every((result) => result.status === "ok")
+      ? "provider canary completion 检查通过。"
+      : "provider canary completion 检查失败。",
+    details: providerCanaryResults,
+  });
+}
+
 checks.push({
   name: "generation_scope",
   status: "ok",
@@ -201,7 +216,7 @@ if (jsonOutput) {
 process.exit(report.status === "error" ? 1 : 0);
 
 function loadYaml(fileName: string): object {
-  return parseYamlObject(readFileSync(resolve(paths.configDir, fileName), "utf8"));
+  return loadConfigYamlSync(paths.configDir, fileName);
 }
 
 function readOptional(path: string): string | undefined {
