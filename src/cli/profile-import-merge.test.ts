@@ -64,6 +64,20 @@ coding:
       "[safe] roles.reasoning.model 'deepseek-v4-pro-think' 不在已知模型列表中",
     ]);
   });
+
+  test("rejects unsupported tri-role extension fields", () => {
+    const withStrategies: unknown = {
+      ...profile("with-strategies", "gpt-5.5"),
+      strategies: {
+        custom: true,
+      },
+    };
+
+    const { validProfiles, errors } = validateImportedProfiles([withStrategies]);
+
+    expect(validProfiles).toEqual([]);
+    expect(errors).toContain("[with-strategies] strategies: 不支持的字段");
+  });
 });
 
 function profile(profileId: string, primary: string): TriRoleProfile {

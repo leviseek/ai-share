@@ -12,7 +12,6 @@ export type TriRoleProfile = {
     max_input_tokens?: number;
     model_role?: string;
   };
-  strategies?: Record<string, unknown>;
 };
 
 export type ValidationError = {
@@ -27,6 +26,11 @@ export function validateTriRoleProfile(obj: unknown): ValidationError[] {
   }
 
   const p = obj as Record<string, unknown>;
+  for (const key of Object.keys(p)) {
+    if (!isAllowedTopLevelKey(key)) {
+      errors.push({ path: key, message: "不支持的字段" });
+    }
+  }
 
   // Required protocol field
   if (p.protocol !== "tri-role/v1") {
@@ -70,4 +74,8 @@ export function validateTriRoleProfile(obj: unknown): ValidationError[] {
   }
 
   return errors;
+}
+
+function isAllowedTopLevelKey(key: string): boolean {
+  return key === "protocol" || key === "profile_id" || key === "name" || key === "roles" || key === "compaction";
 }

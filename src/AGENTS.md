@@ -14,7 +14,7 @@ src/
 ├── cli/                    # options, paths, install, output, registry/API checks
 ├── loaders/                # memory loader/compiler helpers
 ├── memory/                 # memory retrieval
-├── protocol/               # tri-role protocol and adapters
+├── protocol/               # tri-role profile import/export protocol
 ├── types/                  # YAML/Codex/CLI type modules
 ├── types.ts                # type re-export facade
 └── yaml.ts                 # YAML parsing helper
