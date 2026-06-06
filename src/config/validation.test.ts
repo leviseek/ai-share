@@ -6,8 +6,7 @@ describe("validateYamlConsistency", () => {
   test("reports undefined model references across profiles, compaction, fallback, and agents", () => {
     const models: ModelsYaml = {
       "known-model": {
-        provider_group: "gpt",
-        model_name: "known-model",
+        ...model("known-model"),
         fallback: ["missing-fallback"],
       },
     };
@@ -51,19 +50,9 @@ describe("validateYamlConsistency", () => {
 
   test("allows profile model ids plus agent and compaction role aliases", () => {
     const models: ModelsYaml = {
-      "primary-model": {
-        provider_group: "gpt",
-        model_name: "primary-model",
-        fallback: ["fast-model"],
-      },
-      "reasoning-model": {
-        provider_group: "gpt",
-        model_name: "reasoning-model",
-      },
-      "fast-model": {
-        provider_group: "gpt",
-        model_name: "fast-model",
-      },
+      "primary-model": { ...model("primary-model"), fallback: ["fast-model"] },
+      "reasoning-model": model("reasoning-model"),
+      "fast-model": model("fast-model"),
     };
     const profiles: ProfilesYaml = {
       coding: {
@@ -92,7 +81,74 @@ describe("validateYamlConsistency", () => {
 
     expect(validateYamlConsistency(profiles, models, providers(), global(), mcp(), agents)).toEqual([]);
   });
+
+  test("reports invalid model catalog schema fields", () => {
+    const models = {
+      "valid-model": model("valid-model"),
+      "invalid-model": {
+        provider_group: "",
+        cost: {
+          input: 0,
+        },
+        limits: {
+          context_window: "wide",
+          max_output: 0,
+        },
+        capabilities: ["tools", 1],
+        temperature: "warm",
+        fallback: ["valid-model", 1],
+      },
+      "unknown-group": {
+        ...model("unknown-group"),
+        provider_group: "unknown",
+      },
+      "not-object": null,
+    } as unknown as ModelsYaml;
+    const profiles: ProfilesYaml = {
+      coding: {
+        models: {
+          primary: "valid-model",
+          reasoning: "valid-model",
+          fast: "valid-model",
+        },
+      },
+    };
+
+    const errors = validateYamlConsistency(profiles, models, providers(), global(), mcp()).map(formatError);
+
+    const expectedErrors = [
+      "models.yaml:models.invalid-model.provider_group:模型 'invalid-model' 的 provider_group 必须是非空字符串",
+      "models.yaml:models.invalid-model.model_name:模型 'invalid-model' 缺少 model_name 字段",
+      "models.yaml:models.invalid-model.cost.input:模型 'invalid-model' 的 cost.input 必须是正数",
+      "models.yaml:models.invalid-model.cost.output:模型 'invalid-model' 缺少 cost.output 字段",
+      "models.yaml:models.invalid-model.limits.context_window:模型 'invalid-model' 的 limits.context_window 必须是正数",
+      "models.yaml:models.invalid-model.limits.max_output:模型 'invalid-model' 的 limits.max_output 必须是正数",
+      "models.yaml:models.invalid-model.capabilities:模型 'invalid-model' 的 capabilities 必须是字符串数组",
+      "models.yaml:models.invalid-model.temperature:模型 'invalid-model' 的 temperature 必须是数字",
+      "models.yaml:models.invalid-model.fallback:模型 'invalid-model' 的 fallback 必须是字符串数组",
+      "models.yaml:models.unknown-group.provider_group:模型 'unknown-group' 使用了未知 provider_group 'unknown'",
+      "models.yaml:models.not-object:模型 'not-object' 必须是对象",
+    ];
+    for (const expectedError of expectedErrors) {
+      expect(errors).toContain(expectedError);
+    }
+  });
 });
+
+function model(modelName: string): ModelsYaml[string] {
+  return {
+    provider_group: "gpt",
+    model_name: modelName,
+    cost: {
+      input: 1,
+      output: 2,
+    },
+    limits: {
+      context_window: 1000,
+      max_output: 100,
+    },
+  };
+}
 
 function providers(): ProviderYaml {
   return {

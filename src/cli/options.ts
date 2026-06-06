@@ -1,4 +1,5 @@
 import type { CliOptions, ProviderGroupMap } from "../types.ts";
+import { DEFAULT_PROVIDER_GROUPS } from "../config/provider-groups.ts";
 
 export function parseCliOptions(): CliOptions {
   const args = new Set(Bun.argv.slice(2));
@@ -22,8 +23,9 @@ function parseOption(name: string): string | undefined {
 
 function parseProviderGroups(): ProviderGroupMap {
   return {
-    gpt: parseOption("--gpt-provider") ?? Bun.env.AI_SHARE_GPT_PROVIDER ?? "codexapis",
-    deepseek: Bun.env.AI_SHARE_DEEPSEEK_PROVIDER ?? "deepseek",
+    ...DEFAULT_PROVIDER_GROUPS,
+    gpt: parseOption("--gpt-provider") ?? Bun.env.AI_SHARE_GPT_PROVIDER ?? DEFAULT_PROVIDER_GROUPS.gpt,
+    deepseek: Bun.env.AI_SHARE_DEEPSEEK_PROVIDER ?? DEFAULT_PROVIDER_GROUPS.deepseek,
     ...parseProviderGroupOptions(),
   };
 }
