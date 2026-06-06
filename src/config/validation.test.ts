@@ -133,6 +133,104 @@ describe("validateYamlConsistency", () => {
       expect(errors).toContain(expectedError);
     }
   });
+
+  test("reports invalid provider, profile, agent, and MCP schema fields", () => {
+    const models: ModelsYaml = {
+      "valid-model": model("valid-model"),
+    };
+    const profiles = {
+      valid: {
+        models: {
+          primary: "valid-model",
+          reasoning: "valid-model",
+          fast: "valid-model",
+        },
+      },
+      "not-object": null,
+      malformed: {
+        name: 1,
+        models: [],
+        compaction: {
+          enabled: "yes",
+          threshold: "soon",
+          max_input_tokens: 10,
+          model: 1,
+        },
+      },
+    } as unknown as ProfilesYaml;
+    const providersConfig = {
+      providers: {
+        codexapis: {
+          name: 1,
+          base_url: 1,
+          api_key: "sk-not-an-env-reference",
+          timeout: "slow",
+        },
+        deepseek: null,
+      },
+    } as unknown as ProviderYaml;
+    const agentsConfig = {
+      agents: {
+        "not-object": null,
+        malformed: {
+          model: 1,
+          prompt: {
+            append: 1,
+          },
+          permission: {
+            edit: 1,
+          },
+        },
+      },
+    } as unknown as AgentsYaml;
+    const mcpConfig = {
+      servers: {
+        "not-object": null,
+        malformed: {
+          command: 1,
+          args: ["ok", 1],
+          env: {
+            TOKEN: "plain-token",
+            BAD_VALUE: 1,
+            "bad-name": "${OK}",
+          },
+        },
+      },
+    } as unknown as McpYaml;
+
+    const errors = validateYamlConsistency(
+      profiles,
+      models,
+      providersConfig,
+      { default_profile: "valid" },
+      mcpConfig,
+      agentsConfig,
+    ).map(formatError);
+
+    for (const expectedError of [
+      "provider.yaml:providers.codexapis.base_url:provider 'codexapis' 的 base_url 必须是非空字符串",
+      "provider.yaml:providers.codexapis.api_key:provider 'codexapis' 的 api_key 必须使用 ${ENV_NAME} 环境变量引用",
+      "provider.yaml:providers.deepseek:provider 'deepseek' 必须是对象",
+      "profiles.yaml:profiles.not-object:profile 'not-object' 必须是对象",
+      "profiles.yaml:profiles.malformed.name:profile 'malformed' 的 name 必须是字符串",
+      "profiles.yaml:profiles.malformed.models:profile 'malformed' 的 models 必须是对象",
+      "profiles.yaml:profiles.malformed.compaction.enabled:profiles.malformed.compaction.enabled 必须是布尔值",
+      "profiles.yaml:profiles.malformed.compaction.threshold:profiles.malformed.compaction.threshold 必须是数字",
+      "profiles.yaml:profiles.malformed.compaction.model:profile 'malformed' 的 compaction.model 必须是非空字符串",
+      "agents.yaml:agents.not-object:agent 'not-object' 必须是对象",
+      "agents.yaml:agents.malformed.model:agent 'malformed' 的 model 必须引用 primary、reasoning 或 fast 角色",
+      "agents.yaml:agents.malformed.prompt.append:agents.malformed.prompt.append 必须是非空字符串",
+      "agents.yaml:agents.malformed.permission.edit:agent 'malformed' 的 permission.edit 必须是非空字符串",
+      "mcp.yaml:servers.not-object:MCP server 'not-object' 必须是对象",
+      "mcp.yaml:servers.malformed.command:servers.malformed.command 必须是非空字符串",
+      "mcp.yaml:servers.malformed.args:MCP server 'malformed' 的 args 必须是字符串数组",
+      "mcp.yaml:servers.malformed.env.TOKEN:stdio MCP server 'malformed' 的敏感 env 'TOKEN' 必须使用 ${ENV_NAME} 占位，不允许写入明文",
+      "mcp.yaml:servers.malformed.env.BAD_VALUE:stdio MCP server 'malformed' 的 env 'BAD_VALUE' 必须是字符串",
+      "mcp.yaml:servers.malformed.env.bad-name:stdio MCP server 'malformed' 的 env key 'bad-name' 必须是环境变量名",
+    ]) {
+      expect(errors).toContain(expectedError);
+    }
+  });
 });
 
 function model(modelName: string): ModelsYaml[string] {

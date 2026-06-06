@@ -49,15 +49,41 @@ export function validateYamlConsistency(
 ): ValidationError[] {
   const errors: ValidationError[] = [];
   const modelIds = new Set(Object.keys(modelsConfig));
+  const providerInstances = validateProviderCatalog(errors, providersConfig);
 
   // 1. Profile model roles completeness
   for (const [profileId, profile] of Object.entries(profilesConfig)) {
+    if (!isRecord(profile)) {
+      errors.push({
+        file: "profiles.yaml",
+        path: `profiles.${profileId}`,
+        message: `profile '${profileId}' 必须是对象`,
+      });
+      continue;
+    }
+
+    if (profile.name !== undefined && typeof profile.name !== "string") {
+      errors.push({
+        file: "profiles.yaml",
+        path: `profiles.${profileId}.name`,
+        message: `profile '${profileId}' 的 name 必须是字符串`,
+      });
+    }
+
     const models = profile.models;
-    if (!models) {
+    if (models === undefined || models === null) {
       errors.push({
         file: "profiles.yaml",
         path: `profiles.${profileId}.models`,
         message: `profile '${profileId}' 缺少 'models' 字段`,
+      });
+      continue;
+    }
+    if (!isRecord(models)) {
+      errors.push({
+        file: "profiles.yaml",
+        path: `profiles.${profileId}.models`,
+        message: `profile '${profileId}' 的 models 必须是对象`,
       });
       continue;
     }
@@ -93,8 +119,29 @@ export function validateYamlConsistency(
 
   // 3. Compaction threshold ≤ max_input_tokens
   for (const [profileId, profile] of Object.entries(profilesConfig)) {
+    if (!isRecord(profile)) continue;
     const compaction = profile.compaction;
-    if (compaction?.threshold !== undefined && compaction?.max_input_tokens !== undefined) {
+    if (compaction === undefined) continue;
+    if (!isRecord(compaction)) {
+      errors.push({
+        file: "profiles.yaml",
+        path: `profiles.${profileId}.compaction`,
+        message: `profile '${profileId}' 的 compaction 必须是对象`,
+      });
+      continue;
+    }
+    validateOptionalBoolean(errors, "profiles.yaml", `profiles.${profileId}.compaction.enabled`, compaction.enabled);
+    validateOptionalBoolean(errors, "profiles.yaml", `profiles.${profileId}.compaction.prune`, compaction.prune);
+    validateOptionalNumber(errors, "profiles.yaml", `profiles.${profileId}.compaction.threshold`, compaction.threshold);
+    validateOptionalNumber(
+      errors,
+      "profiles.yaml",
+      `profiles.${profileId}.compaction.max_input_tokens`,
+      compaction.max_input_tokens,
+    );
+    validateOptionalNumber(errors, "profiles.yaml", `profiles.${profileId}.compaction.reserved`, compaction.reserved);
+
+    if (isFiniteNumber(compaction.threshold) && isFiniteNumber(compaction.max_input_tokens)) {
       if (compaction.threshold > compaction.max_input_tokens) {
         errors.push({
           file: "profiles.yaml",
@@ -103,8 +150,14 @@ export function validateYamlConsistency(
         });
       }
     }
-    const compactionModel = compaction?.model;
-    if (compactionModel && !isKnownModelOrRole(compactionModel, modelIds)) {
+    const compactionModel = compaction.model;
+    if (compactionModel !== undefined && (typeof compactionModel !== "string" || !compactionModel)) {
+      errors.push({
+        file: "profiles.yaml",
+        path: `profiles.${profileId}.compaction.model`,
+        message: `profile '${profileId}' 的 compaction.model 必须是非空字符串`,
+      });
+    } else if (typeof compactionModel === "string" && !isKnownModelOrRole(compactionModel, modelIds)) {
       errors.push({
         file: "profiles.yaml",
         path: `profiles.${profileId}.compaction.model`,
@@ -118,21 +171,29 @@ export function validateYamlConsistency(
   // that maps to a concrete provider via CLI flags / env vars at runtime.
   // Validate that all referenced groups are known and resolve to existing providers.
   const knownProviderGroups: Readonly<Record<string, string>> = DEFAULT_PROVIDER_GROUPS;
-  const providerInstances = providersConfig.providers ?? {};
   for (const [modelId, model] of Object.entries(modelsConfig)) {
     validateModelCatalogEntry(errors, modelId, model, modelIds, knownProviderGroups, providerInstances);
   }
 
   // 5. Agent model references
   for (const [agentId, agent] of Object.entries(agentsConfig.agents ?? {})) {
+    if (!isRecord(agent)) {
+      errors.push({
+        file: "agents.yaml",
+        path: `agents.${agentId}`,
+        message: `agent '${agentId}' 必须是对象`,
+      });
+      continue;
+    }
+    validateAgentShape(errors, agentId, agent);
     const model = agent.model;
-    if (!model) {
+    if (model === undefined || model === null || model === "") {
       errors.push({
         file: "agents.yaml",
         path: `agents.${agentId}.model`,
         message: `agent '${agentId}' 缺少 model 字段`,
       });
-    } else if (!isModelRole(model)) {
+    } else if (typeof model !== "string" || !isModelRole(model)) {
       errors.push({
         file: "agents.yaml",
         path: `agents.${agentId}.model`,
@@ -142,17 +203,35 @@ export function validateYamlConsistency(
   }
 
   // 6. MCP server shape
-  for (const [serverId, server] of Object.entries(mcpConfig.servers ?? {})) {
-    const isHttp = server.transport === "http" || Boolean(server.url);
+  const mcpServers = mcpConfig.servers;
+  if (mcpServers !== undefined && !isRecord(mcpServers)) {
+    errors.push({
+      file: "mcp.yaml",
+      path: "servers",
+      message: "MCP servers 必须是对象",
+    });
+  }
+  for (const [serverId, server] of Object.entries(isRecord(mcpServers) ? mcpServers : {})) {
+    if (!isRecord(server)) {
+      errors.push({
+        file: "mcp.yaml",
+        path: `servers.${serverId}`,
+        message: `MCP server '${serverId}' 必须是对象`,
+      });
+      continue;
+    }
+    validateMcpServerShape(errors, serverId, server);
+    const isHttp = server.transport === "http" || server.url !== undefined;
     if (isHttp) {
-      if (!server.url) {
+      const url = typeof server.url === "string" ? server.url : undefined;
+      if (!url) {
         errors.push({
           file: "mcp.yaml",
           path: `servers.${serverId}.url`,
           message: `HTTP MCP server '${serverId}' 缺少 url 字段`,
         });
       } else {
-        for (const queryKey of sensitiveUrlQueryKeys(server.url)) {
+        for (const queryKey of sensitiveUrlQueryKeys(url)) {
           errors.push({
             file: "mcp.yaml",
             path: `servers.${serverId}.url`,
@@ -160,14 +239,15 @@ export function validateYamlConsistency(
           });
         }
       }
-      if (server.command) {
+      if (server.command !== undefined) {
         errors.push({
           file: "mcp.yaml",
           path: `servers.${serverId}.command`,
           message: `HTTP MCP server '${serverId}' 不应配置 command 字段`,
         });
       }
-      if (server.bearer_token_env_var && !isEnvName(server.bearer_token_env_var)) {
+      const bearerTokenEnvVar = server.bearer_token_env_var;
+      if (bearerTokenEnvVar !== undefined && (typeof bearerTokenEnvVar !== "string" || !isEnvName(bearerTokenEnvVar))) {
         errors.push({
           file: "mcp.yaml",
           path: `servers.${serverId}.bearer_token_env_var`,
@@ -177,14 +257,15 @@ export function validateYamlConsistency(
       continue;
     }
 
-    if (!server.command) {
+    const command = typeof server.command === "string" ? server.command : undefined;
+    if (!command) {
       errors.push({
         file: "mcp.yaml",
         path: `servers.${serverId}.command`,
         message: `stdio MCP server '${serverId}' 缺少 command 字段`,
       });
     }
-    if (server.url) {
+    if (server.url !== undefined) {
       errors.push({
         file: "mcp.yaml",
         path: `servers.${serverId}.url`,
@@ -199,6 +280,114 @@ export function validateYamlConsistency(
 
 function isKnownModelOrRole(value: string, modelIds: ReadonlySet<string>): boolean {
   return isModelRole(value) || modelIds.has(value);
+}
+
+function validateProviderCatalog(errors: ValidationError[], providersConfig: ProviderYaml): Record<string, unknown> {
+  const providers = providersConfig.providers;
+  if (providers === undefined) return {};
+  if (!isRecord(providers)) {
+    errors.push({
+      file: "provider.yaml",
+      path: "providers",
+      message: "providers 必须是对象",
+    });
+    return {};
+  }
+
+  for (const [providerId, provider] of Object.entries(providers)) {
+    const pathPrefix = `providers.${providerId}`;
+    if (!isRecord(provider)) {
+      errors.push({
+        file: "provider.yaml",
+        path: pathPrefix,
+        message: `provider '${providerId}' 必须是对象`,
+      });
+      continue;
+    }
+
+    validateRequiredProviderString(errors, providerId, provider, "base_url");
+    const apiKey = validateRequiredProviderString(errors, providerId, provider, "api_key");
+    if (apiKey && !isEnvReference(apiKey)) {
+      errors.push({
+        file: "provider.yaml",
+        path: `${pathPrefix}.api_key`,
+        message: `provider '${providerId}' 的 api_key 必须使用 \${ENV_NAME} 环境变量引用`,
+      });
+    }
+    validateOptionalString(errors, "provider.yaml", `${pathPrefix}.name`, provider.name);
+    validateOptionalString(errors, "provider.yaml", `${pathPrefix}.short_name`, provider.short_name);
+    validateOptionalNumber(errors, "provider.yaml", `${pathPrefix}.timeout`, provider.timeout);
+    validateOptionalNumber(errors, "provider.yaml", `${pathPrefix}.chunkTimeout`, provider.chunkTimeout);
+  }
+
+  return providers;
+}
+
+function validateRequiredProviderString(
+  errors: ValidationError[],
+  providerId: string,
+  provider: Readonly<Record<string, unknown>>,
+  field: string,
+): string | undefined {
+  const value = provider[field];
+  if (value === undefined || value === null) {
+    errors.push({
+      file: "provider.yaml",
+      path: `providers.${providerId}.${field}`,
+      message: `provider '${providerId}' 缺少 ${field} 字段`,
+    });
+    return undefined;
+  }
+  if (typeof value !== "string" || !value) {
+    errors.push({
+      file: "provider.yaml",
+      path: `providers.${providerId}.${field}`,
+      message: `provider '${providerId}' 的 ${field} 必须是非空字符串`,
+    });
+    return undefined;
+  }
+  return value;
+}
+
+function validateAgentShape(
+  errors: ValidationError[],
+  agentId: string,
+  agent: Readonly<Record<string, unknown>>,
+): void {
+  const prompt = agent.prompt;
+  if (prompt !== undefined) {
+    if (!isRecord(prompt)) {
+      errors.push({
+        file: "agents.yaml",
+        path: `agents.${agentId}.prompt`,
+        message: `agent '${agentId}' 的 prompt 必须是对象`,
+      });
+    } else {
+      validateOptionalString(errors, "agents.yaml", `agents.${agentId}.prompt.system`, prompt.system);
+      validateOptionalString(errors, "agents.yaml", `agents.${agentId}.prompt.append`, prompt.append);
+    }
+  }
+
+  const permission = agent.permission;
+  if (permission !== undefined) {
+    if (!isRecord(permission)) {
+      errors.push({
+        file: "agents.yaml",
+        path: `agents.${agentId}.permission`,
+        message: `agent '${agentId}' 的 permission 必须是对象`,
+      });
+      return;
+    }
+    for (const [permissionKey, permissionValue] of Object.entries(permission)) {
+      if (typeof permissionValue !== "string" || !permissionValue) {
+        errors.push({
+          file: "agents.yaml",
+          path: `agents.${agentId}.permission.${permissionKey}`,
+          message: `agent '${agentId}' 的 permission.${permissionKey} 必须是非空字符串`,
+        });
+      }
+    }
+  }
 }
 
 function validateModelCatalogEntry(
@@ -372,6 +561,36 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+function validateOptionalString(errors: ValidationError[], file: string, path: string, value: unknown): void {
+  if (value !== undefined && (typeof value !== "string" || !value)) {
+    errors.push({
+      file,
+      path,
+      message: `${path} 必须是非空字符串`,
+    });
+  }
+}
+
+function validateOptionalNumber(errors: ValidationError[], file: string, path: string, value: unknown): void {
+  if (value !== undefined && !isFiniteNumber(value)) {
+    errors.push({
+      file,
+      path,
+      message: `${path} 必须是数字`,
+    });
+  }
+}
+
+function validateOptionalBoolean(errors: ValidationError[], file: string, path: string, value: unknown): void {
+  if (value !== undefined && typeof value !== "boolean") {
+    errors.push({
+      file,
+      path,
+      message: `${path} 必须是布尔值`,
+    });
+  }
+}
+
 function isModelRole(value: string): boolean {
   return value === "primary" || value === "reasoning" || value === "fast";
 }
@@ -380,14 +599,60 @@ function isEnvName(value: string): boolean {
   return /^[A-Z_][A-Z0-9_]*$/.test(value);
 }
 
-function validateMcpEnv(errors: ValidationError[], serverId: string, env: Record<string, string> | undefined): void {
-  for (const [envKey, envValue] of Object.entries(env ?? {})) {
+function validateMcpServerShape(
+  errors: ValidationError[],
+  serverId: string,
+  server: Readonly<Record<string, unknown>>,
+): void {
+  const transport = server.transport;
+  if (transport !== undefined && transport !== "stdio" && transport !== "http") {
+    errors.push({
+      file: "mcp.yaml",
+      path: `servers.${serverId}.transport`,
+      message: `MCP server '${serverId}' 的 transport 必须是 stdio 或 http`,
+    });
+  }
+  validateOptionalString(errors, "mcp.yaml", `servers.${serverId}.command`, server.command);
+  validateOptionalString(errors, "mcp.yaml", `servers.${serverId}.url`, server.url);
+  validateOptionalString(errors, "mcp.yaml", `servers.${serverId}.bearer_token_env_var`, server.bearer_token_env_var);
+  validateOptionalString(errors, "mcp.yaml", `servers.${serverId}.oauth_client_id`, server.oauth_client_id);
+  validateOptionalString(errors, "mcp.yaml", `servers.${serverId}.oauth_resource`, server.oauth_resource);
+  if (server.args !== undefined && !isStringArray(server.args)) {
+    errors.push({
+      file: "mcp.yaml",
+      path: `servers.${serverId}.args`,
+      message: `MCP server '${serverId}' 的 args 必须是字符串数组`,
+    });
+  }
+}
+
+function validateMcpEnv(errors: ValidationError[], serverId: string, env: unknown): void {
+  if (env === undefined) return;
+  if (!isRecord(env)) {
+    errors.push({
+      file: "mcp.yaml",
+      path: `servers.${serverId}.env`,
+      message: `stdio MCP server '${serverId}' 的 env 必须是对象`,
+    });
+    return;
+  }
+
+  for (const [envKey, envValue] of Object.entries(env)) {
     if (!isEnvName(envKey)) {
       errors.push({
         file: "mcp.yaml",
         path: `servers.${serverId}.env.${envKey}`,
         message: `stdio MCP server '${serverId}' 的 env key '${envKey}' 必须是环境变量名`,
       });
+    }
+
+    if (typeof envValue !== "string") {
+      errors.push({
+        file: "mcp.yaml",
+        path: `servers.${serverId}.env.${envKey}`,
+        message: `stdio MCP server '${serverId}' 的 env '${envKey}' 必须是字符串`,
+      });
+      continue;
     }
 
     if (isSensitiveName(envKey) && !isEnvReference(envValue)) {
