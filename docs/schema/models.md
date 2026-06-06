@@ -22,7 +22,7 @@ Each top-level key is a model ID. Model IDs must be unique and kebab-case.
 | `<model_id>.parameters.thinking.type`    | string   | —       | no       | Set to `enabled` to enable thinking mode (DeepSeek models)                                           |
 | `<model_id>.parameters.reasoning_effort` | string   | —       | no       | Reasoning effort level: `high`, `max`; only for thinking-enabled models                              |
 | `<model_id>.fallback`                    | string[] | `[]`    | no       | Ordered fallback model IDs (must exist in this file)                                                 |
-| `<model_id>.provider`                    | string   | —       | no       | _(legacy)_ Direct provider ID override (use `provider_group` instead)                                |
+| `<model_id>.provider`                    | string   | —       | no       | Internal resolved provider ID after `provider_group` selection; do not author it in source YAML      |
 
 ## Valid Values
 

@@ -6,8 +6,8 @@ import { existsSync, readFileSync } from "node:fs";
 export type MemoryCompileOptions = {
   /** Profile identifier (e.g. "balanced", "max") for contextual output */
   profile: string;
-  /** Base path for external ai-memory repository */
-  aiMemoryBase: string;
+  /** Base path for this repository's memory/ directory */
+  memoryBase: string;
   /** Absolute paths to memory YAML files to compile */
   memoryFiles: string[];
 };

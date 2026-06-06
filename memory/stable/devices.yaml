@@ -9,7 +9,7 @@ devices:
       user_bin: ~/.local/bin/
       user_bin_win: '%USERPROFILE%\.local\bin\'
       codex_home: ~/.codex/
-      ai_memory: ~/ai-memory/
+      ai_share_memory: memory/
     notes: >-
       日常主力机。所有 AI 配置生成和大部分开发在此进行。Codex/OMX 通过 aiomx 命令启动，已加入用户 PATH。
 
@@ -20,7 +20,7 @@ devices:
     paths:
       user_bin: ~/.local/bin/
       codex_home: ~/.codex/
-      ai_memory: ~/ai-memory/
+      ai_share_memory: memory/
     notes: >-
       用于 Linux 原生构建，以及某些工具链在 Linux 下表现更好的场景。ai-share Git 仓库从 Windows 同步或单独克隆。
 
@@ -31,7 +31,7 @@ devices:
     paths:
       user_bin: ~/.local/bin/
       codex_home: ~/.codex/
-      ai_memory: ~/ai-memory/
+      ai_share_memory: memory/
     notes: >-
       备用或出差设备。运行相同的 ai-share 配置，环境变量按本机单独设置。
 
@@ -54,5 +54,5 @@ cross_device_rules:
   - ai-share 配置源通过 Git 同步，每个设备独立生成配置
   - 生成的 JSON 配置不提交到仓库，每个设备独立生成
   - API Key 和代理设置通过环境变量按设备单独设置，永不写入仓库
-  - ai-memory 仓库克隆到各设备的 ~/ai-memory，独立管理
+  - memory/ 目录随 ai-share 仓库同步，不再使用独立记忆仓库
   - 工具安装到所有平台的 ~/.local/bin/，Windows 自动加入 PATH

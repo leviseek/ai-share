@@ -1,5 +1,5 @@
 # memory-policy — 记忆治理规则
-# 定义 ai-memory 仓库中各类记忆的生命周期和操作约束
+# 定义 ai-share/memory 目录中各类记忆的生命周期和操作约束
 # 目标是保持记忆可靠、可追溯、低成本维护
 
 name: memory-policy

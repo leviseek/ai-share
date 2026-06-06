@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 
-import { existsSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { AgentsYaml, GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "./types.ts";
@@ -11,6 +10,7 @@ import {
   buildCodexInstructions,
   buildInstructionsPaths,
   buildOmxConfigs,
+  buildRuntimeManifest,
   defaultProfileId,
   formatCodexAgentToml,
   formatCodexConfigToml,
@@ -31,7 +31,6 @@ import {
   profileCodexConfigPath,
   profileCodexInstructionsPath,
   profileOmxConfigPath,
-  type GeneratorPaths,
 } from "./cli/paths.ts";
 import { checkVersions } from "./cli/registry-check.ts";
 import { validateYamlConsistency } from "./config/validation.ts";
@@ -43,11 +42,6 @@ const paths = buildGeneratorPaths();
 
 if (!checkOnly) {
   await ensureAiWorkspaceLinks(paths, dryRun);
-  if (existsSync(resolve(paths.projectRoot, "..", "ai-memory"))) {
-    console.warn(
-      `${color.yellow("检测到 ../ai-memory 仓库仍存在")}：记忆已迁移到 ${color.cyan("memory/")}，外部 ai-memory 已不再使用。请手动归档此目录。`,
-    );
-  }
 }
 
 const [globalConfig, providersConfig, modelsConfig, profilesConfig, agentsConfig, mcpConfig] = await Promise.all([
@@ -188,15 +182,15 @@ await writeJson(paths.targetOmxConfig, requireValue(omxConfigs[selectedDefaultPr
 });
 await writeJson(
   paths.targetRuntimeManifest,
-  buildRuntimeManifest(
+  buildRuntimeManifest({
     paths,
-    selectedDefaultProfileId,
-    Object.keys(codexCliConfigs),
-    Object.keys(codexAgentConfigs),
-    Object.keys(mcpConfig.servers ?? {}),
-    NATIVE_SKILLS.map((skill) => skill.name),
+    defaultProfileId: selectedDefaultProfileId,
+    profileIds: Object.keys(codexCliConfigs),
+    agentIds: Object.keys(codexAgentConfigs),
+    mcpServerIds: Object.keys(mcpConfig.servers ?? {}),
+    skillIds: NATIVE_SKILLS.map((skill) => skill.name),
     instructionFilesByProfile,
-  ),
+  }),
   { dryRun, force },
 );
 
@@ -213,66 +207,4 @@ printGenerationSummary({
 async function loadYaml<T extends object>(fileName: string): Promise<T> {
   const value = parseYamlObject(await readFile(resolve(paths.configDir, fileName), "utf8"));
   return value as T;
-}
-
-type RuntimeManifest = {
-  version: 2;
-  scope: "user";
-  primary_stack: "codex+omx";
-  default_profile: string;
-  platforms: ["windows", "macos"];
-  memory: {
-    v1: "load-existing-memory";
-    v2: "proposal-distillation-review";
-  };
-  paths: {
-    codex_home: string;
-    bin: string;
-    codex_skills: string;
-  };
-  managed: {
-    codex_profiles: string[];
-    omx_profiles: string[];
-    codex_agents: string[];
-    mcp_servers: string[];
-    skills: string[];
-    instruction_files: string[];
-    profile_instruction_files: Record<string, string[]>;
-  };
-};
-
-function buildRuntimeManifest(
-  paths: GeneratorPaths,
-  defaultProfileId: string,
-  profileIds: string[],
-  agentIds: string[],
-  mcpServerIds: string[],
-  skillIds: string[],
-  instructionFilesByProfile: Record<string, string[]>,
-): RuntimeManifest {
-  return {
-    version: 2,
-    scope: "user",
-    primary_stack: "codex+omx",
-    default_profile: defaultProfileId,
-    platforms: ["windows", "macos"],
-    memory: {
-      v1: "load-existing-memory",
-      v2: "proposal-distillation-review",
-    },
-    paths: {
-      codex_home: paths.targetCodexConfigDir,
-      bin: paths.targetBinDir,
-      codex_skills: paths.targetCodexSkillsDir,
-    },
-    managed: {
-      codex_profiles: profileIds,
-      omx_profiles: profileIds,
-      codex_agents: agentIds,
-      mcp_servers: mcpServerIds,
-      skills: skillIds,
-      instruction_files: instructionFilesByProfile[defaultProfileId] ?? [],
-      profile_instruction_files: instructionFilesByProfile,
-    },
-  };
 }

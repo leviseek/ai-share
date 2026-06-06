@@ -35,7 +35,7 @@ export function buildInstructionsPaths(projectRoot: string, profile?: string, ta
     // memory/stack/
     resolve(memoryBase, "stack", "wsl.md"),
     resolve(memoryBase, "stack", "models.md"),
-    // profile-specific migrated memory
+    // profile-specific memory
     ...(profile ? getMemoryFilesForProfile(profile, projectRoot) : []),
   ];
 }

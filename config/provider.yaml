@@ -1,7 +1,6 @@
 ## 提供商名
 ### name
 ### short_name   模型显示名后缀
-### npm          legacy provider package metadata（当前 Codex 生成不使用）
 ### base_url
 ### api_key
 ### timeout       请求超时（秒）
@@ -10,7 +9,6 @@ providers:
   codexapis:
     name: Codex APIs
     short_name: CodexAPI
-    npm: "@ai-sdk/openai-compatible"
     base_url: https://www.codexapis.com/v1
     api_key: ${CODEXAPIS_API_KEY}
     timeout: 600000
@@ -19,7 +17,6 @@ providers:
   packyapi:
     name: Packy API
     short_name: PackyAPI
-    npm: "@ai-sdk/openai"
     base_url: https://www.packyapi.com/v1
     api_key: ${PACKYAPI_API_KEY}
     timeout: 600000
@@ -28,7 +25,6 @@ providers:
   axasapi:
     name: Axas API
     short_name: AxasAPI
-    npm: "@ai-sdk/openai"
     base_url: https://api.asxs.top/v1
     api_key: ${AXASAPI_API_KEY}
     timeout: 600000
@@ -37,7 +33,6 @@ providers:
   deepseek:
     name: DeepSeek
     short_name: DeepSeek
-    npm: "@ai-sdk/openai-compatible"
     base_url: https://api.deepseek.com
     api_key: ${DEEPSEEK_API_KEY}
     timeout: 600000

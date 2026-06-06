@@ -8,7 +8,7 @@ import { resolve } from "node:path";
 export type ProfileMemoryMap = Record<string, readonly string[]>;
 
 /**
- * 各 ai-share profile 对应的附加 memory 文件集（仅包含从 ai-memory 仓库迁移的文件）。
+ * 各 ai-share profile 对应的附加 memory 文件集。
  *
  * 映射到项目根目录 memory/ 下 stable/、profiles/、policies/ 中的 YAML 文件。
  * user/、architecture/、stack/ 目录下的基础文件由中立的 {@link buildInstructionsPaths}

@@ -5,10 +5,10 @@ import { parseMemYaml, serializeMemYaml } from "./memory-compiler.ts";
 
 /**
  * A single memory proposal entry.
- * Represents one suggested addition/update/removal in an ai-memory YAML file.
+ * Represents one suggested addition/update/removal in an ai-share memory YAML file.
  */
 export type ProposalEntry = {
-  /** Target YAML file relative to ai-memory (e.g. "stable/user.yaml") */
+  /** Target YAML file relative to memory/ (e.g. "stable/user.yaml") */
   category: string;
   /** The exact YAML key path being modified (e.g. "coding_style.principles") */
   keyPath: string;
@@ -44,12 +44,12 @@ export type ProposalDocument = {
  * Injected into AI startup instructions so the model knows how to
  * propose structured memory entries after important conversations.
  *
- * Written in Chinese as required by the ai-memory workflow.
+ * Written in Chinese as required by the ai-share memory workflow.
  */
 export const MEMORY_PROPOSAL_INSTRUCTIONS: string = [
   "# 记忆提案系统",
   "",
-  "你可以在有价值的对话结束时，提议将本次对话中获取的重要信息写入 ai-memory 仓库，以便未来会话中自动加载。",
+  "你可以在有价值的对话结束时，提议将本次对话中获取的重要信息写入 ai-share 的 memory/ 目录，以便未来会话中自动加载。",
   "",
   "## 什么情况下应该提议",
   "",
@@ -63,7 +63,7 @@ export const MEMORY_PROPOSAL_INSTRUCTIONS: string = [
   "",
   "每个提案条目使用 `ProposalEntry` 类型，包含以下字段：",
   "",
-  "- **category**: 目标 YAML 文件路径（相对于 ai-memory 根目录），例如：",
+  "- **category**: 目标 YAML 文件路径（相对于 memory/ 目录），例如：",
   "  - `stable/user.yaml` — 用户画像、编码风格、偏好",
   "  - `stable/workflows.yaml` — 开发流程、验证习惯、调试策略",
   "  - `stable/devices.yaml` — 多设备配置、路径约定",
@@ -123,7 +123,7 @@ export const MEMORY_PROPOSAL_INSTRUCTIONS: string = [
   "7. 将提案呈现给用户，包含每个条目的操作类型、完整内容和操作选项",
   "8. **等待用户明确确认**后再执行写入",
   "9. 如果用户要求修改，更新对应条目后重新呈现",
-  "10. 用户确认后，使用 `writeProposal(doc, aiMemoryBase)` 执行写入（parse → modify → serialize 全量替换）",
+  "10. 用户确认后，使用 `writeProposal(doc, memoryBase)` 执行写入（parse → modify → serialize 全量替换）",
   "11. 写入前会自动创建备份（.bak），用户可随时回滚",
   "",
   "## 重要规则",
@@ -209,18 +209,18 @@ export function formatProposal(doc: ProposalDocument): string {
 }
 
 /**
- * Writes confirmed proposal entries to ai-memory YAML files.
+ * Writes confirmed proposal entries to ai-share memory YAML files.
  *
  * For each entry, parses the target file into a YAML tree, applies the
  * operation (add/update/delete) at the keyPath, and serializes back.
  * Creates a backup (.bak) of each existing file before writing.
  *
  * @param doc          - The confirmed proposal document with entries to write.
- * @param aiMemoryBase - Absolute path to the ai-memory repository root.
+ * @param memoryBase - Absolute path to this repository's memory/ directory.
  */
-export function writeProposal(doc: ProposalDocument, aiMemoryBase: string): void {
+export function writeProposal(doc: ProposalDocument, memoryBase: string): void {
   for (const entry of doc.entries) {
-    const targetPath = resolve(aiMemoryBase, entry.category);
+    const targetPath = resolve(memoryBase, entry.category);
     const targetDir = dirname(targetPath);
 
     mkdirSync(targetDir, { recursive: true });

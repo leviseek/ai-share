@@ -26,7 +26,6 @@ export type McpServerSource = {
 export type ProviderSource = {
   name?: string;
   short_name?: string;
-  npm?: string;
   base_url?: string;
   api_key?: string;
   timeout?: number;

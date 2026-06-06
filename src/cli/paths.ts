@@ -6,8 +6,6 @@ export type GeneratorPaths = {
   binDir: string;
   aiWorkspaceDir: string;
   workspaceAiShareDir: string;
-  workspaceAiMemoryDir: string;
-  externalAiMemoryDir: string;
   homeDir: string;
   targetCodexConfigDir: string;
   targetCodexAgentDir: string;
@@ -25,8 +23,6 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
   const homeDir = resolve(Bun.env.HOME ?? Bun.env.USERPROFILE ?? "");
   const aiWorkspaceDir = resolve(homeDir, "ai-workspace");
   const workspaceAiShareDir = resolve(aiWorkspaceDir, "ai-share");
-  const workspaceAiMemoryDir = resolve(aiWorkspaceDir, "ai-memory");
-  const externalAiMemoryDir = resolve(projectRoot, "..", "ai-memory");
   const targetCodexConfigDir = resolve(Bun.env.CODEX_HOME ?? resolve(homeDir, ".codex"));
   const targetCodexAgentDir = resolve(targetCodexConfigDir, "agents");
 
@@ -40,8 +36,6 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
     binDir,
     aiWorkspaceDir,
     workspaceAiShareDir,
-    workspaceAiMemoryDir,
-    externalAiMemoryDir,
     homeDir,
     targetCodexConfigDir,
     targetCodexAgentDir,

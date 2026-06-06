@@ -2,7 +2,7 @@
 
 ## 概念
 
-"蒸馏"指将有价值的对话内容提取为结构化记忆，写入 `ai-memory` 仓库，使其在后续会话中自动注入到 AI 上下文。核心规则：**AI 提案，人工确认**。
+"蒸馏"指将有价值的对话内容提取为结构化记忆，写入 ai-share 仓库内的 `memory/` 目录，使其在后续会话中自动注入到 AI 上下文。核心规则：**AI 提案，人工确认**。
 
 当前支持三种操作类型：
 
@@ -17,7 +17,7 @@
 |------|------|
 | AI | 会话结束时总结关键信息，生成结构化记忆提案 |
 | 用户 | 审查提案，确认/修改/拒绝，确认后由 AI 写入 |
-| ai-share generator | 消费 ai-memory YAML 文件，编译为自然语言指令注入 session |
+| ai-share generator | 消费 `memory/` YAML 文件，编译为自然语言指令注入 session |
 
 ## 数据流
 
@@ -30,7 +30,7 @@ AI 生成记忆提案（Markdown 格式，含操作类型+内容+理由+来源�
      ↓
 用户审查 → 可选：修改内容 / 切换操作类型（add/update/delete）/ 拒绝部分条目
      ↓
-用户确认后，AI 执行写入（parse→modify→serialize）到 D:\ai-memory\stable\ 或对应目录
+用户确认后，AI 执行写入（parse→modify→serialize）到 D:\ai-share\memory\stable\ 或对应目录
      ↓
 下次运行 `bun run ai:gen` → buildInstructionsPaths() 加载
      ↓
@@ -95,7 +95,7 @@ zh-CN（简体中文）
 
 - [ ] 确认写入 [ ] 拒绝
 
-### 提案 3：删除 — stable/user.yaml → deprecated_section
+### 提案 3：删除 — stable/user.yaml → obsolete_section
 
 操作：删除
 
@@ -129,10 +129,10 @@ zh-CN（简体中文）
 
 ## 确认写入
 
-AI 写入后，建议提交 `ai-memory` 仓库以同步到其他设备：
+AI 写入后，建议提交 ai-share 仓库以同步到其他设备：
 
 ```powershell
-cd D:\ai-memory
+cd D:\ai-share
 git add -A
 git commit -m "记忆: 添加 xxx 记录"
 git push

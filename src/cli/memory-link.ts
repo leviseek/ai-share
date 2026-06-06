@@ -6,8 +6,6 @@ import type { GeneratorPaths } from "./paths.ts";
 export async function ensureAiWorkspaceLinks(paths: GeneratorPaths, dryRun: boolean): Promise<void> {
   await ensureAiWorkspaceDir(paths, dryRun);
   await ensureAiShareWorkspaceLink(paths, dryRun);
-  // eslint-disable-next-line @typescript-eslint/no-deprecated
-  await ensureAiMemoryWorkspaceLink(paths, dryRun);
 }
 
 async function ensureAiWorkspaceDir(paths: GeneratorPaths, dryRun: boolean): Promise<void> {
@@ -61,54 +59,6 @@ async function ensureAiShareWorkspaceLink(paths: GeneratorPaths, dryRun: boolean
   }
 
   await createDirectoryLink("ai-share", sourcePath, targetPath);
-}
-
-/**
- * @deprecated ai-memory 已不再作为独立仓库维护。`memory/` 目录已完全整合到 ai-share 仓库内，
- * 通过 `buildInstructionsPaths()` 直接读取。此函数保留以处理遗留的 `../ai-memory` 目录链接。
- * 在未来的版本中可能被移除。
- */
-export async function ensureAiMemoryWorkspaceLink(paths: GeneratorPaths, dryRun: boolean): Promise<void> {
-  const sourcePath = paths.externalAiMemoryDir;
-  const targetPath = paths.workspaceAiMemoryDir;
-
-  if (samePath(sourcePath, targetPath)) {
-    const sourceStats = await pathStats(sourcePath);
-    if (!sourceStats?.isDirectory()) {
-      console.warn(
-        `${color.yellow("未找到 ai-memory 仓库")}：${color.yellow(sourcePath)}。将跳过外部记忆导入，不影响配置生成。`,
-      );
-    }
-    return;
-  }
-
-  const sourceStats = await pathStats(sourcePath);
-  if (!sourceStats?.isDirectory()) {
-    console.warn(
-      `${color.yellow("未找到 ai-memory 仓库")}：${color.yellow(sourcePath)}。将跳过外部记忆导入，不影响配置生成。`,
-    );
-    return;
-  }
-
-  const targetStats = await pathStats(targetPath);
-  if (targetStats) {
-    const [sourceRealPath, targetRealPath] = await Promise.all([safeRealpath(sourcePath), safeRealpath(targetPath)]);
-    if (sourceRealPath && targetRealPath && samePath(sourceRealPath, targetRealPath)) return;
-
-    console.warn(
-      `${color.yellow("ai-memory 工作区路径已存在")}：${color.yellow(targetPath)}。未覆盖；如需重定向到 ${color.cyan(sourcePath)}，请手动确认后调整该路径。`,
-    );
-    return;
-  }
-
-  if (dryRun) {
-    console.log(
-      `${color.green("将创建 ai-memory 目录链接")}：${color.cyan(targetPath)} ${color.gray("->")} ${color.cyan(sourcePath)}`,
-    );
-    return;
-  }
-
-  await createDirectoryLink("ai-memory", sourcePath, targetPath);
 }
 
 async function createDirectoryLink(label: string, sourcePath: string, targetPath: string): Promise<void> {
