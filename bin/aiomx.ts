@@ -23,56 +23,68 @@ type CodexProfileRoot = {
   model_instructions_file?: string;
 };
 
+export type ParseArgsResult = {
+  profile: string;
+  remainingArgs: string[];
+  help: boolean;
+};
+
 const homeDir = homedir();
 const codexHome = process.env.CODEX_HOME ?? join(homeDir, ".codex");
 const runtimeManifestPath = join(codexHome, "ai-share.runtime.json");
 
-const runtimeManifest = asRuntimeManifest(readJson(runtimeManifestPath));
-const availableProfiles = discoverProfiles(runtimeManifest);
-const defaultProfile =
-  runtimeManifest?.default_profile ?? (availableProfiles.includes("balanced") ? "balanced" : availableProfiles[0]);
-
-const parsed = parseArgs(Bun.argv.slice(2), availableProfiles, defaultProfile ?? "balanced");
-
-if (parsed.help) {
-  showHelp(availableProfiles, parsed.profile);
-  process.exit(0);
+if (import.meta.main) {
+  main();
 }
 
-if (!availableProfiles.includes(parsed.profile)) {
-  console.error(`不支持的 Codex+OMX profile：${parsed.profile}`);
-  console.error(`可用 profile：${availableProfiles.join("、") || "none"}`);
-  process.exit(2);
+function main(): void {
+  const runtimeManifest = asRuntimeManifest(readJson(runtimeManifestPath));
+  const availableProfiles = discoverProfiles(runtimeManifest);
+  const defaultProfile =
+    runtimeManifest?.default_profile ?? (availableProfiles.includes("balanced") ? "balanced" : availableProfiles[0]);
+
+  const parsed = parseArgs(Bun.argv.slice(2), availableProfiles, defaultProfile ?? "balanced");
+
+  if (parsed.help) {
+    showHelp(availableProfiles, parsed.profile);
+    process.exit(0);
+  }
+
+  if (!availableProfiles.includes(parsed.profile)) {
+    console.error(`不支持的 Codex+OMX profile：${parsed.profile}`);
+    console.error(`可用 profile：${availableProfiles.join("、") || "none"}`);
+    process.exit(2);
+  }
+
+  const profileConfigPath = join(codexHome, `${parsed.profile}.config.toml`);
+  const profileOmxConfigPath = join(codexHome, `${parsed.profile}.omx-config.json`);
+  const activeOmxConfigPath = join(codexHome, ".omx-config.json");
+
+  if (!existsSync(profileConfigPath)) {
+    console.error(`缺少 Codex profile 配置：${profileConfigPath}`);
+    console.error("请先在 ai-share 仓库运行：bun run ai:gen -- --force");
+    process.exit(1);
+  }
+
+  if (!existsSync(profileOmxConfigPath)) {
+    console.error(`缺少 OMX profile 配置：${profileOmxConfigPath}`);
+    console.error("请先在 ai-share 仓库运行：bun run ai:gen -- --force");
+    process.exit(1);
+  }
+
+  copyFileSync(profileOmxConfigPath, activeOmxConfigPath);
+
+  const codexProfile = parseCodexProfileRoot(readFileSync(profileConfigPath, "utf8"));
+  const omxProfile = asOmxProfileConfig(readJson(profileOmxConfigPath));
+  const env = { ...process.env, CODEX_HOME: codexHome, ...(omxProfile?.env ?? {}) };
+  const omxArgs = buildOmxArgs(parsed.remainingArgs, codexConfigOverrides(codexProfile));
+  const result = spawnSync("omx", omxArgs, { stdio: "inherit", env });
+  if (result.error) {
+    console.error(`启动 omx 失败：${result.error.message}`);
+    console.error("请确认已安装 oh-my-codex，并可在当前 PATH 中执行 omx。");
+  }
+  process.exit(result.status ?? 1);
 }
-
-const profileConfigPath = join(codexHome, `${parsed.profile}.config.toml`);
-const profileOmxConfigPath = join(codexHome, `${parsed.profile}.omx-config.json`);
-const activeOmxConfigPath = join(codexHome, ".omx-config.json");
-
-if (!existsSync(profileConfigPath)) {
-  console.error(`缺少 Codex profile 配置：${profileConfigPath}`);
-  console.error("请先在 ai-share 仓库运行：bun run ai:gen -- --force");
-  process.exit(1);
-}
-
-if (!existsSync(profileOmxConfigPath)) {
-  console.error(`缺少 OMX profile 配置：${profileOmxConfigPath}`);
-  console.error("请先在 ai-share 仓库运行：bun run ai:gen -- --force");
-  process.exit(1);
-}
-
-copyFileSync(profileOmxConfigPath, activeOmxConfigPath);
-
-const codexProfile = parseCodexProfileRoot(readFileSync(profileConfigPath, "utf8"));
-const omxProfile = asOmxProfileConfig(readJson(profileOmxConfigPath));
-const env = { ...process.env, CODEX_HOME: codexHome, ...(omxProfile?.env ?? {}) };
-const omxArgs = buildOmxArgs(parsed.remainingArgs, codexConfigOverrides(codexProfile));
-const result = spawnSync("omx", omxArgs, { stdio: "inherit", env });
-if (result.error) {
-  console.error(`启动 omx 失败：${result.error.message}`);
-  console.error("请确认已安装 oh-my-codex，并可在当前 PATH 中执行 omx。");
-}
-process.exit(result.status ?? 1);
 
 function readJson(path: string): unknown {
   if (!existsSync(path)) return null;
@@ -109,11 +121,7 @@ function discoverProfiles(manifest: RuntimeManifest | null): string[] {
   }
 }
 
-function parseArgs(
-  args: string[],
-  profiles: string[],
-  fallbackProfile: string,
-): { profile: string; remainingArgs: string[]; help: boolean } {
+export function parseArgs(args: string[], profiles: string[], fallbackProfile: string): ParseArgsResult {
   let profile = fallbackProfile;
   const remainingArgs: string[] = [];
   let index = 0;
@@ -166,7 +174,7 @@ function parseArgs(
   return { profile, remainingArgs, help: false };
 }
 
-function parseCodexProfileRoot(content: string): CodexProfileRoot {
+export function parseCodexProfileRoot(content: string): CodexProfileRoot {
   return {
     ...tomlStringField(content, "model"),
     ...tomlStringField(content, "model_provider"),
@@ -185,7 +193,7 @@ function tomlStringField(content: string, key: keyof CodexProfileRoot): Partial<
   return { model_instructions_file: value };
 }
 
-function codexConfigOverrides(profile: CodexProfileRoot): string[] {
+export function codexConfigOverrides(profile: CodexProfileRoot): string[] {
   const overrides: string[] = [];
   appendConfigOverride(overrides, "model", profile.model);
   appendConfigOverride(overrides, "model_provider", profile.model_provider);
@@ -199,7 +207,7 @@ function appendConfigOverride(args: string[], key: string, value: string | undef
   args.push("-c", `${key}=${JSON.stringify(value)}`);
 }
 
-function buildOmxArgs(args: string[], overrides: string[]): string[] {
+export function buildOmxArgs(args: string[], overrides: string[]): string[] {
   const firstArg = args[0];
   if (!firstArg) return overrides;
 

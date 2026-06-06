@@ -204,6 +204,7 @@ config/mcp.yaml       -> 用户级 Codex MCP servers
 ```text
 CODEXAPIS_API_KEY
 PACKYAPI_API_KEY
+AXASAPI_API_KEY
 DEEPSEEK_API_KEY
 ```
 
@@ -212,6 +213,7 @@ Windows PowerShell 示例：
 ```powershell
 [Environment]::SetEnvironmentVariable("CODEXAPIS_API_KEY", "your-key", "User")
 [Environment]::SetEnvironmentVariable("PACKYAPI_API_KEY", "your-key", "User")
+[Environment]::SetEnvironmentVariable("AXASAPI_API_KEY", "your-key", "User")
 [Environment]::SetEnvironmentVariable("DEEPSEEK_API_KEY", "your-key", "User")
 ```
 
@@ -220,6 +222,7 @@ macOS/Linux 示例：
 ```sh
 export CODEXAPIS_API_KEY="your-key"
 export PACKYAPI_API_KEY="your-key"
+export AXASAPI_API_KEY="your-key"
 export DEEPSEEK_API_KEY="your-key"
 ```
 
