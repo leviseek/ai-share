@@ -24,13 +24,11 @@ describe("validateYamlConsistency", () => {
         },
       },
     };
-    const agents: AgentsYaml = {
-      agents: {
-        bad: {
-          model: "missing-agent",
-        },
+    const agents = validAgents({
+      bad: {
+        model: "missing-agent",
       },
-    };
+    });
 
     const errors = validateYamlConsistency(profiles, models, providers(), global(), mcp(), agents).map(formatError);
 
@@ -68,16 +66,14 @@ describe("validateYamlConsistency", () => {
         },
       },
     };
-    const agents: AgentsYaml = {
-      agents: {
-        coder: {
-          model: "primary",
-        },
-        reviewer: {
-          model: "reasoning",
-        },
+    const agents = validAgents({
+      coder: {
+        model: "primary",
       },
-    };
+      reviewer: {
+        model: "reasoning",
+      },
+    });
 
     expect(validateYamlConsistency(profiles, models, providers(), global(), mcp(), agents)).toEqual([]);
   });
@@ -114,7 +110,9 @@ describe("validateYamlConsistency", () => {
       },
     };
 
-    const errors = validateYamlConsistency(profiles, models, providers(), global(), mcp()).map(formatError);
+    const errors = validateYamlConsistency(profiles, models, providers(), global(), mcp(), validAgents()).map(
+      formatError,
+    );
 
     const expectedErrors = [
       "models.yaml:models.invalid-model.provider_group:模型 'invalid-model' 的 provider_group 必须是非空字符串",
@@ -170,6 +168,25 @@ describe("validateYamlConsistency", () => {
       },
     } as unknown as ProviderYaml;
     const agentsConfig = {
+      shared_prompt: 1,
+      codex: {
+        agents: {
+          max_threads: 0,
+          max_depth: "deep",
+        },
+      },
+      omx: {
+        model_slots: {
+          default: "primary",
+          team: "missing-role",
+          autopilot: "reasoning",
+          ralph: "primary",
+        },
+        agent_reasoning: {
+          "missing-agent": "high",
+          malformed: "max",
+        },
+      },
       agents: {
         "not-object": null,
         malformed: {
@@ -217,6 +234,14 @@ describe("validateYamlConsistency", () => {
       "profiles.yaml:profiles.malformed.compaction.enabled:profiles.malformed.compaction.enabled 必须是布尔值",
       "profiles.yaml:profiles.malformed.compaction.threshold:profiles.malformed.compaction.threshold 必须是数字",
       "profiles.yaml:profiles.malformed.compaction.model:profile 'malformed' 的 compaction.model 必须是非空字符串",
+      "agents.yaml:shared_prompt:shared_prompt 必须是对象",
+      "agents.yaml:codex.agents.max_threads:codex.agents.max_threads 必须是正整数",
+      "agents.yaml:codex.agents.max_depth:codex.agents.max_depth 必须是正整数",
+      "agents.yaml:codex.agents.job_max_runtime_seconds:缺少 codex.agents.job_max_runtime_seconds 字段",
+      "agents.yaml:omx.model_slots.team:omx.model_slots.team 必须引用 primary、reasoning 或 fast 角色",
+      "agents.yaml:omx.model_slots.team_low_complexity:omx.model_slots 缺少 'team_low_complexity' 字段",
+      "agents.yaml:omx.agent_reasoning.missing-agent:omx.agent_reasoning 引用未定义 agent 'missing-agent'",
+      "agents.yaml:omx.agent_reasoning.malformed:omx.agent_reasoning.malformed 必须是 low、medium 或 high",
       "agents.yaml:agents.not-object:agent 'not-object' 必须是对象",
       "agents.yaml:agents.malformed.model:agent 'malformed' 的 model 必须引用 primary、reasoning 或 fast 角色",
       "agents.yaml:agents.malformed.prompt.append:agents.malformed.prompt.append 必须是非空字符串",
@@ -267,6 +292,31 @@ function global(): GlobalYaml {
 
 function mcp(): McpYaml {
   return {};
+}
+
+function validAgents(
+  agentDefinitions: NonNullable<AgentsYaml["agents"]> = { coder: { model: "primary" } },
+): AgentsYaml {
+  return {
+    codex: {
+      agents: {
+        max_threads: 6,
+        max_depth: 2,
+        job_max_runtime_seconds: 600,
+      },
+    },
+    omx: {
+      model_slots: {
+        default: "primary",
+        team: "reasoning",
+        autopilot: "reasoning",
+        ralph: "primary",
+        team_low_complexity: "fast",
+      },
+      agent_reasoning: {},
+    },
+    agents: agentDefinitions,
+  };
 }
 
 function formatError(error: { file: string; path: string; message: string }): string {

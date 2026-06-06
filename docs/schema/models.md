@@ -99,4 +99,4 @@ deepseek-v4-pro-think-max:
 - **agents.yaml**: Agent `model` fields reference role names resolved through profile model maps
 - **provider.yaml**: The `provider_group` field is resolved to a concrete provider at generation time
 - **Generated Codex config**: Profile roles resolve to upstream model names and provider IDs
-- **Generated OMX config**: `primary`, `reasoning`, and `fast` roles map to OMX model slots
+- **Generated OMX config**: `config/agents.yaml` maps OMX model slots to `primary`, `reasoning`, and `fast`

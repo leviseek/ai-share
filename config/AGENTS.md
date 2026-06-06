@@ -6,14 +6,14 @@ YAML source of truth for generated Codex CLI, OMX, profile, agent, MCP, and inst
 
 ## WHERE TO LOOK
 
-| Need                                                   | File            | Notes                                             |
-| ------------------------------------------------------ | --------------- | ------------------------------------------------- |
-| Default profile and Codex/OMX version requirements     | `global.yaml`   | Only fields consumed by generator/check           |
-| Provider base URLs and API-key env vars                | `provider.yaml` | Secrets stay env-only                             |
-| Model catalog, upstream IDs, provider groups, fallback | `models.yaml`   | Referenced by profile role names                  |
-| Codex/OMX profile role mapping                         | `profiles.yaml` | `lite`, `cheap`, `balanced`, `coding`, etc.       |
-| Codex agent role mapping and prompt append rules       | `agents.yaml`   | Agents reference `primary` / `reasoning` / `fast` |
-| Codex MCP servers                                      | `mcp.yaml`      | Tokens and sensitive env values stay env-only     |
+| Need                                                   | File            | Notes                                         |
+| ------------------------------------------------------ | --------------- | --------------------------------------------- |
+| Default profile and Codex/OMX version requirements     | `global.yaml`   | Only fields consumed by generator/check       |
+| Provider base URLs and API-key env vars                | `provider.yaml` | Secrets stay env-only                         |
+| Model catalog, upstream IDs, provider groups, fallback | `models.yaml`   | Referenced by profile role names              |
+| Codex/OMX profile role mapping                         | `profiles.yaml` | `lite`, `cheap`, `balanced`, `coding`, etc.   |
+| Codex agent runtime, role mapping, and prompt rules    | `agents.yaml`   | Codex `[agents]`, OMX slots, agent roles      |
+| Codex MCP servers                                      | `mcp.yaml`      | Tokens and sensitive env values stay env-only |
 
 ## CONVENTIONS
 
@@ -22,6 +22,7 @@ YAML source of truth for generated Codex CLI, OMX, profile, agent, MCP, and inst
 - Keep `global.yaml` small; profile-specific behavior belongs in `profiles.yaml`.
 - `profiles.yaml` currently defines `lite`, `economy`, `cheap`, `balanced`, `coding`, `research`, `writing`, `max`, `ds-max`.
 - `agents.yaml` model values normally reference roles (`primary`, `reasoning`, `fast`), not raw provider model strings.
+- `agents.yaml` owns Codex `[agents]` concurrency settings and OMX `model_slots` / `agent_reasoning` mappings.
 - `shared_prompt.append` is Chinese and injects `AI_GUIDELINES.md` workflow expectations into Codex agents.
 - Workspace excludes must keep `.env*`, `.git/**`, `node_modules/**`, lockfiles, and runtime state out.
 

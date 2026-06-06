@@ -191,7 +191,7 @@ config/global.yaml    -> 默认 profile 和 Codex/OMX 最低版本要求
 config/provider.yaml  -> 模型提供商、baseURL、API Key 环境变量名
 config/models.yaml    -> 模型列表、provider/provider_group、上游模型名、参数、fallback
 config/profiles.yaml  -> Codex/OMX profile、模型角色映射和 compaction metadata
-config/agents.yaml    -> Codex agent 角色映射和 prompt append
+config/agents.yaml    -> Codex agent 运行时参数、OMX slot/reasoning 映射和 prompt append
 config/mcp.yaml       -> 用户级 Codex MCP servers
 ```
 

@@ -28,6 +28,7 @@ describe("Codex/OMX generation contract", () => {
       fixture.providers.providers ?? {},
       models,
       fixture.profiles,
+      fixture.agents,
       fixture.mcp,
       (profileId) => `/codex/${profileId}.AGENTS.md`,
     );
@@ -76,6 +77,7 @@ env_key = "DEEPSEEK_API_KEY"
       fixture.providers.providers ?? {},
       models,
       fixture.profiles,
+      fixture.agents,
       fixture.mcp,
       (profileId) => `/codex/${profileId}.AGENTS.md`,
     );
@@ -93,7 +95,7 @@ env_key = "DEEPSEEK_API_KEY"
       deepseek: "deepseek",
     });
 
-    expect(buildOmxConfigs(models, fixture.profiles)["ds-max"]).toEqual({
+    expect(buildOmxConfigs(models, fixture.profiles, fixture.agents)["ds-max"]).toEqual({
       env: {
         OMX_DEFAULT_FRONTIER_MODEL: "deepseek-v4-pro",
         OMX_DEFAULT_STANDARD_MODEL: "deepseek-v4-pro",
@@ -121,6 +123,63 @@ env_key = "DEEPSEEK_API_KEY"
       sandbox_mode: "read-only",
     });
     expect(agents.sisyphus?.developer_instructions).toContain("AI_GUIDELINES.md");
+  });
+
+  test("reads Codex agent runtime and OMX policy from agents.yaml", () => {
+    const fixture = loadFixture();
+    const models = applyProviderGroups(fixture.models, fixture.providers.providers ?? {}, {
+      gpt: "codexapis",
+      deepseek: "deepseek",
+    });
+    const agentsConfig: AgentsYaml = {
+      ...fixture.agents,
+      codex: {
+        agents: {
+          max_threads: 3,
+          max_depth: 1,
+          job_max_runtime_seconds: 120,
+        },
+      },
+      omx: {
+        model_slots: {
+          default: "fast",
+          team: "primary",
+          autopilot: "reasoning",
+          ralph: "fast",
+          team_low_complexity: "fast",
+        },
+        agent_reasoning: {
+          momus: "medium",
+        },
+      },
+    };
+
+    const codexConfigs = buildCodexCliConfigs(
+      fixture.providers.providers ?? {},
+      models,
+      fixture.profiles,
+      agentsConfig,
+      fixture.mcp,
+      (profileId) => `/codex/${profileId}.AGENTS.md`,
+    );
+    expect(required(codexConfigs.coding).agents).toEqual({
+      max_threads: 3,
+      max_depth: 1,
+      job_max_runtime_seconds: 120,
+    });
+
+    expect(buildOmxConfigs(models, fixture.profiles, agentsConfig).coding).toMatchObject({
+      models: {
+        default: "gpt-5.4-mini",
+        team: "gpt-5.3-codex",
+        autopilot: "deepseek-v4-pro",
+        ralph: "gpt-5.4-mini",
+        team_low_complexity: "gpt-5.4-mini",
+      },
+      agentReasoning: {
+        momus: "medium",
+      },
+    });
   });
 
   test("builds the runtime manifest with Codex/OMX ownership only", () => {

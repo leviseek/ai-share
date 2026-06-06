@@ -44,12 +44,6 @@ export type OmxConfig = {
     OMX_DEFAULT_STANDARD_MODEL: string;
     OMX_DEFAULT_SPARK_MODEL: string;
   };
-  models: {
-    default: string;
-    team: string;
-    autopilot: string;
-    ralph: string;
-    team_low_complexity: string;
-  };
+  models: Record<string, string>;
   agentReasoning: Record<string, "low" | "medium" | "high">;
 };

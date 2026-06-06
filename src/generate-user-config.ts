@@ -74,12 +74,12 @@ if (validationErrors.length > 0) {
 
 const providers = providersConfig.providers ?? {};
 const models = applyProviderGroups(modelsConfig, providers, providerGroups);
-const codexCliConfigs = buildCodexCliConfigs(providers, models, profilesConfig, mcpConfig, (profileId) =>
+const codexCliConfigs = buildCodexCliConfigs(providers, models, profilesConfig, agentsConfig, mcpConfig, (profileId) =>
   profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
 );
 const selectedDefaultProfileId = defaultProfileId(globalConfig, profilesConfig);
 const codexAgentConfigs = buildCodexAgentConfigs(agentsConfig, models, profilesConfig, selectedDefaultProfileId);
-const omxConfigs = buildOmxConfigs(models, profilesConfig);
+const omxConfigs = buildOmxConfigs(models, profilesConfig, agentsConfig);
 const selectedCodexCliConfig = requireValue(codexCliConfigs[selectedDefaultProfileId], "默认 Codex profile");
 const selectedCodexBaseConfig = {
   ...selectedCodexCliConfig,

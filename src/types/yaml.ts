@@ -1,4 +1,5 @@
 export type ModelRole = "primary" | "reasoning" | "fast";
+export type ReasoningLevel = "low" | "medium" | "high";
 
 export type ModelRoleMap = Record<string, string> & Partial<Record<ModelRole, string>>;
 
@@ -84,7 +85,24 @@ export type AgentSource = {
 
 export type AgentsYaml = {
   shared_prompt?: AgentPrompt;
+  codex?: CodexRuntimeSource;
+  omx?: OmxRuntimeSource;
   agents?: Record<string, AgentSource>;
+};
+
+export type CodexRuntimeSource = {
+  agents?: CodexAgentsSource;
+};
+
+export type CodexAgentsSource = {
+  max_threads?: number;
+  max_depth?: number;
+  job_max_runtime_seconds?: number;
+};
+
+export type OmxRuntimeSource = {
+  model_slots?: Record<string, ModelRole>;
+  agent_reasoning?: Record<string, ReasoningLevel>;
 };
 
 export type ProfilesYaml = Record<string, AgentProfileSource>;

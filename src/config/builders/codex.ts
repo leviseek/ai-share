@@ -1,6 +1,7 @@
 import type {
   AgentsYaml,
   CodexAgentConfig,
+  CodexCliAgentsConfig,
   CodexCliProfileConfig,
   CodexCliProvider,
   CodexMcpServer,
@@ -20,6 +21,7 @@ export function buildCodexCliConfigs(
   providerSources: Record<string, ProviderSource>,
   modelSources: ModelsYaml,
   profilesConfig: ProfilesYaml,
+  agentsConfig: AgentsYaml,
   mcpConfig: McpYaml,
   instructionsFileForProfile: (profileId: string) => string,
 ): Record<string, CodexCliProfileConfig> {
@@ -30,6 +32,7 @@ export function buildCodexCliConfigs(
         providerSources,
         modelSources,
         profilesConfig,
+        agentsConfig,
         mcpConfig,
         profileId,
         instructionsFileForProfile(profileId),
@@ -80,11 +83,15 @@ export function buildCodexAgentConfigs(
   );
 }
 
-export function buildOmxConfigs(modelSources: ModelsYaml, profilesConfig: ProfilesYaml): Record<string, OmxConfig> {
+export function buildOmxConfigs(
+  modelSources: ModelsYaml,
+  profilesConfig: ProfilesYaml,
+  agentsConfig: AgentsYaml,
+): Record<string, OmxConfig> {
   return Object.fromEntries(
     Object.keys(requireRecord(profilesConfig, "profiles")).map((profileId) => [
       profileId,
-      buildOmxConfig(modelSources, profilesConfig, profileId),
+      buildOmxConfig(modelSources, profilesConfig, agentsConfig, profileId),
     ]),
   );
 }
@@ -151,6 +158,7 @@ function buildCodexCliConfig(
   providerSources: Record<string, ProviderSource>,
   modelSources: ModelsYaml,
   profilesConfig: ProfilesYaml,
+  agentsConfig: AgentsYaml,
   mcpConfig: McpYaml,
   profileId: string,
   instructionsFile: string,
@@ -167,13 +175,18 @@ function buildCodexCliConfig(
     model_provider: primaryProviderId,
     ...(primaryReasoningEffort ? { model_reasoning_effort: primaryReasoningEffort } : {}),
     model_instructions_file: instructionsFile,
-    agents: { max_threads: 6, max_depth: 2, job_max_runtime_seconds: 600 },
+    agents: buildCodexCliAgentsConfig(agentsConfig),
     model_providers: buildCodexProviders(providerSources),
     ...nonEmptyMcpServers(buildCodexMcpServers(mcpConfig)),
   };
 }
 
-function buildOmxConfig(modelSources: ModelsYaml, profilesConfig: ProfilesYaml, profileId: string): OmxConfig {
+function buildOmxConfig(
+  modelSources: ModelsYaml,
+  profilesConfig: ProfilesYaml,
+  agentsConfig: AgentsYaml,
+  profileId: string,
+): OmxConfig {
   const profileModels = requireRecord(profilesConfig[profileId]?.models, `profiles.${profileId}.models`);
   const primary = upstreamModelName("primary", modelSources, profileModels);
   const reasoning = upstreamModelName("reasoning", modelSources, profileModels);
@@ -184,20 +197,45 @@ function buildOmxConfig(modelSources: ModelsYaml, profilesConfig: ProfilesYaml, 
       OMX_DEFAULT_STANDARD_MODEL: reasoning,
       OMX_DEFAULT_SPARK_MODEL: fast,
     },
-    models: {
-      default: primary,
-      team: reasoning,
-      autopilot: reasoning,
-      ralph: primary,
-      team_low_complexity: fast,
-    },
-    agentReasoning: {
-      prometheus: "high",
-      oracle: "high",
-      metis: "high",
-      momus: "low",
-    },
+    models: buildOmxModelSlots(agentsConfig, modelSources, profileModels),
+    agentReasoning: buildOmxAgentReasoning(agentsConfig),
   };
+}
+
+function buildCodexCliAgentsConfig(agentsConfig: AgentsYaml): CodexCliAgentsConfig {
+  const source = requireRecord(agentsConfig.codex?.agents, "agents.codex.agents");
+  return {
+    max_threads: requirePositiveInteger(source.max_threads, "agents.codex.agents.max_threads"),
+    max_depth: requirePositiveInteger(source.max_depth, "agents.codex.agents.max_depth"),
+    job_max_runtime_seconds: requirePositiveInteger(
+      source.job_max_runtime_seconds,
+      "agents.codex.agents.job_max_runtime_seconds",
+    ),
+  };
+}
+
+function buildOmxModelSlots(
+  agentsConfig: AgentsYaml,
+  modelSources: ModelsYaml,
+  profileModels: ModelRoleMap,
+): Record<string, string> {
+  const slots = requireRecord(agentsConfig.omx?.model_slots, "agents.omx.model_slots");
+  return Object.fromEntries(
+    Object.entries(slots).map(([slotName, modelRole]) => [
+      slotName,
+      upstreamModelName(requireModelRole(modelRole, `agents.omx.model_slots.${slotName}`), modelSources, profileModels),
+    ]),
+  );
+}
+
+function buildOmxAgentReasoning(agentsConfig: AgentsYaml): Record<string, "low" | "medium" | "high"> {
+  const agentReasoning = requireRecord(agentsConfig.omx?.agent_reasoning, "agents.omx.agent_reasoning");
+  return Object.fromEntries(
+    Object.entries(agentReasoning).map(([agentId, level]) => [
+      agentId,
+      requireReasoningLevel(level, `agents.omx.agent_reasoning.${agentId}`),
+    ]),
+  );
 }
 
 function buildCodexProviders(providerSources: Record<string, ProviderSource>): Record<string, CodexCliProvider> {
@@ -256,6 +294,23 @@ function reasoningEffort(profileModels: ModelRoleMap, modelSources: ModelsYaml):
   if (value === "low" || value === "medium" || value === "high") return value;
   if (value === "max") return "high";
   return undefined;
+}
+
+function requirePositiveInteger(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
+    throw new Error(`${label} 必须是正整数`);
+  }
+  return value;
+}
+
+function requireModelRole(value: unknown, label: string): "primary" | "reasoning" | "fast" {
+  if (value === "primary" || value === "reasoning" || value === "fast") return value;
+  throw new Error(`${label} 必须引用 primary、reasoning 或 fast 角色`);
+}
+
+function requireReasoningLevel(value: unknown, label: string): "low" | "medium" | "high" {
+  if (value === "low" || value === "medium" || value === "high") return value;
+  throw new Error(`${label} 必须是 low、medium 或 high`);
 }
 
 function modelIdFromRef(model: string): string {

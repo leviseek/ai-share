@@ -7,6 +7,25 @@ shared_prompt:
   append: |
     遵循当前 Codex instructions 中的 AI_GUIDELINES.md；涉及开发、重构或行为修改时执行其中定义的开发闭环，用户当前明确指令优先。
 
+codex:
+  agents:
+    max_threads: 6
+    max_depth: 2
+    job_max_runtime_seconds: 600
+
+omx:
+  model_slots:
+    default: primary
+    team: reasoning
+    autopilot: reasoning
+    ralph: primary
+    team_low_complexity: fast
+  agent_reasoning:
+    prometheus: high
+    oracle: high
+    metis: high
+    momus: low
+
 agents:
   sisyphus:
     model: primary

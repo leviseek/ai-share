@@ -42,7 +42,7 @@ Use this skill when modifying YAML source files, Codex/OMX config builders, gene
 - \`config/provider.yaml\`: provider definitions and API key env references.
 - \`config/models.yaml\`: model catalog and provider groups.
 - \`config/profiles.yaml\`: profile role mapping and profile metadata.
-- \`config/agents.yaml\`: Codex agent role mapping and prompt append rules.
+- \`config/agents.yaml\`: Codex agent runtime settings, OMX slot/reasoning policy, role mapping, and prompt append rules.
 - \`config/mcp.yaml\`: Codex MCP server definitions.
 
 ## Implementation Map
@@ -78,7 +78,7 @@ Use this skill when tuning model roles, profile defaults, compaction metadata, f
 
 - \`config/profiles.yaml\`: profile-level role mapping and profile metadata.
 - \`config/models.yaml\`: model group definitions, provider selection, parameters, limits, and fallback chains.
-- \`config/agents.yaml\`: agent-to-role mapping and prompt append rules.
+- \`config/agents.yaml\`: agent-to-role mapping, Codex agent runtime settings, and OMX slot/reasoning policy.
 - \`config/global.yaml\`: default profile and version requirements.
 
 ## Tuning Principles
