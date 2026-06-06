@@ -61,6 +61,11 @@ describe("memory privacy check", () => {
           message:
             "shareable memory 疑似包含个人标识；如确需保留，请添加 ai-share-privacy-allow: personal-data -- reason。",
         },
+        {
+          severity: "warning",
+          path: "memory",
+          message: "privacy allow 指令使用：local-path=1。请定期复核 allow 是否仍有必要。",
+        },
       ]);
     } finally {
       rmSync(root, { recursive: true, force: true });

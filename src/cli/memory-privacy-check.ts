@@ -16,6 +16,7 @@ export type MemoryPrivacyCheckOptions = {
 };
 
 type PrivacyLayer = "shareable" | "personal" | "ignored" | "review";
+type PrivacyAllowKind = "secret" | "local-path" | "personal-data";
 
 const projectRoot = resolve(import.meta.dirname, "..", "..");
 
@@ -44,6 +45,11 @@ export function checkMemoryPrivacy(
   options: MemoryPrivacyCheckOptions = {},
 ): MemoryPrivacyFinding[] {
   const findings: MemoryPrivacyFinding[] = [];
+  const allowCounts: Record<PrivacyAllowKind, number> = {
+    secret: 0,
+    "local-path": 0,
+    "personal-data": 0,
+  };
   checkRequiredGitignorePatterns(root, findings);
   if (options.checkGitTracking ?? true) checkIgnoredLayerTracking(root, findings);
 
@@ -64,9 +70,19 @@ export function checkMemoryPrivacy(
     if (layer === "ignored") continue;
 
     const content = readFileSync(filePath, "utf8");
+    addPrivacyAllowCounts(allowCounts, content);
     for (const finding of scanMemoryContent(relPath, layer, content)) {
       findings.push(finding);
     }
+  }
+
+  const allowSummary = formatPrivacyAllowSummary(allowCounts);
+  if (allowSummary) {
+    findings.push({
+      severity: "warning",
+      path: "memory",
+      message: `privacy allow 指令使用：${allowSummary}。请定期复核 allow 是否仍有必要。`,
+    });
   }
 
   return findings;
@@ -185,9 +201,28 @@ function containsPersonalIdentifier(content: string): boolean {
   return /[A-Z0-9._%+-]+@(?!example\.com\b|example\.test\b)[A-Z0-9.-]+\.[A-Z]{2,}/i.test(content);
 }
 
-function hasPrivacyAllow(content: string, kind: "secret" | "local-path" | "personal-data"): boolean {
+function hasPrivacyAllow(content: string, kind: PrivacyAllowKind): boolean {
+  return extractPrivacyAllowKind(content) === kind;
+}
+
+function extractPrivacyAllowKind(content: string): PrivacyAllowKind | undefined {
   const match = /ai-share-privacy-allow:\s*([a-z-]+)\s*--\s*(.{8,})/i.exec(content);
-  return match?.[1]?.toLowerCase() === kind;
+  const kind = match?.[1]?.toLowerCase();
+  return kind === "secret" || kind === "local-path" || kind === "personal-data" ? kind : undefined;
+}
+
+function addPrivacyAllowCounts(counts: Record<PrivacyAllowKind, number>, content: string): void {
+  for (const line of content.replaceAll("\r\n", "\n").split("\n")) {
+    const kind = extractPrivacyAllowKind(line);
+    if (kind) counts[kind] += 1;
+  }
+}
+
+function formatPrivacyAllowSummary(counts: Record<PrivacyAllowKind, number>): string | undefined {
+  const entries = (["secret", "local-path", "personal-data"] as const).flatMap((kind) =>
+    counts[kind] > 0 ? [`${kind}=${counts[kind]}`] : [],
+  );
+  return entries.length > 0 ? entries.join(", ") : undefined;
 }
 
 function normalizePath(path: string): string {
