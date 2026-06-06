@@ -115,6 +115,7 @@ describe("profile evaluation harness", () => {
           runs: 1,
           scored_runs: 0,
           weighted_score: null,
+          average_actual_elapsed_ms: null,
           estimated_primary_cost_usd: 0.24579,
         },
       ],
@@ -176,6 +177,7 @@ describe("profile evaluation harness", () => {
         runs: 1,
         scored_runs: 1,
         weighted_score: 88,
+        average_actual_elapsed_ms: null,
         estimated_primary_cost_usd: 0.24578,
       },
     ]);
@@ -201,6 +203,7 @@ describe("profile evaluation harness", () => {
 
     expect(formatMarkdownReport(report)).toContain("bad\\|pipe");
     expect(formatMarkdownReport(report)).toContain("C:\\\\tmp\\\\out\\|1.txt");
+    expect(formatMarkdownReport(report)).toContain("average_actual_elapsed_ms");
   });
 
   test("returns JSON and Markdown output paths when writing reports", () => {

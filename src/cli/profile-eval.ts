@@ -85,6 +85,7 @@ export type ProfileEvaluationSummary = {
   runs: number;
   scored_runs: number;
   weighted_score: number | null;
+  average_actual_elapsed_ms: number | null;
   estimated_primary_cost_usd: number;
 };
 
@@ -340,6 +341,9 @@ function buildSummary(profiles: readonly string[], runs: readonly ProfileEvaluat
   return profiles.map((profile) => {
     const profileRuns = runs.filter((run) => run.profile === profile);
     const scoredRuns = profileRuns.filter((run) => run.result.score !== null);
+    const elapsedRuns = profileRuns.flatMap((run) =>
+      run.result.actual_elapsed_ms === null ? [] : [run.result.actual_elapsed_ms],
+    );
     const weight = scoredRuns.reduce((sum, run) => sum + run.task_weight, 0);
     const weightedScore =
       weight === 0
@@ -350,6 +354,10 @@ function buildSummary(profiles: readonly string[], runs: readonly ProfileEvaluat
       runs: profileRuns.length,
       scored_runs: scoredRuns.length,
       weighted_score: weightedScore,
+      average_actual_elapsed_ms:
+        elapsedRuns.length === 0
+          ? null
+          : Math.round(elapsedRuns.reduce((sum, elapsedMs) => sum + elapsedMs, 0) / elapsedRuns.length),
       estimated_primary_cost_usd: roundUsd(
         profileRuns.reduce(
           (sum, run) => sum + run.estimate.primary_input_cost_usd + run.estimate.primary_max_output_cost_usd,
@@ -511,11 +519,11 @@ export function formatMarkdownReport(report: ProfileEvaluationReport): string {
     "",
     "## Summary",
     "",
-    "| profile | runs | scored_runs | weighted_score | estimated_primary_cost_usd |",
-    "| --- | ---: | ---: | ---: | ---: |",
+    "| profile | runs | scored_runs | weighted_score | average_actual_elapsed_ms | estimated_primary_cost_usd |",
+    "| --- | ---: | ---: | ---: | ---: | ---: |",
     ...report.summary.map(
       (summary) =>
-        `| ${markdownCell(summary.profile)} | ${summary.runs} | ${summary.scored_runs} | ${summary.weighted_score ?? ""} | ${summary.estimated_primary_cost_usd} |`,
+        `| ${markdownCell(summary.profile)} | ${summary.runs} | ${summary.scored_runs} | ${summary.weighted_score ?? ""} | ${summary.average_actual_elapsed_ms ?? ""} | ${summary.estimated_primary_cost_usd} |`,
     ),
     "",
     "## Runs",
