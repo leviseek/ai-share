@@ -53,6 +53,25 @@ const [globalConfig, providersConfig, modelsConfig, profilesConfig, agentsConfig
   loadYaml<McpYaml>("mcp.yaml"),
 ]);
 
+const validationErrors = validateYamlConsistency(
+  profilesConfig,
+  modelsConfig,
+  providersConfig,
+  globalConfig,
+  mcpConfig,
+  agentsConfig,
+);
+if (validationErrors.length > 0) {
+  printValidationErrors(validationErrors);
+  if (!force) {
+    if (checkOnly) {
+      console.error("校验失败。使用 --force 可忽略校验继续生成。");
+      process.exit(1);
+    }
+    throw new Error("YAML 配置校验失败。使用 --force 可忽略。");
+  }
+}
+
 const providers = providersConfig.providers ?? {};
 const models = applyProviderGroups(modelsConfig, providers, providerGroups);
 const codexCliConfigs = buildCodexCliConfigs(providers, models, profilesConfig, mcpConfig, (profileId) =>
@@ -75,23 +94,6 @@ const instructionFilesByProfile = Object.fromEntries(
 const missingApiKeys = missingProviderApiKeyEnvNames(providers);
 
 if (checkOnly) {
-  const checkValidationErrors = validateYamlConsistency(
-    profilesConfig,
-    modelsConfig,
-    providersConfig,
-    globalConfig,
-    mcpConfig,
-  );
-  if (checkValidationErrors.length > 0) {
-    for (const err of checkValidationErrors) {
-      console.error(`${color.yellow(`[${err.file}]`)} ${err.message}（${err.path}）`);
-    }
-    if (!force) {
-      console.error("校验失败。使用 --force 可忽略校验继续生成。");
-      process.exit(1);
-    }
-  }
-
   printCheckSummary({
     configuredProviderCount: Object.keys(providers).length,
     modelGroups: modelProviderGroups(modelsConfig),
@@ -116,22 +118,6 @@ if (checkOnly) {
   }
 
   process.exit(0);
-}
-
-const genValidationErrors = validateYamlConsistency(
-  profilesConfig,
-  modelsConfig,
-  providersConfig,
-  globalConfig,
-  mcpConfig,
-);
-if (genValidationErrors.length > 0) {
-  for (const err of genValidationErrors) {
-    console.error(`${color.yellow(`[${err.file}]`)} ${err.message}（${err.path}）`);
-  }
-  if (!force) {
-    throw new Error("YAML 配置校验失败。使用 --force 可忽略。");
-  }
 }
 
 if (!dryRun) {
@@ -208,4 +194,10 @@ printGenerationSummary({
 async function loadYaml<T extends object>(fileName: string): Promise<T> {
   const value = parseYamlObject(await readFile(resolve(paths.configDir, fileName), "utf8"));
   return value as T;
+}
+
+function printValidationErrors(errors: readonly { file: string; path: string; message: string }[]): void {
+  for (const err of errors) {
+    console.error(`${color.yellow(`[${err.file}]`)} ${err.message}（${err.path}）`);
+  }
 }

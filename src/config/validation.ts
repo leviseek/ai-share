@@ -1,4 +1,4 @@
-import type { GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "../types.ts";
+import type { AgentsYaml, GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "../types.ts";
 
 export function requireString(value: string | undefined, label: string): string {
   if (!value) throw new Error(`缺少必要配置字段：${label}`);
@@ -33,6 +33,7 @@ export type ValidationError = {
  * 2. default_profile exists in profiles.yaml
  * 3. compaction.threshold ≤ max_input_tokens per profile
  * 4. Provider group references exist in provider.yaml
+ * 5. Profile/agent/compaction/fallback model references exist
  *
  * Economy profile intentionally has extreme threshold/max_input_tokens
  * values to disable compaction — that's valid.
@@ -43,8 +44,10 @@ export function validateYamlConsistency(
   providersConfig: ProviderYaml,
   globalConfig: GlobalYaml,
   mcpConfig: McpYaml = {},
+  agentsConfig: AgentsYaml = {},
 ): ValidationError[] {
   const errors: ValidationError[] = [];
+  const modelIds = new Set(Object.keys(modelsConfig));
 
   // 1. Profile model roles completeness
   for (const [profileId, profile] of Object.entries(profilesConfig)) {
@@ -58,11 +61,18 @@ export function validateYamlConsistency(
       continue;
     }
     for (const role of ["primary", "reasoning", "fast"] as const) {
-      if (!models[role]) {
+      const modelId = models[role];
+      if (typeof modelId !== "string" || !modelId) {
         errors.push({
           file: "profiles.yaml",
           path: `profiles.${profileId}.models.${role}`,
           message: `profile '${profileId}' 缺少 'models.${role}' 字段`,
+        });
+      } else if (!modelIds.has(modelId)) {
+        errors.push({
+          file: "profiles.yaml",
+          path: `profiles.${profileId}.models.${role}`,
+          message: `profile '${profileId}' 的 models.${role} 引用未定义模型 '${modelId}'`,
         });
       }
     }
@@ -92,6 +102,14 @@ export function validateYamlConsistency(
         });
       }
     }
+    const compactionModel = compaction?.model;
+    if (compactionModel && !isKnownModelOrRole(compactionModel, modelIds)) {
+      errors.push({
+        file: "profiles.yaml",
+        path: `profiles.${profileId}.compaction.model`,
+        message: `profile '${profileId}' 的 compaction.model 引用未定义模型或角色 '${compactionModel}'`,
+      });
+    }
   }
 
   // 4. Provider group model reference
@@ -120,9 +138,48 @@ export function validateYamlConsistency(
         message: `模型 '${modelId}' 的 provider_group '${providerGroup}' 默认指向 provider '${defaultProviderId}'，但在 provider.yaml 中未定义`,
       });
     }
+
+    const fallback = model.fallback;
+    if (fallback !== undefined) {
+      if (!Array.isArray(fallback)) {
+        errors.push({
+          file: "models.yaml",
+          path: `models.${modelId}.fallback`,
+          message: `模型 '${modelId}' 的 fallback 必须是数组`,
+        });
+      } else {
+        for (const fallbackModelId of fallback) {
+          if (!modelIds.has(fallbackModelId)) {
+            errors.push({
+              file: "models.yaml",
+              path: `models.${modelId}.fallback`,
+              message: `模型 '${modelId}' 的 fallback 引用未定义模型 '${fallbackModelId}'`,
+            });
+          }
+        }
+      }
+    }
   }
 
-  // 5. MCP server shape
+  // 5. Agent model references
+  for (const [agentId, agent] of Object.entries(agentsConfig.agents ?? {})) {
+    const model = agent.model;
+    if (!model) {
+      errors.push({
+        file: "agents.yaml",
+        path: `agents.${agentId}.model`,
+        message: `agent '${agentId}' 缺少 model 字段`,
+      });
+    } else if (!isModelRole(model)) {
+      errors.push({
+        file: "agents.yaml",
+        path: `agents.${agentId}.model`,
+        message: `agent '${agentId}' 的 model 必须引用 primary、reasoning 或 fast 角色`,
+      });
+    }
+  }
+
+  // 6. MCP server shape
   for (const [serverId, server] of Object.entries(mcpConfig.servers ?? {})) {
     const isHttp = server.transport === "http" || Boolean(server.url);
     if (isHttp) {
@@ -176,6 +233,14 @@ export function validateYamlConsistency(
   }
 
   return errors;
+}
+
+function isKnownModelOrRole(value: string, modelIds: ReadonlySet<string>): boolean {
+  return isModelRole(value) || modelIds.has(value);
+}
+
+function isModelRole(value: string): boolean {
+  return value === "primary" || value === "reasoning" || value === "fast";
 }
 
 function isEnvName(value: string): boolean {
