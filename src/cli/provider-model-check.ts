@@ -34,6 +34,7 @@ type FetchLike = (
 const projectRoot = resolve(import.meta.dirname, "..", "..");
 
 if (import.meta.main) {
+  const startedAt = performance.now();
   const providerConfig = loadYaml("provider.yaml") as ProviderYaml;
   const modelConfig = loadYaml("models.yaml") as ModelsYaml;
   const providerGroups = parseCliOptions().providerGroups;
@@ -61,6 +62,7 @@ if (import.meta.main) {
               ? "ok"
               : "error",
           canary,
+          elapsed_ms: elapsedSince(startedAt),
           provider_groups: providerGroups,
           model_results: results,
           canary_results: canaryResults,
@@ -72,6 +74,7 @@ if (import.meta.main) {
   } else {
     printProviderModelResults(results);
     if (canary) printProviderCanaryResults(canaryResults);
+    console.log(`provider check elapsed: ${elapsedSince(startedAt)}ms`);
   }
   process.exit(
     results.every((result) => result.status === "ok") && canaryResults.every((result) => result.status === "ok")
@@ -407,4 +410,8 @@ function printProviderCanaryResults(results: readonly ProviderCanaryCheckResult[
 
 function shortRequestFingerprint(fingerprint: string): string {
   return fingerprint.slice(0, 12);
+}
+
+function elapsedSince(startedAt: number): number {
+  return Math.max(0, Math.round(performance.now() - startedAt));
 }
