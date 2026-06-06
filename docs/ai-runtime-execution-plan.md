@@ -149,4 +149,4 @@ bun run check
 - `profile:eval` 写报告后同时显示 JSON 与 Markdown 输出路径，减少人工查找报告文件的成本。
 - provider canary JSON 已增加 `request_fingerprint`，用于区分同一 upstream model 在不同参数组合下的 canary 请求。
 - `memory:check` 已汇总 `ai-share-privacy-allow` 指令使用数量，提醒定期复核 allow 是否仍有必要。
-- `ai:doctor` 每个检查项已记录 `elapsed_ms`，人类可读输出和 JSON 输出均可用于定位诊断耗时。
+- `ai:doctor` 已记录顶层总耗时和每个检查项 `elapsed_ms`，人类可读输出和 JSON 输出均可用于定位诊断耗时。
