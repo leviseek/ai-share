@@ -118,6 +118,7 @@ const instructionFilesByProfile = Object.fromEntries(
   ]),
 );
 const missingApiKeys = missingProviderApiKeyEnvNames(providers);
+const localConfigOverlays = await listLocalConfigOverlays(paths.configDir);
 
 if (checkOnly) {
   const defaultConfigDrift = await detectDefaultConfigDrift(
@@ -125,7 +126,6 @@ if (checkOnly) {
     formatCodexConfigToml(selectedCodexBaseConfig),
   );
   const localProxyChecks = await checkCodexEnvLocalProxies(envConfig);
-  const localConfigOverlays = await listLocalConfigOverlays(paths.configDir);
   const envManagedBlockCurrent = codexEnvManagedBlockIsCurrent(
     envConfig,
     (await pathExists(paths.targetCodexEnv)) ? await readFile(paths.targetCodexEnv, "utf8") : undefined,
@@ -221,6 +221,7 @@ try {
       agentIds: Object.keys(codexAgentConfigs),
       mcpServerIds: Object.keys(mcpConfig.servers ?? {}),
       codexEnvVarNames: Object.keys(envConfig.variables ?? {}),
+      localConfigOverlays,
       skillIds: NATIVE_SKILLS.map((skill) => skill.name),
       instructionFilesByProfile,
       profilesConfig,

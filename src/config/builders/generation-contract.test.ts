@@ -238,6 +238,7 @@ USER_NOTE=keep
       agentIds: ["sisyphus", "explorer"],
       mcpServerIds: ["filesystem"],
       codexEnvVarNames: ["HTTP_PROXY", "NO_PROXY"],
+      localConfigOverlays: ["config/local/global.yaml"],
       skillIds: ["git-master", "ai-share-generator"],
       profilesConfig: {
         balanced: {
@@ -277,6 +278,7 @@ USER_NOTE=keep
         omx_profiles: ["balanced", "coding"],
         codex_agents: ["sisyphus", "explorer"],
         codex_env_vars: ["HTTP_PROXY", "NO_PROXY"],
+        local_config_overlays: ["config/local/global.yaml"],
         mcp_servers: ["filesystem"],
         skills: ["git-master", "ai-share-generator"],
         instruction_files: ["/repo/AI_GUIDELINES.md", "/repo/memory/user/profile.md"],

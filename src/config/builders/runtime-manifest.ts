@@ -22,6 +22,7 @@ export type RuntimeManifest = {
     omx_profiles: string[];
     codex_agents: string[];
     codex_env_vars: string[];
+    local_config_overlays: string[];
     mcp_servers: string[];
     skills: string[];
     instruction_files: string[];
@@ -37,6 +38,7 @@ export function buildRuntimeManifest(input: {
   agentIds: string[];
   mcpServerIds: string[];
   codexEnvVarNames: string[];
+  localConfigOverlays?: string[];
   skillIds: string[];
   instructionFilesByProfile: Record<string, string[]>;
   profilesConfig: ProfilesYaml;
@@ -62,6 +64,7 @@ export function buildRuntimeManifest(input: {
       omx_profiles: input.profileIds,
       codex_agents: input.agentIds,
       codex_env_vars: input.codexEnvVarNames,
+      local_config_overlays: input.localConfigOverlays ?? [],
       mcp_servers: input.mcpServerIds,
       skills: input.skillIds,
       instruction_files: input.instructionFilesByProfile[input.defaultProfileId] ?? [],
