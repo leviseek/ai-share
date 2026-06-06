@@ -36,6 +36,36 @@ describe("memory privacy check", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  test("supports line-scoped privacy allow directives with reasons", () => {
+    const root = makeRoot();
+    try {
+      writeRequiredGitignore(root);
+      writeFile(
+        root,
+        "memory/architecture/ai.md",
+        [
+          "example path: D:\\fixture\\repo # ai-share-privacy-allow: local-path -- fixture path in test docs",
+          "contact: person@example.com",
+          "owner: user@private.test",
+        ].join("\n"),
+      );
+
+      const findings = checkMemoryPrivacy(root, { checkGitTracking: false });
+
+      expect(findings).toEqual([
+        {
+          severity: "warning",
+          path: "memory/architecture/ai.md",
+          line: 3,
+          message:
+            "shareable memory 疑似包含个人标识；如确需保留，请添加 ai-share-privacy-allow: personal-data -- reason。",
+        },
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 function makeRoot(): string {

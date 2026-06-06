@@ -8,6 +8,7 @@ export type MemoryPrivacyFinding = {
   severity: "error" | "warning";
   path: string;
   message: string;
+  line?: number;
 };
 
 export type MemoryPrivacyCheckOptions = {
@@ -63,19 +64,45 @@ export function checkMemoryPrivacy(
     if (layer === "ignored") continue;
 
     const content = readFileSync(filePath, "utf8");
-    if (containsSecretLiteral(content)) {
+    for (const finding of scanMemoryContent(relPath, layer, content)) {
+      findings.push(finding);
+    }
+  }
+
+  return findings;
+}
+
+function scanMemoryContent(path: string, layer: PrivacyLayer, content: string): MemoryPrivacyFinding[] {
+  const findings: MemoryPrivacyFinding[] = [];
+  const lines = content.replaceAll("\r\n", "\n").split("\n");
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    const lineNumber = index + 1;
+    if (containsSecretLiteral(line) && !hasPrivacyAllow(line, "secret")) {
       findings.push({
         severity: "error",
-        path: relPath,
+        path,
+        line: lineNumber,
         message: "memory 中疑似包含明文 secret；请改为环境变量名或删除。",
       });
     }
 
-    if (layer === "shareable" && containsConcreteLocalPath(content)) {
+    if (layer === "shareable" && containsConcreteLocalPath(line) && !hasPrivacyAllow(line, "local-path")) {
       findings.push({
         severity: "error",
-        path: relPath,
+        path,
+        line: lineNumber,
         message: "shareable memory 不应包含具体本机绝对路径；请改为 <repo>、<home> 或说明性占位符。",
+      });
+    }
+
+    if (layer === "shareable" && containsPersonalIdentifier(line) && !hasPrivacyAllow(line, "personal-data")) {
+      findings.push({
+        severity: "warning",
+        path,
+        line: lineNumber,
+        message:
+          "shareable memory 疑似包含个人标识；如确需保留，请添加 ai-share-privacy-allow: personal-data -- reason。",
       });
     }
   }
@@ -154,6 +181,15 @@ function containsConcreteLocalPath(content: string): boolean {
   return /(?:[A-Za-z]:\\(?!<)[^\s`"']+|\/Users\/(?!<user>)[^\s`"']+|\/home\/(?!<user>)[^\s`"']+)/.test(content);
 }
 
+function containsPersonalIdentifier(content: string): boolean {
+  return /[A-Z0-9._%+-]+@(?!example\.com\b|example\.test\b)[A-Z0-9.-]+\.[A-Z]{2,}/i.test(content);
+}
+
+function hasPrivacyAllow(content: string, kind: "secret" | "local-path" | "personal-data"): boolean {
+  const match = /ai-share-privacy-allow:\s*([a-z-]+)\s*--\s*(.{8,})/i.exec(content);
+  return match?.[1]?.toLowerCase() === kind;
+}
+
 function normalizePath(path: string): string {
   return path.split(sep).join("/");
 }
@@ -166,6 +202,7 @@ function printFindings(findings: readonly MemoryPrivacyFinding[]): void {
 
   for (const finding of findings) {
     const prefix = finding.severity === "error" ? "ERROR" : "WARN";
-    console.log(`${prefix} ${finding.path}: ${finding.message}`);
+    const location = finding.line === undefined ? finding.path : `${finding.path}:${finding.line}`;
+    console.log(`${prefix} ${location}: ${finding.message}`);
   }
 }

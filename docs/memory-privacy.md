@@ -17,6 +17,11 @@
 - local/project layer 默认由 `.gitignore` 排除。
 - `AI_GUIDELINES.md` 和 generated `AGENTS.md` 不自动加载 ignored privacy layers。
 - `bun run memory:check` 会检查 ignore 规则、共享层本机路径和疑似明文 secret；`bun run check` 会自动运行它。
+- `memory:check` 会输出行号。确认为示例/fixture 等可接受误报时，可在同一行添加带原因的 allow 指令：
+  - `ai-share-privacy-allow: local-path -- <reason>`
+  - `ai-share-privacy-allow: personal-data -- <reason>`
+  - `ai-share-privacy-allow: secret -- <reason>`（仅用于明显假 secret 示例；真实密钥不得 allow）
+- shareable layer 中的个人 email/账号标识会以 warning 报告；应优先改为占位符或迁移到 personal/local layer。
 
 ## Current Loader Behavior
 
