@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Repository Intelligence Studio</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Repository Intelligence Studio</h1>
+        <p>面向 AI 工程开发的仓库知识可观察性工作台</p>
+      </div>
+      <button id="refresh">Refresh</button>
+    </header>
+    <main>
+      <aside class="panel explorer">
+        <h2>Repository Explorer</h2>
+        <div id="tree" class="tree"></div>
+      </aside>
+      <section class="panel graph-panel">
+        <div class="panel-title">
+          <h2>Knowledge Graph</h2>
+          <span id="graph-counts"></span>
+        </div>
+        <svg id="graph" role="img" aria-label="Knowledge graph"></svg>
+      </section>
+      <aside class="panel inspector">
+        <section>
+          <h2>Context Builder</h2>
+          <textarea id="context-query" rows="3">设计 Repository Intelligence Studio</textarea>
+          <button id="build-context">Build Context</button>
+          <pre id="context-output"></pre>
+        </section>
+        <section>
+          <h2>Impact Analyzer</h2>
+          <input id="impact-id" placeholder="object id" />
+          <button id="analyze-impact">Analyze</button>
+          <pre id="impact-output"></pre>
+        </section>
+        <section>
+          <h2>Knowledge Dashboard</h2>
+          <div id="dashboard" class="metrics"></div>
+        </section>
+      </aside>
+      <section class="panel console">
+        <h2>Codex Console</h2>
+        <div class="console-input">
+          <input id="codex-prompt" value="请规划一个知识引擎驱动的 UI" />
+          <button id="run-codex">Run Observable Mock</button>
+        </div>
+        <div id="trace" class="trace"></div>
+      </section>
+    </main>
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>

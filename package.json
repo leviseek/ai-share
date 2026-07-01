@@ -23,7 +23,8 @@
     "typecheck": "tsc --noEmit",
     "knowledge:build": "bun run ./src/knowledge/cli.ts build",
     "knowledge:doctor": "bun run ./src/knowledge/cli.ts doctor",
-    "knowledge:stats": "bun run ./src/knowledge/cli.ts stats"
+    "knowledge:stats": "bun run ./src/knowledge/cli.ts stats",
+    "knowledge:studio": "bun run ./src/knowledge/studio/server.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
