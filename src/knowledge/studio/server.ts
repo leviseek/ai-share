@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import type { BuiltContext, ContextRequest } from "../context/builder.ts";
+import type { KnowledgeObjectType, RelationshipType } from "../core/types.ts";
 import {
   buildCodexDryRun,
   buildCodexMockTrace,
@@ -69,9 +70,17 @@ async function routeRequest(request: Request, state: StudioState): Promise<Respo
 }
 
 function handleGraphRequest(url: URL, snapshot: StudioSnapshot): unknown {
-  const seed = url.searchParams.get("seed");
+  const seedIds = url.searchParams.getAll("seed").filter((seed) => seed.length > 0);
   const depth = Number(url.searchParams.get("depth") ?? "1");
-  return buildGraphView(snapshot, seed === null || seed.length === 0 ? [] : [seed], Number.isFinite(depth) ? depth : 1);
+  const limit = Number(url.searchParams.get("limit") ?? "120");
+  const options: Parameters<typeof buildGraphView>[1] = { seedIds, depth, limit };
+  const nodeTypes = readNodeTypes(url);
+  const edgeTypes = readEdgeTypes(url);
+  const query = url.searchParams.get("q");
+  if (nodeTypes !== undefined) options.nodeTypes = nodeTypes;
+  if (edgeTypes !== undefined) options.edgeTypes = edgeTypes;
+  if (query !== null) options.query = query;
+  return buildGraphView(snapshot, options);
 }
 
 async function handleContextRequest(request: Request, state: StudioState): Promise<Response> {
@@ -287,6 +296,71 @@ async function parseJsonObject(request: Request): Promise<Record<string, unknown
   if (typeof value !== "object" || value === null || Array.isArray(value))
     throw new Error("请求体必须是 JSON object。");
   return value as Record<string, unknown>;
+}
+
+function readNodeTypes(url: URL): KnowledgeObjectType[] | undefined {
+  const values = url.searchParams.getAll("nodeType");
+  const nodeTypes = values.filter(isKnowledgeObjectType);
+  return nodeTypes.length === 0 ? undefined : nodeTypes;
+}
+
+function readEdgeTypes(url: URL): RelationshipType[] | undefined {
+  const values = url.searchParams.getAll("edgeType");
+  const edgeTypes = values.filter(isRelationshipType);
+  return edgeTypes.length === 0 ? undefined : edgeTypes;
+}
+
+function isKnowledgeObjectType(value: string): value is KnowledgeObjectType {
+  return [
+    "Project",
+    "Directory",
+    "Module",
+    "File",
+    "Document",
+    "Section",
+    "Workflow",
+    "Spec",
+    "Rule",
+    "Pattern",
+    "Prompt",
+    "Example",
+    "Task",
+    "Milestone",
+    "Agent",
+    "MCP",
+    "CodeFile",
+    "CodeSymbol",
+    "Package",
+    "Config",
+    "Script",
+    "Test",
+    "GeneratedArtifact",
+  ].includes(value);
+}
+
+function isRelationshipType(value: string): value is RelationshipType {
+  return [
+    "contains",
+    "belongs_to",
+    "implements",
+    "depends_on",
+    "references",
+    "uses",
+    "extends",
+    "imports",
+    "calls",
+    "owns",
+    "related_to",
+    "supports",
+    "requires",
+    "generated_from",
+    "generates",
+    "documents",
+    "tested_by",
+    "configures",
+    "declares",
+    "exports",
+  ].includes(value);
 }
 
 function readString(body: Record<string, unknown>, key: string): string {

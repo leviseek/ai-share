@@ -1,5 +1,18 @@
+import {
+  drag,
+  forceCenter,
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  forceSimulation,
+  select,
+  zoom,
+  type D3DragEvent,
+  type D3ZoomEvent,
+  type SimulationNodeDatum,
+} from "d3";
 import { render } from "preact";
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import "./styles.css";
 
 type TreeNode = {
@@ -16,6 +29,7 @@ type GraphNode = {
   type: string;
   label: string;
   path?: string;
+  metadata?: Record<string, unknown>;
 };
 
 type GraphEdge = {
@@ -82,15 +96,59 @@ type PlanExec = {
   execResult: { stdout: string; stderr: string; exitCode: number | null; durationMs: number; timedOut: boolean };
 };
 
+type GraphFilters = {
+  query: string;
+  depth: number;
+  limit: number;
+  nodeTypes: string[];
+  edgeTypes: string[];
+};
+
+type GraphNodeDetail = {
+  node: GraphNode;
+  incoming: GraphEdge[];
+  outgoing: GraphEdge[];
+};
+
 type SessionDetail = DryRun | PlanExec;
 
 type StreamEvent = { timestamp: string; type: string; payload: unknown };
+
+const nodeTypeOptions = [
+  "Project",
+  "Directory",
+  "Document",
+  "Rule",
+  "Agent",
+  "CodeFile",
+  "CodeSymbol",
+  "Config",
+  "Script",
+  "Test",
+  "GeneratedArtifact",
+];
+const edgeTypeOptions = [
+  "contains",
+  "imports",
+  "depends_on",
+  "references",
+  "tested_by",
+  "configures",
+  "generated_from",
+  "generates",
+  "documents",
+  "declares",
+  "exports",
+];
+const defaultFilters: GraphFilters = { query: "", depth: 1, limit: 120, nodeTypes: [], edgeTypes: [] };
 
 function App() {
   const [tree, setTree] = useState<TreeNode | undefined>();
   const [graph, setGraph] = useState<GraphData>({ nodes: [], edges: [] });
   const [dashboard, setDashboard] = useState<Dashboard | undefined>();
   const [selectedObjectId, setSelectedObjectId] = useState("");
+  const [graphSeeds, setGraphSeeds] = useState<string[]>([]);
+  const [graphFilters, setGraphFilters] = useState<GraphFilters>(defaultFilters);
   const [contextQuery, setContextQuery] = useState("设计 Repository Intelligence Studio v2");
   const [contextOutput, setContextOutput] = useState("");
   const [impactOutput, setImpactOutput] = useState("");
@@ -102,10 +160,12 @@ function App() {
   const [streamStatus, setStreamStatus] = useState("idle");
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
 
+  const selectedDetail = useMemo(() => graphDetail(graph, selectedObjectId), [graph, selectedObjectId]);
+
   async function refresh() {
     const [treeData, graphData, dashboardData, sessionData] = await Promise.all([
       getJson<TreeNode>("/api/repository/tree"),
-      getJson<GraphData>("/api/graph"),
+      loadGraph(graphSeeds, graphFilters),
       getJson<Dashboard>("/api/dashboard"),
       getJson<SessionSummary[]>("/api/codex-console/sessions?limit=20"),
     ]);
@@ -119,9 +179,26 @@ function App() {
     void refresh();
   }, []);
 
+  async function applyGraph(nextSeeds = graphSeeds, nextFilters = graphFilters) {
+    setGraphSeeds(nextSeeds);
+    setGraphFilters(nextFilters);
+    setGraph(await loadGraph(nextSeeds, nextFilters));
+  }
+
   async function selectObject(id: string) {
     setSelectedObjectId(id);
-    setGraph(await getJson<GraphData>(`/api/graph?seed=${encodeURIComponent(id)}&depth=2`));
+    await applyGraph([id], { ...graphFilters, depth: Math.max(graphFilters.depth, 2) });
+  }
+
+  async function addGraphSeed(id: string) {
+    const nextSeeds = [...new Set([...graphSeeds, id])];
+    setSelectedObjectId(id);
+    await applyGraph(nextSeeds, graphFilters);
+  }
+
+  async function resetGraph() {
+    setSelectedObjectId("");
+    await applyGraph([], defaultFilters);
   }
 
   async function buildContext() {
@@ -131,6 +208,21 @@ function App() {
       diagnostics: string[];
       graph: GraphData;
     }>("/api/context", { query: contextQuery, intent: "plan", maxObjects: 30 });
+    setContextOutput(
+      JSON.stringify({ summary: result.summary, diagnostics: result.diagnostics, objects: result.objects }, null, 2),
+    );
+    setGraph(result.graph);
+    setDashboard(await getJson<Dashboard>("/api/dashboard"));
+  }
+
+  async function buildContextForSelected() {
+    if (selectedObjectId.length === 0) return;
+    const result = await postJson<{
+      summary: string;
+      objects: { id: string; type: string; path?: string }[];
+      diagnostics: string[];
+      graph: GraphData;
+    }>("/api/context", { query: selectedObjectId, intent: "plan", objectIds: [selectedObjectId], maxObjects: 30 });
     setContextOutput(
       JSON.stringify({ summary: result.summary, diagnostics: result.diagnostics, objects: result.objects }, null, 2),
     );
@@ -209,7 +301,7 @@ function App() {
       <header>
         <div>
           <h1>Repository Intelligence Studio</h1>
-          <p>Codex Dry Run 可观察工作流 · Knowledge Engine Trace · Prompt Bundle</p>
+          <p>Interactive Graph Explorer · Knowledge Engine Trace · Codex Observability</p>
         </div>
         <button onClick={() => void refresh()}>Refresh</button>
       </header>
@@ -223,15 +315,25 @@ function App() {
           )}
         </aside>
         <section class="panel graph-panel">
-          <div class="panel-title">
-            <h2>Knowledge Graph</h2>
-            <span>
-              {graph.nodes.length} nodes / {graph.edges.length} edges
-            </span>
-          </div>
-          <KnowledgeGraph graph={graph} onSelect={setSelectedObjectId} />
+          <GraphExplorer
+            graph={graph}
+            filters={graphFilters}
+            seeds={graphSeeds}
+            selectedId={selectedObjectId}
+            onSelect={setSelectedObjectId}
+            onExpand={(id) => void addGraphSeed(id)}
+            onApply={(filters) => void applyGraph(graphSeeds, filters)}
+            onReset={() => void resetGraph()}
+          />
         </section>
         <aside class="panel inspector">
+          <GraphInspector
+            detail={selectedDetail}
+            selectedObjectId={selectedObjectId}
+            setSelectedObjectId={setSelectedObjectId}
+            analyzeImpact={() => void analyzeImpact()}
+            buildContext={() => void buildContextForSelected()}
+          />
           <section>
             <h2>Context Builder</h2>
             <textarea rows={3} value={contextQuery} onInput={(event) => setContextQuery(event.currentTarget.value)} />
@@ -296,22 +398,238 @@ function TreeBranch(props: { node: TreeNode; onSelect: (id: string) => void }) {
   );
 }
 
-function KnowledgeGraph(props: { graph: GraphData; onSelect(id: string): void }) {
-  const view = useMemo(() => layoutGraph(props.graph), [props.graph]);
+function GraphExplorer(props: {
+  graph: GraphData;
+  filters: GraphFilters;
+  seeds: string[];
+  selectedId: string;
+  onSelect(id: string): void;
+  onExpand(id: string): void;
+  onApply(filters: GraphFilters): void;
+  onReset(): void;
+}) {
+  const [draft, setDraft] = useState(props.filters);
+  useEffect(() => setDraft(props.filters), [props.filters]);
   return (
-    <svg class="graph" role="img" aria-label="Knowledge graph" viewBox="0 0 900 560">
-      {view.edges.map((edge) => (
-        <line key={edge.id} class="edge" x1={edge.x1} y1={edge.y1} x2={edge.x2} y2={edge.y2} />
+    <>
+      <div class="panel-title graph-title">
+        <div>
+          <h2>Interactive Knowledge Graph</h2>
+          <span>
+            {props.graph.nodes.length} nodes / {props.graph.edges.length} edges · seeds {props.seeds.length}
+          </span>
+        </div>
+        <button onClick={() => props.onReset()}>Reset</button>
+      </div>
+      <div class="graph-controls">
+        <input
+          value={draft.query}
+          placeholder="Search id / label / path"
+          onInput={(event) => setDraft({ ...draft, query: event.currentTarget.value })}
+        />
+        <label>
+          Depth
+          <input
+            type="number"
+            min={0}
+            max={5}
+            value={draft.depth}
+            onInput={(event) => setDraft({ ...draft, depth: Number(event.currentTarget.value) })}
+          />
+        </label>
+        <label>
+          Limit
+          <input
+            type="number"
+            min={1}
+            max={500}
+            value={draft.limit}
+            onInput={(event) => setDraft({ ...draft, limit: Number(event.currentTarget.value) })}
+          />
+        </label>
+        <button onClick={() => props.onApply(draft)}>Apply</button>
+      </div>
+      <FilterChips
+        title="Node Types"
+        values={nodeTypeOptions}
+        selected={draft.nodeTypes}
+        onChange={(nodeTypes) => setDraft({ ...draft, nodeTypes })}
+      />
+      <FilterChips
+        title="Edge Types"
+        values={edgeTypeOptions}
+        selected={draft.edgeTypes}
+        onChange={(edgeTypes) => setDraft({ ...draft, edgeTypes })}
+      />
+      <D3Graph
+        graph={props.graph}
+        selectedId={props.selectedId}
+        onSelect={(id) => props.onSelect(id)}
+        onExpand={(id) => props.onExpand(id)}
+      />
+    </>
+  );
+}
+
+function FilterChips(props: { title: string; values: string[]; selected: string[]; onChange(values: string[]): void }) {
+  const selected = new Set(props.selected);
+  return (
+    <div class="chips" aria-label={props.title}>
+      <strong>{props.title}</strong>
+      {props.values.map((value) => (
+        <button
+          class={selected.has(value) ? "chip active" : "chip"}
+          key={value}
+          onClick={() => {
+            const next = new Set(selected);
+            if (next.has(value)) next.delete(value);
+            else next.add(value);
+            props.onChange([...next]);
+          }}
+        >
+          {value}
+        </button>
       ))}
-      {view.nodes.map((node) => (
-        <g key={node.id} onClick={() => props.onSelect(node.id)}>
-          <circle class="node" cx={node.x} cy={node.y} r={node.r} />
-          <text class="label" x={node.x + 10} y={node.y + 4}>
-            {node.label.slice(0, 32)}
-          </text>
-        </g>
-      ))}
-    </svg>
+    </div>
+  );
+}
+
+type SimNode = GraphNode & SimulationNodeDatum;
+type SimEdge = GraphEdge & { source: SimNode | string; target: SimNode | string };
+
+function D3Graph(props: {
+  graph: GraphData;
+  selectedId: string;
+  onSelect(id: string): void;
+  onExpand(id: string): void;
+}) {
+  const ref = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    const element = ref.current;
+    if (element === null) return;
+    const width = element.clientWidth || 900;
+    const height = element.clientHeight || 560;
+    const nodes: SimNode[] = props.graph.nodes.map((node) => ({ ...node }));
+    const nodeIds = new Set(nodes.map((node) => node.id));
+    const links: SimEdge[] = props.graph.edges
+      .filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to))
+      .map((edge) => ({ ...edge, source: edge.from, target: edge.to }));
+    const svg = select(element);
+    svg.selectAll("*").remove();
+    const root = svg.append("g").attr("class", "graph-root");
+    svg.call(
+      zoom<SVGSVGElement, unknown>()
+        .scaleExtent([0.2, 4])
+        .on("zoom", (event: D3ZoomEvent<SVGSVGElement, unknown>) => {
+          root.attr("transform", event.transform.toString());
+        }),
+    );
+    root
+      .append("g")
+      .attr("class", "links")
+      .selectAll("line")
+      .data(links)
+      .join("line")
+      .attr("class", "edge")
+      .append("title")
+      .text((edge) => `${edge.type}: ${edge.from} -> ${edge.to}`);
+    const linkLines = root.select<SVGGElement>(".links").selectAll<SVGLineElement, SimEdge>("line");
+    const node = root
+      .append("g")
+      .attr("class", "nodes")
+      .selectAll<SVGGElement, SimNode>("g")
+      .data(nodes)
+      .join("g")
+      .attr("class", (item) => (item.id === props.selectedId ? "graph-node selected" : "graph-node"))
+      .on("click", (_event, item) => props.onSelect(item.id))
+      .on("dblclick", (_event, item) => props.onExpand(item.id));
+    node
+      .append("circle")
+      .attr("r", (item) => nodeRadius(item.type))
+      .attr("class", (item) => `node ${nodeClass(item.type)}`);
+    node
+      .append("text")
+      .attr("class", "label")
+      .attr("x", 10)
+      .attr("y", 4)
+      .text((item) => item.label.slice(0, 36));
+    node.append("title").text((item) => `${item.type}\n${item.id}\n${item.path ?? ""}`);
+    const simulation = forceSimulation(nodes)
+      .force(
+        "link",
+        forceLink<SimNode, SimEdge>(links)
+          .id((item) => item.id)
+          .distance(82),
+      )
+      .force("charge", forceManyBody().strength(-280))
+      .force("center", forceCenter(width / 2, height / 2))
+      .force(
+        "collide",
+        forceCollide<SimNode>().radius((item) => nodeRadius(item.type) + 18),
+      );
+    const dragBehavior = drag<SVGGElement, SimNode>()
+      .on("start", (event: D3DragEvent<SVGGElement, SimNode, SimNode>, item) => {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        item.fx = item.x;
+        item.fy = item.y;
+      })
+      .on("drag", (event: D3DragEvent<SVGGElement, SimNode, SimNode>, item) => {
+        item.fx = event.x;
+        item.fy = event.y;
+      })
+      .on("end", (event: D3DragEvent<SVGGElement, SimNode, SimNode>, item) => {
+        if (!event.active) simulation.alphaTarget(0);
+        item.fx = null;
+        item.fy = null;
+      });
+    node.call(dragBehavior);
+    simulation.on("tick", () => {
+      linkLines
+        .attr("x1", (edge) => nodeX(edge.source))
+        .attr("y1", (edge) => nodeY(edge.source))
+        .attr("x2", (edge) => nodeX(edge.target))
+        .attr("y2", (edge) => nodeY(edge.target));
+      node.attr("transform", (item) => `translate(${item.x ?? width / 2},${item.y ?? height / 2})`);
+    });
+    return () => simulation.stop();
+  }, [props.graph, props.selectedId]);
+  return <svg ref={ref} class="graph" role="img" aria-label="Interactive knowledge graph" />;
+}
+
+function GraphInspector(props: {
+  detail: GraphNodeDetail | undefined;
+  selectedObjectId: string;
+  setSelectedObjectId(id: string): void;
+  analyzeImpact(): void;
+  buildContext(): void;
+}) {
+  return (
+    <section>
+      <h2>Graph Inspector</h2>
+      <input
+        value={props.selectedObjectId}
+        onInput={(event) => props.setSelectedObjectId(event.currentTarget.value)}
+        placeholder="object id"
+      />
+      {props.detail === undefined ? (
+        <p>选择一个节点查看类型、路径、metadata 与入/出边。</p>
+      ) : (
+        <div class="node-detail">
+          <strong>{props.detail.node.label}</strong>
+          <code>{props.detail.node.id}</code>
+          <span>{props.detail.node.type}</span>
+          <span>{props.detail.node.path ?? "no path"}</span>
+          <span>
+            incoming {props.detail.incoming.length} / outgoing {props.detail.outgoing.length}
+          </span>
+          <pre>{JSON.stringify(props.detail.node.metadata ?? {}, null, 2)}</pre>
+        </div>
+      )}
+      <div class="inspector-actions">
+        <button onClick={() => props.analyzeImpact()}>Analyze Impact</button>
+        <button onClick={() => props.buildContext()}>Build Context</button>
+      </div>
+    </section>
   );
 }
 
@@ -512,30 +830,43 @@ function isPlanExec(detail: SessionDetail): detail is PlanExec {
   return "execResult" in detail;
 }
 
-function layoutGraph(graph: GraphData) {
-  const nodes = graph.nodes.slice(0, 90);
-  const nodeIds = new Set(nodes.map((node) => node.id));
-  const positions = new Map<string, { x: number; y: number }>();
-  nodes.forEach((node, index) => {
-    const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1);
-    const radius = 210;
-    positions.set(node.id, { x: 450 + Math.cos(angle) * radius, y: 280 + Math.sin(angle) * radius });
-  });
-  const viewNodes = nodes.map((node) => ({
-    ...node,
-    ...(positions.get(node.id) ?? { x: 450, y: 280 }),
-    r: node.type === "Directory" ? 9 : 7,
-  }));
-  const viewEdges = graph.edges
-    .filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to))
-    .slice(0, 180)
-    .flatMap((edge) => {
-      const from = positions.get(edge.from);
-      const to = positions.get(edge.to);
-      if (from === undefined || to === undefined) return [];
-      return [{ ...edge, x1: from.x, y1: from.y, x2: to.x, y2: to.y }];
-    });
-  return { nodes: viewNodes, edges: viewEdges };
+async function loadGraph(seeds: string[], filters: GraphFilters): Promise<GraphData> {
+  const params = new URLSearchParams();
+  for (const seed of seeds) params.append("seed", seed);
+  params.set("depth", String(filters.depth));
+  params.set("limit", String(filters.limit));
+  if (filters.query.trim().length > 0) params.set("q", filters.query.trim());
+  for (const nodeType of filters.nodeTypes) params.append("nodeType", nodeType);
+  for (const edgeType of filters.edgeTypes) params.append("edgeType", edgeType);
+  return await getJson<GraphData>(`/api/graph?${params.toString()}`);
+}
+
+function graphDetail(graph: GraphData, id: string): GraphNodeDetail | undefined {
+  const node = graph.nodes.find((item) => item.id === id);
+  if (node === undefined) return undefined;
+  return {
+    node,
+    incoming: graph.edges.filter((edge) => edge.to === id),
+    outgoing: graph.edges.filter((edge) => edge.from === id),
+  };
+}
+
+function nodeRadius(type: string): number {
+  if (type === "Directory" || type === "Project") return 11;
+  if (type === "CodeSymbol") return 6;
+  return 8;
+}
+
+function nodeClass(type: string): string {
+  return type.replace(/[^a-zA-Z0-9_-]/g, "-").toLowerCase();
+}
+
+function nodeX(value: SimNode | string): number {
+  return typeof value === "string" ? 0 : (value.x ?? 0);
+}
+
+function nodeY(value: SimNode | string): number {
+  return typeof value === "string" ? 0 : (value.y ?? 0);
 }
 
 async function getJson<T>(path: string): Promise<T> {

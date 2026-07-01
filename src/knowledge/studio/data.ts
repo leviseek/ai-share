@@ -1,7 +1,15 @@
 import { resolve } from "node:path";
 import { buildContext, type BuiltContext, type ContextRequest } from "../context/builder.ts";
 import { canonicalJsonHash } from "../core/ids.ts";
-import type { BuildResult, GraphEdge, GraphNode, GraphSubgraph, KnowledgeObject } from "../core/types.ts";
+import type {
+  BuildResult,
+  GraphEdge,
+  GraphNode,
+  GraphSubgraph,
+  KnowledgeObject,
+  KnowledgeObjectType,
+  RelationshipType,
+} from "../core/types.ts";
 import { rankByTextSimilarity } from "../embedding/ranking.ts";
 import { subgraph } from "../graph/builder.ts";
 import { impactAnalysis } from "../graph/impact.ts";
@@ -88,6 +96,17 @@ export type CodexDryRun = {
 
 export type StudioSnapshot = Pick<BuildResult, "objects" | "nodes" | "edges">;
 
+export type GraphViewOptions = {
+  seedIds?: string[];
+  depth?: number;
+  nodeTypes?: KnowledgeObjectType[];
+  edgeTypes?: RelationshipType[];
+  query?: string;
+  limit?: number;
+};
+
+const DEFAULT_GRAPH_LIMIT = 120;
+
 const DEFAULT_STORE_DIR = ".rie";
 
 export async function loadStudioSnapshot(
@@ -160,9 +179,34 @@ export function buildDashboardMetrics(snapshot: StudioSnapshot, lastContext?: Bu
   };
 }
 
-export function buildGraphView(snapshot: StudioSnapshot, seedIds: string[], depth: number): GraphSubgraph {
-  if (seedIds.length === 0) return { nodes: snapshot.nodes, edges: snapshot.edges };
-  return subgraph({ nodes: snapshot.nodes, edges: snapshot.edges }, seedIds, depth);
+export function buildGraphView(snapshot: StudioSnapshot, options: GraphViewOptions = {}): GraphSubgraph {
+  const seedIds = options.seedIds ?? [];
+  const graphDepth = normalizeDepth(options.depth ?? 1);
+  const baseGraph =
+    seedIds.length === 0
+      ? { nodes: snapshot.nodes, edges: snapshot.edges }
+      : subgraph({ nodes: snapshot.nodes, edges: snapshot.edges }, seedIds, graphDepth);
+  return filterGraphView(baseGraph, options);
+}
+
+export function filterGraphView(graph: GraphSubgraph, options: GraphViewOptions): GraphSubgraph {
+  const nodeTypeSet = options.nodeTypes === undefined ? undefined : new Set(options.nodeTypes);
+  const edgeTypeSet = options.edgeTypes === undefined ? undefined : new Set(options.edgeTypes);
+  const query = options.query?.trim().toLowerCase();
+  const queryActive = query !== undefined && query.length > 0;
+  const matchingNodeIds = queryActive ? collectQueryMatchedNodeIds(graph, query) : undefined;
+  const filteredNodes = graph.nodes.filter(
+    (node) =>
+      (nodeTypeSet === undefined || nodeTypeSet.has(node.type)) &&
+      (matchingNodeIds === undefined || matchingNodeIds.has(node.id)),
+  );
+  const limitedNodes = filteredNodes.slice(0, normalizeLimit(options.limit));
+  const nodeIds = new Set(limitedNodes.map((node) => node.id));
+  const filteredEdges = graph.edges.filter(
+    (edge) =>
+      nodeIds.has(edge.from) && nodeIds.has(edge.to) && (edgeTypeSet === undefined || edgeTypeSet.has(edge.type)),
+  );
+  return { nodes: limitedNodes, edges: filteredEdges };
 }
 
 export function buildStudioContext(snapshot: StudioSnapshot, request: ContextRequest): BuiltContext {
@@ -332,6 +376,30 @@ function asCountRecord(value: unknown): Record<string, number> {
 
 function isExternalReference(id: string): boolean {
   return id.startsWith("module:") || id.startsWith("package:");
+}
+
+function normalizeDepth(depth: number): number {
+  if (!Number.isFinite(depth)) return 1;
+  return Math.max(0, Math.min(5, Math.trunc(depth)));
+}
+
+function normalizeLimit(limit: number | undefined): number {
+  if (limit === undefined || !Number.isFinite(limit)) return DEFAULT_GRAPH_LIMIT;
+  return Math.max(1, Math.min(500, Math.trunc(limit)));
+}
+
+function collectQueryMatchedNodeIds(graph: GraphSubgraph, query: string): Set<string> {
+  const directMatches = new Set(
+    graph.nodes.filter((node) => graphNodeSearchText(node).includes(query)).map((node) => node.id),
+  );
+  const neighborMatches = graph.edges
+    .filter((edge) => directMatches.has(edge.from) || directMatches.has(edge.to))
+    .flatMap((edge) => [edge.from, edge.to]);
+  return new Set([...directMatches, ...neighborMatches]);
+}
+
+function graphNodeSearchText(node: GraphNode): string {
+  return `${node.id} ${node.objectId} ${node.type} ${node.label} ${node.path ?? ""}`.toLowerCase();
 }
 
 function inferIntent(query: string): NonNullable<ContextRequest["intent"]> {

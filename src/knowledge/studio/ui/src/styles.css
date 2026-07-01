@@ -107,18 +107,62 @@ main {
 }
 
 .panel-title,
-.console-input {
+.console-input,
+.graph-controls,
+.inspector-actions {
   align-items: center;
   display: flex;
   gap: 10px;
   justify-content: space-between;
 }
 
+.graph-title {
+  align-items: flex-start;
+}
+
+.graph-controls {
+  margin: 10px 0;
+}
+
+.graph-controls label {
+  color: #8ea3c8;
+  display: grid;
+  font-size: 12px;
+  gap: 4px;
+  min-width: 84px;
+}
+
+.chips {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.chips strong {
+  color: #8ea3c8;
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+.chip {
+  background: #1f2a44;
+  color: #adc2e9;
+  font-size: 11px;
+  padding: 5px 8px;
+}
+
+.chip.active {
+  background: #2563eb;
+  color: #ffffff;
+}
+
 #graph {
   background: radial-gradient(circle at top, #172445, #0f172a 70%);
   border-radius: 12px;
-  height: calc(100% - 34px);
-  min-height: 450px;
+  height: calc(100% - 142px);
+  min-height: 420px;
   width: 100%;
 }
 
@@ -190,10 +234,38 @@ pre {
   margin: 0 0 6px;
 }
 
+.graph-node {
+  cursor: pointer;
+}
+
+.graph-node.selected .node {
+  filter: drop-shadow(0 0 8px #facc15);
+  stroke: #facc15;
+  stroke-width: 3;
+}
+
 .node {
   fill: #60a5fa;
   stroke: #bfdbfe;
   stroke-width: 1.5;
+}
+
+.node.directory,
+.node.project {
+  fill: #34d399;
+}
+
+.node.codesymbol {
+  fill: #f472b6;
+}
+
+.node.config,
+.node.script {
+  fill: #f59e0b;
+}
+
+.node.test {
+  fill: #a78bfa;
 }
 
 .edge {
@@ -210,8 +282,8 @@ pre {
 .graph {
   background: radial-gradient(circle at top, #172445, #0f172a 70%);
   border-radius: 12px;
-  height: calc(100% - 34px);
-  min-height: 450px;
+  height: calc(100% - 142px);
+  min-height: 420px;
   width: 100%;
 }
 
@@ -252,4 +324,28 @@ pre {
 
 .session code {
   color: #93c5fd;
+}
+
+.node-detail {
+  background: #0b1222;
+  border: 1px solid #26344f;
+  border-radius: 10px;
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 10px;
+}
+
+.node-detail code {
+  color: #93c5fd;
+  overflow-wrap: anywhere;
+}
+
+.node-detail span {
+  color: #adc2e9;
+  font-size: 12px;
+}
+
+.inspector-actions {
+  margin-top: 8px;
 }

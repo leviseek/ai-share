@@ -7,6 +7,7 @@ import {
   buildCodexDryRun,
   buildCodexMockTrace,
   buildDashboardMetrics,
+  buildGraphView,
   buildRepositoryTree,
   buildStudioContext,
   type StudioSnapshot,
@@ -45,6 +46,20 @@ describe("Repository Intelligence Studio data", () => {
     expect(metrics.brokenEdges).toBe(0);
     expect(metrics.objectTypes.CodeFile).toBe(2);
     expect(metrics.contextCoverage).toBeGreaterThan(0);
+  });
+
+  test("filters graph views by node type, edge type, query, and limit", () => {
+    const byType = buildGraphView(fixtureSnapshot(), { nodeTypes: ["CodeFile"], edgeTypes: ["contains"] });
+    expect(byType.nodes.every((node) => node.type === "CodeFile")).toBe(true);
+    expect(byType.edges).toHaveLength(0);
+
+    const byQuery = buildGraphView(fixtureSnapshot(), { query: "main", edgeTypes: ["contains"] });
+    expect(byQuery.nodes.map((node) => node.id)).toContain("codefile:src/main.ts");
+    expect(byQuery.edges.every((edge) => edge.type === "contains")).toBe(true);
+
+    const limited = buildGraphView(fixtureSnapshot(), { limit: 1 });
+    expect(limited.nodes).toHaveLength(1);
+    expect(limited.edges).toHaveLength(0);
   });
 
   test("builds observable Codex mock trace", () => {
