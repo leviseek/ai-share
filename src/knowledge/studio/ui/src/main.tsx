@@ -73,9 +73,16 @@ type SessionSummary = {
 
 type PlanExec = {
   dryRun: DryRun;
-  guardResult: { ok: boolean; command: string; messages: string[] };
+  guardResult: {
+    ok: boolean;
+    command: string;
+    messages: string[];
+    git: { beforeStatus: string; afterStatus: string; changedFiles: string[] };
+  };
   execResult: { stdout: string; stderr: string; exitCode: number | null; durationMs: number; timedOut: boolean };
 };
+
+type SessionDetail = DryRun | PlanExec;
 
 function App() {
   const [tree, setTree] = useState<TreeNode | undefined>();
@@ -88,6 +95,7 @@ function App() {
   const [prompt, setPrompt] = useState("请规划一个知识引擎驱动的 Codex 改动");
   const [dryRun, setDryRun] = useState<DryRun | undefined>();
   const [planExec, setPlanExec] = useState<PlanExec | undefined>();
+  const [sessionDetail, setSessionDetail] = useState<SessionDetail | undefined>();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
 
   async function refresh() {
@@ -144,10 +152,22 @@ function App() {
   async function runPlanExec() {
     const result = await postJson<PlanExec>("/api/codex-console/plan-exec", { prompt, maxObjects: 30 });
     setPlanExec(result);
+    setSessionDetail(result);
     setDryRun(result.dryRun);
     setGraph(result.dryRun.impact.nodes.length > 0 ? result.dryRun.impact : graph);
     setDashboard(await getJson<Dashboard>("/api/dashboard"));
     setSessions(await getJson<SessionSummary[]>("/api/codex-console/sessions?limit=20"));
+  }
+
+  async function loadSessionDetail(id: string) {
+    const detail = await getJson<SessionDetail>(`/api/codex-console/session?id=${encodeURIComponent(id)}`);
+    setSessionDetail(detail);
+    if (isPlanExec(detail)) {
+      setPlanExec(detail);
+      setDryRun(detail.dryRun);
+      return;
+    }
+    setDryRun(detail);
   }
 
   return (
@@ -205,6 +225,8 @@ function App() {
             runDryRun={runDryRun}
             runPlanExec={runPlanExec}
             planExec={planExec}
+            sessionDetail={sessionDetail}
+            loadSessionDetail={loadSessionDetail}
           />
         </section>
       </main>
@@ -289,9 +311,11 @@ function CodexConsole(props: {
   setPrompt(value: string): void;
   dryRun: DryRun | undefined;
   planExec: PlanExec | undefined;
+  sessionDetail: SessionDetail | undefined;
   sessions: SessionSummary[];
   runDryRun(): Promise<void>;
   runPlanExec(): Promise<void>;
+  loadSessionDetail(id: string): Promise<void>;
 }) {
   return (
     <>
@@ -307,10 +331,11 @@ function CodexConsole(props: {
         <DryRunViewer dryRun={props.dryRun} />
       )}
       {props.planExec !== undefined && <PlanExecViewer planExec={props.planExec} />}
+      {props.sessionDetail !== undefined && <SessionDetailViewer detail={props.sessionDetail} />}
       <h2>Recent Sessions</h2>
       <div class="sessions">
         {props.sessions.map((session) => (
-          <article class="session" key={session.id}>
+          <article class="session" key={session.id} onClick={() => void props.loadSessionDetail(session.id)}>
             <strong>
               {session.kind ?? "dry-run"} · {session.intent}
             </strong>
@@ -372,12 +397,39 @@ function PlanExecViewer(props: { planExec: PlanExec }) {
           <strong>{props.planExec.execResult.durationMs}ms</strong>
         </div>
       </div>
+      <h3>Git Guard</h3>
+      <pre class="bundle">
+        {props.planExec.guardResult.git.changedFiles.length === 0
+          ? "No workspace changes detected."
+          : props.planExec.guardResult.git.changedFiles.join("\n")}
+      </pre>
       <h3>stdout</h3>
       <pre class="bundle">{props.planExec.execResult.stdout || "(empty)"}</pre>
       <h3>stderr</h3>
       <pre class="bundle">{props.planExec.execResult.stderr || "(empty)"}</pre>
     </div>
   );
+}
+
+function SessionDetailViewer(props: { detail: SessionDetail }) {
+  if (isPlanExec(props.detail)) {
+    return (
+      <div class="plan-exec">
+        <h3>Session Replay · Plan Exec</h3>
+        <PlanExecViewer planExec={props.detail} />
+      </div>
+    );
+  }
+  return (
+    <div class="plan-exec">
+      <h3>Session Replay · Dry Run</h3>
+      <DryRunViewer dryRun={props.detail} />
+    </div>
+  );
+}
+
+function isPlanExec(detail: SessionDetail): detail is PlanExec {
+  return "execResult" in detail;
 }
 
 function layoutGraph(graph: GraphData) {

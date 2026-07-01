@@ -11,7 +11,7 @@ import {
   buildStudioContext,
   type StudioSnapshot,
 } from "./data.ts";
-import { composeReadonlyPlanPrompt, runCodexPlanExec } from "./plan-exec.ts";
+import { buildPlanExecGuard, composeReadonlyPlanPrompt, runCodexPlanExec } from "./plan-exec.ts";
 import { createStudioSessionStore } from "./session-store.ts";
 
 const now = "2026-07-01T00:00:00.000Z";
@@ -92,10 +92,14 @@ describe("Repository Intelligence Studio data", () => {
       traceSteps: ["search"],
       bundleHash: "hash-two",
     });
+    const dryRun = buildCodexDryRun(fixtureSnapshot(), { prompt: "second" }, now);
+    await store.writeDetail("two", dryRun);
     const recent = await store.recent(1);
+    const detail = await store.readDetail("two");
     expect(recent).toHaveLength(1);
     expect(recent[0]?.id).toBe("two");
     expect(recent[0]?.kind).toBe("plan-exec");
+    expect(detail).toBeDefined();
   });
 
   test("composes readonly Codex plan exec prompt", () => {
@@ -108,19 +112,30 @@ describe("Repository Intelligence Studio data", () => {
 
   test("runs Codex plan exec through injectable runner", async () => {
     const dryRun = buildCodexDryRun(fixtureSnapshot(), { prompt: "请设计 main 的修改方案" }, now);
-    const result = await runCodexPlanExec(dryRun, ({ prompt, timeoutMs }) =>
-      Promise.resolve({
-        stdout: `planned ${prompt.length}`,
-        stderr: "",
-        exitCode: 0,
-        durationMs: timeoutMs,
-        timedOut: false,
-      }),
+    const result = await runCodexPlanExec(
+      dryRun,
+      ({ prompt, timeoutMs }) =>
+        Promise.resolve({
+          stdout: `planned ${prompt.length}`,
+          stderr: "",
+          exitCode: 0,
+          durationMs: timeoutMs,
+          timedOut: false,
+        }),
+      120_000,
+      () => Promise.resolve(""),
     );
     expect(result.guardResult.ok).toBe(true);
     expect(result.guardResult.command).toBe("codex exec");
     expect(result.execResult.exitCode).toBe(0);
     expect(result.execResult.stdout).toContain("planned");
+  });
+
+  test("marks plan exec guard failure when git status changes", () => {
+    const guard = buildPlanExecGuard(" M before.ts", " M before.ts\n?? after.ts");
+    expect(guard.ok).toBe(false);
+    expect(guard.git.changedFiles).toContain("after.ts");
+    expect(guard.messages).toContain("Plan Exec produced workspace changes; review manually.");
   });
 });
 

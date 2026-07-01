@@ -59,6 +59,7 @@ async function routeRequest(request: Request, state: StudioState): Promise<Respo
   if (url.pathname === "/api/codex-console/dry-run") return handleCodexDryRunRequest(request, state);
   if (url.pathname === "/api/codex-console/plan-exec") return handleCodexPlanExecRequest(request, state);
   if (url.pathname === "/api/codex-console/sessions") return handleSessionsRequest(url, state);
+  if (url.pathname === "/api/codex-console/session") return handleSessionDetailRequest(url, state);
   return jsonResponse({ error: "未找到请求的 Studio 资源。" }, 404);
 }
 
@@ -120,6 +121,7 @@ async function handleCodexDryRunRequest(request: Request, state: StudioState): P
     traceSteps: dryRun.trace.map((step) => step.name),
     bundleHash: dryRun.promptBundle.hash,
   });
+  await state.sessions.writeDetail(dryRun.id, dryRun);
   return jsonResponse(dryRun);
 }
 
@@ -148,12 +150,21 @@ async function handleCodexPlanExecRequest(request: Request, state: StudioState):
     durationMs: planExec.execResult.durationMs,
     guardOk: planExec.guardResult.ok,
   });
+  await state.sessions.writeDetail(planExec.dryRun.id, planExec);
   return jsonResponse(planExec);
 }
 
 async function handleSessionsRequest(url: URL, state: StudioState): Promise<Response> {
   const limit = Number(url.searchParams.get("limit") ?? "20");
   return jsonResponse(await state.sessions.recent(Number.isInteger(limit) && limit > 0 ? limit : 20));
+}
+
+async function handleSessionDetailRequest(url: URL, state: StudioState): Promise<Response> {
+  const id = url.searchParams.get("id");
+  if (id === null || id.length === 0) throw new Error("请提供 session id。");
+  const detail = await state.sessions.readDetail(id);
+  if (detail === undefined) return jsonResponse({ error: "未找到 session detail。" }, 404);
+  return jsonResponse(detail);
 }
 
 async function staticResponse(path: string): Promise<Response> {

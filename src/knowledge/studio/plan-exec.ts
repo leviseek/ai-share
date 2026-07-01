@@ -1,10 +1,17 @@
 import type { CodexDryRun } from "./data.ts";
 
+export type PlanExecGitGuard = {
+  beforeStatus: string;
+  afterStatus: string;
+  changedFiles: string[];
+};
+
 export type PlanExecGuardResult = {
   ok: boolean;
   mode: "readonly-plan";
   command: "codex exec";
   messages: string[];
+  git: PlanExecGitGuard;
 };
 
 export type PlanExecResult = {
@@ -22,6 +29,8 @@ export type CodexPlanExec = {
 };
 
 export type PlanExecRunner = (input: { prompt: string; timeoutMs: number }) => Promise<PlanExecResult>;
+
+export type GitStatusReader = () => Promise<string>;
 
 const READONLY_PLAN_PREFIX = [
   "你正在 Repository Intelligence Studio 的只读 Plan Exec 模式中运行。",
@@ -47,16 +56,20 @@ export function composeReadonlyPlanPrompt(dryRun: CodexDryRun): string {
   ].join("\n");
 }
 
-export function buildPlanExecGuard(): PlanExecGuardResult {
+export function buildPlanExecGuard(beforeStatus: string, afterStatus: string): PlanExecGuardResult {
+  const changedFiles = diffStatusFiles(beforeStatus, afterStatus);
+  const ok = changedFiles.length === 0;
   return {
-    ok: true,
+    ok,
     mode: "readonly-plan",
     command: "codex exec",
     messages: [
       "固定使用 codex exec <readonly-prompt>。",
       "用户输入不会作为 CLI flag 传递。",
       "readonly prompt 禁止文件写入和 Git 修改。",
+      ...(ok ? [] : ["Plan Exec produced workspace changes; review manually."]),
     ],
+    git: { beforeStatus, afterStatus, changedFiles },
   };
 }
 
@@ -64,34 +77,88 @@ export async function runCodexPlanExec(
   dryRun: CodexDryRun,
   runner: PlanExecRunner = runCodexExec,
   timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  gitStatus: GitStatusReader = readGitStatus,
 ): Promise<CodexPlanExec> {
-  const guardResult = buildPlanExecGuard();
+  const beforeStatus = await gitStatus();
   const prompt = composeReadonlyPlanPrompt(dryRun);
   const execResult = await runner({ prompt, timeoutMs });
+  const afterStatus = await gitStatus();
+  const guardResult = buildPlanExecGuard(beforeStatus, afterStatus);
   return { dryRun, guardResult, execResult };
 }
 
 export async function runCodexExec(input: { prompt: string; timeoutMs: number }): Promise<PlanExecResult> {
   const startedAt = Date.now();
-  const process = Bun.spawn(["codex", "exec", input.prompt], {
+  try {
+    const process = Bun.spawn(["codex", "exec", input.prompt], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      process.kill();
+    }, input.timeoutMs);
+    const [exitCode, stdout, stderr] = await Promise.all([
+      process.exited,
+      new Response(process.stdout).text(),
+      new Response(process.stderr).text(),
+    ]).finally(() => clearTimeout(timeout));
+    return {
+      stdout,
+      stderr: timedOut ? `${stderr}\nPlan Exec timed out after ${input.timeoutMs}ms.` : stderr,
+      exitCode,
+      durationMs: Date.now() - startedAt,
+      timedOut,
+    };
+  } catch (error) {
+    return {
+      stdout: "",
+      stderr: error instanceof Error ? error.message : "无法启动 codex exec。",
+      exitCode: null,
+      durationMs: Date.now() - startedAt,
+      timedOut: false,
+    };
+  }
+}
+
+export async function readGitStatus(): Promise<string> {
+  const process = Bun.spawn(["git", "status", "--short"], {
     stdout: "pipe",
     stderr: "pipe",
   });
-  let timedOut = false;
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    process.kill();
-  }, input.timeoutMs);
   const [exitCode, stdout, stderr] = await Promise.all([
     process.exited,
     new Response(process.stdout).text(),
     new Response(process.stderr).text(),
-  ]).finally(() => clearTimeout(timeout));
-  return {
-    stdout,
-    stderr: timedOut ? `${stderr}\nPlan Exec timed out after ${input.timeoutMs}ms.` : stderr,
-    exitCode,
-    durationMs: Date.now() - startedAt,
-    timedOut,
-  };
+  ]);
+  if (exitCode !== 0) throw new Error(`git status --short 失败：${stderr}`);
+  return stdout.trimEnd();
+}
+
+function diffStatusFiles(beforeStatus: string, afterStatus: string): string[] {
+  const before = parseStatusFiles(beforeStatus);
+  const after = parseStatusFiles(afterStatus);
+  return [...new Set([...symmetricDifference(before, after)])].sort();
+}
+
+function parseStatusFiles(status: string): Set<string> {
+  return new Set(
+    status
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => line.replace(/^\S+\s+/, "")),
+  );
+}
+
+function symmetricDifference(left: Set<string>, right: Set<string>): string[] {
+  const values: string[] = [];
+  for (const value of left) {
+    if (!right.has(value)) values.push(value);
+  }
+  for (const value of right) {
+    if (!left.has(value)) values.push(value);
+  }
+  return values;
 }

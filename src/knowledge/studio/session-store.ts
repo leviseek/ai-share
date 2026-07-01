@@ -1,5 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import type { CodexDryRun } from "./data.ts";
+import type { CodexPlanExec } from "./plan-exec.ts";
 
 export type StudioSessionSummary = {
   id: string;
@@ -14,16 +16,22 @@ export type StudioSessionSummary = {
   guardOk?: boolean;
 };
 
+export type StudioSessionDetail = CodexDryRun | CodexPlanExec;
+
 export type StudioSessionStore = {
   append(summary: StudioSessionSummary): Promise<void>;
   recent(limit: number): Promise<StudioSessionSummary[]>;
+  writeDetail(id: string, detail: StudioSessionDetail): Promise<void>;
+  readDetail(id: string): Promise<StudioSessionDetail | undefined>;
 };
 
 export class JsonlStudioSessionStore implements StudioSessionStore {
   readonly path: string;
+  readonly runsRoot: string;
 
   constructor(repoRoot: string) {
     this.path = resolve(repoRoot, ".rie", "studio", "sessions.jsonl");
+    this.runsRoot = resolve(repoRoot, ".rie", "studio", "runs");
   }
 
   async append(summary: StudioSessionSummary): Promise<void> {
@@ -41,10 +49,27 @@ export class JsonlStudioSessionStore implements StudioSessionStore {
       .slice(-limit)
       .reverse();
   }
+
+  async writeDetail(id: string, detail: StudioSessionDetail): Promise<void> {
+    assertSafeSessionId(id);
+    await mkdir(this.runsRoot, { recursive: true });
+    await writeFile(resolve(this.runsRoot, `${id}.json`), `${JSON.stringify(detail, null, 2)}\n`);
+  }
+
+  async readDetail(id: string): Promise<StudioSessionDetail | undefined> {
+    assertSafeSessionId(id);
+    const raw = await readTextIfExists(resolve(this.runsRoot, `${id}.json`));
+    if (raw.length === 0) return undefined;
+    return JSON.parse(raw) as StudioSessionDetail;
+  }
 }
 
 export function createStudioSessionStore(repoRoot: string): StudioSessionStore {
   return new JsonlStudioSessionStore(repoRoot);
+}
+
+function assertSafeSessionId(id: string): void {
+  if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("非法 session id。");
 }
 
 async function readTextIfExists(path: string): Promise<string> {
