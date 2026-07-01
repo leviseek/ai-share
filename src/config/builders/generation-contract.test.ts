@@ -21,7 +21,6 @@ describe("Codex generation contract", () => {
     const fixture = loadFixture();
     const models = applyProviderGroups(fixture.models, fixture.providers.providers ?? {}, {
       gpt: "codexapis",
-      deepseek: "deepseek",
     });
 
     const codexConfigs = buildCodexCliConfigs(
@@ -52,11 +51,6 @@ env_key = "PACKYAPI_API_KEY"
 name = "Axas API"
 base_url = "https://api.asxs.top/v1"
 env_key = "AXASAPI_API_KEY"
-
-[model_providers.deepseek]
-name = "DeepSeek"
-base_url = "https://api.deepseek.com"
-env_key = "DEEPSEEK_API_KEY"
 `);
   });
 
@@ -64,7 +58,6 @@ env_key = "DEEPSEEK_API_KEY"
     const fixture = loadFixture();
     const models = applyProviderGroups(fixture.models, fixture.providers.providers ?? {}, {
       gpt: "packyapi",
-      deepseek: "deepseek",
     });
 
     const codexConfigs = buildCodexCliConfigs(

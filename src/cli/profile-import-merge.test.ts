@@ -10,7 +10,7 @@ lite:
   name: 轻量编排
   models:
     primary: gpt-5.4
-    reasoning: deepseek-v4-flash-think
+    reasoning: gpt-5.4
     fast: gpt-5.4-mini
 `;
 
@@ -29,14 +29,14 @@ balanced:
   name: 旧均衡
   models:
     primary: gpt-5.4
-    reasoning: deepseek-v4-flash-think
+    reasoning: gpt-5.4
     fast: gpt-5.4-mini
 
 coding:
   name: 代码实施优先模式
   models:
     primary: gpt-5.5-coding
-    reasoning: deepseek-v4-pro-think
+    reasoning: gpt-5.4
     fast: gpt-5.4-mini
 `;
 
@@ -61,7 +61,7 @@ coding:
     expect(errors).toContain("[broken] roles.primary: 缺少 roles.primary");
 
     expect(validateImportSecurity(validProfiles, { "gpt-5.5": {}, "gpt-5.4-mini": {} })).toEqual([
-      "[safe] roles.reasoning.model 'deepseek-v4-pro-think' 不在已知模型列表中",
+      "[safe] roles.reasoning.model 'gpt-5.4' 不在已知模型列表中",
     ]);
   });
 
@@ -121,7 +121,7 @@ coding:
       name: "unsafe\n  models:",
       roles: {
         primary: { model: "gpt-5.5 # injected" },
-        reasoning: { model: "deepseek-v4-pro-think" },
+        reasoning: { model: "gpt-5.4" },
         fast: { model: "gpt-5.4-mini" },
       },
       compaction: {
@@ -147,7 +147,7 @@ function profile(profileId: string, primary: string): TriRoleProfile {
     name: `${profileId} profile`,
     roles: {
       primary: { model: primary },
-      reasoning: { model: "deepseek-v4-pro-think" },
+      reasoning: { model: "gpt-5.4" },
       fast: { model: "gpt-5.4-mini" },
     },
     compaction: {

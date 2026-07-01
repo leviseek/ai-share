@@ -18,7 +18,7 @@
       },
       "provider_group": {
         "type": "string",
-        "description": "Logical provider group such as gpt or deepseek.",
+        "description": "Logical provider group such as gpt.",
         "minLength": 1
       },
       "model_name": {

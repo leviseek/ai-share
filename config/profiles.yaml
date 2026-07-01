@@ -17,16 +17,16 @@ lite:
     max_input_tokens: 80000
 
 economy:
-  name: 激进低成本模式
+  name: GPT 低成本模式
   models:
-    primary: deepseek-v4-flash
-    reasoning: deepseek-v4-flash-think
-    fast: deepseek-v4-flash
+    primary: gpt-5.4-mini
+    reasoning: gpt-5.4
+    fast: gpt-5.4-mini
   compaction:
     enabled: true
-    threshold: 500000000
+    threshold: 40000
     model: fast
-    max_input_tokens: 1000000000
+    max_input_tokens: 80000
 
 cheap:
   name: 极低成本日常模式
@@ -99,15 +99,3 @@ max:
     threshold: 140000
     model: reasoning
     max_input_tokens: 250000
-
-ds-max:
-  name: 纯DeepSeek强力编排
-  models:
-    primary: deepseek-v4-pro-think
-    reasoning: deepseek-v4-pro-think-max
-    fast: deepseek-v4-flash
-  compaction:
-    enabled: true
-    threshold: 640000
-    model: reasoning
-    max_input_tokens: 960000

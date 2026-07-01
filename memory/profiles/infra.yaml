@@ -1,20 +1,20 @@
 # infra profile — 基础设施与运维模式
 # 用于 CI/CD 配置、容器编排、脚本编写和环境管理
-# 经济模型优先，自动化为主
+# GPT 低成本模型优先，自动化为主
 
 name: infra
 description: 基础设施与运维模式，适合自动化脚本和环境管理
 
 model_roles:
   primary:
-    deepseek-v4-flash
+    gpt-5.4-mini
     # 经济高效，足够处理脚本和配置任务
   reasoning:
-    deepseek-v4-flash-think
+    gpt-5.4
     # 快速推理，适合排查环境问题和依赖冲突
   fast:
-    deepseek-v4-flash
-    # 全链路经济模型，无跨提供商切换
+    gpt-5.4-mini
+    # 低成本 GPT 模型，无跨提供商切换
 
 use_case:
   - CI/CD 流水线配置与维护

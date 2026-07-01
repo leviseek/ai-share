@@ -31,16 +31,16 @@ describe("provider model availability check", () => {
     const results = await checkProviderModels({
       providers: {
         ...providersFixture(),
-        deepseek: {
-          base_url: "https://deepseek.example.test",
-          api_key: "${DEEPSEEK_API_KEY}",
+        packyapi: {
+          base_url: "https://packy.example.test",
+          api_key: "${PACKYAPI_API_KEY}",
         },
       },
       models: {
         ...modelsFixture(),
-        "deepseek-v4": {
-          provider: "deepseek",
-          model_name: "deepseek-v4",
+        "gpt-5.4": {
+          provider: "packyapi",
+          model_name: "gpt-5.4",
         },
       },
       env: {
@@ -57,12 +57,12 @@ describe("provider model availability check", () => {
       missing_model_names: ["gpt-5.4-mini"],
     });
     expect(results).toContainEqual({
-      provider: "deepseek",
-      base_url: "https://deepseek.example.test",
+      provider: "packyapi",
+      base_url: "https://packy.example.test",
       status: "missing-api-key",
-      checked_model_names: ["deepseek-v4"],
-      missing_model_names: ["deepseek-v4"],
-      error: "缺少环境变量：DEEPSEEK_API_KEY",
+      checked_model_names: ["gpt-5.4"],
+      missing_model_names: ["gpt-5.4"],
+      error: "缺少环境变量：PACKYAPI_API_KEY",
     });
   });
 

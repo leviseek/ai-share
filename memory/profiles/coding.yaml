@@ -1,6 +1,6 @@
 # coding profile — 代码实施优先
 # 用于日常编码、调试、代码审查和架构调整
-# 强调 codex/coding 模型的代码能力，辅以深度推理处理复杂 bug
+# 强调 codex/coding 模型的代码能力，辅以 GPT 深度推理处理复杂 bug
 
 name: coding
 description: 代码实施优先模式，适合日常编码和调试
@@ -10,8 +10,8 @@ model_roles:
     gpt-5.5-coding
     # 编码专用模型，代码生成和理解能力最强
   reasoning:
-    deepseek-v4-pro-think
-    # 深度推理，用于分析复杂 bug 和架构决策
+    gpt-5.5-coding
+    # 同族编码推理，用于分析复杂 bug 和架构决策
   fast:
     gpt-5.4-mini
     # 快速搜索、文件浏览、轻量重构

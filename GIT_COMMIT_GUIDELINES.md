@@ -44,7 +44,7 @@ option: 中文描述
 feat: 增加 Codex 配置共享命令
 fix: 修复 Windows 下 Bun 脚本启动失败问题
 docs: 精简仓库使用说明
-config: 补充 DeepSeek 思考模式模型配置
+config: 调整 GPT profile 模型配置
 chore: 初始化 Bun 和 TypeScript 项目结构
 ```
 

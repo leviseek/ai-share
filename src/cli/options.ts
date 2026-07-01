@@ -33,11 +33,6 @@ function parseProviderGroups(argv: readonly string[], env: EnvSource): ProviderG
       : {}),
     gpt:
       parseOption(argv, "--gpt-provider") ?? env.AI_SHARE_GPT_PROVIDER ?? sharedProvider ?? DEFAULT_PROVIDER_GROUPS.gpt,
-    deepseek:
-      parseOption(argv, "--deepseek-provider") ??
-      env.AI_SHARE_DEEPSEEK_PROVIDER ??
-      sharedProvider ??
-      DEFAULT_PROVIDER_GROUPS.deepseek,
     ...parseProviderGroupOptions(argv),
   };
 }
@@ -46,11 +41,9 @@ function providerGroupsSpecified(argv: readonly string[], env: EnvSource): boole
   return (
     parseOption(argv, "--provider") !== undefined ||
     parseOption(argv, "--gpt-provider") !== undefined ||
-    parseOption(argv, "--deepseek-provider") !== undefined ||
     parseOptions(argv, "--provider-group").length > 0 ||
     env.AI_SHARE_PROVIDER !== undefined ||
-    env.AI_SHARE_GPT_PROVIDER !== undefined ||
-    env.AI_SHARE_DEEPSEEK_PROVIDER !== undefined
+    env.AI_SHARE_GPT_PROVIDER !== undefined
   );
 }
 

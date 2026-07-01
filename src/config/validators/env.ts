@@ -9,7 +9,6 @@ const DISALLOWED_CODEX_ENV_KEYS = new Set([
   "Path",
   "AI_SHARE_TASK",
   "AI_SHARE_GPT_PROVIDER",
-  "AI_SHARE_DEEPSEEK_PROVIDER",
 ]);
 
 export function validateCodexEnv(errors: ValidationError[], envConfig: EnvYaml): void {

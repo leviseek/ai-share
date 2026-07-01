@@ -3,9 +3,10 @@
 ## 模型偏好
 
 - 日常编码：GPT-5 系列（balanced profile）
-- 深度推理：DeepSeek 系列（research/max profile）
-- 轻量任务：GPT-5.4-mini（cheap/lite profile）
+- 深度推理：GPT-5 系列（research/max profile）
+- 轻量任务：GPT-5.4-mini（cheap/economy/lite profile）
 - compaction 模型首选 fast（gpt-5.4-mini）
+- 当前 ai-share 仅支持 Codex + GPT 兼容 provider，不再使用非 GPT 模型组
 
 ## 编辑器与终端
 

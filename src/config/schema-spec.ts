@@ -118,7 +118,7 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
         required: ["provider_group", "model_name", "cost", "limits"],
         properties: {
           provider: stringSchema("Resolved provider id generated from provider_group."),
-          provider_group: stringSchema("Logical provider group such as gpt or deepseek."),
+          provider_group: stringSchema("Logical provider group such as gpt."),
           model_name: stringSchema("Upstream model name sent to provider."),
           capabilities: stringArraySchema("Model capability labels."),
           cost: objectSchema({

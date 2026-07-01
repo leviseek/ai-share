@@ -332,8 +332,8 @@ function alignProfilesToSingleProvider(
   );
 }
 
-function modelGroupForSingleProvider(providerId: string): "gpt" | "deepseek" | undefined {
-  if (providerId === "deepseek") return "deepseek";
+function modelGroupForSingleProvider(providerId: string): "gpt" | undefined {
+  void providerId;
   return "gpt";
 }
 
@@ -342,7 +342,7 @@ function modelIdsExist(modelIds: Record<"primary" | "reasoning" | "fast", string
 }
 
 function familyProfileModels(): Readonly<
-  Record<"gpt" | "deepseek", Record<string, Record<"primary" | "reasoning" | "fast", string>>>
+  Record<"gpt", Record<string, Record<"primary" | "reasoning" | "fast", string>>>
 > {
   return {
     gpt: {
@@ -354,42 +354,6 @@ function familyProfileModels(): Readonly<
       research: { primary: "gpt-5.5", reasoning: "gpt-5.5", fast: "gpt-5.4-mini" },
       writing: { primary: "gpt-5.5", reasoning: "gpt-5.5", fast: "gpt-5.4-mini" },
       max: { primary: "gpt-5.5", reasoning: "gpt-5.5", fast: "gpt-5.4" },
-      "ds-max": { primary: "gpt-5.5", reasoning: "gpt-5.5", fast: "gpt-5.4" },
-    },
-    deepseek: {
-      lite: { primary: "deepseek-v4-flash", reasoning: "deepseek-v4-flash-think", fast: "deepseek-v4-flash" },
-      economy: { primary: "deepseek-v4-flash", reasoning: "deepseek-v4-flash-think", fast: "deepseek-v4-flash" },
-      cheap: { primary: "deepseek-v4-flash", reasoning: "deepseek-v4-flash-think", fast: "deepseek-v4-flash" },
-      balanced: {
-        primary: "deepseek-v4-pro-think",
-        reasoning: "deepseek-v4-pro-think",
-        fast: "deepseek-v4-flash",
-      },
-      coding: {
-        primary: "deepseek-v4-pro-think",
-        reasoning: "deepseek-v4-pro-think",
-        fast: "deepseek-v4-flash",
-      },
-      research: {
-        primary: "deepseek-v4-pro-think",
-        reasoning: "deepseek-v4-pro-think-max",
-        fast: "deepseek-v4-flash",
-      },
-      writing: {
-        primary: "deepseek-v4-pro-think",
-        reasoning: "deepseek-v4-pro-think",
-        fast: "deepseek-v4-flash",
-      },
-      max: {
-        primary: "deepseek-v4-pro-think",
-        reasoning: "deepseek-v4-pro-think-max",
-        fast: "deepseek-v4-flash",
-      },
-      "ds-max": {
-        primary: "deepseek-v4-pro-think",
-        reasoning: "deepseek-v4-pro-think-max",
-        fast: "deepseek-v4-flash",
-      },
     },
   };
 }
@@ -400,7 +364,7 @@ async function selectProviderForGroups(input: {
   currentProviderGroups: ProviderGroupMap;
 }): Promise<string> {
   const choices = input.providerIds;
-  const currentDefaultProvider = input.currentProviderGroups.gpt ?? input.currentProviderGroups.deepseek;
+  const currentDefaultProvider = input.currentProviderGroups.gpt;
   let selectedIndex = Math.max(0, choices.indexOf(currentDefaultProvider ?? ""));
 
   return await new Promise<string>((resolve) => {

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Codex profile definitions. Each profile maps three model roles (`primary`, `reasoning`, `fast`) to concrete model IDs from `models.yaml`, with optional compaction metadata.
+Codex profile definitions. Each profile maps three model roles (`primary`, `reasoning`, `fast`) to concrete GPT model IDs from `models.yaml`, with optional compaction metadata.
 
 ## Fields
 
@@ -21,17 +21,16 @@ Each top-level key is a profile ID.
 
 ## Current Profiles
 
-| Profile ID | Primary               | Reasoning                 | Fast              |
-| ---------- | --------------------- | ------------------------- | ----------------- |
-| `lite`     | gpt-5.4               | gpt-5.4                   | gpt-5.4-mini      |
-| `economy`  | deepseek-v4-flash     | deepseek-v4-flash-think   | deepseek-v4-flash |
-| `cheap`    | gpt-5.4-mini          | gpt-5.4                   | gpt-5.4-mini      |
-| `balanced` | gpt-5.5               | gpt-5.5                   | gpt-5.4-mini      |
-| `coding`   | gpt-5.5-coding        | gpt-5.5-coding            | gpt-5.4-mini      |
-| `research` | gpt-5.5               | gpt-5.5                   | gpt-5.4-mini      |
-| `writing`  | gpt-5.5               | gpt-5.5                   | gpt-5.4-mini      |
-| `max`      | gpt-5.5               | gpt-5.5                   | gpt-5.4           |
-| `ds-max`   | deepseek-v4-pro-think | deepseek-v4-pro-think-max | deepseek-v4-flash |
+| Profile ID | Primary        | Reasoning      | Fast         |
+| ---------- | -------------- | -------------- | ------------ |
+| `lite`     | gpt-5.4        | gpt-5.4        | gpt-5.4-mini |
+| `economy`  | gpt-5.4-mini   | gpt-5.4        | gpt-5.4-mini |
+| `cheap`    | gpt-5.4-mini   | gpt-5.4        | gpt-5.4-mini |
+| `balanced` | gpt-5.5        | gpt-5.5        | gpt-5.4-mini |
+| `coding`   | gpt-5.5-coding | gpt-5.5-coding | gpt-5.4-mini |
+| `research` | gpt-5.5        | gpt-5.5        | gpt-5.4-mini |
+| `writing`  | gpt-5.5        | gpt-5.5        | gpt-5.4-mini |
+| `max`      | gpt-5.5        | gpt-5.5        | gpt-5.4      |
 
 ## Cross-File References
 

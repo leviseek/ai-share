@@ -23,7 +23,7 @@ YAML source of truth for generated Codex CLI, Codex, profile MCP, and instructio
 - Stable keys matter: generator code references provider/model/profile/agent IDs.
 - YAML field shape rules are defined once in `../src/config/schema-spec.ts`; do not mirror required/type/enum rules in docs or validators by hand.
 - Keep `global.yaml` small; profile-specific behavior belongs in `profiles.yaml`.
-- `profiles.yaml` currently defines `lite`, `economy`, `cheap`, `balanced`, `coding`, `research`, `writing`, `max`, `ds-max`.
+- `profiles.yaml` currently defines `lite`, `economy`, `cheap`, `balanced`, `coding`, `research`, `writing`, `max`.
 - `env.yaml` only owns non-secret Codex runtime env such as local proxy; do not put API keys, tokens, `CODEX_HOME`, `PATH`, `AI_SHARE_*`, or `CODEX_*`.
 - `profile-eval.yaml` defines fixed evaluation prompts and scoring dimensions; it is schema-checked but does not change generated Codex runtime config.
 - `config/local/` is reserved for future machine-local overlays and is ignored by Git.

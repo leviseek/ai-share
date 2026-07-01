@@ -59,32 +59,19 @@ bun run ai:gen -- --force
 
 ## Provider 选择
 
-默认模型组提供商为 `gpt=codexapis`、`deepseek=deepseek`。切换 GPT 模型组到 Packy API：
+当前项目仅支持 Codex + GPT 兼容模型组，默认 provider 为 `gpt=codexapis`。可选 provider 来自
+`config/provider.yaml`：`codexapis`、`packyapi`、`axasapi`。
 
 在交互式终端直接运行 `bun run ai:gen` 且未通过参数或环境变量指定 provider 时，生成器会列出
-`config/provider.yaml` 中所有已配置 provider。选择某个 provider 后会把它应用到所有模型组，菜单不再显示
-`gpt/deepseek` 分组。可用 ↑/↓、数字键、Enter 或支持 SGR mouse 的终端鼠标点击选择。
+`config/provider.yaml` 中所有已配置 provider。选择某个 provider 后会把它应用到 GPT 模型组。可用 ↑/↓、数字键、Enter 或支持 SGR mouse 的终端鼠标点击选择。
 非交互环境、`bun run ai:check`、以及已显式指定 provider 的命令不会进入选择界面。
 
-单 provider 生成会同步模型家族：选择官方 `deepseek` provider 时，所有 profile 会生成 DeepSeek 模型；选择
-`codexapis`、`packyapi`、`axasapi` 等 GPT 兼容 provider 时，所有 profile 会生成 GPT 模型。
-
-如果希望一次指定同一个 provider 给所有模型组，可使用 `--provider`：
+如果希望指定 GPT provider，可使用以下任一方式：
 
 ```sh
 bun run ai:gen -- --provider packyapi --force
-```
-
-```sh
-bun run ai:gen -- --gpt-provider packyapi
 bun run ai:gen -- --gpt-provider packyapi --force
-bun run ai:gen -- --deepseek-provider deepseek
-```
-
-也可以用通用模型组参数指定一个或多个分组：
-
-```sh
-bun run ai:gen -- --provider-group gpt=packyapi --provider-group deepseek=packyapi --force
+bun run ai:gen -- --provider-group gpt=packyapi --force
 ```
 
 环境变量也支持同样的 provider 选择：
@@ -92,7 +79,6 @@ bun run ai:gen -- --provider-group gpt=packyapi --provider-group deepseek=packya
 ```sh
 AI_SHARE_PROVIDER=packyapi bun run ai:gen -- --force
 AI_SHARE_GPT_PROVIDER=packyapi bun run ai:gen -- --force
-AI_SHARE_DEEPSEEK_PROVIDER=packyapi bun run ai:gen -- --force
 ```
 
 ## 生成输出
@@ -110,7 +96,6 @@ Codex 目录优先读取 `CODEX_HOME`，未设置时使用 `~/.codex`。
 ~/.codex/research.config.toml
 ~/.codex/writing.config.toml
 ~/.codex/max.config.toml
-~/.codex/ds-max.config.toml
 ~/.codex/lite.codex-config.json
 ~/.codex/economy.codex-config.json
 ~/.codex/cheap.codex-config.json
@@ -119,7 +104,6 @@ Codex 目录优先读取 `CODEX_HOME`，未设置时使用 `~/.codex`。
 ~/.codex/research.codex-config.json
 ~/.codex/writing.codex-config.json
 ~/.codex/max.codex-config.json
-~/.codex/ds-max.codex-config.json
 ~/.codex/ai-share.runtime.json
 ~/.codex/AGENTS.md
 ~/.codex/lite.AGENTS.md
@@ -130,7 +114,6 @@ Codex 目录优先读取 `CODEX_HOME`，未设置时使用 `~/.codex`。
 ~/.codex/research.AGENTS.md
 ~/.codex/writing.AGENTS.md
 ~/.codex/max.AGENTS.md
-~/.codex/ds-max.AGENTS.md
 ~/.codex/agents/sisyphus.toml
 ~/.codex/agents/hephaestus.toml
 ~/.codex/agents/prometheus.toml
@@ -175,18 +158,17 @@ Windows 会自动把该目录加入用户级 PATH。已经打开的终端可能�
 
 ## Profile
 
-当前内置 9 个 profile，每个 profile 固定使用 3 个模型角色：
+当前内置 8 个 profile，每个 profile 固定使用 3 个模型角色：
 
 ```text
 lite：primary=gpt-5.4，reasoning=gpt-5.4，fast=gpt-5.4-mini
-economy：primary=deepseek-v4-flash，reasoning=deepseek-v4-flash-think，fast=deepseek-v4-flash
+economy：primary=gpt-5.4-mini，reasoning=gpt-5.4，fast=gpt-5.4-mini
 cheap：primary=gpt-5.4-mini，reasoning=gpt-5.4，fast=gpt-5.4-mini
 balanced：primary=gpt-5.5，reasoning=gpt-5.5，fast=gpt-5.4-mini
 coding：primary=gpt-5.5-coding，reasoning=gpt-5.5-coding，fast=gpt-5.4-mini
 research：primary=gpt-5.5，reasoning=gpt-5.5，fast=gpt-5.4-mini
 writing：primary=gpt-5.5，reasoning=gpt-5.5，fast=gpt-5.4-mini
 max：primary=gpt-5.5，reasoning=gpt-5.5，fast=gpt-5.4
-ds-max：primary=deepseek-v4-pro-think，reasoning=deepseek-v4-pro-think-max，fast=deepseek-v4-flash
 ```
 
 默认 profile 由 `config/global.yaml` 的 `default_profile` 控制，当前是 `balanced`。启动时可直接选择：
@@ -222,7 +204,6 @@ config/profile-eval.yaml -> profile evaluation 固定任务集和手工评分维
 CODEXAPIS_API_KEY
 PACKYAPI_API_KEY
 AXASAPI_API_KEY
-DEEPSEEK_API_KEY
 ```
 
 Windows PowerShell 示例：
@@ -231,7 +212,6 @@ Windows PowerShell 示例：
 [Environment]::SetEnvironmentVariable("CODEXAPIS_API_KEY", "your-key", "User")
 [Environment]::SetEnvironmentVariable("PACKYAPI_API_KEY", "your-key", "User")
 [Environment]::SetEnvironmentVariable("AXASAPI_API_KEY", "your-key", "User")
-[Environment]::SetEnvironmentVariable("DEEPSEEK_API_KEY", "your-key", "User")
 ```
 
 macOS/Linux 示例：
@@ -240,7 +220,6 @@ macOS/Linux 示例：
 export CODEXAPIS_API_KEY="your-key"
 export PACKYAPI_API_KEY="your-key"
 export AXASAPI_API_KEY="your-key"
-export DEEPSEEK_API_KEY="your-key"
 ```
 
 ## Codex .env

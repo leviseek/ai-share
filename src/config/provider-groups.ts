@@ -1,4 +1,3 @@
-export const DEFAULT_PROVIDER_GROUPS: Readonly<Record<"gpt" | "deepseek", string>> = {
+export const DEFAULT_PROVIDER_GROUPS: Readonly<Record<"gpt", string>> = {
   gpt: "codexapis",
-  deepseek: "deepseek",
 };

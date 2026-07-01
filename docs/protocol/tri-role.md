@@ -19,11 +19,11 @@ Agent -> Role -> Profile -> Model -> Provider
 
 ## 角色
 
-| 角色        | 用途                               | 典型模型特征                        |
-| ----------- | ---------------------------------- | ----------------------------------- |
-| `primary`   | 主执行 agent：编码、生成、日常任务 | 均衡、通用、中等上下文              |
-| `reasoning` | 深度分析：规划、架构决策、复杂调试 | 大上下文、thinking 启用、高推理强度 |
-| `fast`      | 轻量任务：搜索、摘要、标题生成     | 快速、廉价、适合并行                |
+| 角色        | 用途                               | 典型模型特征           |
+| ----------- | ---------------------------------- | ---------------------- |
+| `primary`   | 主执行 agent：编码、生成、日常任务 | 均衡、通用、中等上下文 |
+| `reasoning` | 深度分析：规划、架构决策、复杂调试 | 大上下文、高推理强度   |
+| `fast`      | 轻量任务：搜索、摘要、标题生成     | 快速、廉价、适合并行   |
 
 ## Profile 格式
 
@@ -47,17 +47,16 @@ Agent -> Role -> Profile -> Model -> Provider
 
 ## 内置 Profile
 
-| Profile ID | 定位             | Primary               | Reasoning                 | Fast              |
-| ---------- | ---------------- | --------------------- | ------------------------- | ----------------- |
-| `lite`     | 轻量日常         | gpt-5.4               | gpt-5.4                   | gpt-5.4-mini      |
-| `economy`  | 激进省钱         | deepseek-v4-flash     | deepseek-v4-flash-think   | deepseek-v4-flash |
-| `cheap`    | 极低成本         | gpt-5.4-mini          | gpt-5.4                   | gpt-5.4-mini      |
-| `balanced` | 均衡编排（默认） | gpt-5.5               | gpt-5.5                   | gpt-5.4-mini      |
-| `coding`   | 代码实施优先     | gpt-5.5-coding        | gpt-5.5-coding            | gpt-5.4-mini      |
-| `research` | 深度研究         | gpt-5.5               | gpt-5.5                   | gpt-5.4-mini      |
-| `writing`  | 写作润色         | gpt-5.5               | gpt-5.5                   | gpt-5.4-mini      |
-| `max`      | 全力模式         | gpt-5.5               | gpt-5.5                   | gpt-5.4           |
-| `ds-max`   | 纯 DeepSeek 全力 | deepseek-v4-pro-think | deepseek-v4-pro-think-max | deepseek-v4-flash |
+| Profile ID | 定位             | Primary        | Reasoning      | Fast         |
+| ---------- | ---------------- | -------------- | -------------- | ------------ |
+| `lite`     | 轻量日常         | gpt-5.4        | gpt-5.4        | gpt-5.4-mini |
+| `economy`  | GPT 低成本       | gpt-5.4-mini   | gpt-5.4        | gpt-5.4-mini |
+| `cheap`    | 极低成本         | gpt-5.4-mini   | gpt-5.4        | gpt-5.4-mini |
+| `balanced` | 均衡编排（默认） | gpt-5.5        | gpt-5.5        | gpt-5.4-mini |
+| `coding`   | 代码实施优先     | gpt-5.5-coding | gpt-5.5-coding | gpt-5.4-mini |
+| `research` | 深度研究         | gpt-5.5        | gpt-5.5        | gpt-5.4-mini |
+| `writing`  | 写作润色         | gpt-5.5        | gpt-5.5        | gpt-5.4-mini |
+| `max`      | 全力模式         | gpt-5.5        | gpt-5.5        | gpt-5.4      |
 
 ## Agent 映射
 

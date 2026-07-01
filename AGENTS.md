@@ -96,7 +96,7 @@ bun run profile:eval -- --tasks project_analysis,contract_test_patch --profiles 
 
 ## NOTES
 
-- Built-in profiles include `lite`, `economy`, `cheap`, `balanced`, `coding`, `research`, `writing`, `max`, and `ds-max`.
+- Built-in profiles include `lite`, `economy`, `cheap`, `balanced`, `coding`, `research`, `writing`, and `max`.
 - `memory/` contains user-level memory files loaded as Codex startup instructions via `buildInstructionsPaths`.
 - Memory privacy layers are documented in `docs/memory-privacy.md`; local/private/project memory directories are ignored.
 - Existing local knowledge files: `config/AGENTS.md`, `src/AGENTS.md`, `bin/AGENTS.md`.

@@ -99,7 +99,7 @@ describe("buildInstructionsPaths", () => {
     expect(paths).not.toContain(resolve(root, "memory/stable/devices.yaml"));
   });
 
-  test("loads full memory set for ds-max profile", () => {
+  test("loads full memory set for max profile", () => {
     const root = makeProjectRoot();
     const fullMemoryFiles = [
       "memory/stable/user.yaml",
@@ -111,10 +111,10 @@ describe("buildInstructionsPaths", () => {
       "memory/policies/memory-policy.yaml",
     ];
     for (const relativePath of fullMemoryFiles) {
-      writeMemory(root, relativePath, `${relativePath}: "ds-max memory"`);
+      writeMemory(root, relativePath, `${relativePath}: "max memory"`);
     }
 
-    const paths = withoutTask(() => buildInstructionsPaths(root, "ds-max"));
+    const paths = withoutTask(() => buildInstructionsPaths(root, "max"));
 
     expect(paths.slice(-fullMemoryFiles.length)).toEqual(fullMemoryFiles.map((path) => resolve(root, path)));
   });

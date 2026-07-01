@@ -84,7 +84,7 @@ describe("profile evaluation harness", () => {
           task_weight: 1,
           models: {
             primary: "gpt-5.5-coding",
-            reasoning: "deepseek-v4-pro-think",
+            reasoning: "gpt-5.5",
             fast: "gpt-5.4-mini",
           },
           estimate: {
@@ -237,7 +237,7 @@ function profilesFixture(): ProfilesYaml {
     coding: {
       models: {
         primary: "gpt-5.5-coding",
-        reasoning: "deepseek-v4-pro-think",
+        reasoning: "gpt-5.5",
         fast: "gpt-5.4-mini",
       },
     },
@@ -256,6 +256,30 @@ function modelsFixture(): ModelsYaml {
       limits: {
         context_window: 200000,
         max_output: 8192,
+      },
+    },
+    "gpt-5.5": {
+      provider_group: "gpt",
+      model_name: "gpt-5.5",
+      cost: {
+        input: 0.01,
+        output: 0.03,
+      },
+      limits: {
+        context_window: 200000,
+        max_output: 8192,
+      },
+    },
+    "gpt-5.4-mini": {
+      provider_group: "gpt",
+      model_name: "gpt-5.4-mini",
+      cost: {
+        input: 0.0012,
+        output: 0.0024,
+      },
+      limits: {
+        context_window: 128000,
+        max_output: 4096,
       },
     },
   };

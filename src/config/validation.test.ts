@@ -72,16 +72,16 @@ describe("validateYamlConsistency", () => {
     const models: ModelsYaml = {
       "gpt-primary": model("gpt-primary"),
       "gpt-fast": model("gpt-fast"),
-      "deepseek-reasoning": {
-        ...model("deepseek-reasoning"),
-        provider_group: "deepseek",
+      "other-reasoning": {
+        ...model("other-reasoning"),
+        provider_group: "other",
       },
     };
     const profiles: ProfilesYaml = {
       coding: {
         models: {
           primary: "gpt-primary",
-          reasoning: "deepseek-reasoning",
+          reasoning: "other-reasoning",
           fast: "gpt-fast",
         },
       },
@@ -90,7 +90,7 @@ describe("validateYamlConsistency", () => {
     const errors = validateYamlConsistency(profiles, models, providers(), global(), mcp(), {}).map(formatError);
 
     expect(errors).toContain(
-      "profiles.yaml:profiles.coding.models:profile 'coding' 的 primary/reasoning/fast 必须使用同一 provider_group，当前为 primary=gpt-primary(gpt)、reasoning=deepseek-reasoning(deepseek)、fast=gpt-fast(gpt)",
+      "profiles.yaml:profiles.coding.models:profile 'coding' 的 primary/reasoning/fast 必须使用同一 provider_group，当前为 primary=gpt-primary(gpt)、reasoning=other-reasoning(other)、fast=gpt-fast(gpt)",
     );
   });
 
@@ -178,7 +178,7 @@ describe("validateYamlConsistency", () => {
           api_key: "sk-not-an-env-reference",
           timeout: "slow",
         },
-        deepseek: null,
+        packyapi: null,
       },
     } as unknown as ProviderYaml;
     const mcpConfig = {
@@ -207,7 +207,7 @@ describe("validateYamlConsistency", () => {
     for (const expectedError of [
       "provider.yaml:providers.codexapis.base_url:providers.codexapis.base_url 必须是非空字符串",
       "provider.yaml:providers.codexapis.api_key:providers.codexapis.api_key 格式不符合要求",
-      "provider.yaml:providers.deepseek:providers.deepseek 必须是对象",
+      "provider.yaml:providers.packyapi:providers.packyapi 必须是对象",
       "profiles.yaml:profiles.not-object:profiles.not-object 必须是对象",
       "profiles.yaml:profiles.malformed.name:profiles.malformed.name 必须是非空字符串",
       "profiles.yaml:profiles.malformed.models:profiles.malformed.models 必须是对象",
