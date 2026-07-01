@@ -1,7 +1,7 @@
-import { readFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { dirname, extname, join, resolve } from "node:path";
 import type { BuiltContext, ContextRequest } from "../context/builder.ts";
-import type { KnowledgeObjectType, RelationshipType } from "../core/types.ts";
+import type { BuildResult, KnowledgeObjectType, RelationshipType } from "../core/types.ts";
 import {
   buildCodexDryRun,
   buildCodexMockTrace,
@@ -20,6 +20,8 @@ import {
   summarizeContextRecipe,
   type StudioSnapshot,
 } from "./data.ts";
+import { buildKnowledge } from "../index.ts";
+import { createJsonlKnowledgeStore, writeBuildResult } from "../storage/jsonl-store.ts";
 import { runCodexPlanExec, runCodexPlanExecStream, type PlanExecStreamEvent } from "./plan-exec.ts";
 import {
   createContextExperimentStore,
@@ -33,6 +35,9 @@ import {
 const DEFAULT_PORT = 3737;
 const DIST_DIR = join(import.meta.dir, "public", "dist");
 const PUBLIC_DIR = join(import.meta.dir, "public");
+const MAX_IMPORT_FILES = 5000;
+const MAX_IMPORT_FILE_BYTES = 1_000_000;
+const MAX_IMPORT_TOTAL_BYTES = 50_000_000;
 
 type StudioState = {
   snapshot: StudioSnapshot;
@@ -41,6 +46,17 @@ type StudioState = {
   experiments: ContextExperimentStore;
   recipes: ContextRecipeStore;
   pendingStreams: Map<string, ReturnType<typeof buildCodexDryRun>>;
+  activeImport?: RepositoryImportSummary;
+};
+
+export type RepositoryImportSummary = {
+  importId: string;
+  repoRoot: string;
+  storeRoot: string;
+  objects: number;
+  edges: number;
+  diagnostics: number;
+  buildHash: string;
 };
 
 async function main(argv: string[]): Promise<void> {
@@ -72,6 +88,7 @@ async function routeRequest(request: Request, state: StudioState): Promise<Respo
   if (url.pathname === "/") return await staticResponse("index.html");
   if (url.pathname.startsWith("/assets/")) return await staticResponse(url.pathname.slice(1));
   if (url.pathname === "/api/repository/tree") return jsonResponse(buildRepositoryTree(state.snapshot.objects));
+  if (url.pathname === "/api/repository/import") return handleRepositoryImportRequest(request, state);
   if (url.pathname === "/api/graph") return jsonResponse(handleGraphRequest(url, state.snapshot));
   if (url.pathname === "/api/context") return handleContextRequest(request, state);
   if (url.pathname === "/api/impact") return jsonResponse(handleImpactRequest(url, state.snapshot));
@@ -393,6 +410,91 @@ async function handleContextRecipeDryRunRequest(request: Request, state: StudioS
   return jsonResponse(dryRun);
 }
 
+export async function importRepositoryFromFormData(
+  formData: FormData,
+  state: Pick<StudioState, "snapshot" | "lastContext" | "activeImport">,
+  repoRoot: string,
+): Promise<RepositoryImportSummary> {
+  const importId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+  const importRoot = resolve(repoRoot, ".rie", "studio", "imports", importId);
+  const importedRepoRoot = resolve(importRoot, "repo");
+  const storeRoot = resolve(importRoot, "store");
+  const paths = formData.getAll("paths").filter((item): item is string => typeof item === "string");
+  let fileCount = 0;
+  let totalBytes = 0;
+  await rm(importRoot, { recursive: true, force: true });
+  await mkdir(importedRepoRoot, { recursive: true });
+  for (const [key, value] of formData.entries()) {
+    if (key !== "files" || typeof value === "string") continue;
+    const file = value as File;
+    const relativePath = safeImportRelativePath(paths[fileCount] ?? readUploadRelativePath(file));
+    fileCount++;
+    if (fileCount > MAX_IMPORT_FILES) throw new Error(`导入文件数量超过限制：${MAX_IMPORT_FILES}`);
+    if (file.size > MAX_IMPORT_FILE_BYTES) throw new Error(`导入文件超过单文件大小限制：${relativePath}`);
+    totalBytes += file.size;
+    if (totalBytes > MAX_IMPORT_TOTAL_BYTES) throw new Error(`导入总大小超过限制：${MAX_IMPORT_TOTAL_BYTES}`);
+    const target = resolve(importedRepoRoot, relativePath);
+    if (!isWithin(importedRepoRoot, target)) throw new Error(`非法导入路径：${relativePath}`);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, new Uint8Array(await file.arrayBuffer()));
+  }
+  if (fileCount === 0) throw new Error("请上传至少一个仓库文件。");
+  const result = await buildKnowledge({ repoRoot: importedRepoRoot });
+  await writeBuildResult(createJsonlKnowledgeStore(storeRoot), result);
+  state.snapshot = result;
+  delete state.lastContext;
+  const summary = buildImportSummary(importId, importedRepoRoot, storeRoot, result);
+  state.activeImport = summary;
+  return summary;
+}
+
+async function handleRepositoryImportRequest(request: Request, state: StudioState): Promise<Response> {
+  if (request.method !== "POST") return jsonResponse({ error: "不支持的请求方法。" }, 405);
+  const formData = await request.formData();
+  return jsonResponse(await importRepositoryFromFormData(formData, state, process.cwd()));
+}
+
+function buildImportSummary(
+  importId: string,
+  repoRoot: string,
+  storeRoot: string,
+  result: BuildResult,
+): RepositoryImportSummary {
+  return {
+    importId,
+    repoRoot,
+    storeRoot,
+    objects: result.objects.length,
+    edges: result.edges.length,
+    diagnostics: result.diagnostics.length,
+    buildHash: result.metadata.buildHash,
+  };
+}
+
+function readUploadRelativePath(file: File): string {
+  const record = file as File & { webkitRelativePath?: string };
+  return record.webkitRelativePath !== undefined && record.webkitRelativePath.length > 0
+    ? record.webkitRelativePath
+    : file.name;
+}
+
+function safeImportRelativePath(path: string): string {
+  const normalized = path.replaceAll("\\", "/").replace(/^\/+/, "");
+  if (normalized.length === 0 || normalized.includes("..") || /^[a-zA-Z]:/.test(normalized))
+    throw new Error(`非法导入路径：${path}`);
+  return normalized;
+}
+
+function isWithin(root: string, target: string): boolean {
+  const normalizedRoot = resolve(root);
+  const normalizedTarget = resolve(target);
+  return (
+    normalizedTarget === normalizedRoot ||
+    normalizedTarget.startsWith(`${normalizedRoot}\\`) ||
+    normalizedTarget.startsWith(`${normalizedRoot}/`)
+  );
+}
+
 async function staticResponse(path: string): Promise<Response> {
   const safePath = path.replaceAll("\\", "/").replace(/^\/+/, "");
   if (safePath.includes("..")) return jsonResponse({ error: "非法静态资源路径。" }, 400);
@@ -574,4 +676,4 @@ function parsePort(argv: string[]): number {
   return parsed;
 }
 
-await main(process.argv);
+if (import.meta.main) await main(process.argv);

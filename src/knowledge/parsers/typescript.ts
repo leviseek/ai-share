@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import ts from "typescript";
-import { contentHash, objectId } from "../core/ids.ts";
+import { contentHash, normalizePath, objectId } from "../core/ids.ts";
 import type {
   KnowledgeObject,
   KnowledgeRelationship,
@@ -45,23 +45,62 @@ export const typescriptParser: RepositoryParser = {
       });
 
     for (const statement of source.statements) {
-      collectImport(statement, fileId, relationships);
+      collectImport(statement, resource.path, fileId, relationships, context);
       collectSymbol(statement, resource.path, fileId, objects, relationships, context.now);
     }
     return { objects, relationships, diagnostics: [] };
   },
 };
 
-function collectImport(node: ts.Statement, fileId: string, relationships: KnowledgeRelationship[]): void {
+function collectImport(
+  node: ts.Statement,
+  path: string,
+  fileId: string,
+  relationships: KnowledgeRelationship[],
+  context: ParserContext,
+): void {
   if (!ts.isImportDeclaration(node) && !ts.isExportDeclaration(node)) return;
   const moduleSpecifier = node.moduleSpecifier;
   if (moduleSpecifier === undefined || !ts.isStringLiteral(moduleSpecifier)) return;
+  const specifier = moduleSpecifier.text;
+  const resolvedPath = resolveRelativeTypescriptImport(path, specifier, context.repositoryFiles);
   relationships.push({
     from: fileId,
-    to: `module:${moduleSpecifier.text}`,
+    to: resolvedPath === undefined ? `module:${specifier}` : resolvedImportObjectId(resolvedPath),
     type: "imports",
-    metadata: { parser: "typescript", specifier: moduleSpecifier.text },
+    metadata: { parser: "typescript", specifier, resolved: resolvedPath !== undefined },
   });
+}
+
+function resolveRelativeTypescriptImport(
+  path: string,
+  specifier: string,
+  repositoryFiles: Set<string>,
+): string | undefined {
+  if (!specifier.startsWith(".")) return undefined;
+  const baseDir = dirname(path).replaceAll("\\", "/");
+  const base = normalizeRelativePath(baseDir === "." ? specifier : `${baseDir}/${specifier}`);
+  const candidates = [base, `${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}/index.tsx`];
+  return candidates.find((candidate) => repositoryFiles.has(candidate));
+}
+
+function normalizeRelativePath(path: string): string {
+  const parts: string[] = [];
+  for (const part of normalizePath(path).split("/")) {
+    if (part.length === 0 || part === ".") continue;
+    if (part === "..") parts.pop();
+    else parts.push(part);
+  }
+  return parts.join("/");
+}
+
+function resolvedImportObjectId(path: string): string {
+  if (path.endsWith(".test.ts")) return objectId("test", path);
+  if (/\.tsx?$/.test(path)) return objectId("codefile", path);
+  if (path.endsWith(".md"))
+    return objectId(path.endsWith("AGENTS.md") || path.endsWith("CODEX.md") ? "agent" : "doc", path);
+  if (/\.(json|ya?ml)$/.test(path) && !path.endsWith("package.json")) return objectId("config", path);
+  return objectId("file", path);
 }
 
 function collectSymbol(

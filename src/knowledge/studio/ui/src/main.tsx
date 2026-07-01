@@ -224,6 +224,16 @@ type Toast = {
   message: string;
 };
 
+type RepositoryImportSummary = {
+  importId: string;
+  repoRoot: string;
+  storeRoot: string;
+  objects: number;
+  edges: number;
+  diagnostics: number;
+  buildHash: string;
+};
+
 type StudioPreferences = {
   graphFilters: GraphFilters;
   graphSeeds: string[];
@@ -286,6 +296,7 @@ function App() {
   const [tree, setTree] = useState<TreeNode | undefined>();
   const [graph, setGraph] = useState<GraphData>({ nodes: [], edges: [] });
   const [dashboard, setDashboard] = useState<Dashboard | undefined>();
+  const [repositoryImport, setRepositoryImport] = useState<RepositoryImportSummary | undefined>();
   const [selectedObjectId, setSelectedObjectId] = useState(preferences.selectedObjectId);
   const [graphSeeds, setGraphSeeds] = useState<string[]>(preferences.graphSeeds);
   const [graphFilters, setGraphFilters] = useState<GraphFilters>(preferences.graphFilters);
@@ -396,6 +407,32 @@ function App() {
     const next = !inspectorCollapsed;
     setInspectorCollapsed(next);
     updatePreferences({ inspectorCollapsed: next });
+  }
+
+  async function importRepositoryFiles(files: File[]): Promise<void> {
+    if (files.length === 0) throw new Error("No repository files selected.");
+    const formData = new FormData();
+    for (const file of files) {
+      const relativePath = browserRelativePath(file);
+      formData.append("files", file, relativePath);
+      formData.append("paths", relativePath);
+    }
+    const summary = await postForm<RepositoryImportSummary>("/api/repository/import", formData);
+    setRepositoryImport(summary);
+    setSelectedObject("");
+    setGraphSeeds([]);
+    setGraphFilters(defaultFilters);
+    setContextOutput("");
+    setImpactOutput("");
+    setContextQuality(undefined);
+    const [treeData, graphData, dashboardData] = await Promise.all([
+      getJson<TreeNode>("/api/repository/tree"),
+      loadGraph([], defaultFilters),
+      getJson<Dashboard>("/api/dashboard"),
+    ]);
+    setTree(treeData);
+    setGraph(graphData);
+    setDashboard(dashboardData);
   }
 
   async function refresh() {
@@ -672,6 +709,18 @@ function App() {
       <main>
         <aside class="panel explorer">
           <h2>Repository Explorer</h2>
+          <RepositoryImportDropZone
+            busy={isBusy}
+            active={activeActions.includes("repository-import")}
+            summary={repositoryImport}
+            onImport={(files) =>
+              void runAction(
+                "repository-import",
+                () => importRepositoryFiles(files),
+                "Repository knowledge base built.",
+              )
+            }
+          />
           {tree === undefined ? (
             <EmptyState title="Loading repository" message="Repository tree will appear after refresh completes." />
           ) : tree.children.length === 0 ? (
@@ -805,6 +854,121 @@ function App() {
   );
 }
 
+function RepositoryImportDropZone(props: {
+  busy: boolean;
+  active: boolean;
+  summary: RepositoryImportSummary | undefined;
+  onImport(files: File[]): void;
+}) {
+  const [dragActive, setDragActive] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const className = dragActive ? "repo-drop-zone active" : "repo-drop-zone";
+  useEffect(() => {
+    inputRef.current?.setAttribute("webkitdirectory", "");
+  }, []);
+  return (
+    <section
+      class={className}
+      onDragEnter={(event) => {
+        event.preventDefault();
+        setDragActive(true);
+      }}
+      onDragOver={(event) => {
+        event.preventDefault();
+        setDragActive(true);
+      }}
+      onDragLeave={() => setDragActive(false)}
+      onDrop={(event) => {
+        event.preventDefault();
+        setDragActive(false);
+        const transfer = event.dataTransfer;
+        if (transfer !== null) void collectDroppedFiles(transfer).then((files) => props.onImport(files));
+      }}
+    >
+      <strong>{props.active ? "Building knowledge base..." : "Drop repository folder"}</strong>
+      <span>Upload a local folder copy and build a Studio snapshot.</span>
+      <div class="repo-drop-actions">
+        <button disabled={props.busy} onClick={() => inputRef.current?.click()}>
+          Choose folder
+        </button>
+        {props.summary !== undefined && <code>{props.summary.objects} objects</code>}
+      </div>
+      {props.summary !== undefined && (
+        <small>
+          Last import: {props.summary.importId} · {props.summary.diagnostics} diagnostics
+        </small>
+      )}
+      <input
+        ref={inputRef}
+        class="hidden-file-input"
+        type="file"
+        multiple
+        onInput={(event) => props.onImport([...(event.currentTarget.files ?? [])])}
+      />
+    </section>
+  );
+}
+
+function browserRelativePath(file: File): string {
+  const record = file as File & { webkitRelativePath?: string };
+  return record.webkitRelativePath !== undefined && record.webkitRelativePath.length > 0
+    ? record.webkitRelativePath
+    : file.name;
+}
+
+async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<File[]> {
+  const entries = [...dataTransfer.items]
+    .map((item) => item.webkitGetAsEntry?.())
+    .filter((entry): entry is FileSystemEntry => entry !== null && entry !== undefined);
+  if (entries.length > 0) return await collectEntryFiles(entries);
+  return [...dataTransfer.files];
+}
+
+async function collectEntryFiles(entries: FileSystemEntry[]): Promise<File[]> {
+  const files = await Promise.all(entries.map((entry) => collectEntryFileList(entry, "")));
+  return files.flat();
+}
+
+async function collectEntryFileList(entry: FileSystemEntry, prefix: string): Promise<File[]> {
+  if (entry.isFile) {
+    const file = await readFileEntry(entry as FileSystemFileEntry);
+    return [withRelativePath(file, `${prefix}${file.name}`)];
+  }
+  if (!entry.isDirectory) return [];
+  const directory = entry as FileSystemDirectoryEntry;
+  const children = await readDirectoryEntries(directory);
+  const nextPrefix = `${prefix}${directory.name}/`;
+  const nested = await Promise.all(children.map((child) => collectEntryFileList(child, nextPrefix)));
+  return nested.flat();
+}
+
+function readFileEntry(entry: FileSystemFileEntry): Promise<File> {
+  return new Promise((resolve, reject) => entry.file(resolve, reject));
+}
+
+function readDirectoryEntries(directory: FileSystemDirectoryEntry): Promise<FileSystemEntry[]> {
+  const reader = directory.createReader();
+  const entries: FileSystemEntry[] = [];
+  return new Promise((resolve, reject) => {
+    function readBatch() {
+      reader.readEntries((batch) => {
+        if (batch.length === 0) {
+          resolve(entries);
+          return;
+        }
+        entries.push(...batch);
+        readBatch();
+      }, reject);
+    }
+    readBatch();
+  });
+}
+
+function withRelativePath(file: File, relativePath: string): File {
+  Object.defineProperty(file, "webkitRelativePath", { value: relativePath, configurable: true });
+  return file;
+}
+
 function ToastStack(props: { toasts: Toast[]; onDismiss(id: string): void }) {
   if (props.toasts.length === 0) return null;
   return (
@@ -893,21 +1057,40 @@ function RepositoryExplorer(props: { node: TreeNode; onSelect: (id: string) => v
 }
 
 function TreeBranch(props: { node: TreeNode; onSelect: (id: string) => void }) {
+  const [expanded, setExpanded] = useState(true);
+  const hasChildren = props.node.children.length > 0;
+  const isDirectory = props.node.kind === "directory";
   return (
     <ul class="tree">
-      <li
-        class={props.node.kind}
-        title={props.node.objectIds.join("\n")}
-        onClick={(event) => {
-          event.stopPropagation();
-          const id = props.node.objectIds[0];
-          if (id !== undefined) props.onSelect(id);
-        }}
-      >
-        {props.node.kind === "directory" ? "▸" : "•"} {props.node.name}
-        {props.node.children.map((child) => (
-          <TreeBranch key={child.path} node={child} onSelect={props.onSelect} />
-        ))}
+      <li class={props.node.kind} title={props.node.objectIds.join("\n")}>
+        <div
+          class="tree-row"
+          onClick={(event) => {
+            event.stopPropagation();
+            const id = props.node.objectIds[0];
+            if (id !== undefined) props.onSelect(id);
+          }}
+        >
+          {isDirectory ? (
+            <button
+              class="tree-toggle"
+              disabled={!hasChildren}
+              aria-label={expanded ? `Collapse ${props.node.name}` : `Expand ${props.node.name}`}
+              aria-expanded={expanded}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (hasChildren) setExpanded((value) => !value);
+              }}
+            >
+              {hasChildren ? (expanded ? "▾" : "▸") : "•"}
+            </button>
+          ) : (
+            <span class="tree-toggle-placeholder">•</span>
+          )}
+          <span>{props.node.name}</span>
+        </div>
+        {expanded &&
+          props.node.children.map((child) => <TreeBranch key={child.path} node={child} onSelect={props.onSelect} />)}
       </li>
     </ul>
   );
@@ -1787,6 +1970,12 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+  if (!response.ok) throw new Error(await response.text());
+  return (await response.json()) as T;
+}
+
+async function postForm<T>(path: string, body: FormData): Promise<T> {
+  const response = await fetch(path, { method: "POST", body });
   if (!response.ok) throw new Error(await response.text());
   return (await response.json()) as T;
 }

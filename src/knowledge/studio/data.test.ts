@@ -1,4 +1,4 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
@@ -27,6 +27,7 @@ import {
   runCodexPlanExecStream,
 } from "./plan-exec.ts";
 import { createContextExperimentStore, createContextRecipeStore, createStudioSessionStore } from "./session-store.ts";
+import { importRepositoryFromFormData, type RepositoryImportSummary } from "./server.ts";
 
 const now = "2026-07-01T00:00:00.000Z";
 
@@ -242,6 +243,48 @@ describe("Repository Intelligence Studio data", () => {
     expect(dryRun.selectedSeeds).toContain("codefile:src/main.ts");
   });
 
+  test("imports a dragged repository folder into an isolated knowledge snapshot", async () => {
+    const root = await mkdtemp(join(tmpdir(), "studio-import-"));
+    const state: { snapshot: StudioSnapshot; activeImport?: RepositoryImportSummary } = { snapshot: fixtureSnapshot() };
+    const formData = new FormData();
+    formData.append(
+      "files",
+      uploadFile("demo/package.json", JSON.stringify({ name: "demo", scripts: { check: "tsc" } })),
+    );
+    formData.append(
+      "files",
+      uploadFile("demo/src/main.ts", "export function main() { return 1; }\n"),
+      "demo/src/main.ts",
+    );
+
+    const summary = await importRepositoryFromFormData(formData, state, root);
+    const manifest = JSON.parse(await readFile(join(summary.storeRoot, "manifest.json"), "utf-8")) as {
+      buildHash: string;
+    };
+
+    expect(summary.objects).toBeGreaterThan(0);
+    expect(summary.edges).toBeGreaterThan(0);
+    expect(summary.diagnostics).toBe(0);
+    expect(manifest.buildHash).toBe(summary.buildHash);
+    expect(state.snapshot.objects.some((object) => object.id === "package:demo")).toBe(true);
+  });
+
+  test("rejects unsafe uploaded repository paths", async () => {
+    const root = await mkdtemp(join(tmpdir(), "studio-import-unsafe-"));
+    const state: { snapshot: StudioSnapshot; activeImport?: RepositoryImportSummary } = { snapshot: fixtureSnapshot() };
+    const formData = new FormData();
+    formData.append("files", uploadFile("../escape.ts", "export const nope = true;\n"), "escape.ts");
+    formData.append("paths", "../escape.ts");
+
+    try {
+      await importRepositoryFromFormData(formData, state, root);
+      throw new Error("Expected unsafe import path to be rejected.");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toContain("非法导入路径");
+    }
+  });
+
   test("stores and reads recent Studio sessions", async () => {
     const root = await mkdtemp(join(tmpdir(), "studio-session-"));
     const store = createStudioSessionStore(root);
@@ -333,6 +376,12 @@ describe("Repository Intelligence Studio data", () => {
     expect(result.guardResult.ok).toBe(true);
   });
 });
+
+function uploadFile(relativePath: string, content: string): File {
+  const file = new File([content], relativePath.split("/").at(-1) ?? "file.txt", { type: "text/plain" });
+  Object.defineProperty(file, "webkitRelativePath", { value: relativePath, configurable: true });
+  return file;
+}
 
 function fixtureSnapshot(): StudioSnapshot {
   const objects = [

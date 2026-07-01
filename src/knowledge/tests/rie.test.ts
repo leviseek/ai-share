@@ -1,10 +1,11 @@
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
 import { buildContext } from "../context/builder.ts";
 import { createKnowledgeMcpTools } from "../mcp/tools.ts";
 import { buildKnowledge } from "../index.ts";
+import { createJsonlKnowledgeStore, readBuildResult, writeBuildResult } from "../storage/jsonl-store.ts";
 
 async function fixtureRepo(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "rie-fixture-"));
@@ -32,7 +33,47 @@ describe("RIE build", () => {
     const result = await buildKnowledge({ repoRoot: root });
     expect(result.objects.some((object) => object.type === "Agent")).toBe(true);
     expect(result.objects.some((object) => object.type === "Script" && object.title === "check")).toBe(true);
-    expect(result.edges.some((edge) => edge.type === "imports")).toBe(true);
+    expect(result.objects.some((object) => object.type === "Project")).toBe(true);
+    expect(result.edges.some((edge) => edge.type === "imports" && edge.to === "codefile:src/util.ts")).toBe(true);
+    expect(result.metadata.schemaVersion).toBe(1);
+  });
+
+  test("keeps building when files are invalid, unknown, ignored, binary, or oversized", async () => {
+    const root = await fixtureRepo();
+    await mkdir(join(root, "ignored-dir"), { recursive: true });
+    await writeFile(join(root, ".gitignore"), "ignored-dir/\n");
+    await writeFile(join(root, "broken.json"), "{ nope");
+    await writeFile(join(root, "notes.txt"), "plain text notes for unknown language\n");
+    await writeFile(join(root, "binary.bin"), new Uint8Array([0, 1, 2, 3]));
+    await writeFile(join(root, "large.txt"), "x".repeat(120));
+    await writeFile(join(root, "ignored-dir", "secret.ts"), "export const secret = 1;\n");
+
+    const result = await buildKnowledge({ repoRoot: root, maxFileBytes: 100 });
+
+    expect(result.objects.some((object) => object.id === "file:notes.txt")).toBe(true);
+    expect(result.objects.some((object) => object.path === "ignored-dir/secret.ts")).toBe(false);
+    expect(
+      result.diagnostics.some((diagnostic) => diagnostic.parser === "yaml-json" && diagnostic.path === "broken.json"),
+    ).toBe(true);
+    expect(result.diagnostics.some((diagnostic) => diagnostic.path === "binary.bin")).toBe(true);
+    expect(result.diagnostics.some((diagnostic) => diagnostic.path === "large.txt")).toBe(true);
+  });
+
+  test("writes production snapshot files and reads them back", async () => {
+    const root = await fixtureRepo();
+    const result = await buildKnowledge({ repoRoot: root });
+    const storeRoot = join(root, ".custom-rie");
+    const store = createJsonlKnowledgeStore(storeRoot);
+
+    await writeBuildResult(store, result);
+    const reloaded = await readBuildResult(store);
+    const manifest = JSON.parse(await readFile(join(storeRoot, "manifest.json"), "utf-8")) as { buildHash: string };
+    const diagnostics = await readFile(join(storeRoot, "diagnostics.jsonl"), "utf-8");
+
+    expect(reloaded.objects.length).toBe(result.objects.length);
+    expect(reloaded.metadata.buildHash).toBe(result.metadata.buildHash);
+    expect(manifest.buildHash).toBe(result.metadata.buildHash);
+    expect(diagnostics).toBe("");
   });
 
   test("builds graph-first context", async () => {

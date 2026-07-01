@@ -186,6 +186,47 @@ main {
   width: 100%;
 }
 
+.repo-drop-zone {
+  background: #0b1222;
+  border: 1px dashed #3b82f6;
+  border-radius: 12px;
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 12px;
+  padding: 12px;
+}
+
+.repo-drop-zone.active {
+  background: #10213e;
+  border-color: #93c5fd;
+}
+
+.repo-drop-zone strong {
+  color: #dbe7ff;
+}
+
+.repo-drop-zone span,
+.repo-drop-zone small {
+  color: #8ea3c8;
+  font-size: 12px;
+}
+
+.repo-drop-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.repo-drop-actions code {
+  color: #93c5fd;
+  font-size: 12px;
+}
+
+.hidden-file-input {
+  display: none;
+}
+
 .tree ul {
   list-style: none;
   margin: 0;
@@ -194,17 +235,46 @@ main {
 
 .tree li {
   color: #adc2e9;
-  cursor: pointer;
   line-height: 1.6;
   white-space: nowrap;
 }
 
-.tree li:hover {
+.tree-row {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 4px;
+}
+
+.tree-row:hover {
   color: #ffffff;
 }
 
-.tree .directory {
+.tree .directory > .tree-row {
   color: #93c5fd;
+}
+
+.tree-toggle,
+.tree-toggle-placeholder {
+  align-items: center;
+  background: transparent;
+  color: inherit;
+  display: inline-flex;
+  flex: 0 0 18px;
+  font-size: 12px;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  width: 18px;
+}
+
+.tree-toggle:hover {
+  background: transparent;
+  color: #ffffff;
+}
+
+.tree-toggle:disabled {
+  opacity: 0.45;
 }
 
 pre {

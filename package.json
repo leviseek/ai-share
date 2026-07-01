@@ -33,6 +33,7 @@
     "@preact/preset-vite": "^2.10.5",
     "@types/bun": "latest",
     "@types/d3": "^7.4.3",
+    "codegraph-cli": "^0.1.0",
     "eslint": "10.2.1",
     "preact": "^10.29.3",
     "prettier": "latest",

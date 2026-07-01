@@ -1,4 +1,12 @@
-import type { GraphEdge, GraphNode, GraphSubgraph, KnowledgeObject, RelationshipType } from "../core/types.ts";
+import type {
+  BuildResult,
+  GraphEdge,
+  GraphNode,
+  GraphSubgraph,
+  KnowledgeObject,
+  ParserDiagnostic,
+  RelationshipType,
+} from "../core/types.ts";
 
 export type ObjectQuery = {
   ids?: string[];
@@ -55,6 +63,12 @@ export type EmbeddingStore = {
 };
 
 export type KnowledgeBuildStore = {
-  writeSnapshot(input: { objects: KnowledgeObject[]; nodes: GraphNode[]; edges: GraphEdge[] }): Promise<void>;
-  readSnapshot(): Promise<{ objects: KnowledgeObject[]; nodes: GraphNode[]; edges: GraphEdge[] }>;
+  writeSnapshot(input: BuildResult): Promise<void>;
+  readSnapshot(): Promise<{
+    objects: KnowledgeObject[];
+    nodes: GraphNode[];
+    edges: GraphEdge[];
+    diagnostics: ParserDiagnostic[];
+    metadata: BuildResult["metadata"];
+  }>;
 };

@@ -46,3 +46,4 @@ memory/sync/
 
 ### Repository Intelligence Engine
 .rie/
+.codegraph/

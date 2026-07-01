@@ -97,6 +97,7 @@ export type ParseResult = {
 export type ParserContext = {
   repoRoot: string;
   now: string;
+  repositoryFiles: Set<string>;
 };
 
 export type RepositoryParser = {
@@ -133,4 +134,11 @@ export type BuildResult = {
   nodes: GraphNode[];
   edges: GraphEdge[];
   diagnostics: ParserDiagnostic[];
+  metadata: {
+    schemaVersion: number;
+    repoRoot: string;
+    builtAt: string;
+    buildHash: string;
+    resourceCount: number;
+  };
 };

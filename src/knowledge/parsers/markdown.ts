@@ -39,7 +39,8 @@ export const markdownParser: RepositoryParser = {
     }
 
     const headingStack: { level: number; id: string }[] = [];
-    for (const line of raw.split(/\r?\n/)) {
+    const lines = raw.split(/\r?\n/);
+    for (const [lineIndex, line] of lines.entries()) {
       const match = /^(#{1,6})\s+(.+)$/.exec(line.trim());
       if (match === null) continue;
       const level = match[1]?.length ?? 1;
@@ -55,7 +56,7 @@ export const markdownParser: RepositoryParser = {
           language: "markdown",
           hash: contentHash(`${resource.hash ?? contentHash(raw)}:${text}:${level}`),
           now: context.now,
-          metadata: { level },
+          metadata: { level, lineStart: lineIndex + 1 },
         }),
       );
       while (headingStack.length > 0 && (headingStack.at(-1)?.level ?? 0) >= level) headingStack.pop();
