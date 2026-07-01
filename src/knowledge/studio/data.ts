@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { buildContext, type BuiltContext, type ContextRequest } from "../context/builder.ts";
+import type { ContextQualityReport } from "../context/quality.ts";
 import { canonicalJsonHash } from "../core/ids.ts";
 import type {
   BuildResult,
@@ -34,6 +35,12 @@ export type DashboardMetrics = {
   brokenEdges: number;
   generatedArtifacts: number;
   contextCoverage: number;
+  contextQuality?: {
+    score: number;
+    grade: ContextQualityReport["grade"];
+    gaps: number;
+    recommendations: number;
+  };
 };
 
 export type CodexTraceStep = {
@@ -43,6 +50,7 @@ export type CodexTraceStep = {
     | "select_seeds"
     | "build_context"
     | "analyze_impact"
+    | "evaluate_context_quality"
     | "compose_prompt_bundle"
     | "context"
     | "impact"
@@ -78,6 +86,7 @@ export type PromptBundle = {
     edges: number;
   };
   diagnostics: string[];
+  quality?: ContextQualityReport;
   markdown: string;
   hash: string;
 };
@@ -163,7 +172,7 @@ export function buildDashboardMetrics(snapshot: StudioSnapshot, lastContext?: Bu
   const nodeIds = new Set(snapshot.nodes.map((node) => node.id));
   const brokenEdges = snapshot.edges.filter((edge) => !nodeIds.has(edge.to) && !isExternalReference(edge.to)).length;
   const generatedArtifacts = snapshot.objects.filter((object) => object.type === "GeneratedArtifact").length;
-  return {
+  const metrics: DashboardMetrics = {
     objects: snapshot.objects.length,
     nodes: snapshot.nodes.length,
     edges: snapshot.edges.length,
@@ -177,6 +186,15 @@ export function buildDashboardMetrics(snapshot: StudioSnapshot, lastContext?: Bu
         ? 0
         : Number((lastContext.objects.length / snapshot.objects.length).toFixed(4)),
   };
+  if (lastContext?.quality !== undefined) {
+    metrics.contextQuality = {
+      score: lastContext.quality.score,
+      grade: lastContext.quality.grade,
+      gaps: lastContext.quality.gaps.length,
+      recommendations: lastContext.quality.recommendations.length,
+    };
+  }
+  return metrics;
 }
 
 export function buildGraphView(snapshot: StudioSnapshot, options: GraphViewOptions = {}): GraphSubgraph {
@@ -264,6 +282,12 @@ export function buildCodexMockTrace(snapshot: StudioSnapshot, prompt: string): C
         durationMs: 1,
       },
       {
+        name: "evaluate_context_quality",
+        input: { contextObjects: context.objects.length },
+        output: summarizeQuality(context.quality),
+        durationMs: 1,
+      },
+      {
         name: "answer_outline",
         input: { contextObjects: context.objects.length, impactNodes: impact.nodes.length },
         output: answerOutline,
@@ -342,6 +366,12 @@ export function buildCodexDryRun(
         name: "analyze_impact",
         input: { objectId: impactSeed },
         output: summarizeGraph(impact),
+        durationMs: 1,
+      },
+      {
+        name: "evaluate_context_quality",
+        input: { contextObjects: context.objects.length },
+        output: summarizeQuality(context.quality),
         durationMs: 1,
       },
       {
@@ -471,6 +501,7 @@ function buildPromptBundle(input: {
     impact,
     diagnostics: input.context.diagnostics,
   };
+  if (input.context.quality !== undefined) bundleWithoutHash.quality = input.context.quality;
   const hash = canonicalJsonHash(bundleWithoutHash);
   return {
     ...bundleWithoutHash,
@@ -488,6 +519,7 @@ function renderPromptBundleMarkdown(bundle: Omit<PromptBundle, "markdown" | "has
     )
     .join("\n");
   const diagnostics = bundle.diagnostics.map((diagnostic) => `- ${diagnostic}`).join("\n") || "- 无";
+  const quality = renderQualityMarkdown(bundle.quality);
   return [
     "# Codex Dry Run Context Bundle",
     "",
@@ -508,8 +540,38 @@ function renderPromptBundleMarkdown(bundle: Omit<PromptBundle, "markdown" | "has
     `- Nodes: ${bundle.impact.nodes}`,
     `- Edges: ${bundle.impact.edges}`,
     "",
+    "## Context Quality",
+    quality,
+    "",
     "## Diagnostics",
     diagnostics,
     "",
+  ].join("\n");
+}
+
+function summarizeQuality(quality: ContextQualityReport | undefined): Record<string, unknown> {
+  if (quality === undefined) return { score: 0, grade: "poor", gaps: 0, recommendations: 0 };
+  return {
+    score: quality.score,
+    grade: quality.grade,
+    gaps: quality.gaps.map((gap) => gap.code),
+    recommendations: quality.recommendations.map((recommendation) => recommendation.action),
+  };
+}
+
+function renderQualityMarkdown(quality: ContextQualityReport | undefined): string {
+  if (quality === undefined) return "- Score: 0\n- Grade: poor";
+  const gaps = quality.gaps.map((gap) => `  - [${gap.severity}] ${gap.code}: ${gap.message}`).join("\n") || "  - 无";
+  const recommendations =
+    quality.recommendations
+      .map((recommendation) => `  - ${recommendation.action}: ${recommendation.title} (${recommendation.confidence})`)
+      .join("\n") || "  - 无";
+  return [
+    `- Score: ${quality.score}`,
+    `- Grade: ${quality.grade}`,
+    "- Gaps:",
+    gaps,
+    "- Recommendations:",
+    recommendations,
   ].join("\n");
 }

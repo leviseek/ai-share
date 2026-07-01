@@ -1,5 +1,6 @@
 import type { BuildResult, GraphSubgraph, KnowledgeObject } from "../core/types.ts";
 import { subgraph } from "../graph/builder.ts";
+import { evaluateContextQuality, type ContextQualityReport } from "./quality.ts";
 
 export type ContextRequest = {
   query: string;
@@ -20,6 +21,7 @@ export type BuiltContext = {
   graph: GraphSubgraph;
   sections: ContextSection[];
   diagnostics: string[];
+  quality?: ContextQualityReport;
 };
 
 export function buildContext(
@@ -37,7 +39,7 @@ export function buildContext(
   const ids = new Set(graph.nodes.map((node) => node.objectId));
   const maxObjects = request.budget?.maxObjects ?? 30;
   const objects = result.objects.filter((object) => ids.has(object.id)).slice(0, maxObjects);
-  return {
+  const context: Omit<BuiltContext, "quality"> = {
     summary: `RIE context intent=${intent}, seeds=${seeds.length}, objects=${objects.length}`,
     objects,
     graph: {
@@ -46,6 +48,10 @@ export function buildContext(
     },
     sections: groupSections(objects),
     diagnostics: seeds.length === 0 ? ["未找到明确 seed，已返回空上下文。"] : [],
+  };
+  return {
+    ...context,
+    quality: evaluateContextQuality(result, request, context, seeds),
   };
 }
 

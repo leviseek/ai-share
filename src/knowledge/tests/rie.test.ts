@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
 import { buildContext } from "../context/builder.ts";
+import { createKnowledgeMcpTools } from "../mcp/tools.ts";
 import { buildKnowledge } from "../index.ts";
 
 async function fixtureRepo(): Promise<string> {
@@ -40,5 +41,18 @@ describe("RIE build", () => {
     const context = buildContext(result, { query: "provider workflow", intent: "plan" });
     expect(context.objects.length).toBeGreaterThan(0);
     expect(context.sections.length).toBeGreaterThan(0);
+    expect(context.quality?.score).toBeGreaterThan(0);
+  });
+
+  test("exposes context quality through MCP tools", async () => {
+    const root = await fixtureRepo();
+    const result = await buildKnowledge({ repoRoot: root });
+    const tools = createKnowledgeMcpTools(result);
+    const request = { query: "provider workflow", intent: "plan" } as const;
+    const context = tools.context(request);
+    const quality = tools.contextQuality(request);
+    expect(context.quality).toBeDefined();
+    expect(quality.score).toBe(context.quality?.score ?? -1);
+    expect(quality.recommendations.length).toBeGreaterThan(0);
   });
 });

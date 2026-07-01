@@ -48,6 +48,24 @@ describe("Repository Intelligence Studio data", () => {
     expect(metrics.contextCoverage).toBeGreaterThan(0);
   });
 
+  test("evaluates context quality with gaps and recommendations", () => {
+    const goodContext = buildStudioContext(fixtureSnapshot(), { query: "main", objectIds: ["codefile:src/main.ts"] });
+    expect(goodContext.quality?.score).toBeGreaterThan(0);
+    expect(goodContext.quality?.recommendations.some((item) => item.action === "inspect_impact")).toBe(true);
+
+    const weakContext = buildStudioContext(fixtureSnapshot(), { query: "zzzz-no-match" });
+    expect(weakContext.quality?.grade).toBe("poor");
+    expect(weakContext.quality?.gaps.map((gap) => gap.code)).toContain("no_search_hits");
+    expect(weakContext.quality?.recommendations.map((item) => item.action)).toContain("add_query_terms");
+  });
+
+  test("dashboard exposes context quality summary", () => {
+    const context = buildStudioContext(fixtureSnapshot(), { query: "main", objectIds: ["codefile:src/main.ts"] });
+    const metrics = buildDashboardMetrics(fixtureSnapshot(), context);
+    expect(metrics.contextQuality?.score).toBe(context.quality?.score);
+    expect(metrics.contextQuality?.recommendations).toBe(context.quality?.recommendations.length);
+  });
+
   test("filters graph views by node type, edge type, query, and limit", () => {
     const byType = buildGraphView(fixtureSnapshot(), { nodeTypes: ["CodeFile"], edgeTypes: ["contains"] });
     expect(byType.nodes.every((node) => node.type === "CodeFile")).toBe(true);
@@ -70,6 +88,7 @@ describe("Repository Intelligence Studio data", () => {
       "search",
       "context",
       "impact",
+      "evaluate_context_quality",
       "answer_outline",
     ]);
     expect(trace.answerOutline.length).toBeGreaterThan(0);
@@ -84,10 +103,13 @@ describe("Repository Intelligence Studio data", () => {
       "select_seeds",
       "build_context",
       "analyze_impact",
+      "evaluate_context_quality",
       "compose_prompt_bundle",
     ]);
     expect(dryRun.promptBundle.task).toBe("请设计 main 的修改方案");
     expect(dryRun.promptBundle.markdown).toContain("# Codex Dry Run Context Bundle");
+    expect(dryRun.promptBundle.markdown).toContain("## Context Quality");
+    expect(dryRun.context.quality?.grade).toBeDefined();
     expect(dryRun.promptBundle.relevantPaths).toContain("src/main.ts");
     expect(dryRun.promptBundle.hash.length).toBeGreaterThan(0);
   });

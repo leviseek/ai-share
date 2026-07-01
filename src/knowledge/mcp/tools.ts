@@ -1,4 +1,5 @@
 import { buildContext, type BuiltContext, type ContextRequest } from "../context/builder.ts";
+import type { ContextQualityReport } from "../context/quality.ts";
 import type { BuildResult, GraphSubgraph } from "../core/types.ts";
 import { neighbors } from "../graph/builder.ts";
 import { exportGraph } from "../graph/export.ts";
@@ -10,6 +11,7 @@ export type KnowledgeMcpTools = {
   graph(seedIds?: string[], depth?: number): GraphSubgraph;
   neighbors(objectId: string): GraphSubgraph;
   context(request: ContextRequest): BuiltContext;
+  contextQuality(request: ContextRequest): ContextQualityReport;
   impact(objectId: string): GraphSubgraph;
   explain(objectId: string): BuiltContext;
   graphExport(format: "json" | "mermaid"): string;
@@ -32,6 +34,11 @@ export function createKnowledgeMcpTools(result: Pick<BuildResult, "objects" | "n
     },
     context(request: ContextRequest): BuiltContext {
       return buildContext(result, request);
+    },
+    contextQuality(request: ContextRequest): ContextQualityReport {
+      const quality = buildContext(result, request).quality;
+      if (quality === undefined) throw new Error("Context quality report is unavailable.");
+      return quality;
     },
     impact(objectId: string): GraphSubgraph {
       return impactAnalysis(graph, objectId);

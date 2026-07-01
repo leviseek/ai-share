@@ -44,6 +44,14 @@ type GraphData = {
   edges: GraphEdge[];
 };
 
+type ContextQuality = {
+  score: number;
+  grade: string;
+  metrics: Record<string, number>;
+  gaps: { code: string; severity: string; message: string }[];
+  recommendations: { action: string; title: string; reason: string; confidence: string }[];
+};
+
 type Dashboard = {
   objects: number;
   nodes: number;
@@ -51,6 +59,7 @@ type Dashboard = {
   orphanNodes: number;
   brokenEdges: number;
   contextCoverage: number;
+  contextQuality?: { score: number; grade: string; gaps: number; recommendations: number };
 };
 
 type TraceStep = {
@@ -67,8 +76,14 @@ type DryRun = {
   intent: string;
   selectedSeeds: string[];
   trace: TraceStep[];
-  context: { summary: string; objects: { id: string; type: string; path?: string }[]; diagnostics: string[] };
+  context: {
+    summary: string;
+    objects: { id: string; type: string; path?: string }[];
+    diagnostics: string[];
+    quality?: ContextQuality;
+  };
   impact: GraphData;
+  quality?: ContextQuality;
   promptBundle: { markdown: string; hash: string; relevantPaths: string[] };
 };
 
@@ -151,6 +166,7 @@ function App() {
   const [graphFilters, setGraphFilters] = useState<GraphFilters>(defaultFilters);
   const [contextQuery, setContextQuery] = useState("设计 Repository Intelligence Studio v2");
   const [contextOutput, setContextOutput] = useState("");
+  const [contextQuality, setContextQuality] = useState<ContextQuality | undefined>();
   const [impactOutput, setImpactOutput] = useState("");
   const [prompt, setPrompt] = useState("请规划一个知识引擎驱动的 Codex 改动");
   const [dryRun, setDryRun] = useState<DryRun | undefined>();
@@ -207,10 +223,12 @@ function App() {
       objects: { id: string; type: string; path?: string }[];
       diagnostics: string[];
       graph: GraphData;
+      quality?: ContextQuality;
     }>("/api/context", { query: contextQuery, intent: "plan", maxObjects: 30 });
     setContextOutput(
       JSON.stringify({ summary: result.summary, diagnostics: result.diagnostics, objects: result.objects }, null, 2),
     );
+    setContextQuality(result.quality);
     setGraph(result.graph);
     setDashboard(await getJson<Dashboard>("/api/dashboard"));
   }
@@ -222,10 +240,12 @@ function App() {
       objects: { id: string; type: string; path?: string }[];
       diagnostics: string[];
       graph: GraphData;
+      quality?: ContextQuality;
     }>("/api/context", { query: selectedObjectId, intent: "plan", objectIds: [selectedObjectId], maxObjects: 30 });
     setContextOutput(
       JSON.stringify({ summary: result.summary, diagnostics: result.diagnostics, objects: result.objects }, null, 2),
     );
+    setContextQuality(result.quality);
     setGraph(result.graph);
     setDashboard(await getJson<Dashboard>("/api/dashboard"));
   }
@@ -240,6 +260,7 @@ function App() {
   async function runDryRun() {
     const result = await postJson<DryRun>("/api/codex-console/dry-run", { prompt, maxObjects: 30 });
     setDryRun(result);
+    setContextQuality(result.context.quality);
     setGraph(result.impact.nodes.length > 0 ? result.impact : result.context === undefined ? graph : result.impact);
     setDashboard(await getJson<Dashboard>("/api/dashboard"));
     setSessions(await getJson<SessionSummary[]>("/api/codex-console/sessions?limit=20"));
@@ -250,6 +271,7 @@ function App() {
     setPlanExec(result);
     setSessionDetail(result);
     setDryRun(result.dryRun);
+    setContextQuality(result.dryRun.context.quality);
     setGraph(result.dryRun.impact.nodes.length > 0 ? result.dryRun.impact : graph);
     setDashboard(await getJson<Dashboard>("/api/dashboard"));
     setSessions(await getJson<SessionSummary[]>("/api/codex-console/sessions?limit=20"));
@@ -263,6 +285,7 @@ function App() {
       maxObjects: 30,
     });
     setDryRun(created.dryRun);
+    setContextQuality(created.dryRun.context.quality);
     setStreamStatus("running");
     const source = new EventSource(`/api/codex-console/plan-exec-stream?id=${encodeURIComponent(created.runId)}`);
     for (const type of ["run_started", "dry_run_ready", "stdout", "stderr", "git_guard", "run_done", "run_error"]) {
@@ -291,9 +314,11 @@ function App() {
     if (isPlanExec(detail)) {
       setPlanExec(detail);
       setDryRun(detail.dryRun);
+      setContextQuality(detail.dryRun.context.quality);
       return;
     }
     setDryRun(detail);
+    setContextQuality(detail.context.quality);
   }
 
   return (
@@ -339,6 +364,7 @@ function App() {
             <textarea rows={3} value={contextQuery} onInput={(event) => setContextQuery(event.currentTarget.value)} />
             <button onClick={() => void buildContext()}>Build Context</button>
             <pre>{contextOutput}</pre>
+            <ContextQualityPanel quality={contextQuality} />
           </section>
           <section>
             <h2>Impact Analyzer</h2>
@@ -633,6 +659,47 @@ function GraphInspector(props: {
   );
 }
 
+function ContextQualityPanel(props: { quality: ContextQuality | undefined }) {
+  if (props.quality === undefined) return <p>运行 Context Builder 或 Dry Run 后展示上下文质量。</p>;
+  return (
+    <div class="quality-panel">
+      <div class="quality-score">
+        <strong>{props.quality.score}</strong>
+        <span>{props.quality.grade}</span>
+      </div>
+      <h3>Metrics</h3>
+      <div class="quality-metrics">
+        {Object.entries(props.quality.metrics).map(([key, value]) => (
+          <div class="quality-metric" key={key}>
+            <span>{key}</span>
+            <strong>{value}</strong>
+          </div>
+        ))}
+      </div>
+      <h3>Gaps</h3>
+      <ul class="quality-list">
+        {props.quality.gaps.length === 0 ? (
+          <li>无明显缺口</li>
+        ) : (
+          props.quality.gaps.map((gap) => (
+            <li key={gap.code}>
+              [{gap.severity}] {gap.message}
+            </li>
+          ))
+        )}
+      </ul>
+      <h3>Recommendations</h3>
+      <ul class="quality-list">
+        {props.quality.recommendations.map((item) => (
+          <li key={`${item.action}-${item.title}`}>
+            {item.title} · {item.confidence}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function KnowledgeDashboard(props: { dashboard: Dashboard | undefined }) {
   const dashboard = props.dashboard;
   const cards =
@@ -645,6 +712,14 @@ function KnowledgeDashboard(props: { dashboard: Dashboard | undefined }) {
           ["Orphans", dashboard.orphanNodes],
           ["Broken", dashboard.brokenEdges],
           ["Coverage", `${Math.round(dashboard.contextCoverage * 100)}%`],
+          [
+            "Quality",
+            dashboard.contextQuality === undefined
+              ? "n/a"
+              : `${dashboard.contextQuality.score} ${dashboard.contextQuality.grade}`,
+          ],
+          ["Gaps", dashboard.contextQuality?.gaps ?? "n/a"],
+          ["Recs", dashboard.contextQuality?.recommendations ?? "n/a"],
         ];
   return (
     <section>

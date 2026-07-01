@@ -349,3 +349,58 @@ pre {
 .inspector-actions {
   margin-top: 8px;
 }
+
+.quality-panel {
+  background: #0b1222;
+  border: 1px solid #26344f;
+  border-radius: 10px;
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px;
+}
+
+.quality-score {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+}
+
+.quality-score strong {
+  color: #93c5fd;
+  font-size: 28px;
+}
+
+.quality-score span {
+  color: #dbeafe;
+  font-weight: 700;
+}
+
+.quality-metrics {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.quality-metric {
+  background: #111a2e;
+  border-radius: 8px;
+  padding: 6px;
+}
+
+.quality-metric span {
+  color: #8ea3c8;
+  display: block;
+  font-size: 11px;
+}
+
+.quality-metric strong {
+  color: #dbe7ff;
+}
+
+.quality-list {
+  color: #adc2e9;
+  font-size: 12px;
+  margin: 0;
+  padding-left: 18px;
+}
