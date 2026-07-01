@@ -6,13 +6,17 @@ import type { GraphEdge, GraphNode, KnowledgeObject } from "../core/types.ts";
 import {
   buildCodexDryRun,
   buildCodexMockTrace,
+  buildCodexDryRunFromRecipe,
   buildContextExperiment,
+  buildContextRecipeFromExperiment,
   buildDashboardMetrics,
   buildGraphView,
   buildRepositoryTree,
   buildStudioContext,
   compareContextExperiments,
+  markContextRecipeUsed,
   summarizeContextExperiment,
+  summarizeContextRecipe,
   type StudioSnapshot,
 } from "./data.ts";
 import {
@@ -22,7 +26,7 @@ import {
   runCodexPlanExec,
   runCodexPlanExecStream,
 } from "./plan-exec.ts";
-import { createContextExperimentStore, createStudioSessionStore } from "./session-store.ts";
+import { createContextExperimentStore, createContextRecipeStore, createStudioSessionStore } from "./session-store.ts";
 
 const now = "2026-07-01T00:00:00.000Z";
 
@@ -178,6 +182,64 @@ describe("Repository Intelligence Studio data", () => {
     expect(comparison.objects.removed).toContain("codefile:src/orphan.ts");
     expect(comparison.relevantPaths.added).toContain("src/main.ts");
     expect(comparison.scoreDelta).toBe((right.context.quality?.score ?? 0) - (left.context.quality?.score ?? 0));
+  });
+
+  test("builds context recipes from experiments", () => {
+    const experiment = buildContextExperiment(
+      fixtureSnapshot(),
+      { name: "main plan", prompt: "请设计 main 的修改方案", seeds: ["codefile:src/main.ts"], maxObjects: 8 },
+      now,
+    );
+    const recipe = buildContextRecipeFromExperiment(experiment, now);
+    expect(recipe.name).toBe("main plan");
+    expect(recipe.sourceExperimentId).toBe(experiment.id);
+    expect(recipe.seeds).toEqual(["codefile:src/main.ts"]);
+    expect(recipe.baseline.qualityScore).toBe(experiment.context.quality?.score);
+    expect(recipe.baseline.bundleHash).toBe(experiment.promptBundle.hash);
+    expect(summarizeContextRecipe(recipe).qualityGrade).toBe(experiment.context.quality?.grade);
+  });
+
+  test("stores and reads recent context recipes", async () => {
+    const root = await mkdtemp(join(tmpdir(), "context-recipe-"));
+    const store = createContextRecipeStore(root);
+    const experiment = buildContextExperiment(fixtureSnapshot(), { name: "main plan", prompt: "main plan" }, now);
+    const recipe = buildContextRecipeFromExperiment(experiment, now);
+    const used = markContextRecipeUsed(recipe, "2026-07-01T00:00:01.000Z");
+    await store.append(summarizeContextRecipe(recipe));
+    await store.writeDetail(recipe.id, recipe);
+    await store.append(summarizeContextRecipe(used));
+    await store.writeDetail(used.id, used);
+    const recent = await store.recent(1);
+    const detail = await store.readDetail(recipe.id);
+    expect(recent[0]?.id).toBe(recipe.id);
+    expect(recent[0]?.useCount).toBe(1);
+    expect(detail?.lastUsedAt).toBe("2026-07-01T00:00:01.000Z");
+  });
+
+  test("builds Codex dry run from context recipe", () => {
+    const experiment = buildContextExperiment(
+      fixtureSnapshot(),
+      { name: "main plan", prompt: "请设计 main 的修改方案", seeds: ["codefile:src/main.ts"], maxObjects: 8 },
+      now,
+    );
+    const recipe = buildContextRecipeFromExperiment(experiment, now);
+    const dryRun = buildCodexDryRunFromRecipe(fixtureSnapshot(), recipe, "请实现 main", now);
+    expect(dryRun.recipeId).toBe(recipe.id);
+    expect(dryRun.recipeName).toBe(recipe.name);
+    expect(dryRun.prompt).toBe("请实现 main");
+    expect(dryRun.selectedSeeds).toEqual(["codefile:src/main.ts"]);
+    expect(dryRun.promptBundle.relevantPaths).toContain("src/main.ts");
+  });
+
+  test("recipe dry run falls back to text search when seeds are empty", () => {
+    const experiment = buildContextExperiment(
+      fixtureSnapshot(),
+      { name: "empty seeds", prompt: "main", seeds: [] },
+      now,
+    );
+    const recipe = { ...buildContextRecipeFromExperiment(experiment, now), seeds: [] };
+    const dryRun = buildCodexDryRunFromRecipe(fixtureSnapshot(), recipe, "main", now);
+    expect(dryRun.selectedSeeds).toContain("codefile:src/main.ts");
   });
 
   test("stores and reads recent Studio sessions", async () => {

@@ -73,6 +73,8 @@ type DryRun = {
   id: string;
   timestamp: string;
   prompt: string;
+  recipeId?: string;
+  recipeName?: string;
   intent: string;
   selectedSeeds: string[];
   trace: TraceStep[];
@@ -98,6 +100,8 @@ type SessionSummary = {
   exitCode?: number | null;
   durationMs?: number;
   guardOk?: boolean;
+  recipeId?: string;
+  recipeName?: string;
 };
 
 type ContextExperiment = {
@@ -147,6 +151,44 @@ type ContextExperimentComparison = {
   recommendations: ComparisonSet;
 };
 
+type ContextRecipe = {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  name: string;
+  promptTemplate: string;
+  intent: string;
+  seeds: string[];
+  filters: Partial<GraphFilters> & { seedIds?: string[] };
+  maxObjects: number;
+  enabled: boolean;
+  useCount: number;
+  lastUsedAt?: string;
+  sourceExperimentId: string;
+  baseline: {
+    qualityScore?: number;
+    qualityGrade?: string;
+    bundleHash: string;
+    objects: number;
+    relevantPaths: number;
+  };
+};
+
+type ContextRecipeSummary = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  intent: string;
+  enabled: boolean;
+  useCount: number;
+  lastUsedAt?: string;
+  sourceExperimentId: string;
+  qualityScore?: number;
+  qualityGrade?: string;
+  bundleHash: string;
+};
+
 type PlanExec = {
   dryRun: DryRun;
   guardResult: {
@@ -191,6 +233,7 @@ type StudioPreferences = {
   experimentName: string;
   experimentIntent: string;
   experimentMaxObjects: number;
+  selectedRecipeId: string;
   helpOpen: boolean;
   inspectorCollapsed: boolean;
 };
@@ -233,6 +276,7 @@ const defaultPreferences: StudioPreferences = {
   experimentName: "",
   experimentIntent: "plan",
   experimentMaxObjects: 30,
+  selectedRecipeId: "",
   helpOpen: false,
   inspectorCollapsed: false,
 };
@@ -257,6 +301,9 @@ function App() {
   const [streamStatus, setStreamStatus] = useState("idle");
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [experiments, setExperiments] = useState<ContextExperimentSummary[]>([]);
+  const [recipes, setRecipes] = useState<ContextRecipeSummary[]>([]);
+  const [recipeDetail, setRecipeDetail] = useState<ContextRecipe | undefined>();
+  const [selectedRecipeId, setSelectedRecipeId] = useState(preferences.selectedRecipeId);
   const [experimentDetail, setExperimentDetail] = useState<ContextExperiment | undefined>();
   const [experimentComparison, setExperimentComparison] = useState<ContextExperimentComparison | undefined>();
   const [leftExperimentId, setLeftExperimentId] = useState("");
@@ -312,6 +359,11 @@ function App() {
     updatePreferences({ experimentMaxObjects: value });
   }
 
+  function setSelectedRecipe(value: string) {
+    setSelectedRecipeId(value);
+    updatePreferences({ selectedRecipeId: value });
+  }
+
   function showToast(kind: Toast["kind"], message: string) {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     setToasts((items) => [...items, { id, kind, message }]);
@@ -347,18 +399,20 @@ function App() {
   }
 
   async function refresh() {
-    const [treeData, graphData, dashboardData, sessionData, experimentData] = await Promise.all([
+    const [treeData, graphData, dashboardData, sessionData, experimentData, recipeData] = await Promise.all([
       getJson<TreeNode>("/api/repository/tree"),
       loadGraph(graphSeeds, graphFilters),
       getJson<Dashboard>("/api/dashboard"),
       getJson<SessionSummary[]>("/api/codex-console/sessions?limit=20"),
       getJson<ContextExperimentSummary[]>("/api/context-lab/experiments?limit=20"),
+      getJson<ContextRecipeSummary[]>("/api/context-recipes?limit=20"),
     ]);
     setTree(treeData);
     setGraph(graphData);
     setDashboard(dashboardData);
     setSessions(sessionData);
     setExperiments(experimentData);
+    setRecipes(recipeData);
   }
 
   useEffect(() => {
@@ -524,6 +578,35 @@ function App() {
     );
   }
 
+  async function saveExperimentAsRecipe() {
+    if (experimentDetail === undefined) return;
+    const recipe = await postJson<ContextRecipe>("/api/context-recipes/from-experiment", {
+      experimentId: experimentDetail.id,
+    });
+    setRecipeDetail(recipe);
+    setSelectedRecipe(recipe.id);
+    setRecipes(await getJson<ContextRecipeSummary[]>("/api/context-recipes?limit=20"));
+  }
+
+  async function loadRecipeDetail(id: string) {
+    if (id.length === 0) {
+      setRecipeDetail(undefined);
+      return;
+    }
+    setRecipeDetail(await getJson<ContextRecipe>(`/api/context-recipes/recipe?id=${encodeURIComponent(id)}`));
+  }
+
+  async function runRecipeDryRun() {
+    if (selectedRecipeId.length === 0) return;
+    const result = await postJson<DryRun>("/api/context-recipes/dry-run", { recipeId: selectedRecipeId, prompt });
+    setDryRun(result);
+    setContextQuality(result.context.quality);
+    setGraph(result.impact.nodes.length > 0 ? result.impact : graph);
+    setDashboard(await getJson<Dashboard>("/api/dashboard"));
+    setSessions(await getJson<SessionSummary[]>("/api/codex-console/sessions?limit=20"));
+    setRecipes(await getJson<ContextRecipeSummary[]>("/api/context-recipes?limit=20"));
+  }
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target;
@@ -686,6 +769,7 @@ function App() {
             runExperiment={() => runAction("context-experiment", runContextExperiment, "Context experiment saved.")}
             loadExperiment={(id) => runAction("experiment-detail", () => loadExperimentDetail(id))}
             compareExperiments={() => runAction("experiment-compare", compareExperiments, "Experiments compared.")}
+            saveAsRecipe={() => runAction("recipe-save", saveExperimentAsRecipe, "Recipe saved.")}
             busy={isBusy}
             activeActions={activeActions}
           />
@@ -696,6 +780,14 @@ function App() {
             setPrompt={setPromptValue}
             dryRun={dryRun}
             sessions={sessions}
+            recipes={recipes}
+            selectedRecipe={recipeDetail}
+            selectedRecipeId={selectedRecipeId}
+            setSelectedRecipe={(id) => {
+              setSelectedRecipe(id);
+              void runAction("recipe-detail", () => loadRecipeDetail(id));
+            }}
+            runRecipeDryRun={() => runAction("recipe-dry-run", runRecipeDryRun, "Recipe Dry Run completed.")}
             runDryRun={() => runAction("dry-run", runDryRun, "Dry Run completed.")}
             runPlanExec={() => runAction("plan-exec", runPlanExec, "Plan Exec completed.")}
             planExec={planExec}
@@ -1161,6 +1253,7 @@ function ContextLab(props: {
   runExperiment(): Promise<void>;
   loadExperiment(id: string): Promise<void>;
   compareExperiments(): Promise<void>;
+  saveAsRecipe(): Promise<void>;
   busy: boolean;
   activeActions: string[];
 }) {
@@ -1279,18 +1372,30 @@ function ContextLab(props: {
         <ExperimentViewer
           experiment={props.experimentDetail}
           usePrompt={() => props.setPrompt(props.experimentDetail?.prompt ?? props.prompt)}
+          saveAsRecipe={() => props.saveAsRecipe()}
+          busy={props.busy}
         />
       )}
     </>
   );
 }
 
-function ExperimentViewer(props: { experiment: ContextExperiment; usePrompt(): void }) {
+function ExperimentViewer(props: {
+  experiment: ContextExperiment;
+  usePrompt(): void;
+  saveAsRecipe(): Promise<void>;
+  busy: boolean;
+}) {
   return (
     <div class="experiment-detail">
       <div class="panel-title">
         <h3>Experiment Replay · {props.experiment.name ?? props.experiment.id}</h3>
-        <button onClick={() => props.usePrompt()}>Use as Codex prompt</button>
+        <div class="recipe-actions">
+          <button onClick={() => props.usePrompt()}>Use as Codex prompt</button>
+          <button disabled={props.busy} onClick={() => void props.saveAsRecipe()}>
+            Save as Recipe
+          </button>
+        </div>
       </div>
       <div class="metrics">
         <div class="metric">
@@ -1384,6 +1489,11 @@ function CodexConsole(props: {
   planExec: PlanExec | undefined;
   sessionDetail: SessionDetail | undefined;
   sessions: SessionSummary[];
+  recipes: ContextRecipeSummary[];
+  selectedRecipe: ContextRecipe | undefined;
+  selectedRecipeId: string;
+  setSelectedRecipe(id: string): void;
+  runRecipeDryRun(): Promise<void>;
   runDryRun(): Promise<void>;
   runPlanExec(): Promise<void>;
   loadSessionDetail(id: string): Promise<void>;
@@ -1398,6 +1508,20 @@ function CodexConsole(props: {
       <h2>Codex Console · Dry Run / Plan Exec</h2>
       <div class="console-input">
         <input value={props.prompt} onInput={(event) => props.setPrompt(event.currentTarget.value)} />
+        <select value={props.selectedRecipeId} onInput={(event) => props.setSelectedRecipe(event.currentTarget.value)}>
+          <option value="">No recipe</option>
+          {props.recipes.map((recipe) => (
+            <option key={recipe.id} value={recipe.id}>
+              {recipe.name}
+            </option>
+          ))}
+        </select>
+        <button
+          disabled={props.busy || props.selectedRecipeId.length === 0}
+          onClick={() => void props.runRecipeDryRun()}
+        >
+          {props.activeActions.includes("recipe-dry-run") ? "Running..." : "Run Recipe Dry Run"}
+        </button>
         <button disabled={props.busy} onClick={() => void props.runDryRun()}>
           {props.activeActions.includes("dry-run") ? "Running..." : "Run Dry Run"}
         </button>
@@ -1408,6 +1532,19 @@ function CodexConsole(props: {
           {props.activeActions.includes("plan-exec-stream") ? "Starting..." : "Run Plan Exec Stream"}
         </button>
       </div>
+      {props.selectedRecipe !== undefined && (
+        <div class="recipe-detail-card">
+          <strong>{props.selectedRecipe.name}</strong>
+          <span>
+            {props.selectedRecipe.intent} · baseline {props.selectedRecipe.baseline.qualityScore ?? "n/a"}
+            {props.selectedRecipe.baseline.qualityGrade === undefined
+              ? ""
+              : ` ${props.selectedRecipe.baseline.qualityGrade}`}{" "}
+            · used {props.selectedRecipe.useCount}
+          </span>
+          <code>{props.selectedRecipe.baseline.bundleHash.slice(0, 12)}</code>
+        </div>
+      )}
       {props.dryRun === undefined ? (
         <p>运行 dry run 或 plan exec 后会展示知识引擎 trace、prompt bundle 与真实 Codex 只读执行结果。</p>
       ) : (
@@ -1426,7 +1563,9 @@ function CodexConsole(props: {
               <strong>
                 {session.kind ?? "dry-run"} · {session.intent}
               </strong>
-              <span>{session.prompt}</span>
+              <span>
+                {session.recipeName === undefined ? session.prompt : `${session.prompt} · recipe ${session.recipeName}`}
+              </span>
               <code>
                 {session.bundleHash.slice(0, 12)}
                 {session.exitCode === undefined ? "" : ` · exit ${session.exitCode}`}
@@ -1443,7 +1582,7 @@ function DryRunViewer(props: { dryRun: DryRun }) {
   return (
     <div class="dry-run-grid">
       <div>
-        <h3>Trace Timeline</h3>
+        <h3>Trace Timeline{props.dryRun.recipeName === undefined ? "" : ` · Recipe ${props.dryRun.recipeName}`}</h3>
         <div class="trace">
           {props.dryRun.trace.map((step) => (
             <article class="trace-step" key={step.name}>
@@ -1619,6 +1758,7 @@ function readStudioPreferences(): StudioPreferences {
         typeof value.experimentMaxObjects === "number" && Number.isInteger(value.experimentMaxObjects)
           ? value.experimentMaxObjects
           : 30,
+      selectedRecipeId: typeof value.selectedRecipeId === "string" ? value.selectedRecipeId : "",
       helpOpen: typeof value.helpOpen === "boolean" ? value.helpOpen : false,
       inspectorCollapsed: typeof value.inspectorCollapsed === "boolean" ? value.inspectorCollapsed : false,
     };

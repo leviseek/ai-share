@@ -1,6 +1,12 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import type { CodexDryRun, ContextExperiment, ContextExperimentSummary } from "./data.ts";
+import type {
+  CodexDryRun,
+  ContextExperiment,
+  ContextExperimentSummary,
+  ContextRecipe,
+  ContextRecipeSummary,
+} from "./data.ts";
 import type { CodexPlanExec, PlanExecStreamEvent } from "./plan-exec.ts";
 
 export type StudioSessionSummary = {
@@ -14,6 +20,8 @@ export type StudioSessionSummary = {
   exitCode?: number | null;
   durationMs?: number;
   guardOk?: boolean;
+  recipeId?: string;
+  recipeName?: string;
 };
 
 export type StudioSessionDetail = CodexDryRun | CodexPlanExec;
@@ -32,6 +40,13 @@ export type ContextExperimentStore = {
   recent(limit: number): Promise<ContextExperimentSummary[]>;
   writeDetail(id: string, detail: ContextExperiment): Promise<void>;
   readDetail(id: string): Promise<ContextExperiment | undefined>;
+};
+
+export type ContextRecipeStore = {
+  append(summary: ContextRecipeSummary): Promise<void>;
+  recent(limit: number): Promise<ContextRecipeSummary[]>;
+  writeDetail(id: string, detail: ContextRecipe): Promise<void>;
+  readDetail(id: string): Promise<ContextRecipe | undefined>;
 };
 
 export class JsonlStudioSessionStore implements StudioSessionStore {
@@ -135,6 +150,52 @@ export class JsonlContextExperimentStore implements ContextExperimentStore {
 
 export function createContextExperimentStore(repoRoot: string): ContextExperimentStore {
   return new JsonlContextExperimentStore(repoRoot);
+}
+
+export class JsonlContextRecipeStore implements ContextRecipeStore {
+  readonly path: string;
+  readonly recipesRoot: string;
+
+  constructor(repoRoot: string) {
+    this.path = resolve(repoRoot, ".rie", "studio", "recipes.jsonl");
+    this.recipesRoot = resolve(repoRoot, ".rie", "studio", "recipes");
+  }
+
+  async append(summary: ContextRecipeSummary): Promise<void> {
+    await mkdir(dirname(this.path), { recursive: true });
+    const existing = await readTextIfExists(this.path);
+    await writeFile(this.path, `${existing}${JSON.stringify(summary)}\n`);
+  }
+
+  async recent(limit: number): Promise<ContextRecipeSummary[]> {
+    const raw = await readTextIfExists(this.path);
+    const byId = new Map<string, ContextRecipeSummary>();
+    for (const line of raw.split(/\r?\n/).filter((item) => item.trim().length > 0)) {
+      const summary = JSON.parse(line) as ContextRecipeSummary;
+      byId.set(summary.id, summary);
+    }
+    return [...byId.values()]
+      .sort((left, right) => left.updatedAt.localeCompare(right.updatedAt))
+      .slice(-limit)
+      .reverse();
+  }
+
+  async writeDetail(id: string, detail: ContextRecipe): Promise<void> {
+    assertSafeSessionId(id);
+    await mkdir(this.recipesRoot, { recursive: true });
+    await writeFile(resolve(this.recipesRoot, `${id}.json`), `${JSON.stringify(detail, null, 2)}\n`);
+  }
+
+  async readDetail(id: string): Promise<ContextRecipe | undefined> {
+    assertSafeSessionId(id);
+    const raw = await readTextIfExists(resolve(this.recipesRoot, `${id}.json`));
+    if (raw.length === 0) return undefined;
+    return JSON.parse(raw) as ContextRecipe;
+  }
+}
+
+export function createContextRecipeStore(repoRoot: string): ContextRecipeStore {
+  return new JsonlContextRecipeStore(repoRoot);
 }
 
 function assertSafeSessionId(id: string): void {

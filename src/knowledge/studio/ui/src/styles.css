@@ -687,3 +687,30 @@ select {
 .comparison-columns li {
   overflow-wrap: anywhere;
 }
+
+.recipe-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.recipe-detail-card {
+  background: #0b1222;
+  border: 1px solid #26344f;
+  border-left: 4px solid #34d399;
+  border-radius: 10px;
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 10px;
+}
+
+.recipe-detail-card span,
+.recipe-detail-card code {
+  color: #adc2e9;
+  font-size: 12px;
+}
+
+.console-input select {
+  min-width: 180px;
+}

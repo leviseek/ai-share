@@ -5,7 +5,9 @@ import type { KnowledgeObjectType, RelationshipType } from "../core/types.ts";
 import {
   buildCodexDryRun,
   buildCodexMockTrace,
+  buildCodexDryRunFromRecipe,
   buildContextExperiment,
+  buildContextRecipeFromExperiment,
   buildDashboardMetrics,
   buildGraphView,
   buildImpactView,
@@ -13,14 +15,18 @@ import {
   buildStudioContext,
   compareContextExperiments,
   loadStudioSnapshot,
+  markContextRecipeUsed,
   summarizeContextExperiment,
+  summarizeContextRecipe,
   type StudioSnapshot,
 } from "./data.ts";
 import { runCodexPlanExec, runCodexPlanExecStream, type PlanExecStreamEvent } from "./plan-exec.ts";
 import {
   createContextExperimentStore,
+  createContextRecipeStore,
   createStudioSessionStore,
   type ContextExperimentStore,
+  type ContextRecipeStore,
   type StudioSessionStore,
 } from "./session-store.ts";
 
@@ -33,6 +39,7 @@ type StudioState = {
   lastContext?: BuiltContext;
   sessions: StudioSessionStore;
   experiments: ContextExperimentStore;
+  recipes: ContextRecipeStore;
   pendingStreams: Map<string, ReturnType<typeof buildCodexDryRun>>;
 };
 
@@ -43,6 +50,7 @@ async function main(argv: string[]): Promise<void> {
     snapshot: await loadStudioSnapshot(repoRoot),
     sessions: createStudioSessionStore(repoRoot),
     experiments: createContextExperimentStore(repoRoot),
+    recipes: createContextRecipeStore(repoRoot),
     pendingStreams: new Map(),
   };
   const server = Bun.serve({
@@ -80,6 +88,11 @@ async function routeRequest(request: Request, state: StudioState): Promise<Respo
   if (url.pathname === "/api/context-lab/experiments") return handleContextLabExperimentsRequest(url, state);
   if (url.pathname === "/api/context-lab/experiment") return handleContextLabExperimentRequest(url, state);
   if (url.pathname === "/api/context-lab/compare") return handleContextLabCompareRequest(request, state);
+  if (url.pathname === "/api/context-recipes/from-experiment")
+    return handleContextRecipeFromExperimentRequest(request, state);
+  if (url.pathname === "/api/context-recipes") return handleContextRecipesRequest(url, state);
+  if (url.pathname === "/api/context-recipes/recipe") return handleContextRecipeRequest(url, state);
+  if (url.pathname === "/api/context-recipes/dry-run") return handleContextRecipeDryRunRequest(request, state);
   return jsonResponse({ error: "未找到请求的 Studio 资源。" }, 404);
 }
 
@@ -325,6 +338,59 @@ async function handleContextLabCompareRequest(request: Request, state: StudioSta
   const right = await state.experiments.readDetail(rightId);
   if (left === undefined || right === undefined) return jsonResponse({ error: "未找到要对比的 experiment。" }, 404);
   return jsonResponse(compareContextExperiments(left, right));
+}
+
+async function handleContextRecipeFromExperimentRequest(request: Request, state: StudioState): Promise<Response> {
+  const body = await parseJsonObject(request);
+  const experimentId = readString(body, "experimentId");
+  if (experimentId.length === 0) throw new Error("请提供 experimentId。");
+  const experiment = await state.experiments.readDetail(experimentId);
+  if (experiment === undefined) return jsonResponse({ error: "未找到 experiment。" }, 404);
+  const recipe = buildContextRecipeFromExperiment(experiment);
+  await state.recipes.append(summarizeContextRecipe(recipe));
+  await state.recipes.writeDetail(recipe.id, recipe);
+  return jsonResponse(recipe);
+}
+
+async function handleContextRecipesRequest(url: URL, state: StudioState): Promise<Response> {
+  const limit = Number(url.searchParams.get("limit") ?? "20");
+  return jsonResponse(await state.recipes.recent(Number.isInteger(limit) && limit > 0 ? limit : 20));
+}
+
+async function handleContextRecipeRequest(url: URL, state: StudioState): Promise<Response> {
+  const id = url.searchParams.get("id");
+  if (id === null || id.length === 0) throw new Error("请提供 recipe id。");
+  const recipe = await state.recipes.readDetail(id);
+  if (recipe === undefined) return jsonResponse({ error: "未找到 recipe。" }, 404);
+  return jsonResponse(recipe);
+}
+
+async function handleContextRecipeDryRunRequest(request: Request, state: StudioState): Promise<Response> {
+  const body = await parseJsonObject(request);
+  const recipeId = readString(body, "recipeId");
+  if (recipeId.length === 0) throw new Error("请提供 recipeId。");
+  const recipe = await state.recipes.readDetail(recipeId);
+  if (recipe === undefined) return jsonResponse({ error: "未找到 recipe。" }, 404);
+  if (!recipe.enabled) return jsonResponse({ error: "Recipe 已禁用。" }, 400);
+  const prompt = readOptionalString(body, "prompt");
+  const dryRun = buildCodexDryRunFromRecipe(state.snapshot, recipe, prompt);
+  const usedRecipe = markContextRecipeUsed(recipe);
+  state.lastContext = dryRun.context;
+  await state.recipes.append(summarizeContextRecipe(usedRecipe));
+  await state.recipes.writeDetail(usedRecipe.id, usedRecipe);
+  await state.sessions.append({
+    id: dryRun.id,
+    kind: "dry-run",
+    timestamp: dryRun.timestamp,
+    prompt: dryRun.prompt,
+    intent: dryRun.intent,
+    traceSteps: dryRun.trace.map((step) => step.name),
+    bundleHash: dryRun.promptBundle.hash,
+    recipeId: recipe.id,
+    recipeName: recipe.name,
+  });
+  await state.sessions.writeDetail(dryRun.id, dryRun);
+  return jsonResponse(dryRun);
 }
 
 async function staticResponse(path: string): Promise<Response> {

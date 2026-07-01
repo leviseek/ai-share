@@ -95,6 +95,8 @@ export type CodexDryRun = {
   id: string;
   timestamp: string;
   prompt: string;
+  recipeId?: string;
+  recipeName?: string;
   intent: NonNullable<ContextRequest["intent"]>;
   selectedSeeds: string[];
   trace: CodexTraceStep[];
@@ -135,6 +137,44 @@ export type ContextExperimentSummary = {
   seeds: number;
   objects: number;
   relevantPaths: number;
+  qualityScore?: number;
+  qualityGrade?: ContextQualityReport["grade"];
+  bundleHash: string;
+};
+
+export type ContextRecipe = {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  name: string;
+  promptTemplate: string;
+  intent: NonNullable<ContextRequest["intent"]>;
+  seeds: string[];
+  filters: GraphViewOptions;
+  maxObjects: number;
+  enabled: boolean;
+  useCount: number;
+  lastUsedAt?: string;
+  sourceExperimentId: string;
+  baseline: {
+    qualityScore?: number;
+    qualityGrade?: ContextQualityReport["grade"];
+    bundleHash: string;
+    objects: number;
+    relevantPaths: number;
+  };
+};
+
+export type ContextRecipeSummary = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  intent: NonNullable<ContextRequest["intent"]>;
+  enabled: boolean;
+  useCount: number;
+  lastUsedAt?: string;
+  sourceExperimentId: string;
   qualityScore?: number;
   qualityGrade?: ContextQualityReport["grade"];
   bundleHash: string;
@@ -559,6 +599,161 @@ export function summarizeContextExperiment(experiment: ContextExperiment): Conte
     summary.qualityGrade = experiment.context.quality.grade;
   }
   return summary;
+}
+
+export function buildContextRecipeFromExperiment(
+  experiment: ContextExperiment,
+  now: string = new Date().toISOString(),
+): ContextRecipe {
+  const name = experiment.name ?? `Recipe ${experiment.id.slice(0, 8)}`;
+  const id = canonicalJsonHash({
+    sourceExperimentId: experiment.id,
+    name,
+    intent: experiment.intent,
+    seeds: experiment.seeds,
+    filters: experiment.filters,
+    maxObjects: experiment.maxObjects,
+    createdAt: now,
+  }).slice(0, 16);
+  const baseline: ContextRecipe["baseline"] = {
+    bundleHash: experiment.promptBundle.hash,
+    objects: experiment.context.objects.length,
+    relevantPaths: experiment.promptBundle.relevantPaths.length,
+  };
+  if (experiment.context.quality !== undefined) {
+    baseline.qualityScore = experiment.context.quality.score;
+    baseline.qualityGrade = experiment.context.quality.grade;
+  }
+  return {
+    id,
+    createdAt: now,
+    updatedAt: now,
+    name,
+    promptTemplate: experiment.prompt,
+    intent: experiment.intent,
+    seeds: experiment.seeds,
+    filters: experiment.filters,
+    maxObjects: experiment.maxObjects,
+    enabled: true,
+    useCount: 0,
+    sourceExperimentId: experiment.id,
+    baseline,
+  };
+}
+
+export function summarizeContextRecipe(recipe: ContextRecipe): ContextRecipeSummary {
+  const summary: ContextRecipeSummary = {
+    id: recipe.id,
+    name: recipe.name,
+    createdAt: recipe.createdAt,
+    updatedAt: recipe.updatedAt,
+    intent: recipe.intent,
+    enabled: recipe.enabled,
+    useCount: recipe.useCount,
+    sourceExperimentId: recipe.sourceExperimentId,
+    bundleHash: recipe.baseline.bundleHash,
+  };
+  if (recipe.lastUsedAt !== undefined) summary.lastUsedAt = recipe.lastUsedAt;
+  if (recipe.baseline.qualityScore !== undefined) summary.qualityScore = recipe.baseline.qualityScore;
+  if (recipe.baseline.qualityGrade !== undefined) summary.qualityGrade = recipe.baseline.qualityGrade;
+  return summary;
+}
+
+export function buildCodexDryRunFromRecipe(
+  snapshot: StudioSnapshot,
+  recipe: ContextRecipe,
+  promptOverride?: string,
+  now: string = new Date().toISOString(),
+): CodexDryRun {
+  const promptCandidate = promptOverride?.trim();
+  const prompt =
+    promptCandidate === undefined || promptCandidate.length === 0 ? recipe.promptTemplate.trim() : promptCandidate;
+  const searchStartedAt = Date.now();
+  const search = rankByTextSimilarity(snapshot.objects, prompt).slice(0, 10);
+  const selectedSeeds = recipe.seeds.length > 0 ? recipe.seeds : search.slice(0, 5).map((item) => item.object.id);
+  const context = buildContext(snapshot, {
+    query: prompt,
+    intent: recipe.intent,
+    objectIds: selectedSeeds,
+    budget: { maxObjects: recipe.maxObjects },
+  });
+  const impactSeed = context.objects[0]?.id ?? selectedSeeds[0];
+  const impact = impactSeed === undefined ? { nodes: [], edges: [] } : impactAnalysis(snapshot, impactSeed);
+  const promptBundleInput: {
+    prompt: string;
+    intent: NonNullable<ContextRequest["intent"]>;
+    context: BuiltContext;
+    impact: GraphSubgraph;
+    impactSeed?: string;
+  } = { prompt, intent: recipe.intent, context, impact };
+  if (impactSeed !== undefined) promptBundleInput.impactSeed = impactSeed;
+  const promptBundle = buildPromptBundle(promptBundleInput);
+  const id = canonicalJsonHash({ prompt, recipeId: recipe.id, now, bundleHash: promptBundle.hash }).slice(0, 16);
+  return {
+    id,
+    timestamp: now,
+    prompt,
+    recipeId: recipe.id,
+    recipeName: recipe.name,
+    intent: recipe.intent,
+    selectedSeeds,
+    trace: [
+      {
+        name: "infer_intent",
+        input: { recipeId: recipe.id, prompt },
+        output: { intent: recipe.intent },
+        durationMs: 1,
+      },
+      {
+        name: "search",
+        input: { query: prompt, limit: 10, fallbackOnly: recipe.seeds.length > 0 },
+        output: search.map((item) => ({
+          id: item.object.id,
+          score: item.score,
+          path: item.object.path,
+          title: item.object.title,
+        })),
+        durationMs: Math.max(1, Date.now() - searchStartedAt),
+      },
+      {
+        name: "select_seeds",
+        input: { recipeSeeds: recipe.seeds.length, searchResults: search.length },
+        output: { selectedSeeds },
+        durationMs: 1,
+      },
+      {
+        name: "build_context",
+        input: { intent: recipe.intent, maxObjects: recipe.maxObjects, filters: recipe.filters },
+        output: summarizeContext(context),
+        durationMs: 1,
+      },
+      {
+        name: "analyze_impact",
+        input: { objectId: impactSeed },
+        output: summarizeGraph(impact),
+        durationMs: 1,
+      },
+      {
+        name: "evaluate_context_quality",
+        input: { contextObjects: context.objects.length, baseline: recipe.baseline.qualityScore },
+        output: summarizeQuality(context.quality),
+        durationMs: 1,
+      },
+      {
+        name: "compose_prompt_bundle",
+        input: { contextObjects: context.objects.length, impactNodes: impact.nodes.length },
+        output: { hash: promptBundle.hash, relevantPaths: promptBundle.relevantPaths.length },
+        durationMs: 1,
+      },
+    ],
+    context,
+    impact,
+    promptBundle,
+  };
+}
+
+export function markContextRecipeUsed(recipe: ContextRecipe, now: string = new Date().toISOString()): ContextRecipe {
+  return { ...recipe, updatedAt: now, lastUsedAt: now, useCount: recipe.useCount + 1 };
 }
 
 export function compareContextExperiments(
