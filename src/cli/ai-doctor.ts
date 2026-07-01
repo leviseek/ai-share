@@ -2,23 +2,13 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import type {
-  EnvYaml,
-  GlobalYaml,
-  McpYaml,
-  ModelsYaml,
-  ProfileEvalYaml,
-  ProfilesYaml,
-  ProviderYaml,
-} from "../types.ts";
+import type { EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProviderYaml } from "../types.ts";
 import {
   applyProviderGroups,
-  buildCodexCliConfigs,
+  buildCodexCliConfig,
   codexEnvManagedBlockIsCurrent,
-  defaultProfileId,
   formatCodexConfigToml,
   modelProviderGroups,
-  requireValue,
 } from "../config-builders.ts";
 import { missingProviderApiKeyEnvNames } from "./api-keys.ts";
 import { color } from "./color.ts";
@@ -26,7 +16,7 @@ import { detectDefaultConfigDrift } from "./default-config-drift.ts";
 import { checkCodexEnvLocalProxies } from "./env-runtime-check.ts";
 import { checkMemoryPrivacy } from "./memory-privacy-check.ts";
 import { parseCliOptions } from "./options.ts";
-import { buildGeneratorPaths, profileCodexInstructionsPath } from "./paths.ts";
+import { buildGeneratorPaths } from "./paths.ts";
 import { checkProviderCanaries, checkProviderModels } from "./provider-model-check.ts";
 import { checkVersions } from "./registry-check.ts";
 import { listLocalConfigOverlaysSync, loadConfigYamlSync } from "../config/local-overlay.ts";
@@ -60,23 +50,13 @@ const paths = buildGeneratorPaths();
 const globalConfig = loadYaml("global.yaml") as GlobalYaml;
 const providersConfig = loadYaml("provider.yaml") as ProviderYaml;
 const modelsConfig = loadYaml("models.yaml") as ModelsYaml;
-const profilesConfig = loadYaml("profiles.yaml") as ProfilesYaml;
 const mcpConfig = loadYaml("mcp.yaml") as McpYaml;
 const envConfig = loadYaml("env.yaml") as EnvYaml;
-const profileEvalConfig = loadYaml("profile-eval.yaml") as ProfileEvalYaml;
 
 const checks: DoctorCheck[] = [];
 
 const validationStartedAt = performance.now();
-const validationErrors = validateYamlConsistency(
-  profilesConfig,
-  modelsConfig,
-  providersConfig,
-  globalConfig,
-  mcpConfig,
-  envConfig,
-  profileEvalConfig,
-);
+const validationErrors = validateYamlConsistency(modelsConfig, providersConfig, globalConfig, mcpConfig, envConfig);
 checks.push({
   name: "yaml_consistency",
   status: validationErrors.length === 0 ? "ok" : "error",
@@ -88,15 +68,7 @@ checks.push({
 
 const providers = providersConfig.providers ?? {};
 const models = applyProviderGroups(modelsConfig, providers, cliOptions.providerGroups);
-const codexCliConfigs = buildCodexCliConfigs(providers, models, profilesConfig, mcpConfig, (profileId) =>
-  profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
-);
-const selectedDefaultProfileId = defaultProfileId(globalConfig, profilesConfig);
-const selectedCodexCliConfig = requireValue(codexCliConfigs[selectedDefaultProfileId], "默认 Codex profile");
-const selectedCodexBaseConfig = {
-  ...selectedCodexCliConfig,
-  model_instructions_file: paths.targetCodexInstructions,
-};
+const codexCliConfig = buildCodexCliConfig(providers, models, globalConfig, mcpConfig, paths.targetCodexInstructions);
 
 const apiKeyStartedAt = performance.now();
 const missingApiKeys = missingProviderApiKeyEnvNames(providers);
@@ -113,14 +85,14 @@ checks.push({
 const defaultConfigDriftStartedAt = performance.now();
 const defaultConfigDrift = await detectDefaultConfigDrift(
   paths.targetCodexConfig,
-  formatCodexConfigToml(selectedCodexBaseConfig),
+  formatCodexConfigToml(codexCliConfig),
 );
 checks.push({
   name: "default_config_drift",
   status: defaultConfigDrift.status === "current" ? "ok" : "warning",
   summary:
     defaultConfigDrift.status === "current"
-      ? `默认 config.toml 与 ${selectedDefaultProfileId} 等价。`
+      ? "默认 config.toml 与 config/global.yaml 等价。"
       : `默认 config.toml 状态：${defaultConfigDrift.status}。`,
   elapsed_ms: elapsedSince(defaultConfigDriftStartedAt),
   details: defaultConfigDrift,
@@ -215,11 +187,11 @@ const generationScopeStartedAt = performance.now();
 checks.push({
   name: "generation_scope",
   status: "ok",
-  summary: `配置范围：${Object.keys(providers).length} providers，${modelProviderGroups(modelsConfig).join(" / ")} groups，${Object.keys(codexCliConfigs).length} Codex profiles。`,
+  summary: `配置范围：${Object.keys(providers).length} providers，${modelProviderGroups(modelsConfig).join(" / ")} groups，Codex model ${globalConfig.model ?? "unknown"}。`,
   elapsed_ms: elapsedSince(generationScopeStartedAt),
   details: {
     codex_home: paths.targetCodexConfigDir,
-    default_profile: selectedDefaultProfileId,
+    model: globalConfig.model,
     provider_groups: cliOptions.providerGroups,
     local_config_overlays: localConfigOverlays,
   },
@@ -269,7 +241,12 @@ function parseOption(values: readonly string[], name: string): string | undefine
 function writeJsonReport(path: string, report: DoctorReport): void {
   const resolvedPath = resolve(path);
   mkdirSync(dirname(resolvedPath), { recursive: true });
-  writeFileSync(resolvedPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  writeFileSync(
+    resolvedPath,
+    `${JSON.stringify(report, null, 2)}
+`,
+    "utf8",
+  );
 }
 
 function aggregateStatus(input: readonly DoctorCheck[]): DoctorStatus {

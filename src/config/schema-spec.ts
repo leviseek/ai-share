@@ -2,8 +2,6 @@ export const ENV_REFERENCE_PATTERN = "^\\$\\{[A-Z_][A-Z0-9_]*\\}$";
 export const ENV_NAME_PATTERN = "^[A-Z_][A-Z0-9_]*$";
 export const ENV_FILE_NAME_PATTERN = "^[A-Za-z_][A-Za-z0-9_]*$";
 
-export const MODEL_ROLES = ["primary", "reasoning", "fast"] as const;
-
 export type SchemaNode =
   | StringSchemaNode
   | NumberSchemaNode
@@ -20,14 +18,7 @@ export type YamlSchemaSpec = {
   root: SchemaNode;
 };
 
-export type YamlSchemaSourceFile =
-  | "global.yaml"
-  | "provider.yaml"
-  | "models.yaml"
-  | "profiles.yaml"
-  | "mcp.yaml"
-  | "env.yaml"
-  | "profile-eval.yaml";
+export type YamlSchemaSourceFile = "global.yaml" | "provider.yaml" | "models.yaml" | "mcp.yaml" | "env.yaml";
 
 type BaseSchemaNode = {
   description?: string;
@@ -71,16 +62,15 @@ type ObjectSchemaNode = BaseSchemaNode & {
   };
 };
 
-const modelRoleProperties = Object.fromEntries(MODEL_ROLES.map((role) => [role, stringSchema(`${role} model id.`)]));
-
 export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
   {
     sourceFile: "global.yaml",
     schemaFileName: "global.schema.json",
     title: "ai-share global.yaml",
     root: objectSchema({
+      required: ["model"],
       properties: {
-        default_profile: stringSchema("Default profile id from profiles.yaml."),
+        model: stringSchema("Default Codex model id from models.yaml."),
         codex_min_version: stringSchema("Minimum Codex CLI version checked by ai:check."),
       },
     }),
@@ -145,34 +135,6 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
     }),
   },
   {
-    sourceFile: "profiles.yaml",
-    schemaFileName: "profiles.schema.json",
-    title: "ai-share profiles.yaml",
-    rootDisplayPath: "profiles",
-    root: objectSchema({
-      additionalProperties: objectSchema({
-        required: ["models"],
-        properties: {
-          name: stringSchema("Human-readable profile name."),
-          models: objectSchema({
-            required: [...MODEL_ROLES],
-            properties: modelRoleProperties,
-          }),
-          compaction: objectSchema({
-            properties: {
-              enabled: booleanSchema("Compaction enabled flag."),
-              threshold: numberSchema("Compaction threshold metadata."),
-              model: stringSchema("Compaction model id or model role."),
-              max_input_tokens: numberSchema("Compaction max input token metadata."),
-              prune: booleanSchema("Compaction prune flag."),
-              reserved: numberSchema("Reserved token metadata."),
-            },
-          }),
-        },
-      }),
-    }),
-  },
-  {
     sourceFile: "mcp.yaml",
     schemaFileName: "mcp.schema.json",
     title: "ai-share mcp.yaml",
@@ -211,41 +173,6 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
       },
     }),
   },
-  {
-    sourceFile: "profile-eval.yaml",
-    schemaFileName: "profile-eval.schema.json",
-    title: "ai-share profile-eval.yaml",
-    root: objectSchema({
-      properties: {
-        task_set: stringSchema("Profile evaluation task set id."),
-        tasks: objectSchema({
-          additionalProperties: objectSchema({
-            required: ["prompt"],
-            properties: {
-              title: stringSchema("Human-readable task title."),
-              category: stringSchema("Evaluation category label."),
-              weight: positiveNumberSchema("Task weight in aggregate profile scoring."),
-              prompt: stringSchema("Task prompt sent to Codex when --execute is enabled."),
-              success_criteria: stringArraySchema("Manual success criteria for scoring."),
-            },
-          }),
-        }),
-        scoring: objectSchema({
-          properties: {
-            pass_score: positiveNumberSchema("Manual score threshold treated as passing."),
-            dimensions: objectSchema({
-              additionalProperties: objectSchema({
-                properties: {
-                  weight: positiveNumberSchema("Scoring dimension weight."),
-                  description: stringSchema("Scoring dimension description."),
-                },
-              }),
-            }),
-          },
-        }),
-      },
-    }),
-  },
 ];
 
 function stringSchema(description: string): Extract<SchemaNode, { type: "string" }> {
@@ -274,10 +201,6 @@ function numberSchema(description: string): Extract<SchemaNode, { type: "number"
 
 function positiveNumberSchema(description: string): Extract<SchemaNode, { type: "number" }> {
   return { ...numberSchema(description), exclusiveMinimum: 0 };
-}
-
-function booleanSchema(description: string): Extract<SchemaNode, { type: "boolean" }> {
-  return { type: "boolean", description };
 }
 
 function objectSchema(input: Omit<ObjectSchemaNode, "type"> = {}): Extract<SchemaNode, { type: "object" }> {

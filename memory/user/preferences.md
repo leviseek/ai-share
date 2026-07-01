@@ -2,10 +2,9 @@
 
 ## 模型偏好
 
-- 日常编码：GPT-5 系列（balanced profile）
-- 深度推理：GPT-5 系列（research/max profile）
-- 轻量任务：GPT-5.4-mini（cheap/economy/lite profile）
-- compaction 模型首选 fast（gpt-5.4-mini）
+- 日常编码：GPT-5 系列，默认 `gpt-5.5`
+- 深度推理：GPT-5 系列
+- 轻量任务：`gpt-5.4-mini`
 - 当前 ai-share 仅支持 Codex + GPT 兼容 provider，不再使用非 GPT 模型组
 
 ## 编辑器与终端
@@ -17,7 +16,7 @@
 ## 项目管理
 
 - ai-share 作为所有 AI 配置的单一权威来源
-- YAML 作为配置源，不手动编辑生成的 JSON
+- YAML 作为配置源，不手动编辑生成的 TOML/JSON
 - API Key 只通过环境变量引用，不写入仓库
 
 ## 通讯语言

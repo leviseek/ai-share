@@ -40,15 +40,6 @@ model_preferences:
   deep_reasoning: gpt-5 系列
   light_tasks: gpt-5.4-mini
   compaction_model: fast
-  profiles:
-    - lite
-    - economy
-    - cheap
-    - balanced
-    - coding
-    - research
-    - writing
-    - max
 
 cross_device_rules:
   - ai-share 配置源通过 Git 同步，每个设备独立生成配置

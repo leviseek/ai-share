@@ -13,7 +13,6 @@ privacy_layers:
     paths:
       - architecture/
       - stack/
-      - profiles/
       - policies/
     rules:
       - 不包含个人身份、设备路径、账号、私有偏好或团队外不可见信息

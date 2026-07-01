@@ -44,11 +44,3 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
     targetCodexSkillsDir: resolve(targetCodexConfigDir, "skills"),
   };
 }
-
-export function profileCodexConfigPath(targetCodexConfigDir: string, profileId: string): string {
-  return resolve(targetCodexConfigDir, `${profileId}.config.toml`);
-}
-
-export function profileCodexInstructionsPath(targetCodexConfigDir: string, profileId: string): string {
-  return resolve(targetCodexConfigDir, `${profileId}.AGENTS.md`);
-}

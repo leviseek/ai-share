@@ -10,12 +10,7 @@ describe("memory eval", () => {
   test("passes the repository memory runtime checks offline", () => {
     const results = evaluateMemoryRuntime(projectRoot);
 
-    expect(results.map((result) => result.task)).toEqual([
-      "base_instructions",
-      "task_retrieval",
-      "profile_order",
-      "managed_skills",
-    ]);
+    expect(results.map((result) => result.task)).toEqual(["base_instructions", "task_retrieval", "managed_skills"]);
     expect(results.every((result) => result.status === "pass")).toBe(true);
   });
 

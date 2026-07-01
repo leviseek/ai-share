@@ -1,4 +1,4 @@
-import type { ModelRoleMap, ModelsYaml, ProviderGroupMap, ProviderSource } from "../types.ts";
+import type { ModelsYaml, ProviderGroupMap, ProviderSource } from "../types.ts";
 import { requireString, unique } from "./validation.ts";
 
 export function applyProviderGroups(
@@ -22,15 +22,10 @@ export function modelProviderGroups(modelSources: ModelsYaml): string[] {
   return unique(Object.values(modelSources).map((model) => model.provider_group ?? model.provider ?? "未分组"));
 }
 
-export function modelRef(modelId: string, modelSources: ModelsYaml, profileModels: ModelRoleMap = {}): string {
-  const resolvedModelId = profileModels[modelId] ?? modelId;
-  if (profileModels[resolvedModelId]) {
-    throw new Error(`profile 模型别名不能递归引用：${modelId}`);
-  }
-
-  const provider = modelSources[resolvedModelId]?.provider;
-  if (!provider) throw new Error(`模型缺少 provider 或未定义：${resolvedModelId}`);
-  return `${provider}/${resolvedModelId}`;
+export function modelRef(modelId: string, modelSources: ModelsYaml): string {
+  const provider = modelSources[modelId]?.provider;
+  if (!provider) throw new Error(`模型缺少 provider 或未定义：${modelId}`);
+  return `${provider}/${modelId}`;
 }
 
 export function modelFallbackRefs(model: string, modelSources: ModelsYaml): string[] {

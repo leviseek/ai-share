@@ -2,11 +2,11 @@
 
 这个仓库用于集中管理多台电脑、多个项目共用的 Codex 配置、MCP、native skills、提示词和用户级记忆。
 
-当前架构已经收敛为 **Codex only**。仓库不再生成或安装其他 AI 运行时的兼容配置。
+当前架构已经收敛为 **Codex only**，并且只生成一套默认 Codex 配置；不再生成 profile、agent 或多任务编排角色配置。
 
 主要目标：
 
-- 以 `config/*.yaml` 作为唯一权威配置源，统一维护模型提供商、模型列表和 profile。
+- 以 `config/*.yaml` 作为唯一权威配置源，统一维护模型提供商、默认模型和 MCP。
 - 同步用户级 MCP、native skills、prompts 和持久化 memory。
 - API Key 不写入仓库，只通过环境变量引用。
 - 通过 Git 在不同电脑之间同步配置源。
@@ -88,44 +88,8 @@ Codex 目录优先读取 `CODEX_HOME`，未设置时使用 `~/.codex`。
 ```text
 ~/.codex/config.toml
 ~/.codex/.env
-~/.codex/lite.config.toml
-~/.codex/economy.config.toml
-~/.codex/cheap.config.toml
-~/.codex/balanced.config.toml
-~/.codex/coding.config.toml
-~/.codex/research.config.toml
-~/.codex/writing.config.toml
-~/.codex/max.config.toml
-~/.codex/lite.codex-config.json
-~/.codex/economy.codex-config.json
-~/.codex/cheap.codex-config.json
-~/.codex/balanced.codex-config.json
-~/.codex/coding.codex-config.json
-~/.codex/research.codex-config.json
-~/.codex/writing.codex-config.json
-~/.codex/max.codex-config.json
 ~/.codex/ai-share.runtime.json
 ~/.codex/AGENTS.md
-~/.codex/lite.AGENTS.md
-~/.codex/economy.AGENTS.md
-~/.codex/cheap.AGENTS.md
-~/.codex/balanced.AGENTS.md
-~/.codex/coding.AGENTS.md
-~/.codex/research.AGENTS.md
-~/.codex/writing.AGENTS.md
-~/.codex/max.AGENTS.md
-~/.codex/agents/sisyphus.toml
-~/.codex/agents/hephaestus.toml
-~/.codex/agents/prometheus.toml
-~/.codex/agents/oracle.toml
-~/.codex/agents/momus.toml
-~/.codex/agents/metis.toml
-~/.codex/agents/atlas.toml
-~/.codex/agents/sisyphus-junior.toml
-~/.codex/agents/explorer.toml
-~/.codex/agents/librarian.toml
-~/.codex/agents/multimodal-looker.toml
-~/.codex/.codex-config.json
 ~/.codex/skills/<native-skill>/SKILL.md
 ```
 
@@ -138,60 +102,53 @@ Codex 目录优先读取 `CODEX_HOME`，未设置时使用 `~/.codex`。
 Windows 下对应为：
 
 ```text
-%USERPROFILE%\.local\bin\codex.cmd
-%USERPROFILE%\.local\bin\codex.ps1
-%USERPROFILE%\.local\bin\codex.ts
+%USERPROFILE%\.localin\codex.cmd
+%USERPROFILE%\.localin\codex.ps1
+%USERPROFILE%\.localin\codex.ts
 ```
 
 Windows 会自动把该目录加入用户级 PATH。已经打开的终端可能需要重启后才能直接使用 `codex`。macOS/Linux 请确认 `~/.local/bin` 已在 PATH 中。
 
 ## Native Skills
 
-当前安装到 `~/.codex/skills/` 的 native skills：
+当前安装到 `~/.codex/skills/` 的 native skills 来自 `src/cli/native-skills.ts` 和 `skills/` 源目录，例如：
 
 - `git-master`：安全 Git 操作、原子提交、历史搜索。
 - `ai-share-generator`：修改 `config/*.yaml`、生成器和安装输出时的工作流。
-- `config-profile-tuning`：调整模型角色、profile、compaction metadata 和上下文预算。
+- `config-model-tuning`：调整默认模型、provider group、模型 metadata 和 fallback。
 - `context-compiler`：把长 session、issue、日志、PR、网页资料编译成可审计上下文摘要。
-- `prompt-lint`：检查提示词、agent、skill 和 instruction memory 的冲突、冗余与不可验证规则。
+- `prompt-lint`：检查提示词、skill 和 instruction memory 的冲突、冗余与不可验证规则。
 - `release-commit`：整理变更批次、验证证据、风险和提交计划。
 
-## Profile
+## 模型
 
-当前内置 8 个 profile，每个 profile 固定使用 3 个模型角色：
+当前只生成一套 Codex 默认配置。默认模型由 `config/global.yaml` 的 `model` 控制，当前是 `gpt-5.5`。
 
-```text
-lite：primary=gpt-5.4，reasoning=gpt-5.4，fast=gpt-5.4-mini
-economy：primary=gpt-5.4-mini，reasoning=gpt-5.4，fast=gpt-5.4-mini
-cheap：primary=gpt-5.4-mini，reasoning=gpt-5.4，fast=gpt-5.4-mini
-balanced：primary=gpt-5.5，reasoning=gpt-5.5，fast=gpt-5.4-mini
-coding：primary=gpt-5.5-coding，reasoning=gpt-5.5-coding，fast=gpt-5.4-mini
-research：primary=gpt-5.5，reasoning=gpt-5.5，fast=gpt-5.4-mini
-writing：primary=gpt-5.5，reasoning=gpt-5.5，fast=gpt-5.4-mini
-max：primary=gpt-5.5，reasoning=gpt-5.5，fast=gpt-5.4
+切换模型时修改 YAML 源后重新生成：
+
+```yaml
+model: gpt-5.5-coding
 ```
 
-默认 profile 由 `config/global.yaml` 的 `default_profile` 控制，当前是 `balanced`。启动时可直接选择：
+```sh
+bun run ai:gen -- --force
+```
+
+启动命令：
 
 ```sh
 codex
-codex coding
-codex max exec "请分析当前项目"
-codex --profile research
+codex exec "请分析当前项目"
 ```
-
-`config/profiles.yaml` 直接维护 `primary`、`reasoning`、`fast` 这 3 个中间层角色到具体模型的映射。
 
 ## 配置源
 
 ```text
-config/global.yaml    -> 默认 profile 和 Codex 最低版本要求
+config/global.yaml    -> 默认模型和 Codex 最低版本要求
 config/provider.yaml  -> 模型提供商、baseURL、API Key 环境变量名
 config/models.yaml    -> 模型列表、provider/provider_group、上游模型名、参数、fallback
-config/profiles.yaml  -> Codex profile、模型角色映射和 compaction metadata
 config/mcp.yaml       -> 用户级 Codex MCP servers
 config/env.yaml       -> 写入 CODEX_HOME/.env 的非密钥 Codex 运行时环境变量
-config/profile-eval.yaml -> profile evaluation 固定任务集和手工评分维度
 ```
 
 `config/mcp.yaml` 不允许写入明文 token/cookie/API key。`bun run ai:check` 会阻止 HTTP MCP URL 中的敏感查询参数，也会阻止 stdio MCP 的敏感 env 写成明文。
@@ -246,24 +203,9 @@ no_proxy=localhost,127.0.0.1,::1
 # END ai-share managed env
 ```
 
-如果检测到旧版 ai-share 全量生成头，会自动迁移为 managed block；未知 `.env` 文件只追加或更新 managed block。
-
 不要把 API key、token、cookie、password、`CODEX_HOME`、`PATH`、`AI_SHARE_*` 或 `CODEX_*` 写入 `config/env.yaml`。
 
-`bun run ai:check` 会轻量检查 managed block 是否缺失/漂移，以及 `config/env.yaml` 中的 loopback 代理端口是否可达；这些运行态差异只输出告警，不阻断离线验证。
-
-## Profile 导入/导出
-
-```sh
-bun run src/cli/profile-export.ts balanced
-bun run src/cli/profile-export.ts --all --output profiles.json
-bun run src/cli/profile-import.ts profiles.json --dry-run
-bun run src/cli/profile-import.ts profiles.json --force
-```
-
-导入时会执行 tri-role 协议格式检查、角色完整性验证和模型注册表引用检查。
-
-## Schema / Evaluation
+## Schema / Doctor
 
 生成 JSON Schema：
 
@@ -276,26 +218,6 @@ JSON Schema 输出到 `docs/schema/json/`。字段类型、必填项、枚举、
 `src/config/validators/schema-shape.ts` 从同一份规格执行运行时 shape 校验。其他 validator 只保留跨文件引用、
 MCP 条件规则和 secret 策略。
 
-生成 profile 评测计划，不执行模型调用：
-
-```sh
-bun run profile:eval -- --tasks project_analysis,contract_test_patch --profiles coding,max
-```
-
-也可以继续用临时任务：
-
-```sh
-bun run profile:eval -- --task "分析当前项目" --profiles coding,max
-```
-
-实际执行评测需要显式传入 `--execute`：
-
-```sh
-bun run profile:eval -- --task "分析当前项目" --profiles coding,max --execute
-```
-
-默认报告写入 `.sisyphus/evidence/profile-eval/`，报告协议为 `ai-share/profile-eval/v2`，包含固定任务权重、成功标准、耗时、退出码、估算成本、人工成功/返工/评分字段和 profile 加权汇总。
-
 检查 provider 是否真实暴露了当前配置中的上游模型名：
 
 ```sh
@@ -303,9 +225,6 @@ bun run provider:check
 bun run provider:check -- --canary
 bun run provider:check -- --canary --json
 ```
-
-该命令会访问各 provider 的 `/models` 端点，需要本机已设置对应 API key。`--canary` 会进一步发起轻量 completion
-验证模型可调用和参数兼容；`--json` 输出机器可读结果。它是显式网络检查，不放入默认 `bun run check`。
 
 聚合运行态诊断：
 
@@ -315,14 +234,11 @@ bun run ai:doctor -- --json
 bun run ai:doctor -- --output .sisyphus/evidence/doctor/report.json
 ```
 
-`ai:doctor` 聚合 YAML 一致性、默认配置漂移、Codex 版本、`.env` managed block、本地代理、memory privacy 和 provider model 检查。provider/network 问题默认是 warning；需要阻断时使用 `--strict-provider`。
-
 ## Templates / Privacy
 
 `templates/shareable/config/` 提供可共享最小配置模板；`templates/personal-overlay/` 描述个人 overlay 边界。生成器会先读取共享
 `config/*.yaml`，再按同名文件合并可选的 `config/local/*.yaml`。`config/local/` 默认被 `.gitignore` 忽略，适合个人 provider
-选择、路径和实验性 profile 覆盖；最终合并结果仍会走同一套 schema/一致性校验。
-`bun run ai:check` 和 `bun run ai:doctor -- --json` 会报告当前启用的 local overlay 文件，方便排查本机差异。
+选择、路径和实验性模型覆盖；最终合并结果仍会走同一套 schema/一致性校验。
 
 memory 隐私分层见 `docs/memory-privacy.md`：shareable、personal、local、project。`memory/local/`、`memory/private/`、`memory/project/` 默认不进入 Git。
 
@@ -342,7 +258,7 @@ bun run memory:check
 - `memory/user/*`
 - `memory/architecture/*`
 - `memory/stack/*`
-- profile-specific memory files
+- `memory/stable/*`
 
 任务相关 memory 可通过 `AI_SHARE_TASK` 触发本地关键词检索，相关度最高的 memory 文件会插入到结构化 memory 前：
 

@@ -44,7 +44,6 @@ AI 生成记忆提案（Markdown 格式，含操作类型+内容+理由+来源�
 | `stable/user.yaml`            | 用户画像、编码风格、偏好     | 新增工具链、沟通偏好 |
 | `stable/workflows.yaml`       | 开发流程、验证习惯、调试策略 | 测试流程变化         |
 | `stable/devices.yaml`         | 多设备配置、路径约定         | 新增设备、路径变更   |
-| `profiles/coding.yaml`        | 项目级编码规范               | 代码风格约束         |
 | `policies/memory-policy.yaml` | 记忆治理策略                 | 蒸馏规则变更         |
 
 ## 触发时机
@@ -124,7 +123,6 @@ zh-CN（简体中文）
 |------|------|
 | `src/loaders/memory-proposal.ts` | 提案类型定义、模板生成、格式化输出、写入执行（parse→modify→serialize）、系统指令 |
 | `src/loaders/memory-compiler.ts` | YAML 解析（`parseMemYaml`）、序列化（`serializeMemYaml`）、→自然语言编译 |
-| `src/loaders/memory-loader.ts` | profile→memory 文件映射、文件存在检查 |
 | `src/config/builders/instructions.ts` | 调用 `buildInstructionsPaths()` 加载 memory 文件 |
 
 ## 确认写入

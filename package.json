@@ -18,7 +18,6 @@
     "memory:lint": "bun run ./src/cli/memory-lint.ts",
     "skill:lint": "bun run ./src/cli/skill-lint.ts",
     "provider:check": "bun run ./src/cli/provider-model-check.ts",
-    "profile:eval": "bun run ./src/cli/profile-eval.ts",
     "schema:gen": "bun run ./src/cli/schema-export.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"

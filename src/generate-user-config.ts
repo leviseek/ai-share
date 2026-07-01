@@ -9,22 +9,18 @@ import type {
   ModelsYaml,
   ProviderGroupMap,
   ProviderSource,
-  ProfileEvalYaml,
-  ProfilesYaml,
   ProviderYaml,
 } from "./types.ts";
 import {
   applyProviderGroups,
-  buildCodexCliConfigs,
+  buildCodexCliConfig,
   buildCodexInstructions,
   buildCodexEnvFileWithManagedBlock,
   buildInstructionsPaths,
   buildRuntimeManifest,
   codexEnvManagedBlockIsCurrent,
-  defaultProfileId,
   formatCodexConfigToml,
   modelProviderGroups,
-  requireValue,
 } from "./config-builders.ts";
 import { missingProviderApiKeyEnvNames } from "./cli/api-keys.ts";
 import { checkCodexEnvLocalProxies } from "./cli/env-runtime-check.ts";
@@ -36,7 +32,7 @@ import { NATIVE_SKILLS } from "./cli/native-skills.ts";
 import { color } from "./cli/color.ts";
 import { detectDefaultConfigDrift } from "./cli/default-config-drift.ts";
 import { printCheckSummary, printGenerationSummary } from "./cli/output.ts";
-import { buildGeneratorPaths, profileCodexConfigPath, profileCodexInstructionsPath } from "./cli/paths.ts";
+import { buildGeneratorPaths } from "./cli/paths.ts";
 import { checkVersions } from "./cli/registry-check.ts";
 import { listLocalConfigOverlays, loadConfigYaml } from "./config/local-overlay.ts";
 import { validateYamlConsistency } from "./config/validation.ts";
@@ -50,26 +46,15 @@ if (!checkOnly) {
   await ensureAiWorkspaceLinks(paths, dryRun);
 }
 
-const [globalConfig, providersConfig, modelsConfig, profilesConfig, mcpConfig, envConfig, profileEvalConfig] =
-  await Promise.all([
-    loadYaml<GlobalYaml>("global.yaml"),
-    loadYaml<ProviderYaml>("provider.yaml"),
-    loadYaml<ModelsYaml>("models.yaml"),
-    loadYaml<ProfilesYaml>("profiles.yaml"),
-    loadYaml<McpYaml>("mcp.yaml"),
-    loadYaml<EnvYaml>("env.yaml"),
-    loadYaml<ProfileEvalYaml>("profile-eval.yaml"),
-  ]);
+const [globalConfig, providersConfig, modelsConfig, mcpConfig, envConfig] = await Promise.all([
+  loadYaml<GlobalYaml>("global.yaml"),
+  loadYaml<ProviderYaml>("provider.yaml"),
+  loadYaml<ModelsYaml>("models.yaml"),
+  loadYaml<McpYaml>("mcp.yaml"),
+  loadYaml<EnvYaml>("env.yaml"),
+]);
 
-const validationErrors = validateYamlConsistency(
-  profilesConfig,
-  modelsConfig,
-  providersConfig,
-  globalConfig,
-  mcpConfig,
-  envConfig,
-  profileEvalConfig,
-);
+const validationErrors = validateYamlConsistency(modelsConfig, providersConfig, globalConfig, mcpConfig, envConfig);
 if (validationErrors.length > 0) {
   printValidationErrors(validationErrors);
   if (!force) {
@@ -86,29 +71,15 @@ if (!checkOnly && !cliOptions.providerGroupsSpecified) {
   providerGroups = await selectProviderGroupsIfInteractive(providerGroups, providers, modelsConfig);
 }
 const models = applyProviderGroups(modelsConfig, providers, providerGroups);
-const effectiveProfilesConfig = alignProfilesToSingleProvider(profilesConfig, modelsConfig, providerGroups);
-const codexCliConfigs = buildCodexCliConfigs(providers, models, effectiveProfilesConfig, mcpConfig, (profileId) =>
-  profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
-);
-const selectedDefaultProfileId = defaultProfileId(globalConfig, effectiveProfilesConfig);
-const selectedCodexCliConfig = requireValue(codexCliConfigs[selectedDefaultProfileId], "默认 Codex profile");
-const selectedCodexBaseConfig = {
-  ...selectedCodexCliConfig,
-  model_instructions_file: paths.targetCodexInstructions,
-};
-const instructionFilesByProfile = Object.fromEntries(
-  Object.keys(codexCliConfigs).map((profileId) => [
-    profileId,
-    buildInstructionsPaths(paths.projectRoot, profileId, ""),
-  ]),
-);
+const codexCliConfig = buildCodexCliConfig(providers, models, globalConfig, mcpConfig, paths.targetCodexInstructions);
+const instructionFiles = buildInstructionsPaths(paths.projectRoot, "");
 const missingApiKeys = missingProviderApiKeyEnvNames(providers);
 const localConfigOverlays = await listLocalConfigOverlays(paths.configDir);
 
 if (checkOnly) {
   const defaultConfigDrift = await detectDefaultConfigDrift(
     paths.targetCodexConfig,
-    formatCodexConfigToml(selectedCodexBaseConfig),
+    formatCodexConfigToml(codexCliConfig),
   );
   const localProxyChecks = await checkCodexEnvLocalProxies(envConfig);
   const envManagedBlockCurrent = codexEnvManagedBlockIsCurrent(
@@ -119,12 +90,11 @@ if (checkOnly) {
   printCheckSummary({
     configuredProviderCount: Object.keys(providers).length,
     modelGroups: modelProviderGroups(modelsConfig),
-    codexProfileIds: Object.keys(codexCliConfigs),
+    modelId: globalConfig.model ?? "",
     mcpServerIds: Object.keys(mcpConfig.servers ?? {}),
     codexEnvVarNames: Object.keys(envConfig.variables ?? {}),
     localConfigOverlays,
     codexHome: paths.targetCodexConfigDir,
-    selectedDefaultProfileId,
     providerGroups,
     missingApiKeys,
     defaultConfigDrift,
@@ -157,42 +127,25 @@ const stagedWriter =
     : undefined;
 
 try {
-  for (const [profileId, codexCliConfig] of Object.entries(codexCliConfigs)) {
-    await writeGeneratedText(
-      profileCodexConfigPath(paths.targetCodexConfigDir, profileId),
-      formatCodexConfigToml(codexCliConfig),
-    );
-  }
   if (dryRun || force || !(await pathExists(paths.targetCodexConfig))) {
-    await writeGeneratedText(paths.targetCodexConfig, formatCodexConfigToml(selectedCodexBaseConfig));
+    await writeGeneratedText(paths.targetCodexConfig, formatCodexConfigToml(codexCliConfig));
   } else {
     console.log(
       `${color.yellow("保留")} ${color.cyan("Codex CLI 现有默认配置")}：${color.bold(paths.targetCodexConfig)}（如需覆盖请运行 bun run ai:gen -- --force）`,
     );
   }
 
-  await writeGeneratedText(
-    paths.targetCodexInstructions,
-    buildCodexInstructions(paths.projectRoot, selectedDefaultProfileId),
-  );
-  for (const profileId of Object.keys(codexCliConfigs)) {
-    await writeGeneratedText(
-      profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
-      buildCodexInstructions(paths.projectRoot, profileId),
-    );
-  }
+  await writeGeneratedText(paths.targetCodexInstructions, buildCodexInstructions(paths.projectRoot));
   await writeGeneratedJson(
     paths.targetRuntimeManifest,
     buildRuntimeManifest({
       paths,
-      defaultProfileId: selectedDefaultProfileId,
-      profileIds: Object.keys(codexCliConfigs),
+      model: globalConfig.model ?? "",
       mcpServerIds: Object.keys(mcpConfig.servers ?? {}),
       codexEnvVarNames: Object.keys(envConfig.variables ?? {}),
       localConfigOverlays,
       skillIds: NATIVE_SKILLS.map((skill) => skill.name),
-      instructionFilesByProfile,
-      profilesConfig: effectiveProfilesConfig,
+      instructionFiles,
     }),
   );
 
@@ -235,7 +188,7 @@ printGenerationSummary({
   dryRun,
   force,
   paths,
-  codexProfileIds: Object.keys(codexCliConfigs),
+  modelId: globalConfig.model ?? "",
   providerGroups,
 });
 
@@ -301,63 +254,6 @@ function configuredProviderGroupIds(modelsConfig: ModelsYaml): string[] {
   return output;
 }
 
-function alignProfilesToSingleProvider(
-  profilesConfig: ProfilesYaml,
-  modelsConfig: ModelsYaml,
-  providerGroups: ProviderGroupMap,
-): ProfilesYaml {
-  const selectedProviderIds = [...new Set(Object.values(providerGroups))];
-  if (selectedProviderIds.length !== 1) return profilesConfig;
-
-  const targetGroupId = modelGroupForSingleProvider(requireValue(selectedProviderIds[0], "provider"));
-  if (!targetGroupId) return profilesConfig;
-
-  return Object.fromEntries(
-    Object.entries(profilesConfig).map(([profileId, profile]) => {
-      const familyProfiles = familyProfileModels()[targetGroupId];
-      const modelIds = familyProfiles[profileId] ?? familyProfiles.balanced;
-      if (!modelIds || !profile.models) return [profileId, profile];
-      if (!modelIdsExist(modelIds, modelsConfig)) return [profileId, profile];
-      return [
-        profileId,
-        {
-          ...profile,
-          models: {
-            ...profile.models,
-            ...modelIds,
-          },
-        },
-      ];
-    }),
-  );
-}
-
-function modelGroupForSingleProvider(providerId: string): "gpt" | undefined {
-  void providerId;
-  return "gpt";
-}
-
-function modelIdsExist(modelIds: Record<"primary" | "reasoning" | "fast", string>, modelsConfig: ModelsYaml): boolean {
-  return modelIds.primary in modelsConfig && modelIds.reasoning in modelsConfig && modelIds.fast in modelsConfig;
-}
-
-function familyProfileModels(): Readonly<
-  Record<"gpt", Record<string, Record<"primary" | "reasoning" | "fast", string>>>
-> {
-  return {
-    gpt: {
-      lite: { primary: "gpt-5.4", reasoning: "gpt-5.4", fast: "gpt-5.4-mini" },
-      economy: { primary: "gpt-5.4-mini", reasoning: "gpt-5.4", fast: "gpt-5.4-mini" },
-      cheap: { primary: "gpt-5.4-mini", reasoning: "gpt-5.4", fast: "gpt-5.4-mini" },
-      balanced: { primary: "gpt-5.5", reasoning: "gpt-5.5", fast: "gpt-5.4-mini" },
-      coding: { primary: "gpt-5.5-coding", reasoning: "gpt-5.5-coding", fast: "gpt-5.4-mini" },
-      research: { primary: "gpt-5.5", reasoning: "gpt-5.5", fast: "gpt-5.4-mini" },
-      writing: { primary: "gpt-5.5", reasoning: "gpt-5.5", fast: "gpt-5.4-mini" },
-      max: { primary: "gpt-5.5", reasoning: "gpt-5.5", fast: "gpt-5.4" },
-    },
-  };
-}
-
 async function selectProviderForGroups(input: {
   providers: Record<string, ProviderSource>;
   providerIds: string[];
@@ -383,7 +279,7 @@ async function selectProviderForGroups(input: {
       cleanup();
       resolve(providerId);
     };
-    const selectedChoice = (): string => requireValue(choices[selectedIndex] ?? choices[0], "provider 选择");
+    const selectedChoice = (): string => choices[selectedIndex] ?? choices[0] ?? "";
     const render = (): void => {
       stdout.write("\x1b[H\x1b[2J");
       stdout.write(`${color.cyan("ai:gen provider 选择")}：${color.bold("选择一次后立即生成")}\n`);
@@ -418,7 +314,7 @@ async function selectProviderForGroups(input: {
       }
       const numberValue = Number(value);
       if (Number.isInteger(numberValue) && numberValue >= 1 && numberValue <= choices.length) {
-        finish(requireValue(choices[numberValue - 1], "provider 选择"));
+        finish(choices[numberValue - 1] ?? selectedChoice());
         return;
       }
 
@@ -427,7 +323,7 @@ async function selectProviderForGroups(input: {
         const row = Number(mouseClick[1]);
         const clickedIndex = row - 4;
         if (Number.isInteger(clickedIndex) && clickedIndex >= 0 && clickedIndex < choices.length) {
-          finish(requireValue(choices[clickedIndex], "provider 选择"));
+          finish(choices[clickedIndex] ?? selectedChoice());
         }
       }
     };

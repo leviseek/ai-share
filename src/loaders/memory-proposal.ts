@@ -67,8 +67,6 @@ export const MEMORY_PROPOSAL_INSTRUCTIONS: string = [
   "  - `stable/user.yaml` — 用户画像、编码风格、偏好",
   "  - `stable/workflows.yaml` — 开发流程、验证习惯、调试策略",
   "  - `stable/devices.yaml` — 多设备配置、路径约定",
-  "  - `profiles/coding.yaml` — 项目级编码规范",
-  "  - `profiles/research.yaml` — 调研相关配置",
   "  - `policies/memory-policy.yaml` — 记忆管理策略",
   "- **keyPath**: 被修改的 YAML 键路径，例如 `coding_style.principles`",
   "- **operation**: 操作类型",

@@ -15,7 +15,7 @@ describe("local config overlay", () => {
               flags: ["base"],
             },
           },
-          default_profile: "balanced",
+          model: "gpt-5.4",
         },
         {
           providers: {
@@ -24,7 +24,7 @@ describe("local config overlay", () => {
               api_key: "${LOCAL_KEY}",
             },
           },
-          default_profile: "coding",
+          model: "gpt-5.5",
         },
       ),
     ).toEqual({
@@ -35,7 +35,7 @@ describe("local config overlay", () => {
           api_key: "${LOCAL_KEY}",
         },
       },
-      default_profile: "coding",
+      model: "gpt-5.5",
     });
   });
 
@@ -43,13 +43,13 @@ describe("local config overlay", () => {
     const root = mkdtempSync(join(tmpdir(), "ai-share-overlay-"));
     try {
       mkdirSync(join(root, "local"), { recursive: true });
-      writeFileSync(join(root, "global.yaml"), "default_profile: balanced\n", "utf8");
-      writeFileSync(join(root, "local", "global.yaml"), "default_profile: coding\n", "utf8");
+      writeFileSync(join(root, "global.yaml"), "model: gpt-5.4\n", "utf8");
+      writeFileSync(join(root, "local", "global.yaml"), "model: gpt-5.5\n", "utf8");
       writeFileSync(join(root, "local", "notes.txt"), "ignored\n", "utf8");
       writeFileSync(join(root, "local", "provider.yml"), "providers: {}\n", "utf8");
 
       expect(loadConfigYamlSync(root, "global.yaml")).toEqual({
-        default_profile: "coding",
+        model: "gpt-5.5",
       });
       expect(listLocalConfigOverlaysSync(root)).toEqual(["config/local/global.yaml", "config/local/provider.yml"]);
     } finally {

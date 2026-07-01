@@ -1,6 +1,6 @@
 ---
 name: memory-curator
-description: Use when organizing, reviewing, deduplicating, proposing updates to, or migrating ai-share memory files under memory/; use for memory governance, long-term knowledge capture, and deciding whether facts belong in stable, user, architecture, policies, profiles, inferred, or distilled layers.
+description: Use when organizing, reviewing, deduplicating, proposing updates to, or migrating ai-share memory files under memory/; use for memory governance, long-term knowledge capture, and deciding whether facts belong in stable, user, architecture, policies, inferred, or distilled layers.
 ---
 
 # Memory Curator

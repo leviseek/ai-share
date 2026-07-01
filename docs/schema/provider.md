@@ -2,7 +2,7 @@
 
 ## Overview
 
-Defines model providers used by generated Codex CLI profiles. Each provider specifies display metadata, base URL, API key environment variable, and optional timeout metadata. Secrets are always env-only.
+Defines model providers used by generated Codex CLI config. Each provider specifies display metadata, base URL, API key environment variable, and optional timeout metadata. Secrets are always env-only.
 
 ## Fields
 

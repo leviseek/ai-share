@@ -1,96 +1,20 @@
 import { describe, expect, test } from "bun:test";
-import type {
-  EnvYaml,
-  GlobalYaml,
-  McpYaml,
-  ModelsYaml,
-  ProfileEvalYaml,
-  ProfilesYaml,
-  ProviderYaml,
-} from "../types.ts";
+import type { EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProviderYaml } from "../types.ts";
 import { validateYamlConsistency } from "./validation.ts";
 
 describe("validateYamlConsistency", () => {
-  test("reports undefined model references across profiles, compaction, and fallback", () => {
+  test("reports undefined global model and fallback references", () => {
     const models: ModelsYaml = {
       "known-model": {
         ...model("known-model"),
         fallback: ["missing-fallback"],
       },
     };
-    const profiles: ProfilesYaml = {
-      coding: {
-        models: {
-          primary: "missing-primary",
-          reasoning: "known-model",
-          fast: "known-model",
-        },
-        compaction: {
-          threshold: 100,
-          max_input_tokens: 200,
-          model: "missing-compaction",
-        },
-      },
-    };
-    const errors = validateYamlConsistency(profiles, models, providers(), global(), mcp()).map(formatError);
+    const errors = validateYamlConsistency(models, providers(), { model: "missing-model" }, mcp()).map(formatError);
 
-    expect(errors).toContain(
-      "profiles.yaml:profiles.coding.models.primary:profile 'coding' 的 models.primary 引用未定义模型 'missing-primary'",
-    );
-    expect(errors).toContain(
-      "profiles.yaml:profiles.coding.compaction.model:profile 'coding' 的 compaction.model 引用未定义模型或角色 'missing-compaction'",
-    );
+    expect(errors).toContain("global.yaml:model:global.model 引用未定义模型 'missing-model'");
     expect(errors).toContain(
       "models.yaml:models.known-model.fallback:模型 'known-model' 的 fallback 引用未定义模型 'missing-fallback'",
-    );
-  });
-
-  test("allows profile model ids plus compaction role aliases", () => {
-    const models: ModelsYaml = {
-      "primary-model": { ...model("primary-model"), fallback: ["fast-model"] },
-      "reasoning-model": model("reasoning-model"),
-      "fast-model": model("fast-model"),
-    };
-    const profiles: ProfilesYaml = {
-      coding: {
-        models: {
-          primary: "primary-model",
-          reasoning: "reasoning-model",
-          fast: "fast-model",
-        },
-        compaction: {
-          threshold: 100,
-          max_input_tokens: 200,
-          model: "fast",
-        },
-      },
-    };
-    expect(validateYamlConsistency(profiles, models, providers(), global(), mcp())).toEqual([]);
-  });
-
-  test("rejects mixed provider groups in one profile", () => {
-    const models: ModelsYaml = {
-      "gpt-primary": model("gpt-primary"),
-      "gpt-fast": model("gpt-fast"),
-      "other-reasoning": {
-        ...model("other-reasoning"),
-        provider_group: "other",
-      },
-    };
-    const profiles: ProfilesYaml = {
-      coding: {
-        models: {
-          primary: "gpt-primary",
-          reasoning: "other-reasoning",
-          fast: "gpt-fast",
-        },
-      },
-    };
-
-    const errors = validateYamlConsistency(profiles, models, providers(), global(), mcp(), {}).map(formatError);
-
-    expect(errors).toContain(
-      "profiles.yaml:profiles.coding.models:profile 'coding' 的 primary/reasoning/fast 必须使用同一 provider_group，当前为 primary=gpt-primary(gpt)、reasoning=other-reasoning(other)、fast=gpt-fast(gpt)",
     );
   });
 
@@ -116,17 +40,8 @@ describe("validateYamlConsistency", () => {
       },
       "not-object": null,
     } as unknown as ModelsYaml;
-    const profiles: ProfilesYaml = {
-      coding: {
-        models: {
-          primary: "valid-model",
-          reasoning: "valid-model",
-          fast: "valid-model",
-        },
-      },
-    };
 
-    const errors = validateYamlConsistency(profiles, models, providers(), global(), mcp(), {}).map(formatError);
+    const errors = validateYamlConsistency(models, providers(), { model: "valid-model" }, mcp(), {}).map(formatError);
 
     const expectedErrors = [
       "models.yaml:models.invalid-model.provider_group:models.invalid-model.provider_group 必须是非空字符串",
@@ -146,30 +61,10 @@ describe("validateYamlConsistency", () => {
     }
   });
 
-  test("reports invalid provider, profile, and MCP schema fields", () => {
+  test("reports invalid provider, global, and MCP schema fields", () => {
     const models: ModelsYaml = {
       "valid-model": model("valid-model"),
     };
-    const profiles = {
-      valid: {
-        models: {
-          primary: "valid-model",
-          reasoning: "valid-model",
-          fast: "valid-model",
-        },
-      },
-      "not-object": null,
-      malformed: {
-        name: 1,
-        models: [],
-        compaction: {
-          enabled: "yes",
-          threshold: "soon",
-          max_input_tokens: 10,
-          model: 1,
-        },
-      },
-    } as unknown as ProfilesYaml;
     const providersConfig = {
       providers: {
         codexapis: {
@@ -197,23 +92,17 @@ describe("validateYamlConsistency", () => {
     } as unknown as McpYaml;
 
     const errors = validateYamlConsistency(
-      profiles,
       models,
       providersConfig,
-      { default_profile: "valid" },
+      { model: 1 } as unknown as GlobalYaml,
       mcpConfig,
     ).map(formatError);
 
     for (const expectedError of [
+      "global.yaml:model:model 必须是非空字符串",
       "provider.yaml:providers.codexapis.base_url:providers.codexapis.base_url 必须是非空字符串",
       "provider.yaml:providers.codexapis.api_key:providers.codexapis.api_key 格式不符合要求",
       "provider.yaml:providers.packyapi:providers.packyapi 必须是对象",
-      "profiles.yaml:profiles.not-object:profiles.not-object 必须是对象",
-      "profiles.yaml:profiles.malformed.name:profiles.malformed.name 必须是非空字符串",
-      "profiles.yaml:profiles.malformed.models:profiles.malformed.models 必须是对象",
-      "profiles.yaml:profiles.malformed.compaction.enabled:profiles.malformed.compaction.enabled 必须是布尔值",
-      "profiles.yaml:profiles.malformed.compaction.threshold:profiles.malformed.compaction.threshold 必须是数字",
-      "profiles.yaml:profiles.malformed.compaction.model:profiles.malformed.compaction.model 必须是非空字符串",
       "mcp.yaml:servers.not-object:servers.not-object 必须是对象",
       "mcp.yaml:servers.malformed.command:servers.malformed.command 必须是非空字符串",
       "mcp.yaml:servers.malformed.args[1]:servers.malformed.args[1] 必须是非空字符串",
@@ -229,15 +118,6 @@ describe("validateYamlConsistency", () => {
     const models: ModelsYaml = {
       "valid-model": model("valid-model"),
     };
-    const profiles: ProfilesYaml = {
-      valid: {
-        models: {
-          primary: "valid-model",
-          reasoning: "valid-model",
-          fast: "valid-model",
-        },
-      },
-    };
     const envConfig = {
       variables: {
         HTTP_PROXY: "http://127.0.0.1:7897",
@@ -248,73 +128,15 @@ describe("validateYamlConsistency", () => {
       },
     } as EnvYaml;
 
-    const errors = validateYamlConsistency(
-      profiles,
-      models,
-      providers(),
-      { default_profile: "valid" },
-      mcp(),
-      envConfig,
-    ).map(formatError);
+    const errors = validateYamlConsistency(models, providers(), { model: "valid-model" }, mcp(), envConfig).map(
+      formatError,
+    );
 
     for (const expectedError of [
       "env.yaml:variables.CODEX_HOME:env 'CODEX_HOME' 不应写入 Codex .env；请保留给系统环境或生成器参数管理",
       "env.yaml:variables.AI_SHARE_TASK:env 'AI_SHARE_TASK' 不应写入 Codex .env；请保留给系统环境或生成器参数管理",
       "env.yaml:variables.CODEXAPIS_API_KEY:env 'CODEXAPIS_API_KEY' 看起来是敏感变量，不允许通过 config/env.yaml 写入 Codex .env",
       "env.yaml:variables.LITERAL_VALUE:env 'LITERAL_VALUE' 疑似包含明文 secret，不允许写入 config/env.yaml",
-    ]) {
-      expect(errors).toContain(expectedError);
-    }
-  });
-
-  test("reports invalid profile evaluation task schema fields", () => {
-    const models: ModelsYaml = {
-      "valid-model": model("valid-model"),
-    };
-    const profiles: ProfilesYaml = {
-      valid: {
-        models: {
-          primary: "valid-model",
-          reasoning: "valid-model",
-          fast: "valid-model",
-        },
-      },
-    };
-    const profileEvalConfig = {
-      tasks: {
-        malformed: {
-          weight: 0,
-          success_criteria: ["ok", 1],
-        },
-      },
-      scoring: {
-        pass_score: 0,
-        dimensions: {
-          quality: {
-            weight: 0,
-            description: 1,
-          },
-        },
-      },
-    } as unknown as ProfileEvalYaml;
-
-    const errors = validateYamlConsistency(
-      profiles,
-      models,
-      providers(),
-      { default_profile: "valid" },
-      mcp(),
-      {},
-      profileEvalConfig,
-    ).map(formatError);
-
-    for (const expectedError of [
-      "profile-eval.yaml:tasks.malformed.prompt:缺少 tasks.malformed.prompt 字段",
-      "profile-eval.yaml:tasks.malformed.weight:tasks.malformed.weight 必须大于 0",
-      "profile-eval.yaml:tasks.malformed.success_criteria[1]:tasks.malformed.success_criteria[1] 必须是非空字符串",
-      "profile-eval.yaml:scoring.pass_score:scoring.pass_score 必须大于 0",
-      "profile-eval.yaml:scoring.dimensions.quality.weight:scoring.dimensions.quality.weight 必须大于 0",
-      "profile-eval.yaml:scoring.dimensions.quality.description:scoring.dimensions.quality.description 必须是非空字符串",
     ]) {
       expect(errors).toContain(expectedError);
     }
@@ -344,12 +166,6 @@ function providers(): ProviderYaml {
         api_key: "${CODEXAPIS_API_KEY}",
       },
     },
-  };
-}
-
-function global(): GlobalYaml {
-  return {
-    default_profile: "coding",
   };
 }
 

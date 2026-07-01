@@ -4,8 +4,6 @@ import { existsSync, readFileSync } from "node:fs";
  * Options for compiling YAML memory files into natural language context.
  */
 export type MemoryCompileOptions = {
-  /** Profile identifier (e.g. "balanced", "max") for contextual output */
-  profile: string;
   /** Base path for this repository's memory/ directory */
   memoryBase: string;
   /** Absolute paths to memory YAML files to compile */
@@ -36,7 +34,7 @@ type StackFrame = {
  *
  * Skips missing files gracefully. Keeps output under 500 characters.
  *
- * @param options - Compilation options including profile and file paths
+ * @param options - Compilation options including memory base and file paths
  * @returns A single formatted string with natural language context
  */
 export function compileMemory(options: MemoryCompileOptions): string {

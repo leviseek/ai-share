@@ -9,13 +9,11 @@ Use this skill when modifying YAML source files, Codex config builders, generate
 
 ## Source Of Truth
 
-- `config/global.yaml`: default profile and Codex version requirements.
+- `config/global.yaml`: default Codex model and version requirements.
 - `config/provider.yaml`: provider definitions and API key env references.
 - `config/models.yaml`: model catalog and provider groups.
-- `config/profiles.yaml`: profile role mapping and profile metadata.
 - `config/mcp.yaml`: Codex MCP server definitions.
 - `config/env.yaml`: non-secret Codex .env runtime variables such as local proxy settings.
-- `config/profile-eval.yaml`: fixed profile evaluation tasks and manual scoring dimensions.
 
 ## Implementation Map
 
@@ -43,7 +41,7 @@ Use this skill when modifying YAML source files, Codex config builders, generate
 
 ## Trigger Examples
 
-- "修改 config/profiles.yaml 后更新生成器行为。"
+- "修改 config/global.yaml 的默认模型后更新生成器行为。"
 - "调整 Codex config builder 输出。"
 - "排查 ai:gen --dry-run 的生成结果。"
 

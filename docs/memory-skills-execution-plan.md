@@ -31,7 +31,7 @@ skills/
 │   └── SKILL.md
 ├── ai-share-generator/
 │   └── SKILL.md
-├── config-profile-tuning/
+├── config-model-tuning/
 │   └── SKILL.md
 ├── context-compiler/
 │   └── SKILL.md
@@ -297,7 +297,7 @@ config/memory-eval.yaml
 
 - 检查 `ai-execution-contract.md` 和 `memory-lifecycle.md` 是否注入基础 instructions。
 - 检查 task-based retrieval 能命中相关 memory。
-- 检查 profile-specific memory 顺序稳定。
+- 检查 stable memory 顺序稳定。
 - 检查新增 skills 出现在 runtime manifest 的 `managed.skills`。
 
 ### Acceptance Criteria

@@ -1,4 +1,4 @@
-import { ENV_NAME_PATTERN, ENV_REFERENCE_PATTERN, MODEL_ROLES } from "../schema-spec.ts";
+import { ENV_NAME_PATTERN, ENV_REFERENCE_PATTERN } from "../schema-spec.ts";
 
 const envNameRegex = new RegExp(ENV_NAME_PATTERN);
 const envReferenceRegex = new RegExp(ENV_REFERENCE_PATTERN);
@@ -49,10 +49,6 @@ export function validateOptionalBoolean(errors: ValidationError[], file: string,
       message: `${path} 必须是布尔值`,
     });
   }
-}
-
-export function isModelRole(value: string): boolean {
-  return MODEL_ROLES.includes(value as (typeof MODEL_ROLES)[number]);
 }
 
 export function isEnvName(value: string): boolean {

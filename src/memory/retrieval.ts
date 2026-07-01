@@ -17,7 +17,7 @@ export type SearchResult = {
 // ---------------------------------------------------------------------------
 
 /** Memory subdirectories to search (excludes runtime/ and sync/). */
-const SEARCH_DIRS = ["stable", "profiles", "policies", "user", "architecture", "stack"];
+const SEARCH_DIRS = ["stable", "policies", "user", "architecture", "stack"];
 
 /** Max results returned by searchMemory. */
 const MAX_RESULTS = 5;
@@ -32,8 +32,7 @@ const MIN_PARAGRAPH_LEN = 10;
 /**
  * Searches local memory files using TF-IDF keyword matching.
  *
- * Reads all `.md` and `.yaml` files from memory subdirectories (stable/,
- * profiles/, policies/, user/, architecture/, stack/), tokenizes content,
+ * Reads all `.md` and `.yaml` files from memory subdirectories (stable/, policies/, user/, architecture/, stack/), tokenizes content,
  * builds an in-memory TF-IDF index, and returns the top 5 matching file
  * paths sorted by relevance.
  *

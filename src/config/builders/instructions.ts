@@ -1,11 +1,9 @@
 import { resolve } from "node:path";
-import { getMemoryFilesForProfile } from "../../loaders/memory-loader.ts";
 import { searchMemory } from "../../memory/retrieval.ts";
 
-export function buildInstructionsPaths(projectRoot: string, profile?: string, taskDescription?: string): string[] {
+export function buildInstructionsPaths(projectRoot: string, taskDescription?: string): string[] {
   const memoryBase = resolve(projectRoot, "memory");
 
-  // Task-based memory retrieval: top 3 relevant memory files prepended for priority
   const taskMemories: string[] = [];
   const effectiveTask = taskDescription ?? process.env.AI_SHARE_TASK;
   if (effectiveTask) {
@@ -15,12 +13,9 @@ export function buildInstructionsPaths(projectRoot: string, profile?: string, ta
 
   return [
     resolve(projectRoot, "AI_GUIDELINES.md"),
-    // Task-specific memories (top priority, inserted before structured memory)
     ...taskMemories,
-    // Global execution and memory governance contracts
     resolve(memoryBase, "policies", "ai-execution-contract.md"),
     resolve(memoryBase, "policies", "memory-lifecycle.md"),
-    // memory/user/
     resolve(memoryBase, "user", "profile.md"),
     resolve(memoryBase, "user", "profile.yaml"),
     resolve(memoryBase, "user", "workflow.md"),
@@ -31,13 +26,12 @@ export function buildInstructionsPaths(projectRoot: string, profile?: string, ta
     resolve(memoryBase, "user", "toolchain.md"),
     resolve(memoryBase, "user", "prompts.md"),
     resolve(memoryBase, "user", "models.yaml"),
-    // memory/architecture/
     resolve(memoryBase, "architecture", "coding-philosophy.md"),
     resolve(memoryBase, "architecture", "ai-desktop.md"),
-    // memory/stack/
     resolve(memoryBase, "stack", "wsl.md"),
     resolve(memoryBase, "stack", "models.md"),
-    // profile-specific memory
-    ...(profile ? getMemoryFilesForProfile(profile, projectRoot) : []),
+    resolve(memoryBase, "stable", "user.yaml"),
+    resolve(memoryBase, "stable", "workflows.yaml"),
+    resolve(memoryBase, "stable", "devices.yaml"),
   ];
 }

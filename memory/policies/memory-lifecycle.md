@@ -7,7 +7,6 @@
 - `memory/stable/`：用户确认过的长期事实和稳定偏好。写入或修改前需要人工确认。
 - `memory/user/`：用户画像、沟通偏好、设备和工具链摘要。保持人类可读，避免堆砌执行细节。
 - `memory/architecture/`：AI Desktop、编码哲学等可共享架构知识。
-- `memory/profiles/`：按 profile 激活的任务模式约束。
 - `memory/policies/`：记忆治理、安全和执行契约。
 - `memory/inferred/`：AI 推断但尚未确认的候选事实，默认不作为稳定事实。
 - `memory/distilled/`：从会话、调试、项目经验中人工确认后的可复用模式。
@@ -31,7 +30,7 @@ confirmed_by_user: true
 created_at: "YYYY-MM-DD"
 review_after: "YYYY-MM-DD"
 expires_at: null
-scope: "global | profile:<name> | project:<name> | local"
+scope: "global | project:<name> | local"
 confidence: "high | medium | low"
 ```
 

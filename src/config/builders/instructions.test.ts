@@ -24,6 +24,9 @@ const structuredMemoryRelativePaths = [
   "memory/architecture/ai-desktop.md",
   "memory/stack/wsl.md",
   "memory/stack/models.md",
+  "memory/stable/user.yaml",
+  "memory/stable/workflows.yaml",
+  "memory/stable/devices.yaml",
 ] as const;
 
 const tempRoots: string[] = [];
@@ -52,7 +55,7 @@ describe("buildInstructionsPaths", () => {
     writeMemory(root, "memory/stable/distractor-a.yaml", 'topic: "ordinary baseline context"');
     writeMemory(root, "memory/stable/distractor-b.yaml", 'topic: "unrelated generated config note"');
 
-    const paths = withoutTask(() => buildInstructionsPaths(root, undefined, "uniquepriority"));
+    const paths = withoutTask(() => buildInstructionsPaths(root, "uniquepriority"));
 
     expect(paths[0]).toBe(resolve(root, "AI_GUIDELINES.md"));
     expect(paths[1]).toBe(resolve(root, "memory/stable/task-priority.yaml"));
@@ -61,9 +64,9 @@ describe("buildInstructionsPaths", () => {
 
   test("uses AI_SHARE_TASK as the task memory fallback and restores caller environment", () => {
     const root = makeProjectRoot();
-    writeMemory(root, "memory/profiles/fallback-task.yaml", 'task: "taskfallback sentinel-memory"');
-    writeMemory(root, "memory/profiles/distractor-a.yaml", 'task: "ordinary profile context"');
-    writeMemory(root, "memory/profiles/distractor-b.yaml", 'task: "unrelated profile note"');
+    writeMemory(root, "memory/stable/fallback-task.yaml", 'task: "taskfallback sentinel-memory"');
+    writeMemory(root, "memory/stable/distractor-a.yaml", 'task: "ordinary context"');
+    writeMemory(root, "memory/stable/distractor-b.yaml", 'task: "unrelated note"');
 
     const previousTask = process.env.AI_SHARE_TASK;
     process.env.AI_SHARE_TASK = "sentinel-memory";
@@ -72,7 +75,7 @@ describe("buildInstructionsPaths", () => {
       const paths = buildInstructionsPaths(root);
 
       expect(paths[0]).toBe(resolve(root, "AI_GUIDELINES.md"));
-      expect(paths[1]).toBe(resolve(root, "memory/profiles/fallback-task.yaml"));
+      expect(paths[1]).toBe(resolve(root, "memory/stable/fallback-task.yaml"));
     } finally {
       restoreTask(previousTask);
     }
@@ -82,41 +85,6 @@ describe("buildInstructionsPaths", () => {
     } else {
       expect(process.env.AI_SHARE_TASK).toBe(previousTask);
     }
-  });
-
-  test("appends existing profile memory after shared structured memory and skips missing profile files", () => {
-    const root = makeProjectRoot();
-    writeMemory(root, "memory/stable/user.yaml", 'user: "profile append"');
-    writeMemory(root, "memory/profiles/coding.yaml", 'coding: "profile append"');
-
-    const paths = withoutTask(() => buildInstructionsPaths(root, "coding"));
-
-    expect(paths.slice(-2)).toEqual([
-      resolve(root, "memory/stable/user.yaml"),
-      resolve(root, "memory/profiles/coding.yaml"),
-    ]);
-    expect(paths).not.toContain(resolve(root, "memory/stable/workflows.yaml"));
-    expect(paths).not.toContain(resolve(root, "memory/stable/devices.yaml"));
-  });
-
-  test("loads full memory set for max profile", () => {
-    const root = makeProjectRoot();
-    const fullMemoryFiles = [
-      "memory/stable/user.yaml",
-      "memory/stable/workflows.yaml",
-      "memory/stable/devices.yaml",
-      "memory/profiles/coding.yaml",
-      "memory/profiles/research.yaml",
-      "memory/profiles/infra.yaml",
-      "memory/policies/memory-policy.yaml",
-    ];
-    for (const relativePath of fullMemoryFiles) {
-      writeMemory(root, relativePath, `${relativePath}: "max memory"`);
-    }
-
-    const paths = withoutTask(() => buildInstructionsPaths(root, "max"));
-
-    expect(paths.slice(-fullMemoryFiles.length)).toEqual(fullMemoryFiles.map((path) => resolve(root, path)));
   });
 
   test("keeps public compatibility exports aligned with the active instruction builder", async () => {

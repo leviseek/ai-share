@@ -20,9 +20,6 @@ export type MemoryEvalResult = {
 type MemoryEvalConfig = {
   taskRetrievalQuery: string;
   taskRetrievalExpectedPath: string;
-  profileOrderProfile: string;
-  profileOrderExpectedAfter: string;
-  profileOrderExpectedPath: string;
 };
 
 const projectRoot = resolve(import.meta.dirname, "..", "..");
@@ -35,12 +32,7 @@ if (import.meta.main) {
 
 export function evaluateMemoryRuntime(root: string = projectRoot): MemoryEvalResult[] {
   const config = loadMemoryEvalConfig(root);
-  return [
-    evaluateBaseInstructions(root),
-    evaluateTaskRetrieval(root, config),
-    evaluateProfileOrder(root, config),
-    evaluateManagedSkills(root),
-  ];
+  return [evaluateBaseInstructions(root), evaluateTaskRetrieval(root, config), evaluateManagedSkills(root)];
 }
 
 function evaluateBaseInstructions(root: string): MemoryEvalResult {
@@ -49,6 +41,7 @@ function evaluateBaseInstructions(root: string): MemoryEvalResult {
     "AI_GUIDELINES.md",
     "memory/policies/ai-execution-contract.md",
     "memory/policies/memory-lifecycle.md",
+    "memory/stable/user.yaml",
   ];
   const missing = required.filter((path) => !paths.includes(path));
 
@@ -70,23 +63,6 @@ function evaluateTaskRetrieval(root: string, config: MemoryEvalConfig): MemoryEv
       );
 }
 
-function evaluateProfileOrder(root: string, config: MemoryEvalConfig): MemoryEvalResult {
-  const paths = normalizePaths(root, buildInstructionsPaths(root, config.profileOrderProfile));
-  const expectedIndex = paths.indexOf(config.profileOrderExpectedPath);
-  const afterIndex = paths.indexOf(config.profileOrderExpectedAfter);
-
-  if (expectedIndex < 0) return fail("profile_order", `missing ${config.profileOrderExpectedPath}`);
-  if (afterIndex < 0) return fail("profile_order", `missing ${config.profileOrderExpectedAfter}`);
-  if (expectedIndex <= afterIndex) {
-    return fail(
-      "profile_order",
-      `${config.profileOrderExpectedPath} must appear after ${config.profileOrderExpectedAfter}`,
-    );
-  }
-
-  return pass("profile_order", `${config.profileOrderExpectedPath} appears after ${config.profileOrderExpectedAfter}`);
-}
-
 function evaluateManagedSkills(root: string): MemoryEvalResult {
   const skills = nativeSkillNames();
   const sourceSkills = listSkillSourceNames(root);
@@ -104,13 +80,11 @@ function evaluateManagedSkills(root: string): MemoryEvalResult {
 
   const manifest = buildRuntimeManifest({
     paths: evalPaths(root),
-    defaultProfileId: "balanced",
-    profileIds: ["balanced"],
+    model: "gpt-5.5",
     mcpServerIds: [],
     codexEnvVarNames: [],
     skillIds: skills,
-    instructionFilesByProfile: { balanced: buildInstructionsPaths(root, "balanced") },
-    profilesConfig: { balanced: {} },
+    instructionFiles: buildInstructionsPaths(root),
   });
   const managedSkills = manifest.managed.skills;
   const missing = skills.filter((skill) => !managedSkills.includes(skill));
@@ -131,7 +105,6 @@ function loadMemoryEvalConfig(root: string): MemoryEvalConfig {
   const rawConfig = existsSync(configPath) ? parseYamlObject(readFileSync(configPath, "utf8")) : {};
   const tasks = isRecord(rawConfig.tasks) ? rawConfig.tasks : {};
   const taskRetrieval = isRecord(tasks.task_retrieval) ? tasks.task_retrieval : {};
-  const profileOrder = isRecord(tasks.profile_order) ? tasks.profile_order : {};
 
   return {
     taskRetrievalQuery: stringField(
@@ -139,9 +112,6 @@ function loadMemoryEvalConfig(root: string): MemoryEvalConfig {
       "memory governance lifecycle stable distilled candidate review",
     ),
     taskRetrievalExpectedPath: stringField(taskRetrieval.expected_path, "memory/policies/memory-lifecycle.md"),
-    profileOrderProfile: stringField(profileOrder.profile, "coding"),
-    profileOrderExpectedAfter: stringField(profileOrder.expected_after, "memory/stack/models.md"),
-    profileOrderExpectedPath: stringField(profileOrder.expected_path, "memory/profiles/coding.yaml"),
   };
 }
 

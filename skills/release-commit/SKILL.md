@@ -27,6 +27,6 @@ Use the repository's commit style from `GIT_COMMIT_GUIDELINES.md`.
 
 ## Anti Examples
 
-- "修改模型 profile 配置。"
+- "修改默认模型配置。"
 - "分析新项目入口。"
 - "把 native skills 迁移到源目录。"

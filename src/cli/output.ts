@@ -7,12 +7,11 @@ import type { GeneratorPaths } from "./paths.ts";
 export function printCheckSummary(input: {
   configuredProviderCount: number;
   modelGroups: string[];
-  codexProfileIds: string[];
+  modelId: string;
   mcpServerIds: string[];
   codexEnvVarNames: string[];
   localConfigOverlays: string[];
   codexHome: string;
-  selectedDefaultProfileId: string;
   providerGroups: ProviderGroupMap;
   missingApiKeys: string[];
   defaultConfigDrift: DefaultConfigDrift;
@@ -22,7 +21,7 @@ export function printCheckSummary(input: {
   console.log(color.green("配置检查通过。"));
   console.log(`${color.cyan("已配置 provider 数量")}：${color.bold(String(input.configuredProviderCount))}`);
   console.log(`${color.cyan("模型分组")}：${color.magenta(input.modelGroups.join(" / "))}`);
-  console.log(`${color.cyan("Codex CLI profile")}：${color.magenta(input.codexProfileIds.join(" / "))}`);
+  console.log(`${color.cyan("Codex 模型")}：${color.magenta(input.modelId)}`);
   console.log(`${color.cyan("MCP servers")}：${color.magenta(input.mcpServerIds.join(" / ") || "none")}`);
   console.log(
     `${color.cyan("Local config overlays")}：${color.magenta(input.localConfigOverlays.join(" / ") || "none")}`,
@@ -35,8 +34,7 @@ export function printCheckSummary(input: {
   );
   printLocalProxyChecks(input.localProxyChecks);
   console.log(`${color.cyan("Codex home")}：${color.bold(input.codexHome)}`);
-  console.log(`${color.cyan("默认 Codex profile")}：${color.bold(input.selectedDefaultProfileId)}`);
-  printDefaultConfigDrift(input.defaultConfigDrift, input.selectedDefaultProfileId);
+  printDefaultConfigDrift(input.defaultConfigDrift);
   console.log(`${color.cyan("模型组提供商")}：${formatProviderGroups(input.providerGroups)}`);
   if (input.missingApiKeys.length > 0) {
     console.warn(`${color.yellow("API Key 环境变量未设置")}：${color.yellow(input.missingApiKeys.join(" / "))}`);
@@ -64,9 +62,9 @@ function printLocalProxyChecks(checks: readonly LocalProxyRuntimeCheck[]): void 
   }
 }
 
-function printDefaultConfigDrift(drift: DefaultConfigDrift, defaultProfileId: string): void {
+function printDefaultConfigDrift(drift: DefaultConfigDrift): void {
   if (drift.status === "current") {
-    console.log(`${color.cyan("默认 config.toml")}：${color.green(`与 ${defaultProfileId} 等价`)}`);
+    console.log(`${color.cyan("默认 config.toml")}：${color.green("current")}`);
     return;
   }
   if (drift.status === "missing") {
@@ -74,7 +72,7 @@ function printDefaultConfigDrift(drift: DefaultConfigDrift, defaultProfileId: st
     return;
   }
   console.log(
-    `${color.yellow("默认 config.toml 漂移")}：${color.yellow(drift.path)} 与当前默认 profile '${defaultProfileId}' 不等价；如需刷新请运行 bun run ai:gen -- --force。`,
+    `${color.yellow("默认 config.toml 漂移")}：${color.yellow(drift.path)} 与当前 config/global.yaml 不等价；如需刷新请运行 bun run ai:gen -- --force。`,
   );
 }
 
@@ -82,7 +80,7 @@ export function printGenerationSummary(input: {
   dryRun: boolean;
   force: boolean;
   paths: GeneratorPaths;
-  codexProfileIds: string[];
+  modelId: string;
   providerGroups: ProviderGroupMap;
 }): void {
   const prefix = input.dryRun ? "将生成" : "已生成";
@@ -91,24 +89,22 @@ export function printGenerationSummary(input: {
   console.log(
     `${color.green(prefix)} ${color.cyan("Codex CLI 默认配置")}：${color.bold(input.paths.targetCodexConfig)}${color.gray(preserveHint)}`,
   );
+  console.log(`${color.green(prefix)} ${color.cyan("Codex 模型")}：${color.magenta(input.modelId)}`);
   console.log(
     `${color.green(prefix)} ${color.cyan("Codex CLI .env")}：${color.bold(input.paths.targetCodexEnv)}${color.gray("（存在时保留，--force 覆盖）")}`,
   );
   console.log(
     `${color.green(prefix)} ${color.cyan("AI runtime 清单")}：${color.bold(input.paths.targetRuntimeManifest)}`,
   );
-  console.log(
-    `${color.green(prefix)} ${color.cyan("Codex CLI profile")}：${color.magenta(input.codexProfileIds.map((profileId) => `codex --profile ${color.bold(profileId)}`).join(" / "))}`,
-  );
   console.log(`${color.green(installPrefix)} ${color.cyan("启动命令目录")}：${color.bold(input.paths.targetBinDir)}`);
   console.log(
     `${color.green(installPrefix)} ${color.cyan("Codex native skills 目录")}：${color.bold(input.paths.targetCodexSkillsDir)}`,
   );
   console.log(
-    `${color.gray("说明")}：provider/model/profiles/MCP/native skills 均来自 config/*.yaml 与 src/cli/native-skills.ts。`,
+    `${color.gray("说明")}：provider/model/MCP/native skills 均来自 config/*.yaml 与 src/cli/native-skills.ts。`,
   );
   console.log(`${color.cyan("模型组提供商")}：${formatProviderGroups(input.providerGroups)}`);
-  console.log(color.gray("启动命令：codex --profile <profile>。"));
+  console.log(color.gray("启动命令：codex。"));
 }
 
 function formatProviderGroups(providerGroups: ProviderGroupMap): string {

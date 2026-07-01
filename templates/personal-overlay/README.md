@@ -4,7 +4,7 @@ Personal overlays hold machine/user-specific choices:
 
 - provider env var names and provider group defaults
 - non-secret local runtime env overrides such as proxy ports
-- default profile preference
+- default model preference
 - private memory
 - local paths
 

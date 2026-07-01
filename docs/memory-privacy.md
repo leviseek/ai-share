@@ -2,12 +2,12 @@
 
 `memory/` 同时服务个人使用和未来团队化。默认按隐私层处理：
 
-| Layer     | Paths                                                                           | Git                        | Use                                  |
-| --------- | ------------------------------------------------------------------------------- | -------------------------- | ------------------------------------ |
-| shareable | `memory/architecture/`, `memory/stack/`, `memory/profiles/`, `memory/policies/` | committed                  | 团队可共享知识、技术栈、profile 说明 |
-| personal  | `memory/user/`, `memory/stable/`                                                | committed in personal repo | 个人偏好、设备摘要、长期工作流       |
-| local     | `memory/local/`, `memory/private/`                                              | ignored                    | 本机路径、私有上下文、不可共享信息   |
-| project   | `memory/project/`                                                               | ignored                    | 当前项目临时或局部记忆               |
+| Layer     | Paths                                                       | Git                        | Use                                |
+| --------- | ----------------------------------------------------------- | -------------------------- | ---------------------------------- |
+| shareable | `memory/architecture/`, `memory/stack/`, `memory/policies/` | committed                  | 团队可共享知识、技术栈、策略说明   |
+| personal  | `memory/user/`, `memory/stable/`                            | committed in personal repo | 个人偏好、设备摘要、长期工作流     |
+| local     | `memory/local/`, `memory/private/`                          | ignored                    | 本机路径、私有上下文、不可共享信息 |
+| project   | `memory/project/`                                           | ignored                    | 当前项目临时或局部记忆             |
 
 ## Rules
 
@@ -25,4 +25,4 @@
 
 ## Current Loader Behavior
 
-当前 `buildInstructionsPaths` 只加载明确列出的 `memory/user/`、`memory/architecture/`、`memory/stack/`、profile memory 和 stable memory。`memory/local/`、`memory/private/`、`memory/project/` 不会被自动注入。
+当前 `buildInstructionsPaths` 只加载明确列出的 `memory/user/`、`memory/architecture/`、`memory/stack/` 和 stable memory。`memory/local/`、`memory/private/`、`memory/project/` 不会被自动注入。

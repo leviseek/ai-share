@@ -29,7 +29,7 @@ const REQUIRED_GITIGNORE_PATTERNS = [
   "memory/sync/",
 ];
 
-const SHAREABLE_PREFIXES = ["memory/architecture/", "memory/stack/", "memory/profiles/", "memory/policies/"];
+const SHAREABLE_PREFIXES = ["memory/architecture/", "memory/stack/", "memory/policies/"];
 const PERSONAL_PREFIXES = ["memory/user/", "memory/stable/"];
 const REVIEW_PREFIXES = ["memory/inferred/", "memory/distilled/"];
 const IGNORED_PREFIXES = ["memory/local/", "memory/private/", "memory/project/", "memory/runtime/", "memory/sync/"];

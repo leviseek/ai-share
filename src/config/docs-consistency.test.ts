@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { ModelsYaml, ProfilesYaml } from "../types.ts";
+import type { ModelsYaml } from "../types.ts";
 import { parseYamlObject } from "../yaml.ts";
 
 const projectRoot = resolve(import.meta.dir, "..", "..");
@@ -26,25 +26,6 @@ describe("documentation and memory consistency", () => {
       expect(memoryDoc).toMatch(tableRowPattern([modelId, contextWindow, inputCost]));
     }
   });
-
-  test("keeps profile role mapping tables aligned with config/profiles.yaml", () => {
-    const profiles = loadYaml("profiles.yaml") as ProfilesYaml;
-    const schemaDoc = readText("docs/schema/profiles.md");
-    const triRoleDoc = readText("docs/protocol/tri-role.md");
-    const readme = readText("README.md");
-    const memoryDoc = readText("memory/stack/models.md");
-
-    for (const [profileId, profile] of Object.entries(profiles)) {
-      const primary = requiredString(profile.models?.primary, `${profileId}.models.primary`);
-      const reasoning = requiredString(profile.models?.reasoning, `${profileId}.models.reasoning`);
-      const fast = requiredString(profile.models?.fast, `${profileId}.models.fast`);
-
-      expect(schemaDoc).toMatch(tableRowPattern([`\`${profileId}\``, primary, reasoning, fast]));
-      expect(triRoleDoc).toMatch(tableRowPattern([`\`${profileId}\``, primary, reasoning, fast], 1));
-      expect(memoryDoc).toMatch(tableRowPattern([profileId, primary, reasoning, fast]));
-      expect(readme).toContain(`${profileId}：primary=${primary}，reasoning=${reasoning}，fast=${fast}`);
-    }
-  });
 });
 
 function loadYaml(fileName: string): unknown {
@@ -55,17 +36,13 @@ function readText(path: string): string {
   return readFileSync(resolve(projectRoot, path), "utf8");
 }
 
-function tableRowPattern(cells: readonly string[], wildcardCells = 0): RegExp {
+function tableRowPattern(cells: readonly string[]): RegExp {
   const escapedCells = cells.map((cell) => escapeRegExp(cell));
   const firstCell = escapedCells[0];
   if (!firstCell) throw new Error("tableRowPattern requires at least one cell");
-  const pattern = [
-    "\\|\\s*",
-    firstCell,
-    "\\s*\\|",
-    ...Array.from({ length: wildcardCells }, () => "[^\\n|]*\\|"),
-    ...escapedCells.slice(1).map((cell) => `\\s*${cell}\\s*\\|`),
-  ].join("");
+  const pattern = ["\\|\\s*", firstCell, "\\s*\\|", ...escapedCells.slice(1).map((cell) => `\\s*${cell}\\s*\\|`)].join(
+    "",
+  );
   return new RegExp(pattern);
 }
 

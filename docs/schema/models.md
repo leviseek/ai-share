@@ -2,7 +2,7 @@
 
 ## Overview
 
-Model catalog. Each entry defines an upstream GPT-compatible model ID, provider group assignment, capabilities, cost, token limits, temperature, optional parameters, and a fallback chain. Models are referenced by key from `profiles.yaml`.
+Model catalog. Each entry defines an upstream GPT-compatible model ID, provider group assignment, capabilities, cost, token limits, temperature, optional parameters, and a fallback chain. `config/global.yaml` references one model by key.
 
 ## Fields
 
@@ -86,7 +86,6 @@ gpt-5.5-coding:
 
 ## Cross-File References
 
-- **profiles.yaml**: Profile `models.primary`, `models.reasoning`, `models.fast` reference model IDs from this file
-- **profiles.yaml**: `compaction.model` can be a model ID from this file or a role name (`primary`, `reasoning`, `fast`)
-- **provider.yaml**: The `provider_group` field is resolved to a concrete provider at generation time
-- **Generated Codex config**: Profile roles resolve to upstream model names and provider IDs
+- **global.yaml**: `model` references a model ID from this file.
+- **provider.yaml**: `provider_group` is resolved to a concrete provider at generation time.
+- **Generated Codex config**: The selected model resolves to upstream model name and provider ID.

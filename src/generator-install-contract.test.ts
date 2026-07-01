@@ -6,7 +6,7 @@ import { delimiter, join, resolve } from "node:path";
 
 type RuntimeManifestContract = {
   primary_stack?: string;
-  default_profile?: string;
+  model?: string;
   paths?: {
     codex_home?: string;
     codex_env?: string;
@@ -14,7 +14,7 @@ type RuntimeManifestContract = {
     codex_skills?: string;
   };
   managed?: {
-    codex_profiles?: string[];
+    codex_config?: string;
     codex_env_vars?: string[];
     skills?: string[];
   };
@@ -41,20 +41,19 @@ describe("generator install contract", () => {
 
       const manifest = readJson(join(codexHome, "ai-share.runtime.json")) as RuntimeManifestContract;
       expect(manifest.primary_stack).toBe("codex");
-      expect(manifest.default_profile).toBe("balanced");
+      expect(manifest.model).toBe("gpt-5.5");
       expect(manifest.paths?.codex_home).toBe(codexHome);
       expect(manifest.paths?.codex_env).toBe(join(codexHome, ".env"));
       expect(manifest.paths?.bin).toBe(targetBin);
-      expect(manifest.managed?.codex_profiles).toContain("coding");
-      expect(manifest.managed?.codex_profiles).toEqual(manifest.managed?.codex_profiles);
+      expect(manifest.managed?.codex_config).toBe(join(codexHome, "config.toml"));
       expect(manifest.managed?.codex_env_vars).toContain("HTTP_PROXY");
       expect(manifest.managed?.skills).toContain("ai-share-generator");
       expect(manifest.managed?.skills).toContain("memory-curator");
       expect(manifest.managed?.skills).toContain("failure-distiller");
       expect(JSON.stringify(manifest).toLowerCase()).not.toContain("opencode");
 
-      expect(readText(join(codexHome, "coding.config.toml"))).toContain('model = "gpt-5.5"');
-      expect(readText(join(codexHome, "coding.config.toml"))).toContain('model_provider = "codexapis"');
+      expect(readText(join(codexHome, "config.toml"))).toContain('model = "gpt-5.5"');
+      expect(readText(join(codexHome, "config.toml"))).toContain('model_provider = "codexapis"');
       expect(readText(join(codexHome, "AGENTS.md"))).toContain("AI_GUIDELINES.md");
       expect(readText(join(codexHome, "AGENTS.md"))).toContain("memory");
       expect(readText(join(codexHome, ".env"))).toContain("HTTP_PROXY=http://127.0.0.1:7897");

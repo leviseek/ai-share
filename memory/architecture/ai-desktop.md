@@ -2,13 +2,13 @@
 
 ## AI 操作系统层
 
-ai-share 正在从"配置仓库"演进为个人 AI 运行时。核心思路是在用户和 AI 模型之间建立一层专有的操作系统抽象层，将模型无关的能力沉淀到这层中：
+ai-share 正在从“配置仓库”演进为个人 AI 运行时。核心思路是在用户和 AI 模型之间建立一层专有的操作系统抽象层，将模型无关的能力沉淀到这层中：
 
-- **配置即 API**：YAML 源文件定义模型路由、profile 切换、MCP 和 skills，生成器负责物化为 Codex 的具体配置格式。
-- **会话管理层**：Codex instructions、结构化 memory 和 profile compaction 元数据构成上下文入口，各 profile 可独立调整预算和压缩阈值。
+- **配置即 API**：YAML 源文件定义模型提供商、默认模型、MCP 和 skills，生成器负责物化为 Codex 的具体配置格式。
+- **会话管理层**：Codex instructions 和结构化 memory 构成上下文入口。
 - **原生扩展**：Codex native skills 构成运行时能力层，可复用流程沉淀在 Codex 可直接消费的配置中。
 
-这层抽象让底层模型可替换，上层的编排逻辑、记忆体系、工具链保持不变。
+这层抽象让底层模型可替换，上层的记忆体系、工具链保持不变。
 
 ## Memory Runtime
 
@@ -24,21 +24,21 @@ ai-share 正在从"配置仓库"演进为个人 AI 运行时。核心思路是�
 上下文管理是 AI Desktop 的关键基础设施。目标是在有限上下文窗口中，让 AI 始终拥有完成当前任务所需的最相关信息：
 
 - **静态注入层**：memory/ 文件、AI_GUIDELINES.md、GIT_COMMIT_GUIDELINES.md 等启动时注入的结构化知识。
-- **动态压缩层**：profile compaction 配置描述触发阈值、最大输入和压缩模型，运行时由 Codex 消费。
-- **策略化调度**：每个 profile 独立配置 context_budget_tokens、max_input_tokens、compaction 阈值，在"上下文深度"和"响应速度"之间做 tradeoff。
+- **任务检索层**：`AI_SHARE_TASK` 触发本地关键词检索，将最相关 memory 文件插入到结构化 memory 前。
+- **会话治理层**：会话中依赖人工 checkpoint、rescue 和总结控制上下文预算。
 
-Context Compiler 不是单次执行，而是一个持续的上下文治理流程：会话开始前选择最相关的静态和任务记忆，会话中依赖 profile compaction 控制上下文预算，会话结束后通过人工确认的记忆蒸馏固化进展。
+Context Compiler 不是单次执行，而是一个持续的上下文治理流程：会话开始前选择最相关的静态和任务记忆，会话中控制上下文预算，会话结束后通过人工确认的记忆蒸馏固化进展。
 
-## Profile 系统
+## 模型系统
 
-Profile 是 AI Desktop 的模式选择器，决定了当前会话的模型组合、上下文预算和编排策略：
+模型选择收敛为单套 Codex 默认模型配置：
 
-- 每个 profile 定义 3 个模型角色（primary、reasoning、fast），分别对应主要 agent、深度推理、轻量任务。
-- 模型的组合方式定义了 AI 的"工作模式"：coding profile 偏向代码生成模型，research profile 偏向推理模型，writing profile 偏向 prose 模型。
-- 上下文预算、compaction 策略随 profile 切换，max 级别允许更大的上下文窗口，lite 级别在 Token 成本和能力之间做取舍。
-- 生成器把 profile 物化为 Codex CLI TOML、Codex agent TOML 和 Codex JSON，随 profile 切换同步生效。
+- `config/global.yaml` 的 `model` 选择当前默认模型。
+- `config/models.yaml` 维护模型元数据、成本、上下文窗口和 fallback 链。
+- `config/provider.yaml` 维护 provider 和 API key 环境变量引用。
+- 生成器只物化一套 `CODEX_HOME/config.toml`，不再生成 profile 或 agent 级配置。
 
-Profile 系统的核心价值是"按需切换 AI 工作方式"，而不是固定一套配置适用于所有场景。
+核心价值是保持配置简单、可迁移、可审计；需要切换模型时修改 YAML 源并重新生成。
 
 ## 跨设备统一
 
@@ -54,6 +54,6 @@ AI Desktop 不是单机系统。用户的工作场景跨 Windows 主力机、WSL
 ## 架构决策记录
 
 - **本地优先，文件即存储**：所有配置、记忆、策略都是本地文件，不依赖云服务、数据库或外部 API。Git 作为同步层，不引入额外的中间件。
-- **生成式配置**：YAML -> JSON 的单向生成路线，YAML 是权威源，手改生成的 JSON 不会被持久化。
-- **轻量粘合层**：ai-share 不做厚运行时。生成器产生配置，启动器包装环境，剩余的事交给 Codex 和 Codex 完成。ai-share 只解决配置同步、记忆注入、skills 安装这三个核心问题。
-- **渐进演进**：从配置仓库到个人 AI 运行时的演进是增量的，每一步都保持迁移边界清晰。新概念（如 Memory Runtime）先做最小可行版本，验证后再扩展。
+- **生成式配置**：YAML -> TOML/JSON 的单向生成路线，YAML 是权威源，手改生成文件不会被持久化。
+- **轻量粘合层**：ai-share 不做厚运行时。生成器产生配置，启动器包装环境，剩余的事交给 Codex。ai-share 只解决配置同步、记忆注入、skills 安装这三个核心问题。
+- **渐进演进**：从配置仓库到个人 AI 运行时的演进是增量的，每一步都保持迁移边界清晰。

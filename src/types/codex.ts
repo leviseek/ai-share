@@ -1,4 +1,4 @@
-export type CodexCliProfileConfig = {
+export type CodexCliConfig = {
   model: string;
   model_provider: string;
   model_reasoning_effort?: "low" | "medium" | "high";

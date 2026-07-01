@@ -1,9 +1,5 @@
-# Shareable Config Template
+# Shareable config template
 
-This directory contains minimal shareable examples for bootstrapping another `ai-share` environment.
+This directory contains a minimal shareable starting point for ai-share config. Copy it into a new environment and fill provider env-var names and model choices locally.
 
-It is not consumed by the generator directly. The active source remains `config/*.yaml`.
-
-`env.yaml` may include non-secret runtime defaults such as local proxy variables. Do not place API keys, tokens, cookies, passwords, or private local paths in template env files.
-
-`profile-eval.yaml` may include shareable benchmark prompts and scoring dimensions. Keep task prompts generic and free of private project, customer, or machine-local details.
+Keep templates free of real API keys, tokens, cookies, private endpoints, customer/project names, and machine-local paths.

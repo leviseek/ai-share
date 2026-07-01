@@ -1,7 +1,3 @@
-export type ModelRole = "primary" | "reasoning" | "fast";
-
-export type ModelRoleMap = Record<string, string> & Partial<Record<ModelRole, string>>;
-
 export type ProviderYaml = {
   providers?: Record<string, ProviderSource>;
 };
@@ -12,30 +8,6 @@ export type McpYaml = {
 
 export type EnvYaml = {
   variables?: Record<string, string>;
-};
-
-export type ProfileEvalYaml = {
-  task_set?: string;
-  tasks?: Record<string, ProfileEvalTaskSource>;
-  scoring?: ProfileEvalScoringSource;
-};
-
-export type ProfileEvalTaskSource = {
-  title?: string;
-  category?: string;
-  weight?: number;
-  prompt?: string;
-  success_criteria?: string[];
-};
-
-export type ProfileEvalScoringSource = {
-  pass_score?: number;
-  dimensions?: Record<string, ProfileEvalScoringDimensionSource>;
-};
-
-export type ProfileEvalScoringDimensionSource = {
-  weight?: number;
-  description?: string;
 };
 
 export type McpServerSource = {
@@ -83,23 +55,6 @@ export type ModelSource = {
 };
 
 export type GlobalYaml = {
-  default_profile?: string;
-  codex_min_version?: string;
-};
-
-export type ProfileCompaction = {
-  enabled?: boolean;
-  threshold?: number;
   model?: string;
-  max_input_tokens?: number;
-  prune?: boolean;
-  reserved?: number;
-};
-
-export type ProfilesYaml = Record<string, ProfileSource>;
-
-export type ProfileSource = {
-  name?: string;
-  models?: ModelRoleMap;
-  compaction?: ProfileCompaction;
+  codex_min_version?: string;
 };

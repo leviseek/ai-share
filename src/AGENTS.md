@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Bun/TypeScript generator for user-level Codex CLI, Codex, native-skill, launcher, MCP and instruction-memory outputs.
+Bun/TypeScript generator for user-level Codex CLI, native-skill, launcher, MCP and instruction-memory outputs.
 
 ## STRUCTURE
 
@@ -14,7 +14,6 @@ src/
 ├── cli/                    # options, paths, install, output, registry/API checks
 ├── loaders/                # memory loader/compiler helpers
 ├── memory/                 # memory retrieval
-├── protocol/               # tri-role profile import/export protocol
 ├── types/                  # YAML/Codex/CLI type modules
 ├── types.ts                # type re-export facade
 └── yaml.ts                 # YAML parsing helper
@@ -25,17 +24,15 @@ src/
 | Need                       | Location                          | Notes                                                  |
 | -------------------------- | --------------------------------- | ------------------------------------------------------ |
 | End-to-end generation flow | `generate-user-config.ts`         | Loads YAML, validates, writes Codex outputs, installs  |
-| Codex config               | `config/builders/codex.ts`        | Profiles, providers, MCP, agents, Codex model env      |
+| Codex config               | `config/builders/codex.ts`        | Provider, model, MCP, Codex model env                  |
 | Codex `.env` generation    | `config/builders/env.ts`          | Formats non-secret `CODEX_HOME/.env` variables         |
 | Instruction/memory paths   | `config/builders/instructions.ts` | Shared instruction file ordering                       |
-| Default profile resolution | `config/builders/profiles.ts`     | `global.default_profile` fallback behavior             |
 | CLI flags                  | `cli/options.ts`                  | `--force`, `--dry-run`, `--check`, provider groups/env |
 | Install/copy behavior      | `cli/install.ts`                  | Launchers and Codex native skills                      |
-| Output paths               | `cli/paths.ts`                    | Codex home, agents, skills, user bin                   |
+| Output paths               | `cli/paths.ts`                    | Codex home, skills, user bin                           |
 | Codex `.env` runtime check | `cli/env-runtime-check.ts`        | Loopback proxy reachability checks for `ai:check`      |
 | Provider/model live check  | `cli/provider-model-check.ts`     | Optional `/models` availability check                  |
 | Memory privacy check       | `cli/memory-privacy-check.ts`     | Enforces memory privacy layers and secret scanning     |
-| Profile eval harness       | `cli/profile-eval.ts`             | Fixed task-set reports, cost estimates, manual scoring |
 | YAML schema source         | `config/schema-spec.ts`           | Single source for JSON Schema and runtime shape checks |
 | Runtime validation         | `config/validation.ts`            | Runs schema-derived shape checks plus business rules   |
 

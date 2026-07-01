@@ -1,13 +1,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, test } from "bun:test";
-import type { EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "../../types.ts";
+import type { EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProviderYaml } from "../../types.ts";
 import {
   applyProviderGroups,
   buildCodexEnvFileWithManagedBlock,
-  buildCodexCliConfigs,
+  buildCodexCliConfig,
   buildRuntimeManifest,
-  defaultProfileId,
   formatCodexConfigToml,
   formatCodexEnvFile,
 } from "../../config-builders.ts";
@@ -17,25 +16,24 @@ import { parseYamlObject } from "../../yaml.ts";
 const projectRoot = resolve(import.meta.dir, "..", "..", "..");
 
 describe("Codex generation contract", () => {
-  test("formats the coding Codex profile TOML in the expected shape", () => {
+  test("formats the Codex config TOML in the expected shape", () => {
     const fixture = loadFixture();
     const models = applyProviderGroups(fixture.models, fixture.providers.providers ?? {}, {
       gpt: "codexapis",
     });
 
-    const codexConfigs = buildCodexCliConfigs(
+    const codexConfig = buildCodexCliConfig(
       fixture.providers.providers ?? {},
       models,
-      fixture.profiles,
+      fixture.global,
       fixture.mcp,
-      (profileId) => `/codex/${profileId}.AGENTS.md`,
+      "/codex/AGENTS.md",
     );
 
-    expect(defaultProfileId(fixture.global, fixture.profiles)).toBe("balanced");
-    expect(formatCodexConfigToml(required(codexConfigs.coding))).toBe(`model = "gpt-5.5"
+    expect(formatCodexConfigToml(codexConfig)).toBe(`model = "gpt-5.5"
 model_provider = "codexapis"
-model_reasoning_effort = "high"
-model_instructions_file = "/codex/coding.AGENTS.md"
+model_reasoning_effort = "medium"
+model_instructions_file = "/codex/AGENTS.md"
 
 [model_providers.codexapis]
 name = "Codex APIs"
@@ -54,24 +52,23 @@ env_key = "AXASAPI_API_KEY"
 `);
   });
 
-  test("resolves provider-group overrides without changing profile semantics", () => {
+  test("resolves provider-group overrides without changing model semantics", () => {
     const fixture = loadFixture();
     const models = applyProviderGroups(fixture.models, fixture.providers.providers ?? {}, {
       gpt: "packyapi",
     });
 
-    const codexConfigs = buildCodexCliConfigs(
+    const codexConfig = buildCodexCliConfig(
       fixture.providers.providers ?? {},
       models,
-      fixture.profiles,
+      fixture.global,
       fixture.mcp,
-      (profileId) => `/codex/${profileId}.AGENTS.md`,
+      "/codex/AGENTS.md",
     );
 
-    const balanced = required(codexConfigs.balanced);
-    expect(balanced.model).toBe("gpt-5.5");
-    expect(balanced.model_provider).toBe("packyapi");
-    expect(balanced.model_providers.packyapi?.env_key).toBe("PACKYAPI_API_KEY");
+    expect(codexConfig.model).toBe("gpt-5.5");
+    expect(codexConfig.model_provider).toBe("packyapi");
+    expect(codexConfig.model_providers.packyapi?.env_key).toBe("PACKYAPI_API_KEY");
   });
 
   test("formats the generated Codex .env with non-secret runtime variables", () => {
@@ -123,34 +120,19 @@ USER_NOTE=keep
   test("builds the runtime manifest with Codex ownership only", () => {
     const manifest = buildRuntimeManifest({
       paths: fakePaths(),
-      defaultProfileId: "balanced",
-      profileIds: ["balanced", "coding"],
+      model: "gpt-5.5",
       mcpServerIds: ["filesystem"],
       codexEnvVarNames: ["HTTP_PROXY", "NO_PROXY"],
       localConfigOverlays: ["config/local/global.yaml"],
       skillIds: ["git-master", "ai-share-generator"],
-      profilesConfig: {
-        balanced: {
-          compaction: {
-            enabled: true,
-            threshold: 65000,
-            model: "fast",
-            max_input_tokens: 120000,
-          },
-        },
-        coding: {},
-      },
-      instructionFilesByProfile: {
-        balanced: ["/repo/AI_GUIDELINES.md", "/repo/memory/user/profile.md"],
-        coding: ["/repo/AI_GUIDELINES.md", "/repo/memory/profiles/coding.yaml"],
-      },
+      instructionFiles: ["/repo/AI_GUIDELINES.md", "/repo/memory/user/profile.md"],
     });
 
     expect(manifest).toEqual({
-      version: 2,
+      version: 3,
       scope: "user",
       primary_stack: "codex",
-      default_profile: "balanced",
+      model: "gpt-5.5",
       platforms: ["windows", "linux", "macos"],
       memory: {
         v1: "load-existing-memory",
@@ -163,24 +145,12 @@ USER_NOTE=keep
         codex_skills: "/home/user/.codex/skills",
       },
       managed: {
-        codex_profiles: ["balanced", "coding"],
+        codex_config: "/home/user/.codex/config.toml",
         codex_env_vars: ["HTTP_PROXY", "NO_PROXY"],
         local_config_overlays: ["config/local/global.yaml"],
         mcp_servers: ["filesystem"],
         skills: ["git-master", "ai-share-generator"],
         instruction_files: ["/repo/AI_GUIDELINES.md", "/repo/memory/user/profile.md"],
-        profile_instruction_files: {
-          balanced: ["/repo/AI_GUIDELINES.md", "/repo/memory/user/profile.md"],
-          coding: ["/repo/AI_GUIDELINES.md", "/repo/memory/profiles/coding.yaml"],
-        },
-        profile_compaction: {
-          balanced: {
-            enabled: true,
-            threshold: 65000,
-            model: "fast",
-            max_input_tokens: 120000,
-          },
-        },
       },
     });
   });
@@ -190,7 +160,6 @@ function loadFixture(): {
   global: GlobalYaml;
   providers: ProviderYaml;
   models: ModelsYaml;
-  profiles: ProfilesYaml;
   mcp: McpYaml;
   env: EnvYaml;
 } {
@@ -198,7 +167,6 @@ function loadFixture(): {
     global: loadYaml("global.yaml") as GlobalYaml,
     providers: loadYaml("provider.yaml") as ProviderYaml,
     models: loadYaml("models.yaml") as ModelsYaml,
-    profiles: loadYaml("profiles.yaml") as ProfilesYaml,
     mcp: loadYaml("mcp.yaml") as McpYaml,
     env: loadYaml("env.yaml") as EnvYaml,
   };
@@ -206,11 +174,6 @@ function loadFixture(): {
 
 function loadYaml(fileName: string): unknown {
   return parseYamlObject(readFileSync(resolve(projectRoot, "config", fileName), "utf8"));
-}
-
-function required<T>(value: T | undefined): T {
-  if (value === undefined) throw new Error("missing contract fixture value");
-  return value;
 }
 
 function fakePaths(): GeneratorPaths {

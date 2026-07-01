@@ -1,42 +1,41 @@
 import type {
-  CodexCliProfileConfig,
+  CodexCliConfig,
   CodexCliProvider,
   CodexMcpServer,
+  GlobalYaml,
   McpYaml,
   McpServerSource,
-  ModelRoleMap,
   ModelsYaml,
-  ProfilesYaml,
   ProviderSource,
 } from "../../types.ts";
 import { modelRef } from "../model-refs.ts";
-import { requireRecord, requireString } from "../validation.ts";
+import { requireString } from "../validation.ts";
 import { buildInstructionsPaths } from "./instructions.ts";
 
-export function buildCodexCliConfigs(
+export function buildCodexCliConfig(
   providerSources: Record<string, ProviderSource>,
   modelSources: ModelsYaml,
-  profilesConfig: ProfilesYaml,
+  globalConfig: GlobalYaml,
   mcpConfig: McpYaml,
-  instructionsFileForProfile: (profileId: string) => string,
-): Record<string, CodexCliProfileConfig> {
-  return Object.fromEntries(
-    Object.keys(requireRecord(profilesConfig, "profiles")).map((profileId) => [
-      profileId,
-      buildCodexCliConfig(
-        providerSources,
-        modelSources,
-        profilesConfig,
-        mcpConfig,
-        profileId,
-        instructionsFileForProfile(profileId),
-      ),
-    ]),
-  );
+  instructionsFile: string,
+): CodexCliConfig {
+  const modelId = modelIdFromRef(modelRef(requireString(globalConfig.model, "global.model"), modelSources));
+  const modelSource = modelSources[modelId];
+  const providerId = requireString(modelSource?.provider, `models.${modelId}.provider`);
+  const modelReasoningEffort = reasoningEffort(modelId, modelSources);
+
+  return {
+    model: modelSource?.model_name ?? modelId,
+    model_provider: providerId,
+    ...(modelReasoningEffort ? { model_reasoning_effort: modelReasoningEffort } : {}),
+    model_instructions_file: instructionsFile,
+    model_providers: buildCodexProviders(providerSources),
+    ...nonEmptyMcpServers(buildCodexMcpServers(mcpConfig)),
+  };
 }
 
-export function buildCodexInstructions(projectRoot: string, profileId: string): string {
-  const linkedFiles = buildInstructionsPaths(projectRoot, profileId)
+export function buildCodexInstructions(projectRoot: string): string {
+  const linkedFiles = buildInstructionsPaths(projectRoot)
     .map((path) => `- ${path}`)
     .join("\n");
   return [
@@ -53,7 +52,7 @@ export function buildCodexInstructions(projectRoot: string, profileId: string): 
   ].join("\n");
 }
 
-export function formatCodexConfigToml(config: CodexCliProfileConfig): string {
+export function formatCodexConfigToml(config: CodexCliConfig): string {
   const lines = [
     `model = ${tomlString(config.model)}`,
     `model_provider = ${tomlString(config.model_provider)}`,
@@ -89,31 +88,6 @@ export function formatCodexConfigToml(config: CodexCliProfileConfig): string {
   }
 
   return `${lines.join("\n").trimEnd()}\n`;
-}
-
-function buildCodexCliConfig(
-  providerSources: Record<string, ProviderSource>,
-  modelSources: ModelsYaml,
-  profilesConfig: ProfilesYaml,
-  mcpConfig: McpYaml,
-  profileId: string,
-  instructionsFile: string,
-): CodexCliProfileConfig {
-  const profileModels = requireRecord(profilesConfig[profileId]?.models, `profiles.${profileId}.models`);
-  const primaryModelRef = modelRef("primary", modelSources, profileModels);
-  const primaryModelId = modelIdFromRef(primaryModelRef);
-  const primaryModelSource = modelSources[primaryModelId];
-  const primaryProviderId = requireString(primaryModelSource?.provider, `models.${primaryModelId}.provider`);
-  const primaryReasoningEffort = reasoningEffort(profileModels, modelSources);
-
-  return {
-    model: primaryModelSource?.model_name ?? primaryModelId,
-    model_provider: primaryProviderId,
-    ...(primaryReasoningEffort ? { model_reasoning_effort: primaryReasoningEffort } : {}),
-    model_instructions_file: instructionsFile,
-    model_providers: buildCodexProviders(providerSources),
-    ...nonEmptyMcpServers(buildCodexMcpServers(mcpConfig)),
-  };
 }
 
 function buildCodexProviders(providerSources: Record<string, ProviderSource>): Record<string, CodexCliProvider> {
@@ -155,12 +129,11 @@ function buildCodexMcpServer(serverId: string, server: McpServerSource): CodexMc
   };
 }
 
-function nonEmptyMcpServers(servers: Record<string, CodexMcpServer>): Pick<CodexCliProfileConfig, "mcp_servers"> {
+function nonEmptyMcpServers(servers: Record<string, CodexMcpServer>): Pick<CodexCliConfig, "mcp_servers"> {
   return Object.keys(servers).length > 0 ? { mcp_servers: servers } : {};
 }
 
-function reasoningEffort(profileModels: ModelRoleMap, modelSources: ModelsYaml): "low" | "medium" | "high" | undefined {
-  const modelId = modelIdFromRef(modelRef("primary", modelSources, profileModels));
+function reasoningEffort(modelId: string, modelSources: ModelsYaml): "low" | "medium" | "high" | undefined {
   const value =
     modelSources[modelId]?.parameters?.reasoningEffort ?? modelSources[modelId]?.parameters?.reasoning_effort;
   if (value === "low" || value === "medium" || value === "high") return value;
@@ -174,7 +147,7 @@ function modelIdFromRef(model: string): string {
 
 function envKeyName(value: string): string {
   const match = /^\$\{([A-Z0-9_]+)\}$/.exec(value);
-  if (!match?.[1]) throw new Error(`api_key 必须使用 \${"{"}ENV_NAME} 格式：${value}`);
+  if (!match?.[1]) throw new Error(`api_key 必须使用 \${ENV_NAME} 格式：${value}`);
   return match[1];
 }
 
