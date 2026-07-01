@@ -100,6 +100,53 @@ type SessionSummary = {
   guardOk?: boolean;
 };
 
+type ContextExperiment = {
+  id: string;
+  timestamp: string;
+  name?: string;
+  prompt: string;
+  intent: string;
+  seeds: string[];
+  filters: Partial<GraphFilters> & { seedIds?: string[] };
+  maxObjects: number;
+  trace: TraceStep[];
+  context: {
+    summary: string;
+    objects: { id: string; type: string; path?: string }[];
+    diagnostics: string[];
+    quality?: ContextQuality;
+  };
+  promptBundle: { markdown: string; hash: string; relevantPaths: string[] };
+};
+
+type ContextExperimentSummary = {
+  id: string;
+  timestamp: string;
+  name?: string;
+  prompt: string;
+  intent: string;
+  seeds: number;
+  objects: number;
+  relevantPaths: number;
+  qualityScore?: number;
+  qualityGrade?: string;
+  bundleHash: string;
+};
+
+type ComparisonSet = { shared: string[]; added: string[]; removed: string[] };
+
+type ContextExperimentComparison = {
+  leftId: string;
+  rightId: string;
+  scoreDelta: number;
+  grade: { left?: string; right?: string };
+  bundleChanged: boolean;
+  objects: ComparisonSet;
+  relevantPaths: ComparisonSet;
+  gaps: ComparisonSet;
+  recommendations: ComparisonSet;
+};
+
 type PlanExec = {
   dryRun: DryRun;
   guardResult: {
@@ -141,6 +188,9 @@ type StudioPreferences = {
   selectedObjectId: string;
   contextQuery: string;
   prompt: string;
+  experimentName: string;
+  experimentIntent: string;
+  experimentMaxObjects: number;
   helpOpen: boolean;
   inspectorCollapsed: boolean;
 };
@@ -172,6 +222,7 @@ const edgeTypeOptions = [
   "exports",
 ];
 const defaultFilters: GraphFilters = { query: "", depth: 1, limit: 120, nodeTypes: [], edgeTypes: [] };
+const intentOptions = ["implement", "debug", "review", "explain", "plan", "test"];
 const preferencesKey = "rie.studio.preferences.v1";
 const defaultPreferences: StudioPreferences = {
   graphFilters: defaultFilters,
@@ -179,6 +230,9 @@ const defaultPreferences: StudioPreferences = {
   selectedObjectId: "",
   contextQuery: "设计 Repository Intelligence Studio v2",
   prompt: "请规划一个知识引擎驱动的 Codex 改动",
+  experimentName: "",
+  experimentIntent: "plan",
+  experimentMaxObjects: 30,
   helpOpen: false,
   inspectorCollapsed: false,
 };
@@ -202,6 +256,14 @@ function App() {
   const [streamEvents, setStreamEvents] = useState<StreamEvent[]>([]);
   const [streamStatus, setStreamStatus] = useState("idle");
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [experiments, setExperiments] = useState<ContextExperimentSummary[]>([]);
+  const [experimentDetail, setExperimentDetail] = useState<ContextExperiment | undefined>();
+  const [experimentComparison, setExperimentComparison] = useState<ContextExperimentComparison | undefined>();
+  const [leftExperimentId, setLeftExperimentId] = useState("");
+  const [rightExperimentId, setRightExperimentId] = useState("");
+  const [experimentName, setExperimentName] = useState(preferences.experimentName);
+  const [experimentIntent, setExperimentIntent] = useState(preferences.experimentIntent);
+  const [experimentMaxObjects, setExperimentMaxObjects] = useState(preferences.experimentMaxObjects);
   const [activeActions, setActiveActions] = useState<string[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [helpOpen, setHelpOpen] = useState(preferences.helpOpen);
@@ -233,6 +295,21 @@ function App() {
   function setPromptValue(value: string) {
     setPrompt(value);
     updatePreferences({ prompt: value });
+  }
+
+  function setExperimentNameValue(value: string) {
+    setExperimentName(value);
+    updatePreferences({ experimentName: value });
+  }
+
+  function setExperimentIntentValue(value: string) {
+    setExperimentIntent(value);
+    updatePreferences({ experimentIntent: value });
+  }
+
+  function setExperimentMaxObjectsValue(value: number) {
+    setExperimentMaxObjects(value);
+    updatePreferences({ experimentMaxObjects: value });
   }
 
   function showToast(kind: Toast["kind"], message: string) {
@@ -270,16 +347,18 @@ function App() {
   }
 
   async function refresh() {
-    const [treeData, graphData, dashboardData, sessionData] = await Promise.all([
+    const [treeData, graphData, dashboardData, sessionData, experimentData] = await Promise.all([
       getJson<TreeNode>("/api/repository/tree"),
       loadGraph(graphSeeds, graphFilters),
       getJson<Dashboard>("/api/dashboard"),
       getJson<SessionSummary[]>("/api/codex-console/sessions?limit=20"),
+      getJson<ContextExperimentSummary[]>("/api/context-lab/experiments?limit=20"),
     ]);
     setTree(treeData);
     setGraph(graphData);
     setDashboard(dashboardData);
     setSessions(sessionData);
+    setExperiments(experimentData);
   }
 
   useEffect(() => {
@@ -411,6 +490,38 @@ function App() {
     }
     setDryRun(detail);
     setContextQuality(detail.context.quality);
+  }
+
+  async function runContextExperiment() {
+    const experiment = await postJson<ContextExperiment>("/api/context-lab/run", {
+      name: experimentName,
+      prompt,
+      intent: experimentIntent,
+      seeds: graphSeeds,
+      filters: { ...graphFilters, seedIds: graphSeeds },
+      maxObjects: experimentMaxObjects,
+    });
+    setExperimentDetail(experiment);
+    setContextQuality(experiment.context.quality);
+    setExperiments(await getJson<ContextExperimentSummary[]>("/api/context-lab/experiments?limit=20"));
+    if (leftExperimentId.length === 0) setLeftExperimentId(experiment.id);
+    else setRightExperimentId(experiment.id);
+  }
+
+  async function loadExperimentDetail(id: string) {
+    const detail = await getJson<ContextExperiment>(`/api/context-lab/experiment?id=${encodeURIComponent(id)}`);
+    setExperimentDetail(detail);
+    setContextQuality(detail.context.quality);
+  }
+
+  async function compareExperiments() {
+    if (leftExperimentId.length === 0 || rightExperimentId.length === 0) return;
+    setExperimentComparison(
+      await postJson<ContextExperimentComparison>("/api/context-lab/compare", {
+        leftId: leftExperimentId,
+        rightId: rightExperimentId,
+      }),
+    );
   }
 
   useEffect(() => {
@@ -553,6 +664,32 @@ function App() {
             </>
           )}
         </aside>
+        <section class="panel context-lab-panel">
+          <ContextLab
+            prompt={prompt}
+            setPrompt={setPromptValue}
+            graphSeeds={graphSeeds}
+            graphFilters={graphFilters}
+            experimentName={experimentName}
+            setExperimentName={setExperimentNameValue}
+            experimentIntent={experimentIntent}
+            setExperimentIntent={setExperimentIntentValue}
+            experimentMaxObjects={experimentMaxObjects}
+            setExperimentMaxObjects={setExperimentMaxObjectsValue}
+            experiments={experiments}
+            experimentDetail={experimentDetail}
+            comparison={experimentComparison}
+            leftExperimentId={leftExperimentId}
+            rightExperimentId={rightExperimentId}
+            setLeftExperimentId={setLeftExperimentId}
+            setRightExperimentId={setRightExperimentId}
+            runExperiment={() => runAction("context-experiment", runContextExperiment, "Context experiment saved.")}
+            loadExperiment={(id) => runAction("experiment-detail", () => loadExperimentDetail(id))}
+            compareExperiments={() => runAction("experiment-compare", compareExperiments, "Experiments compared.")}
+            busy={isBusy}
+            activeActions={activeActions}
+          />
+        </section>
         <section class="panel console">
           <CodexConsole
             prompt={prompt}
@@ -1003,6 +1140,243 @@ function KnowledgeDashboard(props: { dashboard: Dashboard | undefined }) {
   );
 }
 
+function ContextLab(props: {
+  prompt: string;
+  setPrompt(value: string): void;
+  graphSeeds: string[];
+  graphFilters: GraphFilters;
+  experimentName: string;
+  setExperimentName(value: string): void;
+  experimentIntent: string;
+  setExperimentIntent(value: string): void;
+  experimentMaxObjects: number;
+  setExperimentMaxObjects(value: number): void;
+  experiments: ContextExperimentSummary[];
+  experimentDetail: ContextExperiment | undefined;
+  comparison: ContextExperimentComparison | undefined;
+  leftExperimentId: string;
+  rightExperimentId: string;
+  setLeftExperimentId(value: string): void;
+  setRightExperimentId(value: string): void;
+  runExperiment(): Promise<void>;
+  loadExperiment(id: string): Promise<void>;
+  compareExperiments(): Promise<void>;
+  busy: boolean;
+  activeActions: string[];
+}) {
+  return (
+    <>
+      <div class="panel-title graph-title">
+        <div>
+          <h2>Context Lab</h2>
+          <span>Run, save, replay, and compare context experiments without executing Codex.</span>
+        </div>
+        <button disabled={props.busy} onClick={() => void props.runExperiment()}>
+          {props.activeActions.includes("context-experiment") ? "Running..." : "Run Experiment"}
+        </button>
+      </div>
+      <div class="context-lab-grid">
+        <section class="lab-card">
+          <h3>Experiment Setup</h3>
+          <input
+            value={props.experimentName}
+            placeholder="Experiment name"
+            onInput={(event) => props.setExperimentName(event.currentTarget.value)}
+          />
+          <textarea rows={3} value={props.prompt} onInput={(event) => props.setPrompt(event.currentTarget.value)} />
+          <div class="lab-form-row">
+            <label>
+              Intent
+              <select
+                value={props.experimentIntent}
+                onInput={(event) => props.setExperimentIntent(event.currentTarget.value)}
+              >
+                {intentOptions.map((intent) => (
+                  <option key={intent} value={intent}>
+                    {intent}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Max Objects
+              <input
+                type="number"
+                min={1}
+                max={200}
+                value={props.experimentMaxObjects}
+                onInput={(event) => props.setExperimentMaxObjects(Number(event.currentTarget.value))}
+              />
+            </label>
+          </div>
+          <div class="lab-meta">
+            <span>Seeds: {props.graphSeeds.length}</span>
+            <span>Depth: {props.graphFilters.depth}</span>
+            <span>Limit: {props.graphFilters.limit}</span>
+          </div>
+        </section>
+        <section class="lab-card">
+          <h3>Recent Experiments</h3>
+          {props.experiments.length === 0 ? (
+            <EmptyState
+              title="No experiments"
+              message="Run a Context Lab experiment to start comparing context quality."
+            />
+          ) : (
+            <div class="experiments">
+              {props.experiments.map((experiment) => (
+                <article
+                  class="experiment"
+                  key={experiment.id}
+                  onClick={() => void props.loadExperiment(experiment.id)}
+                >
+                  <strong>{experiment.name ?? experiment.prompt}</strong>
+                  <span>
+                    {experiment.intent} · score {experiment.qualityScore ?? "n/a"} {experiment.qualityGrade ?? ""}
+                  </span>
+                  <code>{experiment.bundleHash.slice(0, 12)}</code>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+        <section class="lab-card">
+          <h3>Compare</h3>
+          <div class="lab-form-row">
+            <select
+              value={props.leftExperimentId}
+              onInput={(event) => props.setLeftExperimentId(event.currentTarget.value)}
+            >
+              <option value="">Left experiment</option>
+              {props.experiments.map((experiment) => (
+                <option key={experiment.id} value={experiment.id}>
+                  {experiment.name ?? experiment.id}
+                </option>
+              ))}
+            </select>
+            <select
+              value={props.rightExperimentId}
+              onInput={(event) => props.setRightExperimentId(event.currentTarget.value)}
+            >
+              <option value="">Right experiment</option>
+              {props.experiments.map((experiment) => (
+                <option key={experiment.id} value={experiment.id}>
+                  {experiment.name ?? experiment.id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            disabled={props.busy || props.leftExperimentId.length === 0 || props.rightExperimentId.length === 0}
+            onClick={() => void props.compareExperiments()}
+          >
+            Compare Experiments
+          </button>
+          {props.comparison !== undefined && <ExperimentComparisonViewer comparison={props.comparison} />}
+        </section>
+      </div>
+      {props.experimentDetail !== undefined && (
+        <ExperimentViewer
+          experiment={props.experimentDetail}
+          usePrompt={() => props.setPrompt(props.experimentDetail?.prompt ?? props.prompt)}
+        />
+      )}
+    </>
+  );
+}
+
+function ExperimentViewer(props: { experiment: ContextExperiment; usePrompt(): void }) {
+  return (
+    <div class="experiment-detail">
+      <div class="panel-title">
+        <h3>Experiment Replay · {props.experiment.name ?? props.experiment.id}</h3>
+        <button onClick={() => props.usePrompt()}>Use as Codex prompt</button>
+      </div>
+      <div class="metrics">
+        <div class="metric">
+          <span>Score</span>
+          <strong>{props.experiment.context.quality?.score ?? "n/a"}</strong>
+        </div>
+        <div class="metric">
+          <span>Grade</span>
+          <strong>{props.experiment.context.quality?.grade ?? "n/a"}</strong>
+        </div>
+        <div class="metric">
+          <span>Objects</span>
+          <strong>{props.experiment.context.objects.length}</strong>
+        </div>
+        <div class="metric">
+          <span>Paths</span>
+          <strong>{props.experiment.promptBundle.relevantPaths.length}</strong>
+        </div>
+      </div>
+      <div class="dry-run-grid">
+        <div>
+          <h3>Trace</h3>
+          <div class="trace">
+            {props.experiment.trace.map((step) => (
+              <article class="trace-step" key={step.name}>
+                <h3>{step.name}</h3>
+                <pre>{JSON.stringify(step.output, null, 2)}</pre>
+              </article>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h3>Prompt Bundle · {props.experiment.promptBundle.hash.slice(0, 12)}</h3>
+          <pre class="bundle">{props.experiment.promptBundle.markdown}</pre>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExperimentComparisonViewer(props: { comparison: ContextExperimentComparison }) {
+  return (
+    <div class="comparison-viewer">
+      <div class={props.comparison.scoreDelta >= 0 ? "delta positive" : "delta negative"}>
+        Score delta {props.comparison.scoreDelta >= 0 ? "+" : ""}
+        {props.comparison.scoreDelta} · {props.comparison.grade.left ?? "n/a"} → {props.comparison.grade.right ?? "n/a"}
+      </div>
+      <div class="delta">Bundle {props.comparison.bundleChanged ? "changed" : "unchanged"}</div>
+      <ComparisonSetViewer title="Objects" value={props.comparison.objects} />
+      <ComparisonSetViewer title="Relevant Paths" value={props.comparison.relevantPaths} />
+      <ComparisonSetViewer title="Gaps" value={props.comparison.gaps} />
+      <ComparisonSetViewer title="Recommendations" value={props.comparison.recommendations} />
+    </div>
+  );
+}
+
+function ComparisonSetViewer(props: { title: string; value: ComparisonSet }) {
+  return (
+    <details class="comparison-set">
+      <summary>
+        {props.title}: +{props.value.added.length} / -{props.value.removed.length} / shared {props.value.shared.length}
+      </summary>
+      <div class="comparison-columns">
+        <ComparisonList title="Added" values={props.value.added} />
+        <ComparisonList title="Removed" values={props.value.removed} />
+        <ComparisonList title="Shared" values={props.value.shared} />
+      </div>
+    </details>
+  );
+}
+
+function ComparisonList(props: { title: string; values: string[] }) {
+  return (
+    <div>
+      <strong>{props.title}</strong>
+      <ul>
+        {props.values.length === 0 ? (
+          <li>None</li>
+        ) : (
+          props.values.slice(0, 12).map((value) => <li key={value}>{value}</li>)
+        )}
+      </ul>
+    </div>
+  );
+}
+
 function CodexConsole(props: {
   prompt: string;
   setPrompt(value: string): void;
@@ -1239,6 +1613,12 @@ function readStudioPreferences(): StudioPreferences {
       selectedObjectId: typeof value.selectedObjectId === "string" ? value.selectedObjectId : "",
       contextQuery: typeof value.contextQuery === "string" ? value.contextQuery : defaultPreferences.contextQuery,
       prompt: typeof value.prompt === "string" ? value.prompt : defaultPreferences.prompt,
+      experimentName: typeof value.experimentName === "string" ? value.experimentName : "",
+      experimentIntent: typeof value.experimentIntent === "string" ? value.experimentIntent : "plan",
+      experimentMaxObjects:
+        typeof value.experimentMaxObjects === "number" && Number.isInteger(value.experimentMaxObjects)
+          ? value.experimentMaxObjects
+          : 30,
       helpOpen: typeof value.helpOpen === "boolean" ? value.helpOpen : false,
       inspectorCollapsed: typeof value.inspectorCollapsed === "boolean" ? value.inspectorCollapsed : false,
     };

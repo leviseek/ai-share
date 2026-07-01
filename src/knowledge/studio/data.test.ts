@@ -6,10 +6,13 @@ import type { GraphEdge, GraphNode, KnowledgeObject } from "../core/types.ts";
 import {
   buildCodexDryRun,
   buildCodexMockTrace,
+  buildContextExperiment,
   buildDashboardMetrics,
   buildGraphView,
   buildRepositoryTree,
   buildStudioContext,
+  compareContextExperiments,
+  summarizeContextExperiment,
   type StudioSnapshot,
 } from "./data.ts";
 import {
@@ -19,7 +22,7 @@ import {
   runCodexPlanExec,
   runCodexPlanExecStream,
 } from "./plan-exec.ts";
-import { createStudioSessionStore } from "./session-store.ts";
+import { createContextExperimentStore, createStudioSessionStore } from "./session-store.ts";
 
 const now = "2026-07-01T00:00:00.000Z";
 
@@ -112,6 +115,69 @@ describe("Repository Intelligence Studio data", () => {
     expect(dryRun.context.quality?.grade).toBeDefined();
     expect(dryRun.promptBundle.relevantPaths).toContain("src/main.ts");
     expect(dryRun.promptBundle.hash.length).toBeGreaterThan(0);
+  });
+
+  test("builds context experiments with explicit and inferred seeds", () => {
+    const explicit = buildContextExperiment(
+      fixtureSnapshot(),
+      {
+        name: "main plan",
+        prompt: "请设计 main 的修改方案",
+        intent: "plan",
+        seeds: ["codefile:src/main.ts"],
+        filters: { query: "main", depth: 2, limit: 40 },
+        maxObjects: 12,
+      },
+      now,
+    );
+    expect(explicit.name).toBe("main plan");
+    expect(explicit.intent).toBe("plan");
+    expect(explicit.seeds).toEqual(["codefile:src/main.ts"]);
+    expect(explicit.maxObjects).toBe(12);
+    expect(explicit.trace.map((step) => step.name)).toContain("compose_prompt_bundle");
+    expect(explicit.context.quality?.score).toBeGreaterThan(0);
+    expect(explicit.promptBundle.relevantPaths).toContain("src/main.ts");
+
+    const inferred = buildContextExperiment(fixtureSnapshot(), { prompt: "main implementation", maxObjects: 5 }, now);
+    expect(inferred.seeds).toContain("codefile:src/main.ts");
+  });
+
+  test("stores and reads recent context experiments", async () => {
+    const root = await mkdtemp(join(tmpdir(), "context-experiment-"));
+    const store = createContextExperimentStore(root);
+    const first = buildContextExperiment(fixtureSnapshot(), { prompt: "main plan" }, "2026-07-01T00:00:00.000Z");
+    const second = buildContextExperiment(fixtureSnapshot(), { prompt: "orphan debug" }, "2026-07-01T00:00:01.000Z");
+    await store.append(summarizeContextExperiment(first));
+    await store.writeDetail(first.id, first);
+    await store.append(summarizeContextExperiment(second));
+    await store.writeDetail(second.id, second);
+
+    const recent = await store.recent(1);
+    const detail = await store.readDetail(second.id);
+    expect(recent).toHaveLength(1);
+    expect(recent[0]?.id).toBe(second.id);
+    expect(detail?.prompt).toBe("orphan debug");
+  });
+
+  test("compares context experiments", () => {
+    const left = buildContextExperiment(
+      fixtureSnapshot(),
+      { prompt: "zzzz-no-match", seeds: ["codefile:src/orphan.ts"], maxObjects: 1 },
+      "2026-07-01T00:00:00.000Z",
+    );
+    const right = buildContextExperiment(
+      fixtureSnapshot(),
+      { prompt: "请设计 main 的修改方案", seeds: ["codefile:src/main.ts"], maxObjects: 10 },
+      "2026-07-01T00:00:01.000Z",
+    );
+    const comparison = compareContextExperiments(left, right);
+    expect(comparison.leftId).toBe(left.id);
+    expect(comparison.rightId).toBe(right.id);
+    expect(comparison.bundleChanged).toBe(true);
+    expect(comparison.objects.added).toContain("codefile:src/main.ts");
+    expect(comparison.objects.removed).toContain("codefile:src/orphan.ts");
+    expect(comparison.relevantPaths.added).toContain("src/main.ts");
+    expect(comparison.scoreDelta).toBe((right.context.quality?.score ?? 0) - (left.context.quality?.score ?? 0));
   });
 
   test("stores and reads recent Studio sessions", async () => {

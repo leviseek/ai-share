@@ -540,12 +540,150 @@ kbd {
   }
 
   .explorer,
+  .context-lab-panel,
   .console {
     grid-column: auto;
     grid-row: auto;
   }
 
-  .help-grid {
+  .help-grid,
+  .context-lab-grid,
+  .comparison-columns {
     grid-template-columns: 1fr;
   }
+}
+
+.context-lab-panel {
+  grid-column: 2 / 4;
+}
+
+.context-lab-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.lab-card,
+.experiment-detail,
+.comparison-viewer {
+  background: #0b1222;
+  border: 1px solid #26344f;
+  border-radius: 12px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.lab-card h3,
+.experiment-detail h3 {
+  margin: 0;
+}
+
+.lab-form-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.lab-form-row label {
+  color: #8ea3c8;
+  display: grid;
+  font-size: 12px;
+  gap: 4px;
+}
+
+select {
+  background: #111a2e;
+  border: 1px solid #2d3b5f;
+  border-radius: 8px;
+  color: #dbe7ff;
+  padding: 8px;
+  width: 100%;
+}
+
+.lab-meta {
+  color: #8ea3c8;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 8px;
+}
+
+.experiments {
+  display: grid;
+  gap: 8px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.experiment {
+  background: #111a2e;
+  border: 1px solid #26344f;
+  border-radius: 10px;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+}
+
+.experiment:hover {
+  border-color: #60a5fa;
+}
+
+.experiment span,
+.experiment code {
+  color: #adc2e9;
+  font-size: 12px;
+}
+
+.experiment-detail {
+  margin-top: 12px;
+}
+
+.delta {
+  background: #111a2e;
+  border-left: 4px solid #60a5fa;
+  border-radius: 8px;
+  color: #dbe7ff;
+  font-weight: 700;
+  padding: 8px;
+}
+
+.delta.positive {
+  border-left-color: #34d399;
+}
+
+.delta.negative {
+  border-left-color: #f87171;
+}
+
+.comparison-set {
+  background: #111a2e;
+  border-radius: 8px;
+  color: #adc2e9;
+  padding: 8px;
+}
+
+.comparison-set summary {
+  color: #dbe7ff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.comparison-columns {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 8px;
+}
+
+.comparison-columns ul {
+  margin: 6px 0 0;
+  max-height: 140px;
+  overflow: auto;
+  padding-left: 18px;
+}
+
+.comparison-columns li {
+  overflow-wrap: anywhere;
 }

@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import type { CodexDryRun } from "./data.ts";
+import type { CodexDryRun, ContextExperiment, ContextExperimentSummary } from "./data.ts";
 import type { CodexPlanExec, PlanExecStreamEvent } from "./plan-exec.ts";
 
 export type StudioSessionSummary = {
@@ -25,6 +25,13 @@ export type StudioSessionStore = {
   readDetail(id: string): Promise<StudioSessionDetail | undefined>;
   appendEvent(id: string, event: PlanExecStreamEvent): Promise<void>;
   readEvents(id: string): Promise<PlanExecStreamEvent[]>;
+};
+
+export type ContextExperimentStore = {
+  append(summary: ContextExperimentSummary): Promise<void>;
+  recent(limit: number): Promise<ContextExperimentSummary[]>;
+  writeDetail(id: string, detail: ContextExperiment): Promise<void>;
+  readDetail(id: string): Promise<ContextExperiment | undefined>;
 };
 
 export class JsonlStudioSessionStore implements StudioSessionStore {
@@ -85,6 +92,49 @@ export class JsonlStudioSessionStore implements StudioSessionStore {
 
 export function createStudioSessionStore(repoRoot: string): StudioSessionStore {
   return new JsonlStudioSessionStore(repoRoot);
+}
+
+export class JsonlContextExperimentStore implements ContextExperimentStore {
+  readonly path: string;
+  readonly experimentsRoot: string;
+
+  constructor(repoRoot: string) {
+    this.path = resolve(repoRoot, ".rie", "studio", "experiments.jsonl");
+    this.experimentsRoot = resolve(repoRoot, ".rie", "studio", "experiments");
+  }
+
+  async append(summary: ContextExperimentSummary): Promise<void> {
+    await mkdir(dirname(this.path), { recursive: true });
+    const existing = await readTextIfExists(this.path);
+    await writeFile(this.path, `${existing}${JSON.stringify(summary)}\n`);
+  }
+
+  async recent(limit: number): Promise<ContextExperimentSummary[]> {
+    const raw = await readTextIfExists(this.path);
+    return raw
+      .split(/\r?\n/)
+      .filter((line) => line.trim().length > 0)
+      .map((line) => JSON.parse(line) as ContextExperimentSummary)
+      .slice(-limit)
+      .reverse();
+  }
+
+  async writeDetail(id: string, detail: ContextExperiment): Promise<void> {
+    assertSafeSessionId(id);
+    await mkdir(this.experimentsRoot, { recursive: true });
+    await writeFile(resolve(this.experimentsRoot, `${id}.json`), `${JSON.stringify(detail, null, 2)}\n`);
+  }
+
+  async readDetail(id: string): Promise<ContextExperiment | undefined> {
+    assertSafeSessionId(id);
+    const raw = await readTextIfExists(resolve(this.experimentsRoot, `${id}.json`));
+    if (raw.length === 0) return undefined;
+    return JSON.parse(raw) as ContextExperiment;
+  }
+}
+
+export function createContextExperimentStore(repoRoot: string): ContextExperimentStore {
+  return new JsonlContextExperimentStore(repoRoot);
 }
 
 function assertSafeSessionId(id: string): void {

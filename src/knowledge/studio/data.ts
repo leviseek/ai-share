@@ -103,6 +103,61 @@ export type CodexDryRun = {
   promptBundle: PromptBundle;
 };
 
+export type ContextExperimentRequest = {
+  name?: string;
+  prompt: string;
+  intent?: NonNullable<ContextRequest["intent"]>;
+  seeds?: string[];
+  filters?: GraphViewOptions;
+  maxObjects?: number;
+};
+
+export type ContextExperiment = {
+  id: string;
+  timestamp: string;
+  name?: string;
+  prompt: string;
+  intent: NonNullable<ContextRequest["intent"]>;
+  seeds: string[];
+  filters: GraphViewOptions;
+  maxObjects: number;
+  trace: CodexTraceStep[];
+  context: BuiltContext;
+  promptBundle: PromptBundle;
+};
+
+export type ContextExperimentSummary = {
+  id: string;
+  timestamp: string;
+  name?: string;
+  prompt: string;
+  intent: NonNullable<ContextRequest["intent"]>;
+  seeds: number;
+  objects: number;
+  relevantPaths: number;
+  qualityScore?: number;
+  qualityGrade?: ContextQualityReport["grade"];
+  bundleHash: string;
+};
+
+export type ContextExperimentComparison = {
+  leftId: string;
+  rightId: string;
+  scoreDelta: number;
+  grade: { left?: ContextQualityReport["grade"]; right?: ContextQualityReport["grade"] };
+  bundleChanged: boolean;
+  objects: ComparisonSet;
+  relevantPaths: ComparisonSet;
+  gaps: ComparisonSet;
+  recommendations: ComparisonSet;
+};
+
+export type ComparisonSet = {
+  shared: string[];
+  added: string[];
+  removed: string[];
+};
+
 export type StudioSnapshot = Pick<BuildResult, "objects" | "nodes" | "edges">;
 
 export type GraphViewOptions = {
@@ -384,6 +439,181 @@ export function buildCodexDryRun(
     context,
     impact,
     promptBundle,
+  };
+}
+
+export function buildContextExperiment(
+  snapshot: StudioSnapshot,
+  request: ContextExperimentRequest,
+  now: string = new Date().toISOString(),
+): ContextExperiment {
+  const prompt = request.prompt.trim();
+  const intent = request.intent ?? inferIntent(prompt);
+  const maxObjects = normalizeExperimentMaxObjects(request.maxObjects);
+  const searchStartedAt = Date.now();
+  const search = rankByTextSimilarity(snapshot.objects, prompt).slice(0, 10);
+  const explicitSeeds = request.seeds?.filter((seed) => seed.length > 0) ?? [];
+  const selectedSeeds =
+    explicitSeeds.length > 0 ? [...new Set(explicitSeeds)] : search.slice(0, 5).map((item) => item.object.id);
+  const context = buildContext(snapshot, {
+    query: prompt,
+    intent,
+    objectIds: selectedSeeds,
+    budget: { maxObjects },
+  });
+  const impactSeed = context.objects[0]?.id ?? selectedSeeds[0];
+  const impact = impactSeed === undefined ? { nodes: [], edges: [] } : impactAnalysis(snapshot, impactSeed);
+  const promptBundleInput: {
+    prompt: string;
+    intent: NonNullable<ContextRequest["intent"]>;
+    context: BuiltContext;
+    impact: GraphSubgraph;
+    impactSeed?: string;
+  } = { prompt, intent, context, impact };
+  if (impactSeed !== undefined) promptBundleInput.impactSeed = impactSeed;
+  const promptBundle = buildPromptBundle(promptBundleInput);
+  const filters = normalizeExperimentFilters(request.filters);
+  const name = request.name?.trim();
+  const idInput = {
+    name,
+    prompt,
+    intent,
+    seeds: selectedSeeds,
+    filters,
+    maxObjects,
+    now,
+    bundleHash: promptBundle.hash,
+  };
+  const id = canonicalJsonHash(idInput).slice(0, 16);
+  return {
+    id,
+    timestamp: now,
+    ...(name === undefined || name.length === 0 ? {} : { name }),
+    prompt,
+    intent,
+    seeds: selectedSeeds,
+    filters,
+    maxObjects,
+    trace: [
+      {
+        name: "infer_intent",
+        input: { prompt },
+        output: { intent },
+        durationMs: 1,
+      },
+      {
+        name: "search",
+        input: { query: prompt, limit: 10 },
+        output: search.map((item) => ({
+          id: item.object.id,
+          score: item.score,
+          path: item.object.path,
+          title: item.object.title,
+        })),
+        durationMs: Math.max(1, Date.now() - searchStartedAt),
+      },
+      {
+        name: "select_seeds",
+        input: { explicitSeeds: explicitSeeds.length, searchResults: search.length },
+        output: { selectedSeeds },
+        durationMs: 1,
+      },
+      {
+        name: "build_context",
+        input: { intent, maxObjects, filters },
+        output: summarizeContext(context),
+        durationMs: 1,
+      },
+      {
+        name: "evaluate_context_quality",
+        input: { contextObjects: context.objects.length },
+        output: summarizeQuality(context.quality),
+        durationMs: 1,
+      },
+      {
+        name: "compose_prompt_bundle",
+        input: { contextObjects: context.objects.length, impactNodes: impact.nodes.length },
+        output: { hash: promptBundle.hash, relevantPaths: promptBundle.relevantPaths.length },
+        durationMs: 1,
+      },
+    ],
+    context,
+    promptBundle,
+  };
+}
+
+export function summarizeContextExperiment(experiment: ContextExperiment): ContextExperimentSummary {
+  const summary: ContextExperimentSummary = {
+    id: experiment.id,
+    timestamp: experiment.timestamp,
+    prompt: experiment.prompt,
+    intent: experiment.intent,
+    seeds: experiment.seeds.length,
+    objects: experiment.context.objects.length,
+    relevantPaths: experiment.promptBundle.relevantPaths.length,
+    bundleHash: experiment.promptBundle.hash,
+  };
+  if (experiment.name !== undefined) summary.name = experiment.name;
+  if (experiment.context.quality !== undefined) {
+    summary.qualityScore = experiment.context.quality.score;
+    summary.qualityGrade = experiment.context.quality.grade;
+  }
+  return summary;
+}
+
+export function compareContextExperiments(
+  left: ContextExperiment,
+  right: ContextExperiment,
+): ContextExperimentComparison {
+  const grade: ContextExperimentComparison["grade"] = {};
+  if (left.context.quality !== undefined) grade.left = left.context.quality.grade;
+  if (right.context.quality !== undefined) grade.right = right.context.quality.grade;
+  return {
+    leftId: left.id,
+    rightId: right.id,
+    scoreDelta: (right.context.quality?.score ?? 0) - (left.context.quality?.score ?? 0),
+    grade,
+    bundleChanged: left.promptBundle.hash !== right.promptBundle.hash,
+    objects: compareSets(
+      left.context.objects.map((object) => object.id),
+      right.context.objects.map((object) => object.id),
+    ),
+    relevantPaths: compareSets(left.promptBundle.relevantPaths, right.promptBundle.relevantPaths),
+    gaps: compareSets(
+      left.context.quality?.gaps.map((gap) => gap.code) ?? [],
+      right.context.quality?.gaps.map((gap) => gap.code) ?? [],
+    ),
+    recommendations: compareSets(
+      left.context.quality?.recommendations.map((item) => `${item.action}:${item.title}`) ?? [],
+      right.context.quality?.recommendations.map((item) => `${item.action}:${item.title}`) ?? [],
+    ),
+  };
+}
+
+function normalizeExperimentMaxObjects(value: number | undefined): number {
+  if (value === undefined || !Number.isFinite(value)) return 30;
+  return Math.max(1, Math.min(200, Math.trunc(value)));
+}
+
+function normalizeExperimentFilters(filters: GraphViewOptions | undefined): GraphViewOptions {
+  if (filters === undefined) return {};
+  const normalized: GraphViewOptions = {};
+  if (filters.seedIds !== undefined) normalized.seedIds = filters.seedIds.filter((seed) => seed.length > 0);
+  if (filters.depth !== undefined) normalized.depth = normalizeDepth(filters.depth);
+  if (filters.nodeTypes !== undefined) normalized.nodeTypes = filters.nodeTypes;
+  if (filters.edgeTypes !== undefined) normalized.edgeTypes = filters.edgeTypes;
+  if (filters.query !== undefined) normalized.query = filters.query;
+  if (filters.limit !== undefined) normalized.limit = normalizeLimit(filters.limit);
+  return normalized;
+}
+
+function compareSets(left: string[], right: string[]): ComparisonSet {
+  const leftSet = new Set(left);
+  const rightSet = new Set(right);
+  return {
+    shared: [...leftSet].filter((item) => rightSet.has(item)).sort(),
+    added: [...rightSet].filter((item) => !leftSet.has(item)).sort(),
+    removed: [...leftSet].filter((item) => !rightSet.has(item)).sort(),
   };
 }
 

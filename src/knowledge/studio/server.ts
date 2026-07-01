@@ -5,16 +5,24 @@ import type { KnowledgeObjectType, RelationshipType } from "../core/types.ts";
 import {
   buildCodexDryRun,
   buildCodexMockTrace,
+  buildContextExperiment,
   buildDashboardMetrics,
   buildGraphView,
   buildImpactView,
   buildRepositoryTree,
   buildStudioContext,
+  compareContextExperiments,
   loadStudioSnapshot,
+  summarizeContextExperiment,
   type StudioSnapshot,
 } from "./data.ts";
 import { runCodexPlanExec, runCodexPlanExecStream, type PlanExecStreamEvent } from "./plan-exec.ts";
-import { createStudioSessionStore, type StudioSessionStore } from "./session-store.ts";
+import {
+  createContextExperimentStore,
+  createStudioSessionStore,
+  type ContextExperimentStore,
+  type StudioSessionStore,
+} from "./session-store.ts";
 
 const DEFAULT_PORT = 3737;
 const DIST_DIR = join(import.meta.dir, "public", "dist");
@@ -24,6 +32,7 @@ type StudioState = {
   snapshot: StudioSnapshot;
   lastContext?: BuiltContext;
   sessions: StudioSessionStore;
+  experiments: ContextExperimentStore;
   pendingStreams: Map<string, ReturnType<typeof buildCodexDryRun>>;
 };
 
@@ -33,6 +42,7 @@ async function main(argv: string[]): Promise<void> {
   const state: StudioState = {
     snapshot: await loadStudioSnapshot(repoRoot),
     sessions: createStudioSessionStore(repoRoot),
+    experiments: createContextExperimentStore(repoRoot),
     pendingStreams: new Map(),
   };
   const server = Bun.serve({
@@ -66,6 +76,10 @@ async function routeRequest(request: Request, state: StudioState): Promise<Respo
   if (url.pathname === "/api/codex-console/sessions") return handleSessionsRequest(url, state);
   if (url.pathname === "/api/codex-console/session") return handleSessionDetailRequest(url, state);
   if (url.pathname === "/api/codex-console/session-events") return handleSessionEventsRequest(url, state);
+  if (url.pathname === "/api/context-lab/run") return handleContextLabRunRequest(request, state);
+  if (url.pathname === "/api/context-lab/experiments") return handleContextLabExperimentsRequest(url, state);
+  if (url.pathname === "/api/context-lab/experiment") return handleContextLabExperimentRequest(url, state);
+  if (url.pathname === "/api/context-lab/compare") return handleContextLabCompareRequest(request, state);
   return jsonResponse({ error: "未找到请求的 Studio 资源。" }, 404);
 }
 
@@ -266,6 +280,53 @@ async function handleSessionEventsRequest(url: URL, state: StudioState): Promise
   return jsonResponse(await state.sessions.readEvents(id));
 }
 
+async function handleContextLabRunRequest(request: Request, state: StudioState): Promise<Response> {
+  const body = await parseJsonObject(request);
+  const prompt = readString(body, "prompt");
+  if (prompt.length === 0) throw new Error("请提供 prompt。");
+  const experimentRequest: Parameters<typeof buildContextExperiment>[1] = {
+    prompt,
+    maxObjects: readPositiveInteger(body, "maxObjects", 30),
+  };
+  const name = readOptionalString(body, "name");
+  const intent = readIntent(body);
+  const seeds = readStringArray(body, "seeds");
+  const filters = readGraphFilters(body);
+  if (name !== undefined) experimentRequest.name = name;
+  if (intent !== undefined) experimentRequest.intent = intent;
+  if (seeds !== undefined) experimentRequest.seeds = seeds;
+  if (filters !== undefined) experimentRequest.filters = filters;
+  const experiment = buildContextExperiment(state.snapshot, experimentRequest);
+  state.lastContext = experiment.context;
+  await state.experiments.append(summarizeContextExperiment(experiment));
+  await state.experiments.writeDetail(experiment.id, experiment);
+  return jsonResponse(experiment);
+}
+
+async function handleContextLabExperimentsRequest(url: URL, state: StudioState): Promise<Response> {
+  const limit = Number(url.searchParams.get("limit") ?? "20");
+  return jsonResponse(await state.experiments.recent(Number.isInteger(limit) && limit > 0 ? limit : 20));
+}
+
+async function handleContextLabExperimentRequest(url: URL, state: StudioState): Promise<Response> {
+  const id = url.searchParams.get("id");
+  if (id === null || id.length === 0) throw new Error("请提供 experiment id。");
+  const detail = await state.experiments.readDetail(id);
+  if (detail === undefined) return jsonResponse({ error: "未找到 experiment detail。" }, 404);
+  return jsonResponse(detail);
+}
+
+async function handleContextLabCompareRequest(request: Request, state: StudioState): Promise<Response> {
+  const body = await parseJsonObject(request);
+  const leftId = readString(body, "leftId");
+  const rightId = readString(body, "rightId");
+  if (leftId.length === 0 || rightId.length === 0) throw new Error("请提供 leftId 和 rightId。");
+  const left = await state.experiments.readDetail(leftId);
+  const right = await state.experiments.readDetail(rightId);
+  if (left === undefined || right === undefined) return jsonResponse({ error: "未找到要对比的 experiment。" }, 404);
+  return jsonResponse(compareContextExperiments(left, right));
+}
+
 async function staticResponse(path: string): Promise<Response> {
   const safePath = path.replaceAll("\\", "/").replace(/^\/+/, "");
   if (safePath.includes("..")) return jsonResponse({ error: "非法静态资源路径。" }, 400);
@@ -361,6 +422,41 @@ function isRelationshipType(value: string): value is RelationshipType {
     "declares",
     "exports",
   ].includes(value);
+}
+
+function readOptionalString(body: Record<string, unknown>, key: string): string | undefined {
+  const value = readString(body, key);
+  return value.length === 0 ? undefined : value;
+}
+
+function readGraphFilters(body: Record<string, unknown>): Parameters<typeof buildContextExperiment>[1]["filters"] {
+  const value = body.filters;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const filters: NonNullable<Parameters<typeof buildContextExperiment>[1]["filters"]> = {};
+  const seedIds = readStringArray(record, "seedIds");
+  const nodeTypesValue = record.nodeTypes;
+  const edgeTypesValue = record.edgeTypes;
+  const query = readString(record, "query");
+  const depth = record.depth;
+  const limit = record.limit;
+  if (seedIds !== undefined) filters.seedIds = seedIds;
+  if (typeof depth === "number") filters.depth = depth;
+  if (Array.isArray(nodeTypesValue)) {
+    const nodeTypes = nodeTypesValue.filter(
+      (item): item is KnowledgeObjectType => typeof item === "string" && isKnowledgeObjectType(item),
+    );
+    if (nodeTypes.length > 0) filters.nodeTypes = nodeTypes;
+  }
+  if (Array.isArray(edgeTypesValue)) {
+    const edgeTypes = edgeTypesValue.filter(
+      (item): item is RelationshipType => typeof item === "string" && isRelationshipType(item),
+    );
+    if (edgeTypes.length > 0) filters.edgeTypes = edgeTypes;
+  }
+  if (query.length > 0) filters.query = query;
+  if (typeof limit === "number") filters.limit = limit;
+  return filters;
 }
 
 function readString(body: Record<string, unknown>, key: string): string {
