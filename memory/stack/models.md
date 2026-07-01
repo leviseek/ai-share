@@ -4,7 +4,7 @@
 
 当前项目仅支持 Codex + GPT 兼容模型组：
 
-- **gpt**：默认 codexapis，可选 packyapi、axasapi。系列包括 gpt-5.5、gpt-5.4、gpt-5.4-mini、gpt-5.5-coding。
+- **gpt**：默认 codexapis，可选 packyapi、axasapi、lingsuan。系列包括 gpt-5.5、gpt-5.4、gpt-5.4-mini、gpt-5.5-coding。
 
 API Key 通过环境变量引用，不写入仓库。
 
@@ -31,7 +31,7 @@ Codex CLI 生成单套 `config.toml`，默认模型由 `config/global.yaml` 的 
 ## Cost 意识
 
 - gpt-5.4-mini 是成本最低的 GPT 模型（$0.0012/$0.0024），适合低复杂度任务。
-- provider 可在 codexapis、packyapi、axasapi 间切换。
+- provider 可在 codexapis、packyapi、axasapi、lingsuan 间切换。
 - 模型 provider 本身不写入仓库密钥，只引用环境变量名。
 
 ## Fallback 链

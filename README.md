@@ -60,7 +60,7 @@ bun run ai:gen -- --force
 ## Provider 选择
 
 当前项目仅支持 Codex + GPT 兼容模型组，默认 provider 为 `gpt=codexapis`。可选 provider 来自
-`config/provider.yaml`：`codexapis`、`packyapi`、`axasapi`。
+`config/provider.yaml`：`codexapis`、`packyapi`、`axasapi`、`lingsuan`。
 
 在交互式终端直接运行 `bun run ai:gen` 且未通过参数或环境变量指定 provider 时，生成器会列出
 `config/provider.yaml` 中所有已配置 provider。选择某个 provider 后会把它应用到 GPT 模型组。可用 ↑/↓、数字键、Enter 或支持 SGR mouse 的终端鼠标点击选择。
@@ -72,6 +72,7 @@ bun run ai:gen -- --force
 bun run ai:gen -- --provider packyapi --force
 bun run ai:gen -- --gpt-provider packyapi --force
 bun run ai:gen -- --provider-group gpt=packyapi --force
+bun run ai:gen -- --provider lingsuan --force
 ```
 
 环境变量也支持同样的 provider 选择：
@@ -79,6 +80,7 @@ bun run ai:gen -- --provider-group gpt=packyapi --force
 ```sh
 AI_SHARE_PROVIDER=packyapi bun run ai:gen -- --force
 AI_SHARE_GPT_PROVIDER=packyapi bun run ai:gen -- --force
+AI_SHARE_PROVIDER=lingsuan bun run ai:gen -- --force
 ```
 
 ## 生成输出
@@ -147,6 +149,7 @@ config/env.yaml       -> 写入 CODEX_HOME/.env 的非密钥 Codex 运行时环�
 CODEXAPIS_API_KEY
 PACKYAPI_API_KEY
 AXASAPI_API_KEY
+LINGSUAN_API_KEY
 ```
 
 Windows PowerShell 示例：
@@ -155,6 +158,7 @@ Windows PowerShell 示例：
 [Environment]::SetEnvironmentVariable("CODEXAPIS_API_KEY", "your-key", "User")
 [Environment]::SetEnvironmentVariable("PACKYAPI_API_KEY", "your-key", "User")
 [Environment]::SetEnvironmentVariable("AXASAPI_API_KEY", "your-key", "User")
+[Environment]::SetEnvironmentVariable("LINGSUAN_API_KEY", "your-key", "User")
 ```
 
 macOS/Linux 示例：
@@ -163,6 +167,7 @@ macOS/Linux 示例：
 export CODEXAPIS_API_KEY="your-key"
 export PACKYAPI_API_KEY="your-key"
 export AXASAPI_API_KEY="your-key"
+export LINGSUAN_API_KEY="your-key"
 ```
 
 ## Codex .env

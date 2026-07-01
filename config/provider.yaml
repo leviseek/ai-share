@@ -29,3 +29,11 @@ providers:
     api_key: ${AXASAPI_API_KEY}
     timeout: 600000
     chunkTimeout: 30000
+
+  lingsuan:
+    name: Lingsuan API
+    short_name: Lingsuan
+    base_url: https://lingsuan.top
+    api_key: ${LINGSUAN_API_KEY}
+    timeout: 600000
+    chunkTimeout: 30000
