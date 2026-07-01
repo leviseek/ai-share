@@ -20,7 +20,10 @@
     "provider:check": "bun run ./src/cli/provider-model-check.ts",
     "schema:gen": "bun run ./src/cli/schema-export.ts",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "knowledge:build": "bun run ./src/knowledge/cli.ts build",
+    "knowledge:doctor": "bun run ./src/knowledge/cli.ts doctor",
+    "knowledge:stats": "bun run ./src/knowledge/cli.ts stats"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

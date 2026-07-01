@@ -43,3 +43,6 @@ memory/private/
 memory/project/
 memory/runtime/
 memory/sync/
+
+### Repository Intelligence Engine
+.rie/
