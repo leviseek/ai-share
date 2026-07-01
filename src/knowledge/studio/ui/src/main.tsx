@@ -129,6 +129,22 @@ type SessionDetail = DryRun | PlanExec;
 
 type StreamEvent = { timestamp: string; type: string; payload: unknown };
 
+type Toast = {
+  id: string;
+  kind: "success" | "error" | "info";
+  message: string;
+};
+
+type StudioPreferences = {
+  graphFilters: GraphFilters;
+  graphSeeds: string[];
+  selectedObjectId: string;
+  contextQuery: string;
+  prompt: string;
+  helpOpen: boolean;
+  inspectorCollapsed: boolean;
+};
+
 const nodeTypeOptions = [
   "Project",
   "Directory",
@@ -156,27 +172,102 @@ const edgeTypeOptions = [
   "exports",
 ];
 const defaultFilters: GraphFilters = { query: "", depth: 1, limit: 120, nodeTypes: [], edgeTypes: [] };
+const preferencesKey = "rie.studio.preferences.v1";
+const defaultPreferences: StudioPreferences = {
+  graphFilters: defaultFilters,
+  graphSeeds: [],
+  selectedObjectId: "",
+  contextQuery: "设计 Repository Intelligence Studio v2",
+  prompt: "请规划一个知识引擎驱动的 Codex 改动",
+  helpOpen: false,
+  inspectorCollapsed: false,
+};
 
 function App() {
+  const [preferences, setPreferences] = useState(() => readStudioPreferences());
   const [tree, setTree] = useState<TreeNode | undefined>();
   const [graph, setGraph] = useState<GraphData>({ nodes: [], edges: [] });
   const [dashboard, setDashboard] = useState<Dashboard | undefined>();
-  const [selectedObjectId, setSelectedObjectId] = useState("");
-  const [graphSeeds, setGraphSeeds] = useState<string[]>([]);
-  const [graphFilters, setGraphFilters] = useState<GraphFilters>(defaultFilters);
-  const [contextQuery, setContextQuery] = useState("设计 Repository Intelligence Studio v2");
+  const [selectedObjectId, setSelectedObjectId] = useState(preferences.selectedObjectId);
+  const [graphSeeds, setGraphSeeds] = useState<string[]>(preferences.graphSeeds);
+  const [graphFilters, setGraphFilters] = useState<GraphFilters>(preferences.graphFilters);
+  const [contextQuery, setContextQuery] = useState(preferences.contextQuery);
   const [contextOutput, setContextOutput] = useState("");
   const [contextQuality, setContextQuality] = useState<ContextQuality | undefined>();
   const [impactOutput, setImpactOutput] = useState("");
-  const [prompt, setPrompt] = useState("请规划一个知识引擎驱动的 Codex 改动");
+  const [prompt, setPrompt] = useState(preferences.prompt);
   const [dryRun, setDryRun] = useState<DryRun | undefined>();
   const [planExec, setPlanExec] = useState<PlanExec | undefined>();
   const [sessionDetail, setSessionDetail] = useState<SessionDetail | undefined>();
   const [streamEvents, setStreamEvents] = useState<StreamEvent[]>([]);
   const [streamStatus, setStreamStatus] = useState("idle");
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [activeActions, setActiveActions] = useState<string[]>([]);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [helpOpen, setHelpOpen] = useState(preferences.helpOpen);
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(preferences.inspectorCollapsed);
 
   const selectedDetail = useMemo(() => graphDetail(graph, selectedObjectId), [graph, selectedObjectId]);
+
+  const graphSearchRef = useRef<HTMLInputElement>(null);
+  const isBusy = activeActions.length > 0;
+
+  useEffect(() => {
+    writeStudioPreferences(preferences);
+  }, [preferences]);
+
+  function updatePreferences(patch: Partial<StudioPreferences>) {
+    setPreferences((current) => ({ ...current, ...patch }));
+  }
+
+  function setSelectedObject(value: string) {
+    setSelectedObjectId(value);
+    updatePreferences({ selectedObjectId: value });
+  }
+
+  function setContextQueryValue(value: string) {
+    setContextQuery(value);
+    updatePreferences({ contextQuery: value });
+  }
+
+  function setPromptValue(value: string) {
+    setPrompt(value);
+    updatePreferences({ prompt: value });
+  }
+
+  function showToast(kind: Toast["kind"], message: string) {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setToasts((items) => [...items, { id, kind, message }]);
+    setTimeout(() => setToasts((items) => items.filter((item) => item.id !== id)), kind === "error" ? 7000 : 3000);
+  }
+
+  function dismissToasts() {
+    setToasts([]);
+  }
+
+  async function runAction(label: string, task: () => Promise<void>, successMessage?: string) {
+    setActiveActions((items) => [...items, label]);
+    try {
+      await task();
+      if (successMessage !== undefined) showToast("success", successMessage);
+    } catch (error) {
+      showToast("error", error instanceof Error ? error.message : `${label} failed.`);
+    } finally {
+      setActiveActions((items) => items.filter((item) => item !== label));
+    }
+  }
+
+  function toggleHelp() {
+    const next = !helpOpen;
+    setHelpOpen(next);
+    updatePreferences({ helpOpen: next });
+  }
+
+  function toggleInspector() {
+    const next = !inspectorCollapsed;
+    setInspectorCollapsed(next);
+    updatePreferences({ inspectorCollapsed: next });
+  }
 
   async function refresh() {
     const [treeData, graphData, dashboardData, sessionData] = await Promise.all([
@@ -198,22 +289,23 @@ function App() {
   async function applyGraph(nextSeeds = graphSeeds, nextFilters = graphFilters) {
     setGraphSeeds(nextSeeds);
     setGraphFilters(nextFilters);
+    updatePreferences({ graphSeeds: nextSeeds, graphFilters: nextFilters });
     setGraph(await loadGraph(nextSeeds, nextFilters));
   }
 
   async function selectObject(id: string) {
-    setSelectedObjectId(id);
+    setSelectedObject(id);
     await applyGraph([id], { ...graphFilters, depth: Math.max(graphFilters.depth, 2) });
   }
 
   async function addGraphSeed(id: string) {
     const nextSeeds = [...new Set([...graphSeeds, id])];
-    setSelectedObjectId(id);
+    setSelectedObject(id);
     await applyGraph(nextSeeds, graphFilters);
   }
 
   async function resetGraph() {
-    setSelectedObjectId("");
+    setSelectedObject("");
     await applyGraph([], defaultFilters);
   }
 
@@ -321,6 +413,52 @@ function App() {
     setContextQuality(detail.context.quality);
   }
 
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target;
+      const isEditable =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "r") {
+        event.preventDefault();
+        void runAction("refresh", refresh, "Studio refreshed.");
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === "Enter") {
+        event.preventDefault();
+        void runAction("plan-exec-stream", runPlanExecStream, "Plan Exec Stream started.");
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        void runAction("dry-run", runDryRun, "Dry Run completed.");
+        return;
+      }
+      if (!isEditable && event.key === "/") {
+        event.preventDefault();
+        graphSearchRef.current?.focus();
+        return;
+      }
+      if (!isEditable && event.key === "?") {
+        event.preventDefault();
+        toggleHelp();
+        return;
+      }
+      if (event.key === "Escape") {
+        dismissToasts();
+        if (helpOpen) {
+          setHelpOpen(false);
+          updatePreferences({ helpOpen: false });
+        } else {
+          setSelectedObject("");
+        }
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [graphSeeds, graphFilters, helpOpen, prompt]);
+
   return (
     <>
       <header>
@@ -328,15 +466,27 @@ function App() {
           <h1>Repository Intelligence Studio</h1>
           <p>Interactive Graph Explorer · Knowledge Engine Trace · Codex Observability</p>
         </div>
-        <button onClick={() => void refresh()}>Refresh</button>
+        <div class="header-actions">
+          <button onClick={() => toggleHelp()}>Help</button>
+          <button disabled={isBusy} onClick={() => void runAction("refresh", refresh, "Studio refreshed.")}>
+            {activeActions.includes("refresh") ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </header>
+      <ToastStack toasts={toasts} onDismiss={(id) => setToasts((items) => items.filter((item) => item.id !== id))} />
+      {helpOpen && <HelpPanel onClose={toggleHelp} />}
       <main>
         <aside class="panel explorer">
           <h2>Repository Explorer</h2>
           {tree === undefined ? (
-            <p>Loading...</p>
+            <EmptyState title="Loading repository" message="Repository tree will appear after refresh completes." />
+          ) : tree.children.length === 0 ? (
+            <EmptyState title="No repository objects" message="Run knowledge build or refresh the Studio snapshot." />
           ) : (
-            <RepositoryExplorer node={tree} onSelect={(id) => void selectObject(id)} />
+            <RepositoryExplorer
+              node={tree}
+              onSelect={(id) => void runAction("select-object", () => selectObject(id))}
+            />
           )}
         </aside>
         <section class="panel graph-panel">
@@ -345,57 +495,167 @@ function App() {
             filters={graphFilters}
             seeds={graphSeeds}
             selectedId={selectedObjectId}
-            onSelect={setSelectedObjectId}
-            onExpand={(id) => void addGraphSeed(id)}
-            onApply={(filters) => void applyGraph(graphSeeds, filters)}
-            onReset={() => void resetGraph()}
+            onSelect={setSelectedObject}
+            onExpand={(id) => void runAction("graph-expand", () => addGraphSeed(id), "Graph expanded.")}
+            onApply={(filters) =>
+              void runAction("graph-apply", () => applyGraph(graphSeeds, filters), "Graph filters applied.")
+            }
+            onReset={() => void runAction("graph-reset", resetGraph, "Graph reset.")}
+            searchRef={graphSearchRef}
+            busy={isBusy}
           />
         </section>
-        <aside class="panel inspector">
-          <GraphInspector
-            detail={selectedDetail}
-            selectedObjectId={selectedObjectId}
-            setSelectedObjectId={setSelectedObjectId}
-            analyzeImpact={() => void analyzeImpact()}
-            buildContext={() => void buildContextForSelected()}
-          />
-          <section>
-            <h2>Context Builder</h2>
-            <textarea rows={3} value={contextQuery} onInput={(event) => setContextQuery(event.currentTarget.value)} />
-            <button onClick={() => void buildContext()}>Build Context</button>
-            <pre>{contextOutput}</pre>
-            <ContextQualityPanel quality={contextQuality} />
-          </section>
-          <section>
-            <h2>Impact Analyzer</h2>
-            <input
-              value={selectedObjectId}
-              onInput={(event) => setSelectedObjectId(event.currentTarget.value)}
-              placeholder="object id"
-            />
-            <button onClick={() => void analyzeImpact()}>Analyze</button>
-            <pre>{impactOutput}</pre>
-          </section>
-          <KnowledgeDashboard dashboard={dashboard} />
+        <aside class={inspectorCollapsed ? "panel inspector collapsed" : "panel inspector"}>
+          <div class="panel-title">
+            <h2>Inspector</h2>
+            <button onClick={() => toggleInspector()}>{inspectorCollapsed ? "Expand" : "Collapse"}</button>
+          </div>
+          {!inspectorCollapsed && (
+            <>
+              <GraphInspector
+                detail={selectedDetail}
+                selectedObjectId={selectedObjectId}
+                setSelectedObjectId={setSelectedObject}
+                analyzeImpact={() => void runAction("impact", analyzeImpact, "Impact analyzed.")}
+                buildContext={() =>
+                  void runAction("context-selected", buildContextForSelected, "Selected context built.")
+                }
+              />
+              <section>
+                <h2>Context Builder</h2>
+                <textarea
+                  rows={3}
+                  value={contextQuery}
+                  onInput={(event) => setContextQueryValue(event.currentTarget.value)}
+                />
+                <button disabled={isBusy} onClick={() => void runAction("context", buildContext, "Context built.")}>
+                  {activeActions.includes("context") ? "Building..." : "Build Context"}
+                </button>
+                <pre>{contextOutput}</pre>
+                <ContextQualityPanel quality={contextQuality} />
+              </section>
+              <section>
+                <h2>Impact Analyzer</h2>
+                <input
+                  value={selectedObjectId}
+                  onInput={(event) => setSelectedObject(event.currentTarget.value)}
+                  placeholder="object id"
+                />
+                <button
+                  disabled={isBusy || selectedObjectId.length === 0}
+                  onClick={() => void runAction("impact", analyzeImpact, "Impact analyzed.")}
+                >
+                  {activeActions.includes("impact") ? "Analyzing..." : "Analyze"}
+                </button>
+                <pre>{impactOutput}</pre>
+              </section>
+              <KnowledgeDashboard dashboard={dashboard} />
+            </>
+          )}
         </aside>
         <section class="panel console">
           <CodexConsole
             prompt={prompt}
-            setPrompt={setPrompt}
+            setPrompt={setPromptValue}
             dryRun={dryRun}
             sessions={sessions}
-            runDryRun={runDryRun}
-            runPlanExec={runPlanExec}
+            runDryRun={() => runAction("dry-run", runDryRun, "Dry Run completed.")}
+            runPlanExec={() => runAction("plan-exec", runPlanExec, "Plan Exec completed.")}
             planExec={planExec}
             sessionDetail={sessionDetail}
-            loadSessionDetail={loadSessionDetail}
-            runPlanExecStream={runPlanExecStream}
+            loadSessionDetail={(id) => runAction("session-detail", () => loadSessionDetail(id))}
+            runPlanExecStream={() => runAction("plan-exec-stream", runPlanExecStream, "Plan Exec Stream started.")}
             streamEvents={streamEvents}
             streamStatus={streamStatus}
+            busy={isBusy}
+            activeActions={activeActions}
           />
         </section>
       </main>
     </>
+  );
+}
+
+function ToastStack(props: { toasts: Toast[]; onDismiss(id: string): void }) {
+  if (props.toasts.length === 0) return null;
+  return (
+    <div class="toast-stack" role="status" aria-live="polite">
+      {props.toasts.map((toast) => (
+        <button class={`toast ${toast.kind}`} key={toast.id} onClick={() => props.onDismiss(toast.id)}>
+          {toast.message}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState(props: { title: string; message: string }) {
+  return (
+    <div class="empty-state">
+      <strong>{props.title}</strong>
+      <span>{props.message}</span>
+    </div>
+  );
+}
+
+function HelpPanel(props: { onClose(): void }) {
+  return (
+    <div class="help-backdrop" onClick={() => props.onClose()}>
+      <section class="help-panel" onClick={(event) => event.stopPropagation()}>
+        <div class="panel-title">
+          <h2>Studio Help</h2>
+          <button onClick={() => props.onClose()}>Close</button>
+        </div>
+        <p>Repository Intelligence Studio 展示 Knowledge Engine 如何选择上下文、分析影响并驱动 Codex 只读执行。</p>
+        <div class="help-grid">
+          <article>
+            <h3>Explorer</h3>
+            <p>浏览仓库对象，点击文件或符号作为 graph seed。</p>
+          </article>
+          <article>
+            <h3>Graph</h3>
+            <p>搜索、过滤、拖拽和双击扩展知识图谱。</p>
+          </article>
+          <article>
+            <h3>Context</h3>
+            <p>构建上下文并查看质量评分、缺口和建议。</p>
+          </article>
+          <article>
+            <h3>Impact</h3>
+            <p>围绕选中对象查看影响范围。</p>
+          </article>
+          <article>
+            <h3>Console</h3>
+            <p>Dry Run 和 Plan Exec 展示 Codex 将使用的上下文与执行观测。</p>
+          </article>
+          <article>
+            <h3>Safety</h3>
+            <p>Plan Exec 保持只读 prompt + Git guard；点击执行才会调用真实 Codex。</p>
+          </article>
+        </div>
+        <h3>Shortcuts</h3>
+        <ul class="shortcut-list">
+          <li>
+            <kbd>Ctrl/Cmd</kbd> + <kbd>R</kbd> Refresh
+          </li>
+          <li>
+            <kbd>Ctrl/Cmd</kbd> + <kbd>Enter</kbd> Dry Run
+          </li>
+          <li>
+            <kbd>Ctrl/Cmd</kbd> + <kbd>Shift</kbd> + <kbd>Enter</kbd> Plan Exec Stream
+          </li>
+          <li>
+            <kbd>/</kbd> Focus graph search
+          </li>
+          <li>
+            <kbd>?</kbd> Toggle help
+          </li>
+          <li>
+            <kbd>Esc</kbd> Close help/toasts or clear selection
+          </li>
+        </ul>
+      </section>
+    </div>
   );
 }
 
@@ -433,6 +693,8 @@ function GraphExplorer(props: {
   onExpand(id: string): void;
   onApply(filters: GraphFilters): void;
   onReset(): void;
+  searchRef: { current: HTMLInputElement | null };
+  busy: boolean;
 }) {
   const [draft, setDraft] = useState(props.filters);
   useEffect(() => setDraft(props.filters), [props.filters]);
@@ -445,10 +707,13 @@ function GraphExplorer(props: {
             {props.graph.nodes.length} nodes / {props.graph.edges.length} edges · seeds {props.seeds.length}
           </span>
         </div>
-        <button onClick={() => props.onReset()}>Reset</button>
+        <button disabled={props.busy} onClick={() => props.onReset()}>
+          Reset
+        </button>
       </div>
       <div class="graph-controls">
         <input
+          ref={props.searchRef}
           value={draft.query}
           placeholder="Search id / label / path"
           onInput={(event) => setDraft({ ...draft, query: event.currentTarget.value })}
@@ -473,7 +738,9 @@ function GraphExplorer(props: {
             onInput={(event) => setDraft({ ...draft, limit: Number(event.currentTarget.value) })}
           />
         </label>
-        <button onClick={() => props.onApply(draft)}>Apply</button>
+        <button disabled={props.busy} onClick={() => props.onApply(draft)}>
+          Apply
+        </button>
       </div>
       <FilterChips
         title="Node Types"
@@ -749,15 +1016,23 @@ function CodexConsole(props: {
   runPlanExecStream(): Promise<void>;
   streamEvents: StreamEvent[];
   streamStatus: string;
+  busy: boolean;
+  activeActions: string[];
 }) {
   return (
     <>
       <h2>Codex Console · Dry Run / Plan Exec</h2>
       <div class="console-input">
         <input value={props.prompt} onInput={(event) => props.setPrompt(event.currentTarget.value)} />
-        <button onClick={() => void props.runDryRun()}>Run Dry Run</button>
-        <button onClick={() => void props.runPlanExec()}>Run Plan Exec</button>
-        <button onClick={() => void props.runPlanExecStream()}>Run Plan Exec Stream</button>
+        <button disabled={props.busy} onClick={() => void props.runDryRun()}>
+          {props.activeActions.includes("dry-run") ? "Running..." : "Run Dry Run"}
+        </button>
+        <button disabled={props.busy} onClick={() => void props.runPlanExec()}>
+          {props.activeActions.includes("plan-exec") ? "Running..." : "Run Plan Exec"}
+        </button>
+        <button disabled={props.busy} onClick={() => void props.runPlanExecStream()}>
+          {props.activeActions.includes("plan-exec-stream") ? "Starting..." : "Run Plan Exec Stream"}
+        </button>
       </div>
       {props.dryRun === undefined ? (
         <p>运行 dry run 或 plan exec 后会展示知识引擎 trace、prompt bundle 与真实 Codex 只读执行结果。</p>
@@ -768,20 +1043,24 @@ function CodexConsole(props: {
       <StreamViewer events={props.streamEvents} status={props.streamStatus} />
       {props.sessionDetail !== undefined && <SessionDetailViewer detail={props.sessionDetail} />}
       <h2>Recent Sessions</h2>
-      <div class="sessions">
-        {props.sessions.map((session) => (
-          <article class="session" key={session.id} onClick={() => void props.loadSessionDetail(session.id)}>
-            <strong>
-              {session.kind ?? "dry-run"} · {session.intent}
-            </strong>
-            <span>{session.prompt}</span>
-            <code>
-              {session.bundleHash.slice(0, 12)}
-              {session.exitCode === undefined ? "" : ` · exit ${session.exitCode}`}
-            </code>
-          </article>
-        ))}
-      </div>
+      {props.sessions.length === 0 ? (
+        <EmptyState title="No sessions" message="Dry Run and Plan Exec sessions will appear here." />
+      ) : (
+        <div class="sessions">
+          {props.sessions.map((session) => (
+            <article class="session" key={session.id} onClick={() => void props.loadSessionDetail(session.id)}>
+              <strong>
+                {session.kind ?? "dry-run"} · {session.intent}
+              </strong>
+              <span>{session.prompt}</span>
+              <code>
+                {session.bundleHash.slice(0, 12)}
+                {session.exitCode === undefined ? "" : ` · exit ${session.exitCode}`}
+              </code>
+            </article>
+          ))}
+        </div>
+      )}
     </>
   );
 }
@@ -864,7 +1143,8 @@ function StreamViewer(props: { events: StreamEvent[]; status: string }) {
     .filter((item) => item.type === "stderr")
     .map((item) => (item.payload as { chunk?: string }).chunk ?? "")
     .join("");
-  if (props.events.length === 0 && props.status === "idle") return null;
+  if (props.events.length === 0 && props.status === "idle")
+    return <EmptyState title="No stream events" message="Run Plan Exec Stream to observe live events." />;
   return (
     <div class="plan-exec">
       <h3>Streaming Plan Exec · {props.status}</h3>
@@ -942,6 +1222,37 @@ function nodeX(value: SimNode | string): number {
 
 function nodeY(value: SimNode | string): number {
   return typeof value === "string" ? 0 : (value.y ?? 0);
+}
+
+function readStudioPreferences(): StudioPreferences {
+  try {
+    const raw = localStorage.getItem(preferencesKey);
+    if (raw === null) return defaultPreferences;
+    const value = JSON.parse(raw) as Partial<StudioPreferences>;
+    return {
+      ...defaultPreferences,
+      ...value,
+      graphFilters: { ...defaultFilters, ...(value.graphFilters ?? {}) },
+      graphSeeds: Array.isArray(value.graphSeeds)
+        ? value.graphSeeds.filter((item): item is string => typeof item === "string")
+        : [],
+      selectedObjectId: typeof value.selectedObjectId === "string" ? value.selectedObjectId : "",
+      contextQuery: typeof value.contextQuery === "string" ? value.contextQuery : defaultPreferences.contextQuery,
+      prompt: typeof value.prompt === "string" ? value.prompt : defaultPreferences.prompt,
+      helpOpen: typeof value.helpOpen === "boolean" ? value.helpOpen : false,
+      inspectorCollapsed: typeof value.inspectorCollapsed === "boolean" ? value.inspectorCollapsed : false,
+    };
+  } catch {
+    return defaultPreferences;
+  }
+}
+
+function writeStudioPreferences(preferences: StudioPreferences): void {
+  try {
+    localStorage.setItem(preferencesKey, JSON.stringify(preferences));
+  } catch {
+    // Ignore browser storage failures.
+  }
 }
 
 async function getJson<T>(path: string): Promise<T> {
