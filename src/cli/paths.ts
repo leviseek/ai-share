@@ -3,7 +3,6 @@ import { resolve } from "node:path";
 export type GeneratorPaths = {
   projectRoot: string;
   configDir: string;
-  binDir: string;
   aiWorkspaceDir: string;
   workspaceAiShareDir: string;
   homeDir: string;
@@ -12,13 +11,11 @@ export type GeneratorPaths = {
   targetCodexEnv: string;
   targetCodexInstructions: string;
   targetRuntimeManifest: string;
-  targetBinDir: string;
   targetCodexSkillsDir: string;
 };
 
 export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.dir, "..", "..")): GeneratorPaths {
   const configDir = resolve(projectRoot, "config");
-  const binDir = resolve(projectRoot, "bin");
   const homeDir = resolve(Bun.env.HOME ?? Bun.env.USERPROFILE ?? "");
   const aiWorkspaceDir = resolve(homeDir, "ai-workspace");
   const workspaceAiShareDir = resolve(aiWorkspaceDir, "ai-share");
@@ -31,7 +28,6 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
   return {
     projectRoot,
     configDir,
-    binDir,
     aiWorkspaceDir,
     workspaceAiShareDir,
     homeDir,
@@ -40,7 +36,6 @@ export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.di
     targetCodexEnv: resolve(targetCodexConfigDir, ".env"),
     targetCodexInstructions: resolve(targetCodexConfigDir, "AGENTS.md"),
     targetRuntimeManifest: resolve(targetCodexConfigDir, "ai-share.runtime.json"),
-    targetBinDir: resolve(homeDir, ".local", "bin"),
     targetCodexSkillsDir: resolve(targetCodexConfigDir, "skills"),
   };
 }

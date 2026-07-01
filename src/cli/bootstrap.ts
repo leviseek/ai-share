@@ -23,7 +23,6 @@ const steps: Step[] = [
 console.log(color.bold("ai-share bootstrap"));
 console.log(`${color.cyan("项目目录")}：${paths.projectRoot}`);
 console.log(`${color.cyan("Codex home")}：${paths.targetCodexConfigDir}`);
-console.log(`${color.cyan("用户 bin")}：${paths.targetBinDir}`);
 console.log("");
 
 for (const step of steps) {

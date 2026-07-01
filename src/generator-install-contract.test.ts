@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 type RuntimeManifestContract = {
   primary_stack?: string;
@@ -10,7 +10,6 @@ type RuntimeManifestContract = {
   paths?: {
     codex_home?: string;
     codex_env?: string;
-    bin?: string;
     codex_skills?: string;
   };
   managed?: {
@@ -27,13 +26,12 @@ describe("generator install contract", () => {
     const root = mkdtempSync(join(tmpdir(), "ai-share-gen-"));
     const home = join(root, "home");
     const codexHome = join(root, "codex-home");
-    const targetBin = join(home, ".local", "bin");
 
     try {
       const result = spawnSync(process.execPath, [resolve(projectRoot, "src", "generate-user-config.ts"), "--force"], {
         cwd: projectRoot,
         encoding: "utf8",
-        env: generatorEnv(home, codexHome, targetBin),
+        env: generatorEnv(home, codexHome),
       });
       if (result.status !== 0) {
         throw new Error(`generator failed with status ${result.status}\n${result.stdout}\n${result.stderr}`);
@@ -44,7 +42,6 @@ describe("generator install contract", () => {
       expect(manifest.model).toBe("gpt-5.5");
       expect(manifest.paths?.codex_home).toBe(codexHome);
       expect(manifest.paths?.codex_env).toBe(join(codexHome, ".env"));
-      expect(manifest.paths?.bin).toBe(targetBin);
       expect(manifest.managed?.codex_config).toBe(join(codexHome, "config.toml"));
       expect(manifest.managed?.codex_env_vars).toContain("HTTP_PROXY");
       expect(manifest.managed?.skills).toContain("ai-share-generator");
@@ -66,19 +63,14 @@ describe("generator install contract", () => {
   });
 });
 
-function generatorEnv(home: string, codexHome: string, targetBin: string): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {
+function generatorEnv(home: string, codexHome: string): NodeJS.ProcessEnv {
+  return {
     ...process.env,
     AI_SHARE_TASK: "",
     CODEX_HOME: codexHome,
     HOME: home,
     USERPROFILE: home,
   };
-  const pathKey = process.platform === "win32" ? "Path" : "PATH";
-  const pathValue = `${targetBin}${delimiter}${process.env[pathKey] ?? process.env.PATH ?? ""}`;
-  env[pathKey] = pathValue;
-  env.PATH = pathValue;
-  return env;
 }
 
 function readText(path: string): string {

@@ -6,8 +6,6 @@ devices:
     role: 主力开发机
     shell: PowerShell 7+
     paths:
-      user_bin: ~/.local/bin/
-      user_bin_win: '%USERPROFILE%\.local\bin\'
       codex_home: ~/.codex/
       ai_share_memory: memory/
     notes: >-
@@ -18,7 +16,6 @@ devices:
     role: Linux 开发环境
     shell: bash
     paths:
-      user_bin: ~/.local/bin/
       codex_home: ~/.codex/
       ai_share_memory: memory/
     notes: >-
@@ -29,7 +26,6 @@ devices:
     role: 备用开发设备
     shell: zsh
     paths:
-      user_bin: ~/.local/bin/
       codex_home: ~/.codex/
       ai_share_memory: memory/
     notes: >-
@@ -46,4 +42,4 @@ cross_device_rules:
   - 生成的 JSON 配置不提交到仓库，每个设备独立生成
   - API Key 按设备单独设置，永不写入仓库；非密钥代理默认值可通过 config/env.yaml 生成到 CODEX_HOME/.env
   - memory/ 目录随 ai-share 仓库同步，不再使用独立记忆仓库
-  - 工具安装到所有平台的 ~/.local/bin/，Windows 自动加入 PATH
+  - ai-share 不安装独立启动器；codex 命令由本机安装的 Codex CLI 提供

@@ -7,7 +7,6 @@ devices:
     shell: powershell 7+
     shell_extension: .ps1
     ai_home: "%USERPROFILE%\\ai-workspace"
-    bin: "%USERPROFILE%\\.local\\bin\\"
     notes:
       - 主力开发设备
       - 所有 AI 生成命令必须使用 PowerShell 语法
@@ -19,7 +18,6 @@ devices:
     shell: bash
     shell_extension: .sh
     ai_home: "~/ai-workspace"
-    bin: "~/.local/bin/"
     notes:
       - 辅助开发环境
       - 命令使用 bash 语法
@@ -31,7 +29,6 @@ devices:
     shell: zsh
     shell_extension: .sh
     ai_home: "~/ai-workspace"
-    bin: "~/.local/bin/"
     notes:
       - 备用开发设备
       - 命令使用 zsh/bash 语法

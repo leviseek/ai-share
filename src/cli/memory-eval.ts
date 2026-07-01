@@ -120,7 +120,6 @@ function evalPaths(root: string): GeneratorPaths {
   return {
     projectRoot: root,
     configDir: resolve(root, "config"),
-    binDir: resolve(root, "bin"),
     aiWorkspaceDir: resolve(root, ".memory-eval", "ai-workspace"),
     workspaceAiShareDir: resolve(root, ".memory-eval", "ai-workspace", "ai-share"),
     homeDir: resolve(root, ".memory-eval", "home"),
@@ -129,7 +128,6 @@ function evalPaths(root: string): GeneratorPaths {
     targetCodexEnv: resolve(codexHome, ".env"),
     targetCodexInstructions: resolve(codexHome, "AGENTS.md"),
     targetRuntimeManifest: resolve(codexHome, "ai-share.runtime.json"),
-    targetBinDir: resolve(root, ".memory-eval", "bin"),
     targetCodexSkillsDir: resolve(codexHome, "skills"),
   };
 }

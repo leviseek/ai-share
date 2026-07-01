@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { installLaunchers, installNativeSkills } from "./install.ts";
+import { installNativeSkills } from "./install.ts";
 import { NATIVE_SKILLS } from "./native-skills.ts";
 import type { GeneratorPaths } from "./paths.ts";
 
@@ -35,17 +35,6 @@ describe("install contract", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
-
-  test("does not install custom launchers", async () => {
-    const root = mkdtempSync(join(tmpdir(), "ai-share-install-"));
-    try {
-      const paths = testPaths(root);
-      await installLaunchers(paths, false);
-      expect(existsSync(paths.targetBinDir)).toBe(false);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
 });
 
 function testPaths(root: string): GeneratorPaths {
@@ -54,7 +43,6 @@ function testPaths(root: string): GeneratorPaths {
   return {
     projectRoot: root,
     configDir: join(root, "config"),
-    binDir: join(root, "bin"),
     aiWorkspaceDir: join(homeDir, "ai-workspace"),
     workspaceAiShareDir: join(homeDir, "ai-workspace", "ai-share"),
     homeDir,
@@ -63,7 +51,6 @@ function testPaths(root: string): GeneratorPaths {
     targetCodexEnv: join(targetCodexConfigDir, ".env"),
     targetCodexInstructions: join(targetCodexConfigDir, "AGENTS.md"),
     targetRuntimeManifest: join(targetCodexConfigDir, "ai-share.runtime.json"),
-    targetBinDir: join(homeDir, ".local", "bin"),
     targetCodexSkillsDir: join(targetCodexConfigDir, "skills"),
   };
 }

@@ -59,12 +59,12 @@ describe("writeText/writeJson", () => {
   test("writes binary content through the same atomic path", async () => {
     const root = mkdtempSync(join(tmpdir(), "ai-share-fs-"));
     try {
-      const path = join(root, "launcher.bin");
+      const path = join(root, "payload.bin");
 
       await atomicWriteFile(path, new Uint8Array([0, 1, 2, 255]));
 
       expect(Array.from(readFileSync(path))).toEqual([0, 1, 2, 255]);
-      expect(readdirSync(root)).toEqual(["launcher.bin"]);
+      expect(readdirSync(root)).toEqual(["payload.bin"]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

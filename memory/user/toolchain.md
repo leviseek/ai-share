@@ -23,6 +23,6 @@
 
 - 配置源在 `config/*.yaml`
 - 生成器在 `src/`
-- 启动器在 `bin/`
+- 没有独立启动器；`codex` 命令由本机安装的 Codex CLI 提供
 - Codex 原生 skills 由生成器安装到 `~/.codex/skills/`
 - 用户级记忆在 `memory/`

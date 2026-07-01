@@ -13,7 +13,7 @@
 
 ## 使用
 
-新电脑从零同步后，推荐在仓库根目录直接执行 bootstrap。它会安装依赖、检查配置、生成并安装用户级 Codex 配置，然后验证 `codex` 启动入口：
+新电脑从零同步后，推荐在仓库根目录直接执行 bootstrap。它会安装依赖、检查配置，并生成用户级 Codex 配置：
 
 ```sh
 bun run ai:bootstrap
@@ -25,7 +25,7 @@ bun run ai:bootstrap
 bun run ai:bootstrap -- --skip-install
 ```
 
-bootstrap 要求本机已安装 Bun、Codex CLI、Codex，并且已在环境变量中设置所需 API Key。缺失时会在检查阶段输出具体变量名，不会写入真实密钥。
+bootstrap 要求本机已安装 Bun 和 Codex CLI，并且已在环境变量中设置所需 API Key。缺失时会在检查阶段输出具体变量名，不会写入真实密钥。
 
 安装依赖：
 
@@ -33,7 +33,7 @@ bootstrap 要求本机已安装 Bun、Codex CLI、Codex，并且已在环境变�
 bun install
 ```
 
-检查 YAML 配置和生成逻辑，不写入文件、不安装启动命令：
+检查 YAML 配置和生成逻辑，不写入文件：
 
 ```sh
 bun run ai:check
@@ -45,7 +45,7 @@ bun run ai:check
 bun run ai:gen -- --dry-run
 ```
 
-生成用户级 Codex 配置，并安装全局启动命令：
+生成用户级 Codex 配置：
 
 ```sh
 bun run ai:gen
@@ -93,21 +93,7 @@ Codex 目录优先读取 `CODEX_HOME`，未设置时使用 `~/.codex`。
 ~/.codex/skills/<native-skill>/SKILL.md
 ```
 
-同时会安装启动命令到用户级 bin 目录：
-
-```text
-~/.local/bin/codex
-```
-
-Windows 下对应为：
-
-```text
-%USERPROFILE%\.localin\codex.cmd
-%USERPROFILE%\.localin\codex.ps1
-%USERPROFILE%\.localin\codex.ts
-```
-
-Windows 会自动把该目录加入用户级 PATH。已经打开的终端可能需要重启后才能直接使用 `codex`。macOS/Linux 请确认 `~/.local/bin` 已在 PATH 中。
+ai-share 不再维护仓库内 `bin/` 目录，也不安装独立启动器；`codex` 命令由本机安装的 Codex CLI 提供。
 
 ## Native Skills
 
@@ -278,7 +264,7 @@ bun test
 bun run ai:check
 ```
 
-跨模块生成器或启动器改动后建议运行：
+跨模块生成器改动后建议运行：
 
 ```sh
 bun run check

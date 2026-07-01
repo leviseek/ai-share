@@ -6,13 +6,6 @@ import { NATIVE_SKILLS } from "./native-skills.ts";
 
 export type TextFileWriter = (path: string, content: string) => Promise<void>;
 
-export function installLaunchers(paths: GeneratorPaths, dryRun: boolean): Promise<void> {
-  if (dryRun) {
-    console.log(`不再安装自定义启动命令；请直接使用 Codex CLI。用户 bin：${paths.targetBinDir}`);
-  }
-  return Promise.resolve();
-}
-
 export async function installNativeSkills(
   paths: GeneratorPaths,
   dryRun: boolean,

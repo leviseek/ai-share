@@ -12,7 +12,6 @@
 
 ## 路径约定
 
-- 用户级 bin: `~/.local/bin/`（Windows: `%USERPROFILE%\.local\bin\`）
 - Codex 用户配置: `~/.codex/`
 - ai-share 仓库: 各设备通过 Git 同步
 - ai-share memory: 随 ai-share 仓库内置的 `memory/` 目录同步

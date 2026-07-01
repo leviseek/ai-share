@@ -13,7 +13,6 @@
 ai-share/
 ├── config/                    # YAML source of truth for generated config
 ├── src/                       # Bun generator, builders, CLI/install helpers, types
-├── bin/                       # legacy wrappers; not installed
 ├── docs/                      # specs and runbooks
 ├── memory/                    # user-level memory vault
 ├── templates/                 # shareable config and personal overlay templates
@@ -35,7 +34,7 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.sisyphus/evidence/`, `
 | YAML schema and runtime shape checks  | `src/config/schema-spec.ts`                     | Single source for JSON Schema and shape validation |
 | Instruction path builder              | `src/config/builders/instructions.ts`           | Generates memory file list                         |
 | Native skill install behavior         | `src/cli/install.ts`                            | Installs native skills                             |
-| Output paths                          | `src/cli/paths.ts`                              | Codex home, skills, user bin                       |
+| Output paths                          | `src/cli/paths.ts`                              | Codex home and skills output paths                 |
 | Shared AI workflow rules              | `AI_GUIDELINES.md`                              | Loaded into generated Codex instructions           |
 | Commit format                         | `GIT_COMMIT_GUIDELINES.md`                      | `option: 中文描述`                                 |
 | User memory content                   | `memory/`                                       | Structured Markdown/YAML memory                    |
@@ -95,4 +94,4 @@ bun run schema:gen
 - Default Codex model is configured by `config/global.yaml` (`model: gpt-5.5`).
 - `memory/` contains user-level memory files loaded as Codex startup instructions via `buildInstructionsPaths`.
 - Memory privacy layers are documented in `docs/memory-privacy.md`; local/private/project memory directories are ignored.
-- Existing local knowledge files: `config/AGENTS.md`, `src/AGENTS.md`, `bin/AGENTS.md`.
+- Existing local knowledge files: `config/AGENTS.md`, `src/AGENTS.md`.

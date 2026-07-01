@@ -96,7 +96,6 @@ export function printGenerationSummary(input: {
   console.log(
     `${color.green(prefix)} ${color.cyan("AI runtime 清单")}：${color.bold(input.paths.targetRuntimeManifest)}`,
   );
-  console.log(`${color.green(installPrefix)} ${color.cyan("启动命令目录")}：${color.bold(input.paths.targetBinDir)}`);
   console.log(
     `${color.green(installPrefix)} ${color.cyan("Codex native skills 目录")}：${color.bold(input.paths.targetCodexSkillsDir)}`,
   );
@@ -104,7 +103,7 @@ export function printGenerationSummary(input: {
     `${color.gray("说明")}：provider/model/MCP/native skills 均来自 config/*.yaml 与 src/cli/native-skills.ts。`,
   );
   console.log(`${color.cyan("模型组提供商")}：${formatProviderGroups(input.providerGroups)}`);
-  console.log(color.gray("启动命令：codex。"));
+  console.log(color.gray("启动命令由 Codex CLI 提供：codex。"));
 }
 
 function formatProviderGroups(providerGroups: ProviderGroupMap): string {

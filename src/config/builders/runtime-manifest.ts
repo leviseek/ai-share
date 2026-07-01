@@ -1,7 +1,7 @@
 import type { GeneratorPaths } from "../../cli/paths.ts";
 
 export type RuntimeManifest = {
-  version: 3;
+  version: 4;
   scope: "user";
   primary_stack: "codex";
   model: string;
@@ -13,7 +13,6 @@ export type RuntimeManifest = {
   paths: {
     codex_home: string;
     codex_env: string;
-    bin: string;
     codex_skills: string;
   };
   managed: {
@@ -36,7 +35,7 @@ export function buildRuntimeManifest(input: {
   instructionFiles: string[];
 }): RuntimeManifest {
   return {
-    version: 3,
+    version: 4,
     scope: "user",
     primary_stack: "codex",
     model: input.model,
@@ -48,7 +47,6 @@ export function buildRuntimeManifest(input: {
     paths: {
       codex_home: input.paths.targetCodexConfigDir,
       codex_env: input.paths.targetCodexEnv,
-      bin: input.paths.targetBinDir,
       codex_skills: input.paths.targetCodexSkillsDir,
     },
     managed: {

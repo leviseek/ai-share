@@ -5,7 +5,7 @@ description: Use when changing config/*.yaml, Codex builders, generated Codex co
 
 # AI Share Generator
 
-Use this skill when modifying YAML source files, Codex config builders, generated Codex config shape, native skills, launchers, or generator CLI behavior.
+Use this skill when modifying YAML source files, Codex config builders, generated Codex config shape, native skills, or generator CLI behavior.
 
 ## Source Of Truth
 

@@ -25,7 +25,7 @@ import {
 import { missingProviderApiKeyEnvNames } from "./cli/api-keys.ts";
 import { checkCodexEnvLocalProxies } from "./cli/env-runtime-check.ts";
 import { atomicWriteFile, pathExists, StagedFileWriter, writeJson, writeText } from "./cli/fs.ts";
-import { installLaunchers, installNativeSkills } from "./cli/install.ts";
+import { installNativeSkills } from "./cli/install.ts";
 import { ensureAiWorkspaceLinks } from "./cli/memory-link.ts";
 import { parseCliOptions } from "./cli/options.ts";
 import { NATIVE_SKILLS } from "./cli/native-skills.ts";
@@ -178,7 +178,6 @@ try {
       `${color.green("已提交")} ${color.cyan("Codex 配置 staging")}：${color.bold(paths.targetCodexConfigDir)}`,
     );
   }
-  await installLaunchers(paths, dryRun);
 } catch (error) {
   await stagedWriter?.cleanup();
   throw error;

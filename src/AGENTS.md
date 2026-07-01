@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Bun/TypeScript generator for user-level Codex CLI, native-skill, launcher, MCP and instruction-memory outputs.
+Bun/TypeScript generator for user-level Codex CLI, native-skill, MCP and instruction-memory outputs.
 
 ## STRUCTURE
 
@@ -28,8 +28,8 @@ src/
 | Codex `.env` generation    | `config/builders/env.ts`          | Formats non-secret `CODEX_HOME/.env` variables         |
 | Instruction/memory paths   | `config/builders/instructions.ts` | Shared instruction file ordering                       |
 | CLI flags                  | `cli/options.ts`                  | `--force`, `--dry-run`, `--check`, provider groups/env |
-| Install/copy behavior      | `cli/install.ts`                  | Launchers and Codex native skills                      |
-| Output paths               | `cli/paths.ts`                    | Codex home, skills, user bin                           |
+| Install/copy behavior      | `cli/install.ts`                  | Codex native skills                                    |
+| Output paths               | `cli/paths.ts`                    | Codex home and skills output paths                     |
 | Codex `.env` runtime check | `cli/env-runtime-check.ts`        | Loopback proxy reachability checks for `ai:check`      |
 | Provider/model live check  | `cli/provider-model-check.ts`     | Optional `/models` availability check                  |
 | Memory privacy check       | `cli/memory-privacy-check.ts`     | Enforces memory privacy layers and secret scanning     |

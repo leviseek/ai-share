@@ -129,7 +129,7 @@ USER_NOTE=keep
     });
 
     expect(manifest).toEqual({
-      version: 3,
+      version: 4,
       scope: "user",
       primary_stack: "codex",
       model: "gpt-5.5",
@@ -141,7 +141,6 @@ USER_NOTE=keep
       paths: {
         codex_home: "/home/user/.codex",
         codex_env: "/home/user/.codex/.env",
-        bin: "/home/user/.local/bin",
         codex_skills: "/home/user/.codex/skills",
       },
       managed: {
@@ -180,7 +179,6 @@ function fakePaths(): GeneratorPaths {
   return {
     projectRoot: "/repo",
     configDir: "/repo/config",
-    binDir: "/repo/bin",
     aiWorkspaceDir: "/home/user/ai-workspace",
     workspaceAiShareDir: "/home/user/ai-workspace/ai-share",
     homeDir: "/home/user",
@@ -189,7 +187,6 @@ function fakePaths(): GeneratorPaths {
     targetCodexEnv: "/home/user/.codex/.env",
     targetCodexInstructions: "/home/user/.codex/AGENTS.md",
     targetRuntimeManifest: "/home/user/.codex/ai-share.runtime.json",
-    targetBinDir: "/home/user/.local/bin",
     targetCodexSkillsDir: "/home/user/.codex/skills",
   };
 }
