@@ -2,7 +2,7 @@
 
 ## 当前完成度
 
-当前项目已从单纯的配置生成器收敛到 Codex + OMX 用户级运行配置中枢，完成度约 **100%**。
+当前项目已从单纯的配置生成器收敛到 Codex 用户级运行配置中枢，完成度约 **100%**。
 
 已验证事实：
 
@@ -10,7 +10,7 @@
 - `bun run provider:check` 通过。
 - 本地代理 `127.0.0.1:7897` 可达。
 - 旧 OpenCode / aiomo / aioc / OMO 概念残留未发现。
-- `config/*.yaml` 仍是 provider、model、profile、agent、MCP、runtime env 的单一来源。
+- `config/*.yaml` 仍是 provider、model、profile、MCP、runtime env 的单一来源。
 
 主要短板：
 
@@ -42,7 +42,7 @@ bun run format:check
 ### 阶段 1：`ai:doctor`
 
 - 新增 `bun run ai:doctor`。
-- 聚合 YAML 一致性、默认配置漂移、Codex/OMX 版本、`.env` 本地代理、provider model、memory privacy。
+- 聚合 YAML 一致性、默认配置漂移、Codex 版本、`.env` 本地代理、provider model、memory privacy。
 - 默认输出人类可读摘要。
 - `--json` 输出机器可读结果。
 - provider/network 类问题默认为 warning；传入 `--strict-provider` 后升级为失败。
@@ -95,7 +95,7 @@ bun run check
 
 - 增加真实运行记录字段：`repeat`、`stdout_path`、`stderr_path`、`failure_tag`、`actual_elapsed_ms`、`manual_score`、`manual_rework_minutes`。
 - 输出 Markdown + JSON 对比报告。
-- 成本先沿用当前估算逻辑，后续等待 Codex/OMX 暴露 token usage。
+- 成本先沿用当前估算逻辑，后续等待 Codex 暴露 token usage。
 - 已支持 `--repeat`、`--failure-tag`、执行 stdout/stderr 证据文件和 JSON 旁路 Markdown 报告。
 
 验收：

@@ -2,4 +2,3 @@ default_profile: balanced
 
 # Version compatibility requirements
 codex_min_version: 0.134.0
-omx_min_version: 0.18.4

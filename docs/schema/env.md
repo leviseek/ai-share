@@ -15,7 +15,7 @@ Codex `.env` source for non-secret runtime environment variables. The generator 
 
 - Use this file for non-secret runtime variables such as local proxy settings.
 - Do not put API keys, tokens, cookies, passwords, private keys, or bearer credentials here.
-- Do not put `CODEX_HOME`, `HOME`, `USERPROFILE`, `PATH`, `AI_SHARE_*`, or `OMX_DEFAULT_*` here; those are system, generator, or profile-managed variables.
+- Do not put `CODEX_HOME`, `HOME`, `USERPROFILE`, `PATH`, `AI_SHARE_*`, or `CODEX_*` here; those are system, generator, or profile-managed variables.
 - If `CODEX_HOME/.env` already exists, `bun run ai:gen` preserves it. Use `bun run ai:gen -- --force` to regenerate it from `config/env.yaml`.
 
 ## Current Variables

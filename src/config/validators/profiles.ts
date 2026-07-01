@@ -1,4 +1,4 @@
-import type { AgentProfileSource, GlobalYaml, ModelsYaml, ProfilesYaml } from "../../types.ts";
+import type { GlobalYaml, ModelsYaml, ProfileSource, ProfilesYaml } from "../../types.ts";
 import { MODEL_ROLES } from "../schema-spec.ts";
 import { isFiniteNumber, isModelRole, isRecord, type ValidationError } from "./common.ts";
 
@@ -34,7 +34,7 @@ export function validateDefaultProfile(
 function validateProfileModelReferences(
   errors: ValidationError[],
   profileId: string,
-  profile: AgentProfileSource,
+  profile: ProfileSource,
   modelIds: ReadonlySet<string>,
 ): void {
   for (const role of MODEL_ROLES) {
@@ -52,7 +52,7 @@ function validateProfileModelReferences(
 function validateProfileProviderGroupConsistency(
   errors: ValidationError[],
   profileId: string,
-  profile: AgentProfileSource,
+  profile: ProfileSource,
   modelsConfig: ModelsYaml,
 ): void {
   const groupsByRole = MODEL_ROLES.map((role) => {
@@ -80,7 +80,7 @@ function validateProfileProviderGroupConsistency(
 function validateProfileCompaction(
   errors: ValidationError[],
   profileId: string,
-  profile: AgentProfileSource,
+  profile: ProfileSource,
   modelIds: ReadonlySet<string>,
 ): void {
   const compaction = profile.compaction;

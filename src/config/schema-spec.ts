@@ -3,8 +3,6 @@ export const ENV_NAME_PATTERN = "^[A-Z_][A-Z0-9_]*$";
 export const ENV_FILE_NAME_PATTERN = "^[A-Za-z_][A-Za-z0-9_]*$";
 
 export const MODEL_ROLES = ["primary", "reasoning", "fast"] as const;
-export const REASONING_LEVELS = ["low", "medium", "high"] as const;
-export const OMX_MODEL_SLOTS = ["default", "team", "autopilot", "ralph", "team_low_complexity"] as const;
 
 export type SchemaNode =
   | StringSchemaNode
@@ -27,7 +25,6 @@ export type YamlSchemaSourceFile =
   | "provider.yaml"
   | "models.yaml"
   | "profiles.yaml"
-  | "agents.yaml"
   | "mcp.yaml"
   | "env.yaml"
   | "profile-eval.yaml";
@@ -76,10 +73,6 @@ type ObjectSchemaNode = BaseSchemaNode & {
 
 const modelRoleProperties = Object.fromEntries(MODEL_ROLES.map((role) => [role, stringSchema(`${role} model id.`)]));
 
-const omxModelSlotProperties = Object.fromEntries(
-  OMX_MODEL_SLOTS.map((slotName) => [slotName, enumStringSchema(MODEL_ROLES, `${slotName} model role.`)]),
-);
-
 export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
   {
     sourceFile: "global.yaml",
@@ -89,7 +82,6 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
       properties: {
         default_profile: stringSchema("Default profile id from profiles.yaml."),
         codex_min_version: stringSchema("Minimum Codex CLI version checked by ai:check."),
-        omx_min_version: stringSchema("Minimum OMX CLI version checked by ai:check."),
       },
     }),
   },
@@ -181,55 +173,6 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
     }),
   },
   {
-    sourceFile: "agents.yaml",
-    schemaFileName: "agents.schema.json",
-    title: "ai-share agents.yaml",
-    root: objectSchema({
-      required: ["codex", "omx", "agents"],
-      properties: {
-        shared_prompt: promptSchema(),
-        codex: objectSchema({
-          required: ["agents"],
-          properties: {
-            agents: objectSchema({
-              required: ["max_threads", "max_depth", "job_max_runtime_seconds"],
-              properties: {
-                max_threads: positiveIntegerSchema("Codex max concurrent agent threads."),
-                max_depth: positiveIntegerSchema("Codex max agent depth."),
-                job_max_runtime_seconds: positiveIntegerSchema("Codex max agent job runtime."),
-              },
-            }),
-          },
-        }),
-        omx: objectSchema({
-          required: ["model_slots", "agent_reasoning"],
-          properties: {
-            model_slots: objectSchema({
-              required: [...OMX_MODEL_SLOTS],
-              additionalProperties: enumStringSchema(MODEL_ROLES, "Profile model role."),
-              properties: omxModelSlotProperties,
-            }),
-            agent_reasoning: objectSchema({
-              additionalProperties: enumStringSchema(REASONING_LEVELS, "OMX agent reasoning level."),
-            }),
-          },
-        }),
-        agents: objectSchema({
-          additionalProperties: objectSchema({
-            required: ["model"],
-            properties: {
-              model: enumStringSchema(MODEL_ROLES, "Profile model role."),
-              prompt: promptSchema(),
-              permission: objectSchema({
-                additionalProperties: stringSchema("Permission value."),
-              }),
-            },
-          }),
-        }),
-      },
-    }),
-  },
-  {
     sourceFile: "mcp.yaml",
     schemaFileName: "mcp.schema.json",
     title: "ai-share mcp.yaml",
@@ -282,7 +225,7 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
               title: stringSchema("Human-readable task title."),
               category: stringSchema("Evaluation category label."),
               weight: positiveNumberSchema("Task weight in aggregate profile scoring."),
-              prompt: stringSchema("Task prompt sent to aiomx when --execute is enabled."),
+              prompt: stringSchema("Task prompt sent to Codex when --execute is enabled."),
               success_criteria: stringArraySchema("Manual success criteria for scoring."),
             },
           }),
@@ -333,10 +276,6 @@ function positiveNumberSchema(description: string): Extract<SchemaNode, { type: 
   return { ...numberSchema(description), exclusiveMinimum: 0 };
 }
 
-function positiveIntegerSchema(description: string): Extract<SchemaNode, { type: "integer" }> {
-  return { type: "integer", minimum: 1, description };
-}
-
 function booleanSchema(description: string): Extract<SchemaNode, { type: "boolean" }> {
   return { type: "boolean", description };
 }
@@ -347,13 +286,4 @@ function objectSchema(input: Omit<ObjectSchemaNode, "type"> = {}): Extract<Schem
 
 function enumStringSchema(values: readonly string[], description: string): Extract<SchemaNode, { type: "string" }> {
   return { ...stringSchema(description), enum: values };
-}
-
-function promptSchema(): SchemaNode {
-  return objectSchema({
-    properties: {
-      system: stringSchema("System prompt text."),
-      append: stringSchema("Prompt appended to generated agent instructions."),
-    },
-  });
 }

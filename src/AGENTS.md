@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Bun/TypeScript generator for user-level Codex CLI, OMX, native-skill, launcher, MCP, agent, and instruction-memory outputs.
+Bun/TypeScript generator for user-level Codex CLI, Codex, native-skill, launcher, MCP and instruction-memory outputs.
 
 ## STRUCTURE
 
@@ -22,22 +22,22 @@ src/
 
 ## WHERE TO LOOK
 
-| Need                       | Location                          | Notes                                                     |
-| -------------------------- | --------------------------------- | --------------------------------------------------------- |
-| End-to-end generation flow | `generate-user-config.ts`         | Loads YAML, validates, writes Codex/OMX outputs, installs |
-| Codex/OMX config           | `config/builders/codex.ts`        | Profiles, providers, MCP, agents, OMX model env           |
-| Codex `.env` generation    | `config/builders/env.ts`          | Formats non-secret `CODEX_HOME/.env` variables            |
-| Instruction/memory paths   | `config/builders/instructions.ts` | Shared instruction file ordering                          |
-| Default profile resolution | `config/builders/profiles.ts`     | `global.default_profile` fallback behavior                |
-| CLI flags                  | `cli/options.ts`                  | `--force`, `--dry-run`, `--check`, provider groups/env    |
-| Install/copy behavior      | `cli/install.ts`                  | Launchers and Codex native skills                         |
-| Output paths               | `cli/paths.ts`                    | Codex home, agents, skills, user bin                      |
-| Codex `.env` runtime check | `cli/env-runtime-check.ts`        | Loopback proxy reachability checks for `ai:check`         |
-| Provider/model live check  | `cli/provider-model-check.ts`     | Optional `/models` availability check                     |
-| Memory privacy check       | `cli/memory-privacy-check.ts`     | Enforces memory privacy layers and secret scanning        |
-| Profile eval harness       | `cli/profile-eval.ts`             | Fixed task-set reports, cost estimates, manual scoring    |
-| YAML schema source         | `config/schema-spec.ts`           | Single source for JSON Schema and runtime shape checks    |
-| Runtime validation         | `config/validation.ts`            | Runs schema-derived shape checks plus business rules      |
+| Need                       | Location                          | Notes                                                  |
+| -------------------------- | --------------------------------- | ------------------------------------------------------ |
+| End-to-end generation flow | `generate-user-config.ts`         | Loads YAML, validates, writes Codex outputs, installs  |
+| Codex config               | `config/builders/codex.ts`        | Profiles, providers, MCP, agents, Codex model env      |
+| Codex `.env` generation    | `config/builders/env.ts`          | Formats non-secret `CODEX_HOME/.env` variables         |
+| Instruction/memory paths   | `config/builders/instructions.ts` | Shared instruction file ordering                       |
+| Default profile resolution | `config/builders/profiles.ts`     | `global.default_profile` fallback behavior             |
+| CLI flags                  | `cli/options.ts`                  | `--force`, `--dry-run`, `--check`, provider groups/env |
+| Install/copy behavior      | `cli/install.ts`                  | Launchers and Codex native skills                      |
+| Output paths               | `cli/paths.ts`                    | Codex home, agents, skills, user bin                   |
+| Codex `.env` runtime check | `cli/env-runtime-check.ts`        | Loopback proxy reachability checks for `ai:check`      |
+| Provider/model live check  | `cli/provider-model-check.ts`     | Optional `/models` availability check                  |
+| Memory privacy check       | `cli/memory-privacy-check.ts`     | Enforces memory privacy layers and secret scanning     |
+| Profile eval harness       | `cli/profile-eval.ts`             | Fixed task-set reports, cost estimates, manual scoring |
+| YAML schema source         | `config/schema-spec.ts`           | Single source for JSON Schema and runtime shape checks |
+| Runtime validation         | `config/validation.ts`            | Runs schema-derived shape checks plus business rules   |
 
 ## CONVENTIONS
 

@@ -1,7 +1,7 @@
 # ============================================================
-# Codex + OMX profile 配置
+# Codex profile 配置
 # profiles 提供 primary / reasoning / fast 三个模型角色映射。
-# agents.yaml 中的 agents 引用这些角色。
+# profiles 使用这些角色选择模型。
 # ============================================================
 
 lite:

@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 /**
  * Profile 到 memory 文件相对路径列表的映射。
- * key 为 ai-share profile 名称（Codex/OMX 共享），value 为相对于项目根目录 memory/ 目录的文件路径数组。
+ * key 为 ai-share profile 名称（Codex 共享），value 为相对于项目根目录 memory/ 目录的文件路径数组。
  */
 export type ProfileMemoryMap = Record<string, readonly string[]>;
 

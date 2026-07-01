@@ -4,7 +4,7 @@ import type { ProfileCompaction, ProfilesYaml } from "../../types.ts";
 export type RuntimeManifest = {
   version: 2;
   scope: "user";
-  primary_stack: "codex+omx";
+  primary_stack: "codex";
   default_profile: string;
   platforms: ["windows", "linux", "macos"];
   memory: {
@@ -19,8 +19,6 @@ export type RuntimeManifest = {
   };
   managed: {
     codex_profiles: string[];
-    omx_profiles: string[];
-    codex_agents: string[];
     codex_env_vars: string[];
     local_config_overlays: string[];
     mcp_servers: string[];
@@ -35,7 +33,6 @@ export function buildRuntimeManifest(input: {
   paths: GeneratorPaths;
   defaultProfileId: string;
   profileIds: string[];
-  agentIds: string[];
   mcpServerIds: string[];
   codexEnvVarNames: string[];
   localConfigOverlays?: string[];
@@ -46,7 +43,7 @@ export function buildRuntimeManifest(input: {
   return {
     version: 2,
     scope: "user",
-    primary_stack: "codex+omx",
+    primary_stack: "codex",
     default_profile: input.defaultProfileId,
     platforms: ["windows", "linux", "macos"],
     memory: {
@@ -61,8 +58,6 @@ export function buildRuntimeManifest(input: {
     },
     managed: {
       codex_profiles: input.profileIds,
-      omx_profiles: input.profileIds,
-      codex_agents: input.agentIds,
       codex_env_vars: input.codexEnvVarNames,
       local_config_overlays: input.localConfigOverlays ?? [],
       mcp_servers: input.mcpServerIds,

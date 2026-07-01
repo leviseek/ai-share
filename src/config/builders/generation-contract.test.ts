@@ -1,13 +1,11 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, test } from "bun:test";
-import type { AgentsYaml, EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "../../types.ts";
+import type { EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProfilesYaml, ProviderYaml } from "../../types.ts";
 import {
   applyProviderGroups,
-  buildCodexAgentConfigs,
   buildCodexEnvFileWithManagedBlock,
   buildCodexCliConfigs,
-  buildOmxConfigs,
   buildRuntimeManifest,
   defaultProfileId,
   formatCodexConfigToml,
@@ -18,7 +16,7 @@ import { parseYamlObject } from "../../yaml.ts";
 
 const projectRoot = resolve(import.meta.dir, "..", "..", "..");
 
-describe("Codex/OMX generation contract", () => {
+describe("Codex generation contract", () => {
   test("formats the coding Codex profile TOML in the expected shape", () => {
     const fixture = loadFixture();
     const models = applyProviderGroups(fixture.models, fixture.providers.providers ?? {}, {
@@ -30,7 +28,6 @@ describe("Codex/OMX generation contract", () => {
       fixture.providers.providers ?? {},
       models,
       fixture.profiles,
-      fixture.agents,
       fixture.mcp,
       (profileId) => `/codex/${profileId}.AGENTS.md`,
     );
@@ -40,11 +37,6 @@ describe("Codex/OMX generation contract", () => {
 model_provider = "codexapis"
 model_reasoning_effort = "high"
 model_instructions_file = "/codex/coding.AGENTS.md"
-
-[agents]
-max_threads = 6
-max_depth = 2
-job_max_runtime_seconds = 600
 
 [model_providers.codexapis]
 name = "Codex APIs"
@@ -79,7 +71,6 @@ env_key = "DEEPSEEK_API_KEY"
       fixture.providers.providers ?? {},
       models,
       fixture.profiles,
-      fixture.agents,
       fixture.mcp,
       (profileId) => `/codex/${profileId}.AGENTS.md`,
     );
@@ -88,43 +79,6 @@ env_key = "DEEPSEEK_API_KEY"
     expect(balanced.model).toBe("gpt-5.5");
     expect(balanced.model_provider).toBe("packyapi");
     expect(balanced.model_providers.packyapi?.env_key).toBe("PACKYAPI_API_KEY");
-  });
-
-  test("maps profile roles into OMX model slots and Codex agent configs", () => {
-    const fixture = loadFixture();
-    const models = applyProviderGroups(fixture.models, fixture.providers.providers ?? {}, {
-      gpt: "codexapis",
-      deepseek: "deepseek",
-    });
-
-    expect(buildOmxConfigs(models, fixture.profiles, fixture.agents)["ds-max"]).toEqual({
-      env: {
-        OMX_DEFAULT_FRONTIER_MODEL: "deepseek-v4-pro",
-        OMX_DEFAULT_STANDARD_MODEL: "deepseek-v4-pro",
-        OMX_DEFAULT_SPARK_MODEL: "deepseek-v4-flash",
-      },
-      models: {
-        default: "deepseek-v4-pro",
-        team: "deepseek-v4-pro",
-        autopilot: "deepseek-v4-pro",
-        ralph: "deepseek-v4-pro",
-        team_low_complexity: "deepseek-v4-flash",
-      },
-      agentReasoning: {
-        prometheus: "high",
-        oracle: "high",
-        metis: "high",
-        momus: "low",
-      },
-    });
-
-    const agents = buildCodexAgentConfigs(fixture.agents, models, fixture.profiles, "balanced");
-    expect(agents.explorer).toMatchObject({
-      name: "explorer",
-      model: "gpt-5.4-mini",
-      sandbox_mode: "read-only",
-    });
-    expect(agents.sisyphus?.developer_instructions).toContain("AI_GUIDELINES.md");
   });
 
   test("formats the generated Codex .env with non-secret runtime variables", () => {
@@ -173,69 +127,11 @@ USER_NOTE=keep
 `);
   });
 
-  test("reads Codex agent runtime and OMX policy from agents.yaml", () => {
-    const fixture = loadFixture();
-    const models = applyProviderGroups(fixture.models, fixture.providers.providers ?? {}, {
-      gpt: "codexapis",
-      deepseek: "deepseek",
-    });
-    const agentsConfig: AgentsYaml = {
-      ...fixture.agents,
-      codex: {
-        agents: {
-          max_threads: 3,
-          max_depth: 1,
-          job_max_runtime_seconds: 120,
-        },
-      },
-      omx: {
-        model_slots: {
-          default: "fast",
-          team: "primary",
-          autopilot: "reasoning",
-          ralph: "fast",
-          team_low_complexity: "fast",
-        },
-        agent_reasoning: {
-          momus: "medium",
-        },
-      },
-    };
-
-    const codexConfigs = buildCodexCliConfigs(
-      fixture.providers.providers ?? {},
-      models,
-      fixture.profiles,
-      agentsConfig,
-      fixture.mcp,
-      (profileId) => `/codex/${profileId}.AGENTS.md`,
-    );
-    expect(required(codexConfigs.coding).agents).toEqual({
-      max_threads: 3,
-      max_depth: 1,
-      job_max_runtime_seconds: 120,
-    });
-
-    expect(buildOmxConfigs(models, fixture.profiles, agentsConfig).coding).toMatchObject({
-      models: {
-        default: "gpt-5.4-mini",
-        team: "gpt-5.5",
-        autopilot: "gpt-5.5",
-        ralph: "gpt-5.4-mini",
-        team_low_complexity: "gpt-5.4-mini",
-      },
-      agentReasoning: {
-        momus: "medium",
-      },
-    });
-  });
-
-  test("builds the runtime manifest with Codex/OMX ownership only", () => {
+  test("builds the runtime manifest with Codex ownership only", () => {
     const manifest = buildRuntimeManifest({
       paths: fakePaths(),
       defaultProfileId: "balanced",
       profileIds: ["balanced", "coding"],
-      agentIds: ["sisyphus", "explorer"],
       mcpServerIds: ["filesystem"],
       codexEnvVarNames: ["HTTP_PROXY", "NO_PROXY"],
       localConfigOverlays: ["config/local/global.yaml"],
@@ -260,7 +156,7 @@ USER_NOTE=keep
     expect(manifest).toEqual({
       version: 2,
       scope: "user",
-      primary_stack: "codex+omx",
+      primary_stack: "codex",
       default_profile: "balanced",
       platforms: ["windows", "linux", "macos"],
       memory: {
@@ -275,8 +171,6 @@ USER_NOTE=keep
       },
       managed: {
         codex_profiles: ["balanced", "coding"],
-        omx_profiles: ["balanced", "coding"],
-        codex_agents: ["sisyphus", "explorer"],
         codex_env_vars: ["HTTP_PROXY", "NO_PROXY"],
         local_config_overlays: ["config/local/global.yaml"],
         mcp_servers: ["filesystem"],
@@ -304,7 +198,6 @@ function loadFixture(): {
   providers: ProviderYaml;
   models: ModelsYaml;
   profiles: ProfilesYaml;
-  agents: AgentsYaml;
   mcp: McpYaml;
   env: EnvYaml;
 } {
@@ -313,7 +206,6 @@ function loadFixture(): {
     providers: loadYaml("provider.yaml") as ProviderYaml,
     models: loadYaml("models.yaml") as ModelsYaml,
     profiles: loadYaml("profiles.yaml") as ProfilesYaml,
-    agents: loadYaml("agents.yaml") as AgentsYaml,
     mcp: loadYaml("mcp.yaml") as McpYaml,
     env: loadYaml("env.yaml") as EnvYaml,
   };
@@ -337,11 +229,9 @@ function fakePaths(): GeneratorPaths {
     workspaceAiShareDir: "/home/user/ai-workspace/ai-share",
     homeDir: "/home/user",
     targetCodexConfigDir: "/home/user/.codex",
-    targetCodexAgentDir: "/home/user/.codex/agents",
     targetCodexConfig: "/home/user/.codex/config.toml",
     targetCodexEnv: "/home/user/.codex/.env",
     targetCodexInstructions: "/home/user/.codex/AGENTS.md",
-    targetOmxConfig: "/home/user/.codex/.omx-config.json",
     targetRuntimeManifest: "/home/user/.codex/ai-share.runtime.json",
     targetBinDir: "/home/user/.local/bin",
     targetCodexSkillsDir: "/home/user/.codex/skills",

@@ -33,7 +33,6 @@ export function buildInstructionsPaths(projectRoot: string, profile?: string, ta
     resolve(memoryBase, "user", "models.yaml"),
     // memory/architecture/
     resolve(memoryBase, "architecture", "coding-philosophy.md"),
-    resolve(memoryBase, "architecture", "agent-patterns.md"),
     resolve(memoryBase, "architecture", "ai-desktop.md"),
     // memory/stack/
     resolve(memoryBase, "stack", "wsl.md"),

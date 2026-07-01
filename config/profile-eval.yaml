@@ -9,7 +9,7 @@ tasks:
     prompt: |
       分析当前项目，输出架构状态、生成链路、主要风险和下一步建议。
     success_criteria:
-      - 说明 Codex/OMX 配置生成链路
+      - 说明 Codex 配置生成链路
       - 列出验证命令和当前风险
       - 给出可执行的下一步
 
@@ -29,7 +29,7 @@ tasks:
     category: prompt
     weight: 0.75
     prompt: |
-      检查 prompts、agents 和 memory 是否存在冲突、隐私泄漏或旧概念残留。
+      检查 prompts 和 memory 是否存在冲突、隐私泄漏或旧概念残留。
     success_criteria:
       - 标出具体文件路径
       - 区分问题和可接受的历史说明

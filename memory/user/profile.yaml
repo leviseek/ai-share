@@ -1,5 +1,5 @@
 # 用户人格核心 - 结构化约束
-# 供 Codex/OMX 精确理解用户偏好
+# 供 Codex 精确理解用户偏好
 # 配合 profile.md 一起使用（md 是自然语言描述，yaml 是精确约束）
 
 identity:

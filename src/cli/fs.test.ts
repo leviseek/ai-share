@@ -47,9 +47,9 @@ describe("writeText/writeJson", () => {
     try {
       const path = join(root, "manifest.json");
 
-      await writeJson(path, { stack: "codex+omx" }, { dryRun: false, force: false });
+      await writeJson(path, { stack: "codex" }, { dryRun: false, force: false });
 
-      expect(readFileSync(path, "utf8")).toBe(`{\n  "stack": "codex+omx"\n}\n`);
+      expect(readFileSync(path, "utf8")).toBe(`{\n  "stack": "codex"\n}\n`);
       expect(readdirSync(root)).toEqual(["manifest.json"]);
     } finally {
       rmSync(root, { recursive: true, force: true });

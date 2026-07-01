@@ -1,12 +1,5 @@
 export { applyProviderGroups, modelProviderGroups, modelRef } from "./config/model-refs.ts";
-export {
-  buildCodexAgentConfigs,
-  buildCodexCliConfigs,
-  buildCodexInstructions,
-  buildOmxConfigs,
-  formatCodexAgentToml,
-  formatCodexConfigToml,
-} from "./config/builders/codex.ts";
+export { buildCodexCliConfigs, buildCodexInstructions, formatCodexConfigToml } from "./config/builders/codex.ts";
 export { buildInstructionsPaths } from "./config/builders/instructions.ts";
 export {
   buildCodexEnvFileWithManagedBlock,

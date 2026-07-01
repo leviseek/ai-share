@@ -10,9 +10,6 @@ const DISALLOWED_CODEX_ENV_KEYS = new Set([
   "AI_SHARE_TASK",
   "AI_SHARE_GPT_PROVIDER",
   "AI_SHARE_DEEPSEEK_PROVIDER",
-  "OMX_DEFAULT_FRONTIER_MODEL",
-  "OMX_DEFAULT_STANDARD_MODEL",
-  "OMX_DEFAULT_SPARK_MODEL",
 ]);
 
 export function validateCodexEnv(errors: ValidationError[], envConfig: EnvYaml): void {
@@ -24,7 +21,7 @@ export function validateCodexEnv(errors: ValidationError[], envConfig: EnvYaml):
       errors.push({
         file: "env.yaml",
         path: `variables.${envName}`,
-        message: `env '${envName}' 不应写入 Codex .env；请保留给系统环境、生成器参数或 aiomx profile 管理`,
+        message: `env '${envName}' 不应写入 Codex .env；请保留给系统环境或生成器参数管理`,
       });
     }
 

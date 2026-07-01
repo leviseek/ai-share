@@ -316,7 +316,7 @@
 
   **What to do**:
   - 创建 `docs/schema/` 目录
-  - 为每个 `config/*.yaml` 编写 `docs/schema/<name>.md`：`global.md`、`provider.md`、`models.md`、`profiles.md`、`agents.md`
+  - 为每个 `config/*.yaml` 编写 `docs/schema/<name>.md`：`global.md`、`provider.md`、`models.md`、`profiles.md`、`profiles.md`
   - 每个包含：字段表（名称/类型/默认值/必填）、有效值范围、示例、与其他文件的联动说明
 
   **Must NOT do**: 不写设计哲学，不写真实 API Key
@@ -330,7 +330,7 @@
   - **Blocks**: None
   - **Blocked By**: None
 
-  **References**: `config/global.yaml`、`config/profiles.yaml`、`config/agents.yaml`、`src/types.ts`
+  **References**: `config/global.yaml`、`config/profiles.yaml`、`src/types.ts`
 
   **Acceptance Criteria**:
   - [ ] `docs/schema/` 下 5 个 `.md` 文件存在且非空
@@ -354,7 +354,6 @@
   **What to do**:
   - 在 `src/config/validation.ts` 中新增 `validateYamlConsistency()` 函数
   - 校验：所有 profile 必须定义 3 个模型角色（primary/reasoning/fast）
-  - 校验：agents/categories 引用的 model 必须在 models.yaml 中存在或在 profile 角色映射中可解析
   - 校验：`default_profile` 指向的 profile 必须存在
   - 校验：`compaction.threshold` 不能超过 `max_input_tokens`
   - 校验：provider group 引用的 provider 必须在 provider.yaml 中定义
@@ -381,7 +380,6 @@
   **References**:
   - `src/config/validation.ts` — 现有校验函数（`requireRecord`、`requireString`、`requireValue`），新增函数需与此风格一致
   - `config/profiles.yaml` — 8 个 profile 的结构，校验模型角色完整性
-  - `config/agents.yaml:13-78` — agents/categories 引用 `primary`/`reasoning`/`fast` 模型角色
   - `config/models.yaml` — 模型定义，校验 agent model 引用有效性
   - `src/generate-user-config.ts:65-77` — `checkOnly` 分支，需要在此加入新校验调用
 
@@ -889,7 +887,6 @@
 
   **Parallelization**: YES（独立）| **Blocked By**: 阶段二完成
 
-  **References**: `config/profiles.yaml`、`config/agents.yaml:13-78`、`memory/architecture/ai-desktop.md:32-41`
 
   **Acceptance Criteria**: `docs/spec/role-mapping-v1.md` 存在且无 `opencode`/`$schema` 引用
 

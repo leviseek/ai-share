@@ -7,7 +7,8 @@
 - 脚本路径: src/migration/migrate-ai-memory.ts
 - 使用 
 ode:fs/promises 纯标准库，无外部依赖
-- 使用 import.meta.url + ileURLToPath 计算 __dirname（兼容 Bun）
+- 使用 import.meta.url + 
+ileURLToPath 计算 __dirname（兼容 Bun）
 - 目录创建用 mkdir(dir, { recursive: true }) — 已存在时不报错，通过 EEXIST 判断
 - 文件复制用 stat(dest) 检查存在性 + copyFile(src, dest)
 - .gitignore 更新用逐行读取 + Set 判重
@@ -24,7 +25,8 @@ ode:fs/promises 纯标准库，无外部依赖
 
 **注意点**:
 - .gitignore 已有 46 行规则，新规则追加在文件末尾
-- 不忽略整个 memory/，只忽略 untime/ 和 sync/ 子目录
+- 不忽略整个 memory/，只忽略 
+untime/ 和 sync/ 子目录
 - 脚本幂等：第二次运行跳过所有已存在的文件
 - ../ai-memory 不存在时脚本优雅退出（exit 0，打印提示）
 - memory/link.ts 使用 
@@ -61,7 +63,7 @@ ode:fs/promises 模式，本脚本沿用
 
 **实现细节**:
 - 目录: `docs/schema/`
-- 文件 5 个: `global.md`, `provider.md`, `models.md`, `profiles.md`, `agents.md`
+- 文件 5 个: `global.md`, `provider.md`, `models.md`, `profiles.md`, `profiles.md`
 - 每文件包含: Overview、Fields 表（Field/Type/Default/Required/Description）、Valid Values、Examples、Cross-File References
 - 字段表使用英文字段名、中文描述，与 YAML 风格一致
 - dot notation 表示嵌套字段（如 `compaction.threshold`）
@@ -72,12 +74,11 @@ ode:fs/promises 模式，本脚本沿用
 - `provider.md`: 4 个 providers，每个 8 字段
 - `models.md`: 8 个 models，每个 12+ 字段含 capabilities/cost/limits/parameters/fallback
 - `profiles.md`: 8 个 profiles，每个含 models/compaction/strategies（opencode + oh_my_openagent）
-- `agents.md`: 11 个 agents + 8 个 categories + runtime_fallback/background_task/dcp/checkpoint/memory/tmux
+- `profiles.md`: 11 个 agents + 8 个 categories + runtime_fallback/background_task/dcp/checkpoint/memory/tmux
 
 **数据验证**:
 - 所有 Cross-File References 指向实际存在的 YAML 文件
 - profile 模型映射表与 `models.yaml` 中的模型 ID 一致
-- agent/category 角色分配与 `agents.yaml` 一致
 
 ## 2026-05-15: buildInstructionsPaths 移除外部 ai-memory 路径
 

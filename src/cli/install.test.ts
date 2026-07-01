@@ -1,16 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import { installLaunchers, installNativeSkills } from "./install.ts";
 import { NATIVE_SKILLS } from "./native-skills.ts";
 import type { GeneratorPaths } from "./paths.ts";
@@ -45,34 +36,13 @@ describe("install contract", () => {
     }
   });
 
-  test("installs launchers through atomic target writes", async () => {
+  test("does not install custom launchers", async () => {
     const root = mkdtempSync(join(tmpdir(), "ai-share-install-"));
-    const restorePath = withTargetBinInPath(join(root, "home", ".local", "bin"));
     try {
       const paths = testPaths(root);
-      mkdirSync(paths.binDir, { recursive: true });
-      for (const launcher of expectedLaunchers()) {
-        writeFileSync(
-          join(paths.binDir, launcher),
-          launcher.endsWith(".ps1") ? "Write-Output aiomx\n" : `${launcher}\n`,
-        );
-      }
-
       await installLaunchers(paths, false);
-
-      for (const launcher of expectedLaunchers()) {
-        const launcherPath = join(paths.targetBinDir, launcher);
-        expect(existsSync(launcherPath)).toBe(true);
-        if (process.platform === "win32" && launcher.endsWith(".ps1")) {
-          expect(Array.from(readFileSync(launcherPath).subarray(0, 3))).toEqual([0xef, 0xbb, 0xbf]);
-        }
-        if (process.platform !== "win32" && launcher === "aiomx") {
-          expect((statSync(launcherPath).mode & 0o111) !== 0).toBe(true);
-        }
-      }
-      expect(hasAtomicTempFile(paths.targetBinDir)).toBe(false);
+      expect(existsSync(paths.targetBinDir)).toBe(false);
     } finally {
-      restorePath();
       rmSync(root, { recursive: true, force: true });
     }
   });
@@ -89,11 +59,9 @@ function testPaths(root: string): GeneratorPaths {
     workspaceAiShareDir: join(homeDir, "ai-workspace", "ai-share"),
     homeDir,
     targetCodexConfigDir,
-    targetCodexAgentDir: join(targetCodexConfigDir, "agents"),
     targetCodexConfig: join(targetCodexConfigDir, "config.toml"),
     targetCodexEnv: join(targetCodexConfigDir, ".env"),
     targetCodexInstructions: join(targetCodexConfigDir, "AGENTS.md"),
-    targetOmxConfig: join(targetCodexConfigDir, ".omx-config.json"),
     targetRuntimeManifest: join(targetCodexConfigDir, "ai-share.runtime.json"),
     targetBinDir: join(homeDir, ".local", "bin"),
     targetCodexSkillsDir: join(targetCodexConfigDir, "skills"),
@@ -104,36 +72,6 @@ function requireFirstNativeSkill(): (typeof NATIVE_SKILLS)[number] {
   const firstSkill = NATIVE_SKILLS[0];
   if (!firstSkill) throw new Error("NATIVE_SKILLS must contain at least one skill");
   return firstSkill;
-}
-
-function expectedLaunchers(): string[] {
-  return process.platform === "win32" ? ["aiomx.cmd", "aiomx.ps1", "aiomx.ts"] : ["aiomx", "aiomx.ts"];
-}
-
-function withTargetBinInPath(targetBin: string): () => void {
-  const previousPath = process.env.Path;
-  const previousPATH = process.env.PATH;
-  const pathKey = process.platform === "win32" ? "Path" : "PATH";
-  const pathValue = `${targetBin}${delimiter}${process.env[pathKey] ?? process.env.PATH ?? ""}`;
-  process.env[pathKey] = pathValue;
-  process.env.PATH = pathValue;
-  return () => {
-    restorePathEnv(previousPath, previousPATH);
-  };
-}
-
-function restorePathEnv(previousPath: string | undefined, previousPATH: string | undefined): void {
-  if (previousPath === undefined) {
-    delete process.env.Path;
-  } else {
-    process.env.Path = previousPath;
-  }
-
-  if (previousPATH === undefined) {
-    delete process.env.PATH;
-  } else {
-    process.env.PATH = previousPATH;
-  }
 }
 
 function hasAtomicTempFile(path: string): boolean {

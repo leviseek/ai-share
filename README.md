@@ -1,20 +1,19 @@
 # ai-share
 
-这个仓库用于集中管理多台电脑、多个项目共用的 Codex/OMX 配置、MCP、native skills、提示词和用户级记忆。
+这个仓库用于集中管理多台电脑、多个项目共用的 Codex 配置、MCP、native skills、提示词和用户级记忆。
 
-当前架构已经收敛为 **Codex + OMX only**。仓库不再生成或安装其他 AI 运行时的兼容配置。
+当前架构已经收敛为 **Codex only**。仓库不再生成或安装其他 AI 运行时的兼容配置。
 
 主要目标：
 
-- 以 `config/*.yaml` 作为唯一权威配置源，统一维护模型提供商、模型列表、profile 和 Codex agents。
-- 从 YAML 生成用户级 Codex CLI 配置、OMX 配置、Codex agent 配置、AGENTS.md 和运行时清单。
+- 以 `config/*.yaml` 作为唯一权威配置源，统一维护模型提供商、模型列表和 profile。
 - 同步用户级 MCP、native skills、prompts 和持久化 memory。
 - API Key 不写入仓库，只通过环境变量引用。
 - 通过 Git 在不同电脑之间同步配置源。
 
 ## 使用
 
-新电脑从零同步后，推荐在仓库根目录直接执行 bootstrap。它会安装依赖、检查配置、生成并安装用户级 Codex/OMX 配置，然后验证 `aiomx` 启动入口：
+新电脑从零同步后，推荐在仓库根目录直接执行 bootstrap。它会安装依赖、检查配置、生成并安装用户级 Codex 配置，然后验证 `codex` 启动入口：
 
 ```sh
 bun run ai:bootstrap
@@ -26,7 +25,7 @@ bun run ai:bootstrap
 bun run ai:bootstrap -- --skip-install
 ```
 
-bootstrap 要求本机已安装 Bun、Codex CLI、OMX，并且已在环境变量中设置所需 API Key。缺失时会在检查阶段输出具体变量名，不会写入真实密钥。
+bootstrap 要求本机已安装 Bun、Codex CLI、Codex，并且已在环境变量中设置所需 API Key。缺失时会在检查阶段输出具体变量名，不会写入真实密钥。
 
 安装依赖：
 
@@ -46,7 +45,7 @@ bun run ai:check
 bun run ai:gen -- --dry-run
 ```
 
-生成用户级 Codex/OMX 配置，并安装全局启动命令：
+生成用户级 Codex 配置，并安装全局启动命令：
 
 ```sh
 bun run ai:gen
@@ -112,15 +111,15 @@ Codex 目录优先读取 `CODEX_HOME`，未设置时使用 `~/.codex`。
 ~/.codex/writing.config.toml
 ~/.codex/max.config.toml
 ~/.codex/ds-max.config.toml
-~/.codex/lite.omx-config.json
-~/.codex/economy.omx-config.json
-~/.codex/cheap.omx-config.json
-~/.codex/balanced.omx-config.json
-~/.codex/coding.omx-config.json
-~/.codex/research.omx-config.json
-~/.codex/writing.omx-config.json
-~/.codex/max.omx-config.json
-~/.codex/ds-max.omx-config.json
+~/.codex/lite.codex-config.json
+~/.codex/economy.codex-config.json
+~/.codex/cheap.codex-config.json
+~/.codex/balanced.codex-config.json
+~/.codex/coding.codex-config.json
+~/.codex/research.codex-config.json
+~/.codex/writing.codex-config.json
+~/.codex/max.codex-config.json
+~/.codex/ds-max.codex-config.json
 ~/.codex/ai-share.runtime.json
 ~/.codex/AGENTS.md
 ~/.codex/lite.AGENTS.md
@@ -143,25 +142,25 @@ Codex 目录优先读取 `CODEX_HOME`，未设置时使用 `~/.codex`。
 ~/.codex/agents/explorer.toml
 ~/.codex/agents/librarian.toml
 ~/.codex/agents/multimodal-looker.toml
-~/.codex/.omx-config.json
+~/.codex/.codex-config.json
 ~/.codex/skills/<native-skill>/SKILL.md
 ```
 
 同时会安装启动命令到用户级 bin 目录：
 
 ```text
-~/.local/bin/aiomx
+~/.local/bin/codex
 ```
 
 Windows 下对应为：
 
 ```text
-%USERPROFILE%\.local\bin\aiomx.cmd
-%USERPROFILE%\.local\bin\aiomx.ps1
-%USERPROFILE%\.local\bin\aiomx.ts
+%USERPROFILE%\.local\bin\codex.cmd
+%USERPROFILE%\.local\bin\codex.ps1
+%USERPROFILE%\.local\bin\codex.ts
 ```
 
-Windows 会自动把该目录加入用户级 PATH。已经打开的终端可能需要重启后才能直接使用 `aiomx`。macOS/Linux 请确认 `~/.local/bin` 已在 PATH 中。
+Windows 会自动把该目录加入用户级 PATH。已经打开的终端可能需要重启后才能直接使用 `codex`。macOS/Linux 请确认 `~/.local/bin` 已在 PATH 中。
 
 ## Native Skills
 
@@ -193,22 +192,21 @@ ds-max：primary=deepseek-v4-pro-think，reasoning=deepseek-v4-pro-think-max，f
 默认 profile 由 `config/global.yaml` 的 `default_profile` 控制，当前是 `balanced`。启动时可直接选择：
 
 ```sh
-aiomx
-aiomx coding
-aiomx max exec "请分析当前项目"
-aiomx --profile research
+codex
+codex coding
+codex max exec "请分析当前项目"
+codex --profile research
 ```
 
-`config/agents.yaml` 中的 agents 引用 `primary`、`reasoning`、`fast` 这 3 个中间层角色；具体模型由 `config/profiles.yaml` 决定。
+`config/profiles.yaml` 直接维护 `primary`、`reasoning`、`fast` 这 3 个中间层角色到具体模型的映射。
 
 ## 配置源
 
 ```text
-config/global.yaml    -> 默认 profile 和 Codex/OMX 最低版本要求
+config/global.yaml    -> 默认 profile 和 Codex 最低版本要求
 config/provider.yaml  -> 模型提供商、baseURL、API Key 环境变量名
 config/models.yaml    -> 模型列表、provider/provider_group、上游模型名、参数、fallback
-config/profiles.yaml  -> Codex/OMX profile、模型角色映射和 compaction metadata
-config/agents.yaml    -> Codex agent 运行时参数、OMX slot/reasoning 映射和 prompt append
+config/profiles.yaml  -> Codex profile、模型角色映射和 compaction metadata
 config/mcp.yaml       -> 用户级 Codex MCP servers
 config/env.yaml       -> 写入 CODEX_HOME/.env 的非密钥 Codex 运行时环境变量
 config/profile-eval.yaml -> profile evaluation 固定任务集和手工评分维度
@@ -271,7 +269,7 @@ no_proxy=localhost,127.0.0.1,::1
 
 如果检测到旧版 ai-share 全量生成头，会自动迁移为 managed block；未知 `.env` 文件只追加或更新 managed block。
 
-不要把 API key、token、cookie、password、`CODEX_HOME`、`PATH`、`AI_SHARE_*` 或 `OMX_DEFAULT_*` 写入 `config/env.yaml`。
+不要把 API key、token、cookie、password、`CODEX_HOME`、`PATH`、`AI_SHARE_*` 或 `CODEX_*` 写入 `config/env.yaml`。
 
 `bun run ai:check` 会轻量检查 managed block 是否缺失/漂移，以及 `config/env.yaml` 中的 loopback 代理端口是否可达；这些运行态差异只输出告警，不阻断离线验证。
 
@@ -338,7 +336,7 @@ bun run ai:doctor -- --json
 bun run ai:doctor -- --output .sisyphus/evidence/doctor/report.json
 ```
 
-`ai:doctor` 聚合 YAML 一致性、默认配置漂移、Codex/OMX 版本、`.env` managed block、本地代理、memory privacy 和 provider model 检查。provider/network 问题默认是 warning；需要阻断时使用 `--strict-provider`。
+`ai:doctor` 聚合 YAML 一致性、默认配置漂移、Codex 版本、`.env` managed block、本地代理、memory privacy 和 provider model 检查。provider/network 问题默认是 warning；需要阻断时使用 `--strict-provider`。
 
 ## Templates / Privacy
 

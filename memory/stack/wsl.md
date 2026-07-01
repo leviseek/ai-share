@@ -59,4 +59,4 @@
 - TypeScript 编译、Bun、Node.js 在 WSL2 下行为与原生 Linux 一致
 - PowerShell 脚本在 WSL2 内不可直接运行，需 `pwsh`（安装 PowerShell Core）
 - `code .` 命令默认调用 Windows VS Code（WSL Remote），需要安装 `Remote - WSL` 扩展
-- Codex/OMX 在 WSL2 内运行需单独配置 API Key 和环境变量，不共享 Windows 的环境变量
+- Codex 在 WSL2 内运行需单独配置 API Key 和环境变量，不共享 Windows 的环境变量

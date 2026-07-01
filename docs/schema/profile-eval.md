@@ -14,7 +14,7 @@ Profile evaluation task-set source. `bun run profile:eval` uses this file when n
 
 | Field              | Type     | Required | Notes                                |
 | ------------------ | -------- | -------- | ------------------------------------ |
-| `prompt`           | string   | yes      | Prompt executed by `aiomx`.          |
+| `prompt`           | string   | yes      | Prompt executed by `codex`.          |
 | `title`            | string   | no       | Human-readable task title.           |
 | `category`         | string   | no       | Category used for comparison.        |
 | `weight`           | number   | no       | Positive weight for aggregate score. |

@@ -11,7 +11,7 @@ devices:
       codex_home: ~/.codex/
       ai_share_memory: memory/
     notes: >-
-      日常主力机。所有 AI 配置生成和大部分开发在此进行。Codex/OMX 通过 aiomx 命令启动，已加入用户 PATH。
+      日常主力机。所有 AI 配置生成和大部分开发在此进行。Codex 通过 codex 命令启动，已加入用户 PATH。
 
   - name: wsl2
     os: Ubuntu (WSL2)

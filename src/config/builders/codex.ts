@@ -1,7 +1,4 @@
 import type {
-  AgentsYaml,
-  CodexAgentConfig,
-  CodexCliAgentsConfig,
   CodexCliProfileConfig,
   CodexCliProvider,
   CodexMcpServer,
@@ -9,7 +6,6 @@ import type {
   McpServerSource,
   ModelRoleMap,
   ModelsYaml,
-  OmxConfig,
   ProfilesYaml,
   ProviderSource,
 } from "../../types.ts";
@@ -21,7 +17,6 @@ export function buildCodexCliConfigs(
   providerSources: Record<string, ProviderSource>,
   modelSources: ModelsYaml,
   profilesConfig: ProfilesYaml,
-  agentsConfig: AgentsYaml,
   mcpConfig: McpYaml,
   instructionsFileForProfile: (profileId: string) => string,
 ): Record<string, CodexCliProfileConfig> {
@@ -32,7 +27,6 @@ export function buildCodexCliConfigs(
         providerSources,
         modelSources,
         profilesConfig,
-        agentsConfig,
         mcpConfig,
         profileId,
         instructionsFileForProfile(profileId),
@@ -59,43 +53,6 @@ export function buildCodexInstructions(projectRoot: string, profileId: string): 
   ].join("\n");
 }
 
-export function buildCodexAgentConfigs(
-  agentsConfig: AgentsYaml,
-  modelSources: ModelsYaml,
-  profilesConfig: ProfilesYaml,
-  profileId: string,
-): Record<string, CodexAgentConfig> {
-  const profileModels = requireRecord(profilesConfig[profileId]?.models, `profiles.${profileId}.models`);
-  return Object.fromEntries(
-    Object.entries(requireRecord(agentsConfig.agents, "agents")).map(([agentId, agent]) => [
-      agentId,
-      {
-        name: agentId,
-        description: `ai-share ${agentId} Codex agent`,
-        ...(agent.model ? { model: upstreamModelName(agent.model, modelSources, profileModels) } : {}),
-        ...(agent.permission?.edit === "deny" ? { sandbox_mode: "read-only" as const } : {}),
-        developer_instructions: [sharedPromptAppend(agentsConfig), agent.prompt?.append ?? agent.prompt?.system]
-          .map((part) => part?.trim())
-          .filter((part): part is string => Boolean(part))
-          .join("\n\n"),
-      },
-    ]),
-  );
-}
-
-export function buildOmxConfigs(
-  modelSources: ModelsYaml,
-  profilesConfig: ProfilesYaml,
-  agentsConfig: AgentsYaml,
-): Record<string, OmxConfig> {
-  return Object.fromEntries(
-    Object.keys(requireRecord(profilesConfig, "profiles")).map((profileId) => [
-      profileId,
-      buildOmxConfig(modelSources, profilesConfig, agentsConfig, profileId),
-    ]),
-  );
-}
-
 export function formatCodexConfigToml(config: CodexCliProfileConfig): string {
   const lines = [
     `model = ${tomlString(config.model)}`,
@@ -104,16 +61,6 @@ export function formatCodexConfigToml(config: CodexCliProfileConfig): string {
     `model_instructions_file = ${tomlString(config.model_instructions_file)}`,
     "",
   ];
-
-  if (config.agents) {
-    lines.push("[agents]");
-    if (config.agents.max_threads !== undefined) lines.push(`max_threads = ${config.agents.max_threads}`);
-    if (config.agents.max_depth !== undefined) lines.push(`max_depth = ${config.agents.max_depth}`);
-    if (config.agents.job_max_runtime_seconds !== undefined) {
-      lines.push(`job_max_runtime_seconds = ${config.agents.job_max_runtime_seconds}`);
-    }
-    lines.push("");
-  }
 
   for (const [providerId, provider] of Object.entries(config.model_providers)) {
     lines.push(`[model_providers.${tomlBareKey(providerId)}]`);
@@ -144,21 +91,10 @@ export function formatCodexConfigToml(config: CodexCliProfileConfig): string {
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
-export function formatCodexAgentToml(config: CodexAgentConfig): string {
-  return `${[
-    `name = ${tomlString(config.name)}`,
-    `description = ${tomlString(config.description)}`,
-    ...(config.model ? [`model = ${tomlString(config.model)}`] : []),
-    ...(config.sandbox_mode ? [`sandbox_mode = ${tomlString(config.sandbox_mode)}`] : []),
-    `developer_instructions = ${tomlMultilineBasicString(config.developer_instructions || "Follow the shared ai-share instructions.")}`,
-  ].join("\n")}\n`;
-}
-
 function buildCodexCliConfig(
   providerSources: Record<string, ProviderSource>,
   modelSources: ModelsYaml,
   profilesConfig: ProfilesYaml,
-  agentsConfig: AgentsYaml,
   mcpConfig: McpYaml,
   profileId: string,
   instructionsFile: string,
@@ -175,67 +111,9 @@ function buildCodexCliConfig(
     model_provider: primaryProviderId,
     ...(primaryReasoningEffort ? { model_reasoning_effort: primaryReasoningEffort } : {}),
     model_instructions_file: instructionsFile,
-    agents: buildCodexCliAgentsConfig(agentsConfig),
     model_providers: buildCodexProviders(providerSources),
     ...nonEmptyMcpServers(buildCodexMcpServers(mcpConfig)),
   };
-}
-
-function buildOmxConfig(
-  modelSources: ModelsYaml,
-  profilesConfig: ProfilesYaml,
-  agentsConfig: AgentsYaml,
-  profileId: string,
-): OmxConfig {
-  const profileModels = requireRecord(profilesConfig[profileId]?.models, `profiles.${profileId}.models`);
-  const primary = upstreamModelName("primary", modelSources, profileModels);
-  const reasoning = upstreamModelName("reasoning", modelSources, profileModels);
-  const fast = upstreamModelName("fast", modelSources, profileModels);
-  return {
-    env: {
-      OMX_DEFAULT_FRONTIER_MODEL: primary,
-      OMX_DEFAULT_STANDARD_MODEL: reasoning,
-      OMX_DEFAULT_SPARK_MODEL: fast,
-    },
-    models: buildOmxModelSlots(agentsConfig, modelSources, profileModels),
-    agentReasoning: buildOmxAgentReasoning(agentsConfig),
-  };
-}
-
-function buildCodexCliAgentsConfig(agentsConfig: AgentsYaml): CodexCliAgentsConfig {
-  const source = requireRecord(agentsConfig.codex?.agents, "agents.codex.agents");
-  return {
-    max_threads: requirePositiveInteger(source.max_threads, "agents.codex.agents.max_threads"),
-    max_depth: requirePositiveInteger(source.max_depth, "agents.codex.agents.max_depth"),
-    job_max_runtime_seconds: requirePositiveInteger(
-      source.job_max_runtime_seconds,
-      "agents.codex.agents.job_max_runtime_seconds",
-    ),
-  };
-}
-
-function buildOmxModelSlots(
-  agentsConfig: AgentsYaml,
-  modelSources: ModelsYaml,
-  profileModels: ModelRoleMap,
-): Record<string, string> {
-  const slots = requireRecord(agentsConfig.omx?.model_slots, "agents.omx.model_slots");
-  return Object.fromEntries(
-    Object.entries(slots).map(([slotName, modelRole]) => [
-      slotName,
-      upstreamModelName(requireModelRole(modelRole, `agents.omx.model_slots.${slotName}`), modelSources, profileModels),
-    ]),
-  );
-}
-
-function buildOmxAgentReasoning(agentsConfig: AgentsYaml): Record<string, "low" | "medium" | "high"> {
-  const agentReasoning = requireRecord(agentsConfig.omx?.agent_reasoning, "agents.omx.agent_reasoning");
-  return Object.fromEntries(
-    Object.entries(agentReasoning).map(([agentId, level]) => [
-      agentId,
-      requireReasoningLevel(level, `agents.omx.agent_reasoning.${agentId}`),
-    ]),
-  );
 }
 
 function buildCodexProviders(providerSources: Record<string, ProviderSource>): Record<string, CodexCliProvider> {
@@ -281,12 +159,6 @@ function nonEmptyMcpServers(servers: Record<string, CodexMcpServer>): Pick<Codex
   return Object.keys(servers).length > 0 ? { mcp_servers: servers } : {};
 }
 
-function upstreamModelName(modelRole: string, modelSources: ModelsYaml, profileModels: ModelRoleMap): string {
-  const ref = modelRef(modelRole, modelSources, profileModels);
-  const modelId = modelIdFromRef(ref);
-  return modelSources[modelId]?.model_name ?? modelId;
-}
-
 function reasoningEffort(profileModels: ModelRoleMap, modelSources: ModelsYaml): "low" | "medium" | "high" | undefined {
   const modelId = modelIdFromRef(modelRef("primary", modelSources, profileModels));
   const value =
@@ -294,23 +166,6 @@ function reasoningEffort(profileModels: ModelRoleMap, modelSources: ModelsYaml):
   if (value === "low" || value === "medium" || value === "high") return value;
   if (value === "max") return "high";
   return undefined;
-}
-
-function requirePositiveInteger(value: unknown, label: string): number {
-  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
-    throw new Error(`${label} 必须是正整数`);
-  }
-  return value;
-}
-
-function requireModelRole(value: unknown, label: string): "primary" | "reasoning" | "fast" {
-  if (value === "primary" || value === "reasoning" || value === "fast") return value;
-  throw new Error(`${label} 必须引用 primary、reasoning 或 fast 角色`);
-}
-
-function requireReasoningLevel(value: unknown, label: string): "low" | "medium" | "high" {
-  if (value === "low" || value === "medium" || value === "high") return value;
-  throw new Error(`${label} 必须是 low、medium 或 high`);
 }
 
 function modelIdFromRef(model: string): string {
@@ -323,10 +178,6 @@ function envKeyName(value: string): string {
   return match[1];
 }
 
-function sharedPromptAppend(agentsConfig: AgentsYaml): string {
-  return (agentsConfig.shared_prompt?.append ?? agentsConfig.shared_prompt?.system ?? "").trim();
-}
-
 function tomlBareKey(value: string): string {
   return /^[A-Za-z0-9_-]+$/.test(value) ? value : tomlString(value);
 }
@@ -337,8 +188,4 @@ function tomlString(value: string): string {
 
 function tomlStringArray(values: string[]): string {
   return `[${values.map(tomlString).join(", ")}]`;
-}
-
-function tomlMultilineBasicString(value: string): string {
-  return `"""${value.replaceAll("\\", "\\\\").replaceAll('"""', '\\"\\"\\"')}"""`;
 }

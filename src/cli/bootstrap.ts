@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 
 import { spawnSync } from "node:child_process";
-import { resolve } from "node:path";
 import { color } from "./color.ts";
 import { buildGeneratorPaths } from "./paths.ts";
 
@@ -19,11 +18,6 @@ const steps: Step[] = [
   ...(skipInstall ? [] : [{ label: "安装 Bun 依赖", command: bunCommand, args: ["install"] }]),
   { label: "检查 ai-share 配置", command: bunCommand, args: ["run", "ai:check"] },
   { label: "生成并安装用户级 AI 运行时", command: bunCommand, args: ["run", "ai:gen", "--", "--force"] },
-  {
-    label: "验证 aiomx 启动入口",
-    command: bunCommand,
-    args: [resolve(paths.targetBinDir, "aiomx.ts"), "version"],
-  },
 ];
 
 console.log(color.bold("ai-share bootstrap"));
@@ -37,7 +31,7 @@ for (const step of steps) {
 }
 
 console.log("");
-console.log(color.green("bootstrap 完成。现在可以在任意项目目录运行：aiomx"));
+console.log(color.green("bootstrap 完成。现在可以在任意项目目录运行：codex"));
 
 function runStep(step: Step): void {
   console.log(`${color.cyan("▶")} ${step.label}`);

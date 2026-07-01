@@ -9,7 +9,7 @@
 ## 核心工具
 
 - **Codex CLI**：主力 AI Coding agent，承载 Build/Plan/Review 等本地协作模式
-- **OMX**：多 agent 编排与任务分解入口，通过 `aiomx` 启动
+- **Codex CLI**：AI Coding 入口，通过 `codex` 启动
 - **Git**：版本控制和多设备同步
 
 ## 代码质量

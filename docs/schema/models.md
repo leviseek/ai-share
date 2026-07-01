@@ -2,7 +2,7 @@
 
 ## Overview
 
-Model catalog. Each entry defines an upstream model ID, provider group assignment, capabilities, cost, token limits, temperature, optional parameters (thinking/reasoning), and a fallback chain. Models are referenced by key from `profiles.yaml` and `agents.yaml`.
+Model catalog. Each entry defines an upstream model ID, provider group assignment, capabilities, cost, token limits, temperature, optional parameters (thinking/reasoning), and a fallback chain. Models are referenced by key from `profiles.yaml`.
 
 ## Fields
 
@@ -96,7 +96,5 @@ deepseek-v4-pro-think-max:
 
 - **profiles.yaml**: Profile `models.primary`, `models.reasoning`, `models.fast` reference model IDs from this file
 - **profiles.yaml**: `compaction.model` can be a model ID from this file or a role name (`primary`, `reasoning`, `fast`)
-- **agents.yaml**: Agent `model` fields reference role names resolved through profile model maps
 - **provider.yaml**: The `provider_group` field is resolved to a concrete provider at generation time
 - **Generated Codex config**: Profile roles resolve to upstream model names and provider IDs
-- **Generated OMX config**: `config/agents.yaml` maps OMX model slots to `primary`, `reasoning`, and `fast`

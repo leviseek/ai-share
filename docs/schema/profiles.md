@@ -2,7 +2,7 @@
 
 ## Overview
 
-Codex/OMX profile definitions. Each profile maps three model roles (`primary`, `reasoning`, `fast`) to concrete model IDs from `models.yaml`, with optional compaction metadata.
+Codex profile definitions. Each profile maps three model roles (`primary`, `reasoning`, `fast`) to concrete model IDs from `models.yaml`, with optional compaction metadata.
 
 ## Fields
 
@@ -36,8 +36,7 @@ Each top-level key is a profile ID.
 ## Cross-File References
 
 - **models.yaml**: All `models.*` values reference model IDs defined there.
-- **provider_group**: Each profile's `primary` / `reasoning` / `fast` models must resolve to the same `provider_group`, keeping OMX orchestration single-family so `ai:gen` can select one provider for that profile.
+- **provider_group**: Each profile's `primary` / `reasoning` / `fast` models must resolve to the same `provider_group`, keeping Codex orchestration single-family so `ai:gen` can select one provider for that profile.
 - **global.yaml**: `default_profile` must equal a profile ID from this file.
-- **agents.yaml**: Agent `model` fields use role names resolved through this file.
 - **Codex profile TOML**: Generated under `~/.codex/<profile>.config.toml`.
-- **OMX profile JSON**: Generated under `~/.codex/<profile>.omx-config.json`.
+- **Codex profile JSON**: Generated under `~/.codex/<profile>.codex-config.json`.

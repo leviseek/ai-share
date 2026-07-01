@@ -1,9 +1,6 @@
 export type ModelRole = "primary" | "reasoning" | "fast";
-export type ReasoningLevel = "low" | "medium" | "high";
 
 export type ModelRoleMap = Record<string, string> & Partial<Record<ModelRole, string>>;
-
-export type PermissionMap = Record<string, string>;
 
 export type ProviderYaml = {
   providers?: Record<string, ProviderSource>;
@@ -88,7 +85,6 @@ export type ModelSource = {
 export type GlobalYaml = {
   default_profile?: string;
   codex_min_version?: string;
-  omx_min_version?: string;
 };
 
 export type ProfileCompaction = {
@@ -100,42 +96,9 @@ export type ProfileCompaction = {
   reserved?: number;
 };
 
-export type AgentPrompt = {
-  system?: string;
-  append?: string;
-};
+export type ProfilesYaml = Record<string, ProfileSource>;
 
-export type AgentSource = {
-  model?: string;
-  prompt?: AgentPrompt;
-  permission?: PermissionMap;
-};
-
-export type AgentsYaml = {
-  shared_prompt?: AgentPrompt;
-  codex?: CodexRuntimeSource;
-  omx?: OmxRuntimeSource;
-  agents?: Record<string, AgentSource>;
-};
-
-export type CodexRuntimeSource = {
-  agents?: CodexAgentsSource;
-};
-
-export type CodexAgentsSource = {
-  max_threads?: number;
-  max_depth?: number;
-  job_max_runtime_seconds?: number;
-};
-
-export type OmxRuntimeSource = {
-  model_slots?: Record<string, ModelRole>;
-  agent_reasoning?: Record<string, ReasoningLevel>;
-};
-
-export type ProfilesYaml = Record<string, AgentProfileSource>;
-
-export type AgentProfileSource = {
+export type ProfileSource = {
   name?: string;
   models?: ModelRoleMap;
   compaction?: ProfileCompaction;

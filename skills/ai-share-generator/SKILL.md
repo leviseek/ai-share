@@ -1,19 +1,18 @@
 ---
 name: ai-share-generator
-description: Use when changing config/*.yaml, Codex/OMX builders, generated Codex config, ai:gen, or ai:check behavior.
+description: Use when changing config/*.yaml, Codex builders, generated Codex config, ai:gen, or ai:check behavior.
 ---
 
 # AI Share Generator
 
-Use this skill when modifying YAML source files, Codex/OMX config builders, generated Codex config shape, native skills, launchers, or generator CLI behavior.
+Use this skill when modifying YAML source files, Codex config builders, generated Codex config shape, native skills, launchers, or generator CLI behavior.
 
 ## Source Of Truth
 
-- `config/global.yaml`: default profile and Codex/OMX version requirements.
+- `config/global.yaml`: default profile and Codex version requirements.
 - `config/provider.yaml`: provider definitions and API key env references.
 - `config/models.yaml`: model catalog and provider groups.
 - `config/profiles.yaml`: profile role mapping and profile metadata.
-- `config/agents.yaml`: Codex agent runtime settings, OMX slot/reasoning policy, role mapping, and prompt append rules.
 - `config/mcp.yaml`: Codex MCP server definitions.
 - `config/env.yaml`: non-secret Codex .env runtime variables such as local proxy settings.
 - `config/profile-eval.yaml`: fixed profile evaluation tasks and manual scoring dimensions.
@@ -21,11 +20,11 @@ Use this skill when modifying YAML source files, Codex/OMX config builders, gene
 ## Implementation Map
 
 - Orchestration: `src/generate-user-config.ts`.
-- Codex/OMX config: `src/config/builders/codex.ts`.
+- Codex config: `src/config/builders/codex.ts`.
 - Codex .env config: `src/config/builders/env.ts`.
 - Instruction paths: `src/config/builders/instructions.ts`.
 - Output paths: `src/cli/paths.ts`.
-- Install behavior: `src/cli/install.ts` and `bin/aiomx*`.
+- Install behavior: `src/cli/install.ts`.
 
 ## Workflow
 
@@ -45,7 +44,7 @@ Use this skill when modifying YAML source files, Codex/OMX config builders, gene
 ## Trigger Examples
 
 - "修改 config/profiles.yaml 后更新生成器行为。"
-- "调整 Codex/OMX config builder 输出。"
+- "调整 Codex config builder 输出。"
 - "排查 ai:gen --dry-run 的生成结果。"
 
 ## Anti Examples

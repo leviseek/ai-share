@@ -2,7 +2,7 @@
 
 ## Overview
 
-Global defaults for the ai-share Codex/OMX generator. This file is intentionally small: it only contains values directly consumed by generation or `ai:check`.
+Global defaults for the ai-share Codex generator. This file is intentionally small: it only contains values directly consumed by generation or `ai:check`.
 
 ## Fields
 
@@ -10,7 +10,7 @@ Global defaults for the ai-share Codex/OMX generator. This file is intentionally
 | ------------------- | ------ | -------- | --------------------------------------------------------- |
 | `default_profile`   | string | yes      | Default profile name; must match a key in `profiles.yaml` |
 | `codex_min_version` | string | no       | Minimum Codex CLI version checked by `ai:check`           |
-| `omx_min_version`   | string | no       | Minimum OMX CLI version checked by `ai:check`             |
+| `codex_min_version` | string | no       | Minimum Codex CLI version checked by `ai:check`           |
 
 ## Rules
 

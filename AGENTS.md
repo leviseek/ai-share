@@ -5,7 +5,7 @@
 
 ## OVERVIEW
 
-`ai-share` centralizes Codex CLI, OMX, MCP, native skills, prompts, profiles, and user-level memory for multiple machines/projects. Bun + strict TypeScript generate user-level Codex/OMX config, launchers, native skills, agents, runtime manifests, and instruction memory from YAML sources.
+`ai-share` centralizes Codex CLI, MCP, native skills, prompts, profiles, and user-level memory for multiple machines/projects. Bun + strict TypeScript generate user-level Codex config, native skills, runtime manifests, and instruction memory from YAML sources.
 
 ## STRUCTURE
 
@@ -13,7 +13,7 @@
 ai-share/
 ├── config/                    # YAML source of truth for generated config
 ├── src/                       # Bun generator, builders, CLI/install helpers, types
-├── bin/                       # aiomx launcher wrappers
+├── bin/                       # reserved for optional local wrappers
 ├── docs/                      # plans/specs/protocol docs
 ├── memory/                    # user-level memory vault
 ├── templates/                 # shareable config and personal overlay templates
@@ -32,11 +32,11 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.sisyphus/evidence/`, `
 | Codex `.env` runtime variables          | `config/env.yaml`                               | Non-secret runtime env only                        |
 | Profile evaluation task set             | `config/profile-eval.yaml`                      | Fixed tasks and manual scoring dimensions          |
 | Generator orchestration                 | `src/generate-user-config.ts`                   | Loads YAML, builds configs, writes/install outputs |
-| Codex/OMX config shape                  | `src/config/builders/codex.ts`                  | Codex TOML, agents, MCP, OMX JSON                  |
+| Codex config shape                      | `src/config/builders/codex.ts`                  | Codex TOML, agents, MCP                            |
 | YAML schema and runtime shape checks    | `src/config/schema-spec.ts`                     | Single source for JSON Schema and shape validation |
 | Instruction path builder                | `src/config/builders/instructions.ts`           | Generates memory file list                         |
 | Default profile resolution              | `src/config/builders/profiles.ts`               | `global.default_profile` fallback behavior         |
-| Launcher install behavior               | `src/cli/install.ts` + `bin/`                   | Copies aiomx launchers and native skills           |
+| Native skill install behavior           | `src/cli/install.ts`                            | Installs native skills                             |
 | Output paths                            | `src/cli/paths.ts`                              | Codex home, agents, skills, user bin               |
 | Shared AI workflow rules                | `AI_GUIDELINES.md`                              | Loaded into generated Codex instructions           |
 | Commit format                           | `GIT_COMMIT_GUIDELINES.md`                      | `option: 中文描述`                                 |
@@ -49,11 +49,8 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.sisyphus/evidence/`, `
 | -------------------------- | -------- | --------------------------------------- | ------------------------------------------- |
 | `loadYaml`                 | function | `src/generate-user-config.ts`           | Parse YAML source files from `config/`      |
 | `buildCodexCliConfigs`     | function | `src/config/builders/codex.ts`          | Generate per-profile Codex CLI TOML shape   |
-| `buildCodexAgentConfigs`   | function | `src/config/builders/codex.ts`          | Generate Codex agent TOML configs           |
-| `buildOmxConfigs`          | function | `src/config/builders/codex.ts`          | Generate per-profile OMX JSON configs       |
 | `buildInstructionsPaths`   | function | `src/config/builders/instructions.ts`   | Generate instruction/memory file list       |
 | `defaultProfileId`         | function | `src/config/builders/profiles.ts`       | Resolve default profile                     |
-| `installLaunchers`         | function | `src/cli/install.ts`                    | Copy platform launchers to user bin         |
 | `installNativeSkills`      | function | `src/cli/install.ts`                    | Install native skills into Codex home       |
 | `parseCliOptions`          | function | `src/cli/options.ts`                    | Handles flags and provider groups           |
 | `YAML_SCHEMA_SPECS`        | const    | `src/config/schema-spec.ts`             | Shared field spec for YAML schema/shape     |
@@ -65,7 +62,7 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.sisyphus/evidence/`, `
 - YAML in `config/` is authoritative. Do not hand-edit generated user config as the durable fix.
 - YAML field shape rules live in `src/config/schema-spec.ts`; JSON Schema output and runtime shape validation must derive from it.
 - Secrets policy is env-only: API keys are env-var references; never write real keys/tokens/cookies into repo files.
-- `config/env.yaml` may manage local proxy variables for `CODEX_HOME/.env`, but must not contain API keys, tokens, `CODEX_HOME`, `PATH`, `AI_SHARE_*`, or `OMX_DEFAULT_*`.
+- `config/env.yaml` may manage local proxy variables for `CODEX_HOME/.env`, but must not contain API keys, tokens, `CODEX_HOME`, `PATH`, `AI_SHARE_*`, or `CODEX_*`.
 - TypeScript is strict: `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `noUnused*`, `isolatedDeclarations`, `erasableSyntaxOnly`.
 - User-facing thrown errors in generator code are Chinese.
 - Prettier: 2 spaces, double quotes, semicolons, trailing commas, LF, print width 120.

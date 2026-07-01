@@ -11,7 +11,7 @@ API Key 通过环境变量引用，不写入仓库。
 
 ## 三角色模型映射
 
-Codex CLI 和 OMX 共享同一套中间层角色。agents 只引用角色名，具体模型由 profile 决定：
+Codex CLI 使用 profile 中的三角色模型映射：
 
 | 角色        | 用途                                | 典型模型                                    |
 | ----------- | ----------------------------------- | ------------------------------------------- |
@@ -109,7 +109,7 @@ research/writing/max/ds-max 使用 reasoning 模型做 compaction，压缩质量
 - deepseek-v4-pro-think → deepseek-v4-flash-think
 - deepseek-v4-flash-think → deepseek-v4-flash
 
-模型 YAML 保留 fallback 链用于生成器和后续工具消费；具体请求重试由 Codex/OMX 运行时处理。
+模型 YAML 保留 fallback 链用于生成器和后续工具消费；具体请求重试由 Codex 运行时处理。
 
 ## 已知模型行为
 

@@ -295,7 +295,7 @@ function executeRun(run: ProfileEvaluationRun, task: string, evidenceDir: string
     `${safeFileName(run.profile)}-${safeFileName(run.task_id)}-r${run.repeat}.stderr.txt`,
   );
   mkdirSync(evidenceDir, { recursive: true });
-  const result = spawnSync("aiomx", [run.profile, "exec", task], {
+  const result = spawnSync("codex", ["--profile", run.profile, "exec", task], {
     cwd: projectRoot,
     encoding: "utf8",
     stdio: "pipe",
@@ -549,6 +549,6 @@ function profileEvalUsage(availableProfiles: readonly string[], availableTaskIds
     "也可继续使用：bun run profile:eval -- --task <custom task>",
     `可用 profile：${availableProfiles.join(", ")}`,
     `固定任务：${availableTaskIds.join(", ") || "none"}`,
-    "默认只写 planned report；传 --execute 才会实际运行 aiomx 并产生模型调用。",
+    "默认只写 planned report；传 --execute 才会实际运行 Codex CLI 并产生模型调用。",
   ].join("\n");
 }

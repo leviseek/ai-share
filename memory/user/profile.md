@@ -3,7 +3,7 @@
 ## 身份
 
 - 全栈开发者，偏重 TypeScript 全栈、AI Infra 和自动化
-- 深度 AI Coding 用户，日常使用 Codex CLI + OMX 多 agent 编排
+- 深度 AI Coding 用户，日常使用 Codex CLI
 
 ## 编码风格
 

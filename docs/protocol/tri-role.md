@@ -15,7 +15,7 @@ Agent -> Role -> Profile -> Model -> Provider
          fast        balanced.fast        gpt-5.4-mini
 ```
 
-当前参考实现是 ai-share 的 Codex/OMX 生成器。
+当前参考实现是 ai-share 的 Codex 生成器。
 
 ## 角色
 
@@ -81,7 +81,7 @@ Agent -> Role -> Profile -> Model -> Provider
 2. 当前 profile 将角色名解析为模型 ID。
 3. `models.yaml` 将模型 ID 解析为 provider 和上游模型名。
 4. `provider.yaml` 提供 base URL 和 API key 环境变量名。
-5. Codex/OMX 生成器把解析结果写入 profile TOML、agent TOML 和 OMX JSON。
+5. Codex 生成器把解析结果写入 profile TOML、agent TOML 和 Codex JSON。
 
 ## Fallback
 
@@ -98,7 +98,7 @@ Fallback 链定义在 `models.yaml` 的 `fallback` 字段中。链条应保持�
 - `name` 必须是单行字符串，模型引用必须是安全的模型 ID/角色名
 - `compaction` 必须是对象
 - 模型 ID 在本地模型注册表中存在
-- 单个 profile 的 `primary` / `reasoning` / `fast` 必须来自同一 `provider_group`，避免 OMX 在一次编排中混用不同模型家族
+- 单个 profile 的 `primary` / `reasoning` / `fast` 必须来自同一 `provider_group`，避免 Codex 在一次编排中混用不同模型家族
 - `compaction.threshold <= compaction.max_input_tokens`（当二者都存在）
 
 ## 导出

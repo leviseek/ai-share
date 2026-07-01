@@ -3,7 +3,6 @@
 import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type {
-  AgentsYaml,
   EnvYaml,
   GlobalYaml,
   McpYaml,
@@ -16,16 +15,13 @@ import type {
 } from "./types.ts";
 import {
   applyProviderGroups,
-  buildCodexAgentConfigs,
   buildCodexCliConfigs,
   buildCodexInstructions,
   buildCodexEnvFileWithManagedBlock,
   buildInstructionsPaths,
-  buildOmxConfigs,
   buildRuntimeManifest,
   codexEnvManagedBlockIsCurrent,
   defaultProfileId,
-  formatCodexAgentToml,
   formatCodexConfigToml,
   modelProviderGroups,
   requireValue,
@@ -40,13 +36,7 @@ import { NATIVE_SKILLS } from "./cli/native-skills.ts";
 import { color } from "./cli/color.ts";
 import { detectDefaultConfigDrift } from "./cli/default-config-drift.ts";
 import { printCheckSummary, printGenerationSummary } from "./cli/output.ts";
-import {
-  buildGeneratorPaths,
-  codexAgentConfigPath,
-  profileCodexConfigPath,
-  profileCodexInstructionsPath,
-  profileOmxConfigPath,
-} from "./cli/paths.ts";
+import { buildGeneratorPaths, profileCodexConfigPath, profileCodexInstructionsPath } from "./cli/paths.ts";
 import { checkVersions } from "./cli/registry-check.ts";
 import { listLocalConfigOverlays, loadConfigYaml } from "./config/local-overlay.ts";
 import { validateYamlConsistency } from "./config/validation.ts";
@@ -60,25 +50,16 @@ if (!checkOnly) {
   await ensureAiWorkspaceLinks(paths, dryRun);
 }
 
-const [
-  globalConfig,
-  providersConfig,
-  modelsConfig,
-  profilesConfig,
-  agentsConfig,
-  mcpConfig,
-  envConfig,
-  profileEvalConfig,
-] = await Promise.all([
-  loadYaml<GlobalYaml>("global.yaml"),
-  loadYaml<ProviderYaml>("provider.yaml"),
-  loadYaml<ModelsYaml>("models.yaml"),
-  loadYaml<ProfilesYaml>("profiles.yaml"),
-  loadYaml<AgentsYaml>("agents.yaml"),
-  loadYaml<McpYaml>("mcp.yaml"),
-  loadYaml<EnvYaml>("env.yaml"),
-  loadYaml<ProfileEvalYaml>("profile-eval.yaml"),
-]);
+const [globalConfig, providersConfig, modelsConfig, profilesConfig, mcpConfig, envConfig, profileEvalConfig] =
+  await Promise.all([
+    loadYaml<GlobalYaml>("global.yaml"),
+    loadYaml<ProviderYaml>("provider.yaml"),
+    loadYaml<ModelsYaml>("models.yaml"),
+    loadYaml<ProfilesYaml>("profiles.yaml"),
+    loadYaml<McpYaml>("mcp.yaml"),
+    loadYaml<EnvYaml>("env.yaml"),
+    loadYaml<ProfileEvalYaml>("profile-eval.yaml"),
+  ]);
 
 const validationErrors = validateYamlConsistency(
   profilesConfig,
@@ -86,7 +67,6 @@ const validationErrors = validateYamlConsistency(
   providersConfig,
   globalConfig,
   mcpConfig,
-  agentsConfig,
   envConfig,
   profileEvalConfig,
 );
@@ -107,22 +87,10 @@ if (!checkOnly && !cliOptions.providerGroupsSpecified) {
 }
 const models = applyProviderGroups(modelsConfig, providers, providerGroups);
 const effectiveProfilesConfig = alignProfilesToSingleProvider(profilesConfig, modelsConfig, providerGroups);
-const codexCliConfigs = buildCodexCliConfigs(
-  providers,
-  models,
-  effectiveProfilesConfig,
-  agentsConfig,
-  mcpConfig,
-  (profileId) => profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
+const codexCliConfigs = buildCodexCliConfigs(providers, models, effectiveProfilesConfig, mcpConfig, (profileId) =>
+  profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
 );
 const selectedDefaultProfileId = defaultProfileId(globalConfig, effectiveProfilesConfig);
-const codexAgentConfigs = buildCodexAgentConfigs(
-  agentsConfig,
-  models,
-  effectiveProfilesConfig,
-  selectedDefaultProfileId,
-);
-const omxConfigs = buildOmxConfigs(models, effectiveProfilesConfig, agentsConfig);
 const selectedCodexCliConfig = requireValue(codexCliConfigs[selectedDefaultProfileId], "默认 Codex profile");
 const selectedCodexBaseConfig = {
   ...selectedCodexCliConfig,
@@ -180,10 +148,7 @@ if (checkOnly) {
 }
 
 if (!dryRun) {
-  await Promise.all([
-    mkdir(paths.targetCodexConfigDir, { recursive: true }),
-    mkdir(paths.targetCodexAgentDir, { recursive: true }),
-  ]);
+  await Promise.all([mkdir(paths.targetCodexConfigDir, { recursive: true })]);
 }
 
 const stagedWriter =
@@ -216,26 +181,12 @@ try {
       buildCodexInstructions(paths.projectRoot, profileId),
     );
   }
-  for (const [agentId, codexAgentConfig] of Object.entries(codexAgentConfigs)) {
-    await writeGeneratedText(
-      codexAgentConfigPath(paths.targetCodexAgentDir, agentId),
-      formatCodexAgentToml(codexAgentConfig),
-    );
-  }
-  for (const [profileId, omxConfig] of Object.entries(omxConfigs)) {
-    await writeGeneratedJson(profileOmxConfigPath(paths.targetCodexConfigDir, profileId), omxConfig);
-  }
-  await writeGeneratedJson(
-    paths.targetOmxConfig,
-    requireValue(omxConfigs[selectedDefaultProfileId], "默认 OMX profile"),
-  );
   await writeGeneratedJson(
     paths.targetRuntimeManifest,
     buildRuntimeManifest({
       paths,
       defaultProfileId: selectedDefaultProfileId,
       profileIds: Object.keys(codexCliConfigs),
-      agentIds: Object.keys(codexAgentConfigs),
       mcpServerIds: Object.keys(mcpConfig.servers ?? {}),
       codexEnvVarNames: Object.keys(envConfig.variables ?? {}),
       localConfigOverlays,

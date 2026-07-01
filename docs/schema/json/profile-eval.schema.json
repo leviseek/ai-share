@@ -33,7 +33,7 @@
           },
           "prompt": {
             "type": "string",
-            "description": "Task prompt sent to aiomx when --execute is enabled.",
+            "description": "Task prompt sent to Codex when --execute is enabled.",
             "minLength": 1
           },
           "success_criteria": {

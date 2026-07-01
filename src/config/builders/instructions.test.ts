@@ -21,7 +21,6 @@ const structuredMemoryRelativePaths = [
   "memory/user/prompts.md",
   "memory/user/models.yaml",
   "memory/architecture/coding-philosophy.md",
-  "memory/architecture/agent-patterns.md",
   "memory/architecture/ai-desktop.md",
   "memory/stack/wsl.md",
   "memory/stack/models.md",

@@ -1,5 +1,4 @@
 import type {
-  AgentsYaml,
   EnvYaml,
   GlobalYaml,
   McpYaml,
@@ -8,7 +7,6 @@ import type {
   ProfilesYaml,
   ProviderYaml,
 } from "../types.ts";
-import { validateAgents } from "./validators/agents.ts";
 import type { ValidationError } from "./validators/common.ts";
 import { validateCodexEnv } from "./validators/env.ts";
 import { validateMcpServers } from "./validators/mcp.ts";
@@ -57,7 +55,6 @@ export function validateYamlConsistency(
   providersConfig: ProviderYaml,
   globalConfig: GlobalYaml,
   mcpConfig: McpYaml = {},
-  agentsConfig: AgentsYaml = {},
   envConfig: EnvYaml = {},
   profileEvalConfig: ProfileEvalYaml = {},
 ): ValidationError[] {
@@ -66,7 +63,6 @@ export function validateYamlConsistency(
     "provider.yaml": providersConfig,
     "models.yaml": modelsConfig,
     "profiles.yaml": profilesConfig,
-    "agents.yaml": agentsConfig,
     "mcp.yaml": mcpConfig,
     "env.yaml": envConfig,
     "profile-eval.yaml": profileEvalConfig,
@@ -78,7 +74,6 @@ export function validateYamlConsistency(
   validateProfiles(errors, profilesConfig, modelIds, modelsConfig);
   validateDefaultProfile(errors, profilesConfig, globalConfig);
   validateModelCatalog(errors, modelsConfig, modelIds, providerInstances);
-  validateAgents(errors, agentsConfig);
   validateMcpServers(errors, mcpConfig);
   validateCodexEnv(errors, envConfig);
 

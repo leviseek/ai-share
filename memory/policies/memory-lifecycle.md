@@ -6,7 +6,7 @@
 
 - `memory/stable/`：用户确认过的长期事实和稳定偏好。写入或修改前需要人工确认。
 - `memory/user/`：用户画像、沟通偏好、设备和工具链摘要。保持人类可读，避免堆砌执行细节。
-- `memory/architecture/`：AI Desktop、agent 编排、编码哲学等可共享架构知识。
+- `memory/architecture/`：AI Desktop、编码哲学等可共享架构知识。
 - `memory/profiles/`：按 profile 激活的任务模式约束。
 - `memory/policies/`：记忆治理、安全和执行契约。
 - `memory/inferred/`：AI 推断但尚未确认的候选事实，默认不作为稳定事实。

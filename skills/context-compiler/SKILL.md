@@ -22,7 +22,7 @@ Use this skill when turning long natural-language context into a compact, audita
 1. **Goal**: one sentence describing the current objective.
 2. **Confirmed Facts**: facts supported by the input, with paths or commands when available.
 3. **Decisions**: accepted tradeoffs and why they matter.
-4. **Key Files / Commands**: exact names future agents must inspect or run.
+4. **Key Files / Commands**: exact names future maintainers must inspect or run.
 5. **Risks / Constraints**: security, type safety, generated-config, platform, or context risks.
 6. **Next Actions**: ordered, verifiable steps.
 7. **Discarded Noise**: categories of details intentionally omitted.

@@ -34,7 +34,7 @@ docs/superpowers/
 .sisyphus/evidence/
 .sisyphus/*.local.*
 .playwright-mcp/
-.omx/
+.codex/
 .env
 .env.*
 

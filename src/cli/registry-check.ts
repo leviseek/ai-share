@@ -24,18 +24,6 @@ export function checkVersions(globalConfig: GlobalYaml): VersionCheckResult[] {
     });
   }
 
-  const omxMin = globalConfig.omx_min_version;
-  if (omxMin) {
-    const current = getCommandVersion("omx", ["version"]) ?? "unknown";
-    results.push({
-      name: "OMX CLI",
-      field: "omx_min_version",
-      current,
-      minimum: omxMin,
-      ok: versionCheckOk(current, omxMin),
-    });
-  }
-
   return results;
 }
 

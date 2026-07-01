@@ -3,7 +3,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type {
-  AgentsYaml,
   EnvYaml,
   GlobalYaml,
   McpYaml,
@@ -62,7 +61,6 @@ const globalConfig = loadYaml("global.yaml") as GlobalYaml;
 const providersConfig = loadYaml("provider.yaml") as ProviderYaml;
 const modelsConfig = loadYaml("models.yaml") as ModelsYaml;
 const profilesConfig = loadYaml("profiles.yaml") as ProfilesYaml;
-const agentsConfig = loadYaml("agents.yaml") as AgentsYaml;
 const mcpConfig = loadYaml("mcp.yaml") as McpYaml;
 const envConfig = loadYaml("env.yaml") as EnvYaml;
 const profileEvalConfig = loadYaml("profile-eval.yaml") as ProfileEvalYaml;
@@ -76,7 +74,6 @@ const validationErrors = validateYamlConsistency(
   providersConfig,
   globalConfig,
   mcpConfig,
-  agentsConfig,
   envConfig,
   profileEvalConfig,
 );
@@ -91,7 +88,7 @@ checks.push({
 
 const providers = providersConfig.providers ?? {};
 const models = applyProviderGroups(modelsConfig, providers, cliOptions.providerGroups);
-const codexCliConfigs = buildCodexCliConfigs(providers, models, profilesConfig, agentsConfig, mcpConfig, (profileId) =>
+const codexCliConfigs = buildCodexCliConfigs(providers, models, profilesConfig, mcpConfig, (profileId) =>
   profileCodexInstructionsPath(paths.targetCodexConfigDir, profileId),
 );
 const selectedDefaultProfileId = defaultProfileId(globalConfig, profilesConfig);
@@ -144,8 +141,8 @@ checks.push({
   name: "runtime_versions",
   status: versionResults.every((result) => result.ok) ? "ok" : "warning",
   summary: versionResults.every((result) => result.ok)
-    ? "Codex/OMX 版本满足最低要求。"
-    : "Codex/OMX 版本低于最低要求或不可检测。",
+    ? "Codex 版本满足最低要求。"
+    : "Codex 版本低于最低要求或不可检测。",
   elapsed_ms: elapsedSince(runtimeVersionsStartedAt),
   details: versionResults,
 });
