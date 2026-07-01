@@ -206,7 +206,7 @@ async function checkProviderCanary(
       };
     }
 
-    const payload = await response.json();
+    const payload = (await response.json()) as unknown;
     if (!isRecord(payload) || !Array.isArray(payload.choices)) {
       return {
         provider: providerId,

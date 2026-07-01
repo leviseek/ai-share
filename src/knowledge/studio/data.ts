@@ -1,10 +1,11 @@
 import { resolve } from "node:path";
 import { buildContext, type BuiltContext, type ContextRequest } from "../context/builder.ts";
+import { canonicalJsonHash } from "../core/ids.ts";
 import type { BuildResult, GraphEdge, GraphNode, GraphSubgraph, KnowledgeObject } from "../core/types.ts";
-import { buildKnowledge } from "../index.ts";
-import { impactAnalysis } from "../graph/impact.ts";
-import { subgraph } from "../graph/builder.ts";
 import { rankByTextSimilarity } from "../embedding/ranking.ts";
+import { subgraph } from "../graph/builder.ts";
+import { impactAnalysis } from "../graph/impact.ts";
+import { buildKnowledge } from "../index.ts";
 import { buildStats, createJsonlKnowledgeStore, readBuildResult, writeBuildResult } from "../storage/jsonl-store.ts";
 
 export type RepositoryTreeNode = {
@@ -28,7 +29,16 @@ export type DashboardMetrics = {
 };
 
 export type CodexTraceStep = {
-  name: "infer_intent" | "search" | "context" | "impact" | "answer_outline";
+  name:
+    | "infer_intent"
+    | "search"
+    | "select_seeds"
+    | "build_context"
+    | "analyze_impact"
+    | "compose_prompt_bundle"
+    | "context"
+    | "impact"
+    | "answer_outline";
   input: unknown;
   output: unknown;
   durationMs: number;
@@ -39,6 +49,41 @@ export type CodexMockTrace = {
   intent: NonNullable<ContextRequest["intent"]>;
   steps: CodexTraceStep[];
   answerOutline: string[];
+};
+
+export type PromptBundleObject = {
+  id: string;
+  type: KnowledgeObject["type"];
+  title: string;
+  path?: string;
+  summary?: string;
+};
+
+export type PromptBundle = {
+  task: string;
+  intent: NonNullable<ContextRequest["intent"]>;
+  knowledgeObjects: PromptBundleObject[];
+  relevantPaths: string[];
+  impact: {
+    seedId?: string;
+    nodes: number;
+    edges: number;
+  };
+  diagnostics: string[];
+  markdown: string;
+  hash: string;
+};
+
+export type CodexDryRun = {
+  id: string;
+  timestamp: string;
+  prompt: string;
+  intent: NonNullable<ContextRequest["intent"]>;
+  selectedSeeds: string[];
+  trace: CodexTraceStep[];
+  context: BuiltContext;
+  impact: GraphSubgraph;
+  promptBundle: PromptBundle;
 };
 
 export type StudioSnapshot = Pick<BuildResult, "objects" | "nodes" | "edges">;
@@ -185,6 +230,89 @@ export function buildCodexMockTrace(snapshot: StudioSnapshot, prompt: string): C
   };
 }
 
+export function buildCodexDryRun(
+  snapshot: StudioSnapshot,
+  request: Pick<ContextRequest, "intent" | "budget"> & { prompt: string },
+  now: string = new Date().toISOString(),
+): CodexDryRun {
+  const prompt = request.prompt.trim();
+  const intent = request.intent ?? inferIntent(prompt);
+  const searchStartedAt = Date.now();
+  const search = rankByTextSimilarity(snapshot.objects, prompt).slice(0, 10);
+  const selectedSeeds = search.slice(0, 5).map((item) => item.object.id);
+  const context = buildContext(snapshot, {
+    query: prompt,
+    intent,
+    objectIds: selectedSeeds.slice(0, 3),
+    budget: request.budget ?? { maxObjects: 30 },
+  });
+  const impactSeed = context.objects[0]?.id ?? selectedSeeds[0];
+  const impact = impactSeed === undefined ? { nodes: [], edges: [] } : impactAnalysis(snapshot, impactSeed);
+  const promptBundleInput: {
+    prompt: string;
+    intent: NonNullable<ContextRequest["intent"]>;
+    context: BuiltContext;
+    impact: GraphSubgraph;
+    impactSeed?: string;
+  } = { prompt, intent, context, impact };
+  if (impactSeed !== undefined) promptBundleInput.impactSeed = impactSeed;
+  const promptBundle = buildPromptBundle(promptBundleInput);
+  const id = canonicalJsonHash({ prompt, intent, now, bundleHash: promptBundle.hash }).slice(0, 16);
+  return {
+    id,
+    timestamp: now,
+    prompt,
+    intent,
+    selectedSeeds,
+    trace: [
+      {
+        name: "infer_intent",
+        input: { prompt },
+        output: { intent },
+        durationMs: 1,
+      },
+      {
+        name: "search",
+        input: { query: prompt, limit: 10 },
+        output: search.map((item) => ({
+          id: item.object.id,
+          score: item.score,
+          path: item.object.path,
+          title: item.object.title,
+        })),
+        durationMs: Math.max(1, Date.now() - searchStartedAt),
+      },
+      {
+        name: "select_seeds",
+        input: { searchResults: search.length, seedLimit: 5 },
+        output: { selectedSeeds },
+        durationMs: 1,
+      },
+      {
+        name: "build_context",
+        input: { intent, maxObjects: request.budget?.maxObjects ?? 30 },
+        output: summarizeContext(context),
+        durationMs: 1,
+      },
+      {
+        name: "analyze_impact",
+        input: { objectId: impactSeed },
+        output: summarizeGraph(impact),
+        durationMs: 1,
+      },
+      {
+        name: "compose_prompt_bundle",
+        input: { contextObjects: context.objects.length, impactNodes: impact.nodes.length },
+        output: { hash: promptBundle.hash, relevantPaths: promptBundle.relevantPaths.length },
+        durationMs: 1,
+      },
+    ],
+    context,
+    impact,
+    promptBundle,
+  };
+}
+
 function sortTree(node: RepositoryTreeNode): void {
   node.children.sort((left, right) => {
     if (left.kind !== right.kind) return left.kind === "directory" ? -1 : 1;
@@ -240,4 +368,80 @@ function buildAnswerOutline(
     `Review impact surface across ${impact.nodes.length} nodes and ${impact.edges.length} edges.`,
     "Produce a repository-aware plan before editing files.",
   ];
+}
+
+function buildPromptBundle(input: {
+  prompt: string;
+  intent: NonNullable<ContextRequest["intent"]>;
+  context: BuiltContext;
+  impact: GraphSubgraph;
+  impactSeed?: string;
+}): PromptBundle {
+  const knowledgeObjects = input.context.objects.map((object): PromptBundleObject => {
+    const bundleObject: PromptBundleObject = {
+      id: object.id,
+      type: object.type,
+      title: object.title,
+    };
+    if (object.path !== undefined) bundleObject.path = object.path;
+    if (object.summary !== undefined) bundleObject.summary = object.summary;
+    return bundleObject;
+  });
+  const relevantPaths = [
+    ...new Set(input.context.objects.map((object) => object.path).filter((path): path is string => path !== undefined)),
+  ];
+  const impact = {
+    nodes: input.impact.nodes.length,
+    edges: input.impact.edges.length,
+  } as PromptBundle["impact"];
+  if (input.impactSeed !== undefined) impact.seedId = input.impactSeed;
+  const bundleWithoutHash: Omit<PromptBundle, "markdown" | "hash"> = {
+    task: input.prompt,
+    intent: input.intent,
+    knowledgeObjects,
+    relevantPaths,
+    impact,
+    diagnostics: input.context.diagnostics,
+  };
+  const hash = canonicalJsonHash(bundleWithoutHash);
+  return {
+    ...bundleWithoutHash,
+    markdown: renderPromptBundleMarkdown(bundleWithoutHash),
+    hash,
+  };
+}
+
+function renderPromptBundleMarkdown(bundle: Omit<PromptBundle, "markdown" | "hash">): string {
+  const paths = bundle.relevantPaths.map((path) => `- ${path}`).join("\n") || "- 无";
+  const objects = bundle.knowledgeObjects
+    .map(
+      (object) =>
+        `- [${object.type}] ${object.title} (${object.id})${object.path === undefined ? "" : ` — ${object.path}`}`,
+    )
+    .join("\n");
+  const diagnostics = bundle.diagnostics.map((diagnostic) => `- ${diagnostic}`).join("\n") || "- 无";
+  return [
+    "# Codex Dry Run Context Bundle",
+    "",
+    "## Task",
+    bundle.task,
+    "",
+    "## Intent",
+    bundle.intent,
+    "",
+    "## Relevant Paths",
+    paths,
+    "",
+    "## Knowledge Objects",
+    objects || "- 无",
+    "",
+    "## Impact Surface",
+    `- Seed: ${bundle.impact.seedId ?? "无"}`,
+    `- Nodes: ${bundle.impact.nodes}`,
+    `- Edges: ${bundle.impact.edges}`,
+    "",
+    "## Diagnostics",
+    diagnostics,
+    "",
+  ].join("\n");
 }

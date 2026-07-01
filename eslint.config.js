@@ -3,7 +3,13 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["node_modules/**", "dist/**", "bun.lock", "src/knowledge/studio/public/**"],
+    ignores: [
+      "node_modules/**",
+      "dist/**",
+      "bun.lock",
+      "src/knowledge/studio/public/**",
+      "src/knowledge/studio/ui/dist/**",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,

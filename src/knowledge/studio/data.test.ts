@@ -1,12 +1,17 @@
+import { mkdtemp } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
 import type { GraphEdge, GraphNode, KnowledgeObject } from "../core/types.ts";
 import {
+  buildCodexDryRun,
   buildCodexMockTrace,
   buildDashboardMetrics,
   buildRepositoryTree,
   buildStudioContext,
   type StudioSnapshot,
 } from "./data.ts";
+import { createStudioSessionStore } from "./session-store.ts";
 
 const now = "2026-07-01T00:00:00.000Z";
 
@@ -46,6 +51,47 @@ describe("Repository Intelligence Studio data", () => {
       "answer_outline",
     ]);
     expect(trace.answerOutline.length).toBeGreaterThan(0);
+  });
+
+  test("builds Codex dry run trace and prompt bundle", () => {
+    const dryRun = buildCodexDryRun(fixtureSnapshot(), { prompt: "请设计 main 的修改方案" }, now);
+    expect(dryRun.intent).toBe("plan");
+    expect(dryRun.trace.map((step) => step.name)).toEqual([
+      "infer_intent",
+      "search",
+      "select_seeds",
+      "build_context",
+      "analyze_impact",
+      "compose_prompt_bundle",
+    ]);
+    expect(dryRun.promptBundle.task).toBe("请设计 main 的修改方案");
+    expect(dryRun.promptBundle.markdown).toContain("# Codex Dry Run Context Bundle");
+    expect(dryRun.promptBundle.relevantPaths).toContain("src/main.ts");
+    expect(dryRun.promptBundle.hash.length).toBeGreaterThan(0);
+  });
+
+  test("stores and reads recent Studio sessions", async () => {
+    const root = await mkdtemp(join(tmpdir(), "studio-session-"));
+    const store = createStudioSessionStore(root);
+    await store.append({
+      id: "one",
+      timestamp: now,
+      prompt: "first",
+      intent: "plan",
+      traceSteps: ["infer_intent"],
+      bundleHash: "hash-one",
+    });
+    await store.append({
+      id: "two",
+      timestamp: now,
+      prompt: "second",
+      intent: "debug",
+      traceSteps: ["search"],
+      bundleHash: "hash-two",
+    });
+    const recent = await store.recent(1);
+    expect(recent).toHaveLength(1);
+    expect(recent[0]?.id).toBe("two");
   });
 });
 

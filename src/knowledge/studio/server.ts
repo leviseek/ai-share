@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import type { BuiltContext, ContextRequest } from "../context/builder.ts";
 import {
+  buildCodexDryRun,
   buildCodexMockTrace,
   buildDashboardMetrics,
   buildGraphView,
@@ -11,19 +12,25 @@ import {
   loadStudioSnapshot,
   type StudioSnapshot,
 } from "./data.ts";
+import { createStudioSessionStore, type StudioSessionStore } from "./session-store.ts";
 
 const DEFAULT_PORT = 3737;
+const DIST_DIR = join(import.meta.dir, "public", "dist");
 const PUBLIC_DIR = join(import.meta.dir, "public");
 
 type StudioState = {
   snapshot: StudioSnapshot;
   lastContext?: BuiltContext;
+  sessions: StudioSessionStore;
 };
 
 async function main(argv: string[]): Promise<void> {
   const repoRoot = process.cwd();
   const port = parsePort(argv);
-  const state: StudioState = { snapshot: await loadStudioSnapshot(repoRoot) };
+  const state: StudioState = {
+    snapshot: await loadStudioSnapshot(repoRoot),
+    sessions: createStudioSessionStore(repoRoot),
+  };
   const server = Bun.serve({
     port,
     async fetch(request): Promise<Response> {
@@ -41,13 +48,15 @@ async function main(argv: string[]): Promise<void> {
 async function routeRequest(request: Request, state: StudioState): Promise<Response> {
   const url = new URL(request.url);
   if (url.pathname === "/") return await staticResponse("index.html");
-  if (url.pathname.startsWith("/assets/")) return await staticResponse(url.pathname.slice("/assets/".length));
+  if (url.pathname.startsWith("/assets/")) return await staticResponse(url.pathname.slice(1));
   if (url.pathname === "/api/repository/tree") return jsonResponse(buildRepositoryTree(state.snapshot.objects));
   if (url.pathname === "/api/graph") return jsonResponse(handleGraphRequest(url, state.snapshot));
   if (url.pathname === "/api/context") return handleContextRequest(request, state);
   if (url.pathname === "/api/impact") return jsonResponse(handleImpactRequest(url, state.snapshot));
   if (url.pathname === "/api/dashboard") return jsonResponse(buildDashboardMetrics(state.snapshot, state.lastContext));
   if (url.pathname === "/api/codex-console/mock") return handleCodexMockRequest(request, state.snapshot);
+  if (url.pathname === "/api/codex-console/dry-run") return handleCodexDryRunRequest(request, state);
+  if (url.pathname === "/api/codex-console/sessions") return handleSessionsRequest(url, state);
   return jsonResponse({ error: "未找到请求的 Studio 资源。" }, 404);
 }
 
@@ -88,16 +97,50 @@ async function handleCodexMockRequest(request: Request, snapshot: StudioSnapshot
   return jsonResponse(buildCodexMockTrace(snapshot, prompt));
 }
 
+async function handleCodexDryRunRequest(request: Request, state: StudioState): Promise<Response> {
+  const body = await parseJsonObject(request);
+  const prompt = readString(body, "prompt");
+  if (prompt.length === 0) throw new Error("请提供 prompt。");
+  const dryRunRequest: Parameters<typeof buildCodexDryRun>[1] = {
+    prompt,
+    budget: { maxObjects: readPositiveInteger(body, "maxObjects", 30) },
+  };
+  const intent = readIntent(body);
+  if (intent !== undefined) dryRunRequest.intent = intent;
+  const dryRun = buildCodexDryRun(state.snapshot, dryRunRequest);
+  state.lastContext = dryRun.context;
+  await state.sessions.append({
+    id: dryRun.id,
+    timestamp: dryRun.timestamp,
+    prompt: dryRun.prompt,
+    intent: dryRun.intent,
+    traceSteps: dryRun.trace.map((step) => step.name),
+    bundleHash: dryRun.promptBundle.hash,
+  });
+  return jsonResponse(dryRun);
+}
+
+async function handleSessionsRequest(url: URL, state: StudioState): Promise<Response> {
+  const limit = Number(url.searchParams.get("limit") ?? "20");
+  return jsonResponse(await state.sessions.recent(Number.isInteger(limit) && limit > 0 ? limit : 20));
+}
+
 async function staticResponse(path: string): Promise<Response> {
   const safePath = path.replaceAll("\\", "/").replace(/^\/+/, "");
   if (safePath.includes("..")) return jsonResponse({ error: "非法静态资源路径。" }, 400);
-  const filePath = join(PUBLIC_DIR, safePath);
-  try {
-    const file = await readFile(filePath);
-    return new Response(file, { headers: { "content-type": contentType(filePath) } });
-  } catch {
-    return jsonResponse({ error: "未找到静态资源。" }, 404);
+  return await readStaticFile(safePath);
+}
+
+async function readStaticFile(path: string): Promise<Response> {
+  for (const root of [DIST_DIR, PUBLIC_DIR]) {
+    try {
+      const file = await readFile(join(root, path));
+      return new Response(file, { headers: { "content-type": contentType(path) } });
+    } catch {
+      // Try next static root.
+    }
   }
+  return jsonResponse({ error: "未找到静态资源。" }, 404);
 }
 
 function jsonResponse(value: unknown, status = 200): Response {
@@ -108,7 +151,7 @@ function jsonResponse(value: unknown, status = 200): Response {
 }
 
 async function parseJsonObject(request: Request): Promise<Record<string, unknown>> {
-  const value = await request.json();
+  const value = (await request.json()) as unknown;
   if (typeof value !== "object" || value === null || Array.isArray(value))
     throw new Error("请求体必须是 JSON object。");
   return value as Record<string, unknown>;
