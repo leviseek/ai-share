@@ -60,11 +60,21 @@ type DryRun = {
 
 type SessionSummary = {
   id: string;
+  kind?: "dry-run" | "plan-exec";
   timestamp: string;
   prompt: string;
   intent: string;
   traceSteps: string[];
   bundleHash: string;
+  exitCode?: number | null;
+  durationMs?: number;
+  guardOk?: boolean;
+};
+
+type PlanExec = {
+  dryRun: DryRun;
+  guardResult: { ok: boolean; command: string; messages: string[] };
+  execResult: { stdout: string; stderr: string; exitCode: number | null; durationMs: number; timedOut: boolean };
 };
 
 function App() {
@@ -77,6 +87,7 @@ function App() {
   const [impactOutput, setImpactOutput] = useState("");
   const [prompt, setPrompt] = useState("请规划一个知识引擎驱动的 Codex 改动");
   const [dryRun, setDryRun] = useState<DryRun | undefined>();
+  const [planExec, setPlanExec] = useState<PlanExec | undefined>();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
 
   async function refresh() {
@@ -126,6 +137,15 @@ function App() {
     const result = await postJson<DryRun>("/api/codex-console/dry-run", { prompt, maxObjects: 30 });
     setDryRun(result);
     setGraph(result.impact.nodes.length > 0 ? result.impact : result.context === undefined ? graph : result.impact);
+    setDashboard(await getJson<Dashboard>("/api/dashboard"));
+    setSessions(await getJson<SessionSummary[]>("/api/codex-console/sessions?limit=20"));
+  }
+
+  async function runPlanExec() {
+    const result = await postJson<PlanExec>("/api/codex-console/plan-exec", { prompt, maxObjects: 30 });
+    setPlanExec(result);
+    setDryRun(result.dryRun);
+    setGraph(result.dryRun.impact.nodes.length > 0 ? result.dryRun.impact : graph);
     setDashboard(await getJson<Dashboard>("/api/dashboard"));
     setSessions(await getJson<SessionSummary[]>("/api/codex-console/sessions?limit=20"));
   }
@@ -183,6 +203,8 @@ function App() {
             dryRun={dryRun}
             sessions={sessions}
             runDryRun={runDryRun}
+            runPlanExec={runPlanExec}
+            planExec={planExec}
           />
         </section>
       </main>
@@ -266,28 +288,37 @@ function CodexConsole(props: {
   prompt: string;
   setPrompt(value: string): void;
   dryRun: DryRun | undefined;
+  planExec: PlanExec | undefined;
   sessions: SessionSummary[];
   runDryRun(): Promise<void>;
+  runPlanExec(): Promise<void>;
 }) {
   return (
     <>
-      <h2>Codex Console · Dry Run</h2>
+      <h2>Codex Console · Dry Run / Plan Exec</h2>
       <div class="console-input">
         <input value={props.prompt} onInput={(event) => props.setPrompt(event.currentTarget.value)} />
         <button onClick={() => void props.runDryRun()}>Run Dry Run</button>
+        <button onClick={() => void props.runPlanExec()}>Run Plan Exec</button>
       </div>
       {props.dryRun === undefined ? (
-        <p>运行 dry run 后会展示知识引擎 trace 与最终 prompt bundle。</p>
+        <p>运行 dry run 或 plan exec 后会展示知识引擎 trace、prompt bundle 与真实 Codex 只读执行结果。</p>
       ) : (
         <DryRunViewer dryRun={props.dryRun} />
       )}
+      {props.planExec !== undefined && <PlanExecViewer planExec={props.planExec} />}
       <h2>Recent Sessions</h2>
       <div class="sessions">
         {props.sessions.map((session) => (
           <article class="session" key={session.id}>
-            <strong>{session.intent}</strong>
+            <strong>
+              {session.kind ?? "dry-run"} · {session.intent}
+            </strong>
             <span>{session.prompt}</span>
-            <code>{session.bundleHash.slice(0, 12)}</code>
+            <code>
+              {session.bundleHash.slice(0, 12)}
+              {session.exitCode === undefined ? "" : ` · exit ${session.exitCode}`}
+            </code>
           </article>
         ))}
       </div>
@@ -315,6 +346,36 @@ function DryRunViewer(props: { dryRun: DryRun }) {
         <h3>Prompt Bundle · {props.dryRun.promptBundle.hash.slice(0, 12)}</h3>
         <pre class="bundle">{props.dryRun.promptBundle.markdown}</pre>
       </div>
+    </div>
+  );
+}
+
+function PlanExecViewer(props: { planExec: PlanExec }) {
+  return (
+    <div class="plan-exec">
+      <h3>Plan Exec Result</h3>
+      <div class="metrics">
+        <div class="metric">
+          <span>Guard</span>
+          <strong>{props.planExec.guardResult.ok ? "OK" : "FAIL"}</strong>
+        </div>
+        <div class="metric">
+          <span>Command</span>
+          <strong>{props.planExec.guardResult.command}</strong>
+        </div>
+        <div class="metric">
+          <span>Exit</span>
+          <strong>{props.planExec.execResult.exitCode ?? "null"}</strong>
+        </div>
+        <div class="metric">
+          <span>Duration</span>
+          <strong>{props.planExec.execResult.durationMs}ms</strong>
+        </div>
+      </div>
+      <h3>stdout</h3>
+      <pre class="bundle">{props.planExec.execResult.stdout || "(empty)"}</pre>
+      <h3>stderr</h3>
+      <pre class="bundle">{props.planExec.execResult.stderr || "(empty)"}</pre>
     </div>
   );
 }

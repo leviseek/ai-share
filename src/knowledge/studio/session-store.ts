@@ -3,11 +3,15 @@ import { dirname, resolve } from "node:path";
 
 export type StudioSessionSummary = {
   id: string;
+  kind: "dry-run" | "plan-exec";
   timestamp: string;
   prompt: string;
   intent: string;
   traceSteps: string[];
   bundleHash: string;
+  exitCode?: number | null;
+  durationMs?: number;
+  guardOk?: boolean;
 };
 
 export type StudioSessionStore = {

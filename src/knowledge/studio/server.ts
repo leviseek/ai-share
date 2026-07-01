@@ -12,6 +12,7 @@ import {
   loadStudioSnapshot,
   type StudioSnapshot,
 } from "./data.ts";
+import { runCodexPlanExec } from "./plan-exec.ts";
 import { createStudioSessionStore, type StudioSessionStore } from "./session-store.ts";
 
 const DEFAULT_PORT = 3737;
@@ -56,6 +57,7 @@ async function routeRequest(request: Request, state: StudioState): Promise<Respo
   if (url.pathname === "/api/dashboard") return jsonResponse(buildDashboardMetrics(state.snapshot, state.lastContext));
   if (url.pathname === "/api/codex-console/mock") return handleCodexMockRequest(request, state.snapshot);
   if (url.pathname === "/api/codex-console/dry-run") return handleCodexDryRunRequest(request, state);
+  if (url.pathname === "/api/codex-console/plan-exec") return handleCodexPlanExecRequest(request, state);
   if (url.pathname === "/api/codex-console/sessions") return handleSessionsRequest(url, state);
   return jsonResponse({ error: "未找到请求的 Studio 资源。" }, 404);
 }
@@ -111,6 +113,7 @@ async function handleCodexDryRunRequest(request: Request, state: StudioState): P
   state.lastContext = dryRun.context;
   await state.sessions.append({
     id: dryRun.id,
+    kind: "dry-run",
     timestamp: dryRun.timestamp,
     prompt: dryRun.prompt,
     intent: dryRun.intent,
@@ -118,6 +121,34 @@ async function handleCodexDryRunRequest(request: Request, state: StudioState): P
     bundleHash: dryRun.promptBundle.hash,
   });
   return jsonResponse(dryRun);
+}
+
+async function handleCodexPlanExecRequest(request: Request, state: StudioState): Promise<Response> {
+  const body = await parseJsonObject(request);
+  const prompt = readString(body, "prompt");
+  if (prompt.length === 0) throw new Error("请提供 prompt。");
+  const dryRunRequest: Parameters<typeof buildCodexDryRun>[1] = {
+    prompt,
+    budget: { maxObjects: readPositiveInteger(body, "maxObjects", 30) },
+  };
+  const intent = readIntent(body);
+  if (intent !== undefined) dryRunRequest.intent = intent;
+  const dryRun = buildCodexDryRun(state.snapshot, dryRunRequest);
+  state.lastContext = dryRun.context;
+  const planExec = await runCodexPlanExec(dryRun);
+  await state.sessions.append({
+    id: planExec.dryRun.id,
+    kind: "plan-exec",
+    timestamp: planExec.dryRun.timestamp,
+    prompt: planExec.dryRun.prompt,
+    intent: planExec.dryRun.intent,
+    traceSteps: planExec.dryRun.trace.map((step) => step.name),
+    bundleHash: planExec.dryRun.promptBundle.hash,
+    exitCode: planExec.execResult.exitCode,
+    durationMs: planExec.execResult.durationMs,
+    guardOk: planExec.guardResult.ok,
+  });
+  return jsonResponse(planExec);
 }
 
 async function handleSessionsRequest(url: URL, state: StudioState): Promise<Response> {

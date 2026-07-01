@@ -11,6 +11,7 @@ import {
   buildStudioContext,
   type StudioSnapshot,
 } from "./data.ts";
+import { composeReadonlyPlanPrompt, runCodexPlanExec } from "./plan-exec.ts";
 import { createStudioSessionStore } from "./session-store.ts";
 
 const now = "2026-07-01T00:00:00.000Z";
@@ -75,6 +76,7 @@ describe("Repository Intelligence Studio data", () => {
     const store = createStudioSessionStore(root);
     await store.append({
       id: "one",
+      kind: "dry-run",
       timestamp: now,
       prompt: "first",
       intent: "plan",
@@ -83,6 +85,7 @@ describe("Repository Intelligence Studio data", () => {
     });
     await store.append({
       id: "two",
+      kind: "plan-exec",
       timestamp: now,
       prompt: "second",
       intent: "debug",
@@ -92,6 +95,32 @@ describe("Repository Intelligence Studio data", () => {
     const recent = await store.recent(1);
     expect(recent).toHaveLength(1);
     expect(recent[0]?.id).toBe("two");
+    expect(recent[0]?.kind).toBe("plan-exec");
+  });
+
+  test("composes readonly Codex plan exec prompt", () => {
+    const dryRun = buildCodexDryRun(fixtureSnapshot(), { prompt: "请设计 main 的修改方案" }, now);
+    const prompt = composeReadonlyPlanPrompt(dryRun);
+    expect(prompt).toContain("只读 Plan Exec 模式");
+    expect(prompt).toContain("禁止编辑文件");
+    expect(prompt).toContain("# Codex Dry Run Context Bundle");
+  });
+
+  test("runs Codex plan exec through injectable runner", async () => {
+    const dryRun = buildCodexDryRun(fixtureSnapshot(), { prompt: "请设计 main 的修改方案" }, now);
+    const result = await runCodexPlanExec(dryRun, ({ prompt, timeoutMs }) =>
+      Promise.resolve({
+        stdout: `planned ${prompt.length}`,
+        stderr: "",
+        exitCode: 0,
+        durationMs: timeoutMs,
+        timedOut: false,
+      }),
+    );
+    expect(result.guardResult.ok).toBe(true);
+    expect(result.guardResult.command).toBe("codex exec");
+    expect(result.execResult.exitCode).toBe(0);
+    expect(result.execResult.stdout).toContain("planned");
   });
 });
 
