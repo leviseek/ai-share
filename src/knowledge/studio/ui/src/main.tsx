@@ -23,13 +23,27 @@ type TreeNode = {
   children: TreeNode[];
 };
 
+type GraphNodeDisplay = {
+  incomingCount: number;
+  outgoingCount: number;
+  degree: number;
+  edgeTypeCounts: Record<string, number>;
+  isOrphan: boolean;
+};
+
 type GraphNode = {
   id: string;
   objectId: string;
   type: string;
   label: string;
+  summary?: string;
+  tags?: string[];
   path?: string;
+  language?: string;
+  updatedAt?: string;
+  hash?: string;
   metadata?: Record<string, unknown>;
+  display?: GraphNodeDisplay;
 };
 
 type GraphEdge = {
@@ -1062,7 +1076,7 @@ function TreeBranch(props: { node: TreeNode; onSelect: (id: string) => void }) {
   const isDirectory = props.node.kind === "directory";
   return (
     <ul class="tree">
-      <li class={props.node.kind} title={props.node.objectIds.join("\n")}>
+      <li class={props.node.kind} title={treeNodeTitle(props.node)}>
         <div
           class="tree-row"
           onClick={(event) => {
@@ -1087,7 +1101,10 @@ function TreeBranch(props: { node: TreeNode; onSelect: (id: string) => void }) {
           ) : (
             <span class="tree-toggle-placeholder">•</span>
           )}
-          <span>{props.node.name}</span>
+          <span>
+            {treeNodeIcon(props.node)} {props.node.name}
+          </span>
+          {props.node.objectIds.length > 0 && <span class="tree-badge">{props.node.objectIds.length}</span>}
         </div>
         {expanded &&
           props.node.children.map((child) => <TreeBranch key={child.path} node={child} onSelect={props.onSelect} />)}
@@ -1251,14 +1268,14 @@ function D3Graph(props: {
     node
       .append("circle")
       .attr("r", (item) => nodeRadius(item.type))
-      .attr("class", (item) => `node ${nodeClass(item.type)}`);
+      .attr("class", (item) => `node ${nodeClass(item.type)} ${nodeStatusClasses(item)}`);
     node
       .append("text")
       .attr("class", "label")
       .attr("x", 10)
       .attr("y", 4)
       .text((item) => item.label.slice(0, 36));
-    node.append("title").text((item) => `${item.type}\n${item.id}\n${item.path ?? ""}`);
+    node.append("title").text((item) => graphNodeTitle(item));
     const simulation = forceSimulation(nodes)
       .force(
         "link",
@@ -1317,17 +1334,38 @@ function GraphInspector(props: {
         placeholder="object id"
       />
       {props.detail === undefined ? (
-        <p>选择一个节点查看类型、路径、metadata 与入/出边。</p>
+        <p>选择一个节点查看摘要、标签、语言、metadata 与入/出边。</p>
       ) : (
         <div class="node-detail">
-          <strong>{props.detail.node.label}</strong>
+          <div class="node-detail-header">
+            <strong>{props.detail.node.label}</strong>
+            <span class="node-type">{props.detail.node.type}</span>
+          </div>
           <code>{props.detail.node.id}</code>
-          <span>{props.detail.node.type}</span>
           <span>{props.detail.node.path ?? "no path"}</span>
-          <span>
-            incoming {props.detail.incoming.length} / outgoing {props.detail.outgoing.length}
-          </span>
-          <pre>{JSON.stringify(props.detail.node.metadata ?? {}, null, 2)}</pre>
+          {props.detail.node.summary !== undefined && <p>{props.detail.node.summary}</p>}
+          <div class="tag-list">
+            {(props.detail.node.tags ?? []).map((tag) => (
+              <span class="tag" key={tag}>
+                {tag}
+              </span>
+            ))}
+          </div>
+          <div class="node-facts">
+            <span>language: {props.detail.node.language ?? "n/a"}</span>
+            <span>incoming: {displayMetrics(props.detail).incomingCount}</span>
+            <span>outgoing: {displayMetrics(props.detail).outgoingCount}</span>
+            <span>degree: {displayMetrics(props.detail).degree}</span>
+            <span>updated: {formatDate(props.detail.node.updatedAt)}</span>
+            <span>hash: {shortHash(props.detail.node.hash)}</span>
+          </div>
+          <MetadataTable metadata={props.detail.node.metadata ?? {}} />
+          <EdgeList title="Incoming" edges={props.detail.incoming} direction="from" />
+          <EdgeList title="Outgoing" edges={props.detail.outgoing} direction="to" />
+          <details>
+            <summary>Raw metadata</summary>
+            <pre>{JSON.stringify(props.detail.node.metadata ?? {}, null, 2)}</pre>
+          </details>
         </div>
       )}
       <div class="inspector-actions">
@@ -1335,6 +1373,43 @@ function GraphInspector(props: {
         <button onClick={() => props.buildContext()}>Build Context</button>
       </div>
     </section>
+  );
+}
+
+function MetadataTable(props: { metadata: Record<string, unknown> }) {
+  const entries = prioritizedMetadataEntries(props.metadata);
+  if (entries.length === 0) return <span>metadata: empty</span>;
+  return (
+    <div class="metadata-grid">
+      {entries.map(([key, value]) => (
+        <div class="metadata-row" key={key}>
+          <span>{key}</span>
+          <code>{formatMetadataValue(value)}</code>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EdgeList(props: { title: string; edges: GraphEdge[]; direction: "from" | "to" }) {
+  return (
+    <details class="edge-list">
+      <summary>
+        {props.title}: {props.edges.length}
+      </summary>
+      {props.edges.length === 0 ? (
+        <span>none</span>
+      ) : (
+        <ul>
+          {props.edges.map((edge) => (
+            <li key={edge.id}>
+              <span>{edge.type}</span>
+              <code>{edge[props.direction]}</code>
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
   );
 }
 
@@ -1900,6 +1975,89 @@ function graphDetail(graph: GraphData, id: string): GraphNodeDetail | undefined 
     incoming: graph.edges.filter((edge) => edge.to === id),
     outgoing: graph.edges.filter((edge) => edge.from === id),
   };
+}
+
+function treeNodeIcon(node: TreeNode): string {
+  return node.kind === "directory" ? "▣" : "•";
+}
+
+function treeNodeTitle(node: TreeNode): string {
+  const ids = node.objectIds.length === 0 ? "no objects" : node.objectIds.join("\n");
+  return `${node.kind}: ${node.path || "."}\nobjects: ${node.objectIds.length}\n${ids}`;
+}
+
+function graphNodeTitle(node: GraphNode): string {
+  return [
+    `${node.type}: ${node.label}`,
+    node.id,
+    node.path ?? "no path",
+    node.summary ?? "no summary",
+    `tags: ${(node.tags ?? []).join(", ") || "none"}`,
+    `language: ${node.language ?? "n/a"}`,
+    `incoming/outgoing/degree: ${node.display?.incomingCount ?? 0}/${node.display?.outgoingCount ?? 0}/${node.display?.degree ?? 0}`,
+    metadataTooltipLine(node.metadata ?? {}),
+  ].join("\n");
+}
+
+function metadataTooltipLine(metadata: Record<string, unknown>): string {
+  const entries = prioritizedMetadataEntries(metadata)
+    .slice(0, 8)
+    .map(([key, value]) => `${key}: ${formatMetadataValue(value)}`);
+  return entries.length === 0 ? "metadata: empty" : `metadata: ${entries.join(" · ")}`;
+}
+
+function nodeStatusClasses(node: GraphNode): string {
+  const classes = statusBadges(node).map((badge) => `status-${badge}`);
+  return classes.join(" ");
+}
+
+function statusBadges(node: GraphNode): string[] {
+  const metadata = node.metadata ?? {};
+  const tags = new Set(node.tags ?? []);
+  return [
+    metadata.exported === true ? "exported" : "",
+    tags.has("readme") ? "readme" : "",
+    tags.has("agent-rules") ? "agent-rules" : "",
+    node.type === "GeneratedArtifact" ? "generated" : "",
+    node.display?.isOrphan === true ? "orphan" : "",
+  ].filter((item) => item.length > 0);
+}
+
+function displayMetrics(detail: GraphNodeDetail): GraphNodeDisplay {
+  return {
+    incomingCount: detail.node.display?.incomingCount ?? detail.incoming.length,
+    outgoingCount: detail.node.display?.outgoingCount ?? detail.outgoing.length,
+    degree: detail.node.display?.degree ?? detail.incoming.length + detail.outgoing.length,
+    edgeTypeCounts: detail.node.display?.edgeTypeCounts ?? {},
+    isOrphan: detail.node.display?.isOrphan ?? detail.incoming.length + detail.outgoing.length === 0,
+  };
+}
+
+function prioritizedMetadataEntries(metadata: Record<string, unknown>): [string, unknown][] {
+  const priority = ["kind", "exported", "lineCount", "size", "version", "private", "command", "level", "lineStart"];
+  const entries = Object.entries(metadata);
+  const prioritized = priority.flatMap((key) => {
+    const value = metadata[key];
+    return value === undefined ? [] : ([[key, value]] satisfies [string, unknown][]);
+  });
+  const seen = new Set(prioritized.map(([key]) => key));
+  return [...prioritized, ...entries.filter(([key]) => !seen.has(key))];
+}
+
+function formatMetadataValue(value: unknown): string {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  return JSON.stringify(value);
+}
+
+function formatDate(value: string | undefined): string {
+  if (value === undefined) return "n/a";
+  return value.replace("T", " ").slice(0, 19);
+}
+
+function shortHash(value: string | undefined): string {
+  return value === undefined ? "n/a" : value.slice(0, 12);
 }
 
 function nodeRadius(type: string): number {
