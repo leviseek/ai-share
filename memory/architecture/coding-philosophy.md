@@ -16,6 +16,7 @@
 
 ## 架构原则
 
+- **API First、Domain First、Storage Last**：先稳定领域模型，再稳定公开 API，最后选择存储实现；业务逻辑只依赖抽象接口，不依赖 JSON、SQLite、图数据库等具体存储。
 - 复用项目已有模式，不另起炉灶
 - 分层清晰：orchestration、business logic、IO 分离
 - 接口稳定：公共 API 和数据结构的变更需评估影响面
