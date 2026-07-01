@@ -15,10 +15,17 @@ export function buildGraph(objects: KnowledgeObject[], relationships: KnowledgeR
       objectId: object.id,
       type: object.type,
       label: object.title,
+      tags: object.tags,
+      updatedAt: object.updated_at,
+      hash: object.hash,
       metadata: object.metadata,
     };
-    if (object.path !== undefined) return { ...base, path: object.path };
-    return base;
+    return {
+      ...base,
+      ...(object.summary === undefined ? {} : { summary: object.summary }),
+      ...(object.path === undefined ? {} : { path: object.path }),
+      ...(object.language === undefined ? {} : { language: object.language }),
+    };
   });
   const edges = relationships.map((relationship): GraphEdge => {
     const base: GraphEdge = {

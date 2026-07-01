@@ -111,7 +111,12 @@ export type GraphNode = {
   objectId: string;
   type: KnowledgeObjectType;
   label: string;
+  summary?: string;
+  tags: string[];
   path?: string;
+  language?: string;
+  updatedAt: string;
+  hash: string;
   metadata: Record<string, unknown>;
 };
 

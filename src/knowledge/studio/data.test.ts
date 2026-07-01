@@ -88,6 +88,19 @@ describe("Repository Intelligence Studio data", () => {
     expect(limited.edges).toHaveLength(0);
   });
 
+  test("exposes enriched graph node display fields and searchable metadata", () => {
+    const bySummary = buildGraphView(fixtureSnapshot(), { query: "bootstrap" });
+    const mainNode = bySummary.nodes.find((node) => node.id === "codefile:src/main.ts");
+    expect(mainNode?.summary).toBe("Main application bootstrap.");
+    expect(mainNode?.tags).toContain("entrypoint");
+    expect(mainNode?.language).toBe("typescript");
+    expect(mainNode?.updatedAt).toBe(now);
+    expect(mainNode?.hash).toBe("codefile:src/main.ts");
+
+    const byMetadata = buildGraphView(fixtureSnapshot(), { query: "linecount" });
+    expect(byMetadata.nodes.map((node) => node.id)).toContain("codefile:src/main.ts");
+  });
+
   test("builds observable Codex mock trace", () => {
     const trace = buildCodexMockTrace(fixtureSnapshot(), "请设计 main 的修改方案");
     expect(trace.intent).toBe("plan");
@@ -386,7 +399,13 @@ function uploadFile(relativePath: string, content: string): File {
 function fixtureSnapshot(): StudioSnapshot {
   const objects = [
     object("dir:src", "Directory", "src", "src"),
-    object("codefile:src/main.ts", "CodeFile", "main.ts", "src/main.ts"),
+    {
+      ...object("codefile:src/main.ts", "CodeFile", "main.ts", "src/main.ts"),
+      summary: "Main application bootstrap.",
+      tags: ["entrypoint"],
+      metadata: { lineCount: 12 },
+      language: "typescript",
+    },
     object("codefile:src/orphan.ts", "CodeFile", "orphan.ts", "src/orphan.ts"),
   ];
   const nodes: GraphNode[] = objects.map((item) => {
@@ -395,10 +414,17 @@ function fixtureSnapshot(): StudioSnapshot {
       objectId: item.id,
       type: item.type,
       label: item.title,
-      metadata: {},
+      metadata: item.metadata,
+      tags: item.tags,
+      updatedAt: item.updated_at,
+      hash: item.hash,
     };
-    if (item.path !== undefined) return { ...node, path: item.path };
-    return node;
+    return {
+      ...node,
+      ...(item.summary === undefined ? {} : { summary: item.summary }),
+      ...(item.path === undefined ? {} : { path: item.path }),
+      ...(item.language === undefined ? {} : { language: item.language }),
+    };
   });
   const edges: GraphEdge[] = [
     { id: "edge:1", from: "dir:src", to: "codefile:src/main.ts", type: "contains", metadata: {} },

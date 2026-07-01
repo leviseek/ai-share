@@ -209,6 +209,23 @@ export type GraphViewOptions = {
   limit?: number;
 };
 
+export type GraphNodeDisplayMetrics = {
+  incomingCount: number;
+  outgoingCount: number;
+  degree: number;
+  edgeTypeCounts: Record<string, number>;
+  isOrphan: boolean;
+};
+
+export type DisplayGraphNode = GraphNode & {
+  display: GraphNodeDisplayMetrics;
+};
+
+export type DisplayGraphSubgraph = {
+  nodes: DisplayGraphNode[];
+  edges: GraphEdge[];
+};
+
 const DEFAULT_GRAPH_LIMIT = 120;
 
 const DEFAULT_STORE_DIR = ".rie";
@@ -292,7 +309,7 @@ export function buildDashboardMetrics(snapshot: StudioSnapshot, lastContext?: Bu
   return metrics;
 }
 
-export function buildGraphView(snapshot: StudioSnapshot, options: GraphViewOptions = {}): GraphSubgraph {
+export function buildGraphView(snapshot: StudioSnapshot, options: GraphViewOptions = {}): DisplayGraphSubgraph {
   const seedIds = options.seedIds ?? [];
   const graphDepth = normalizeDepth(options.depth ?? 1);
   const baseGraph =
@@ -302,7 +319,7 @@ export function buildGraphView(snapshot: StudioSnapshot, options: GraphViewOptio
   return filterGraphView(baseGraph, options);
 }
 
-export function filterGraphView(graph: GraphSubgraph, options: GraphViewOptions): GraphSubgraph {
+export function filterGraphView(graph: GraphSubgraph, options: GraphViewOptions): DisplayGraphSubgraph {
   const nodeTypeSet = options.nodeTypes === undefined ? undefined : new Set(options.nodeTypes);
   const edgeTypeSet = options.edgeTypes === undefined ? undefined : new Set(options.edgeTypes);
   const query = options.query?.trim().toLowerCase();
@@ -319,7 +336,7 @@ export function filterGraphView(graph: GraphSubgraph, options: GraphViewOptions)
     (edge) =>
       nodeIds.has(edge.from) && nodeIds.has(edge.to) && (edgeTypeSet === undefined || edgeTypeSet.has(edge.type)),
   );
-  return { nodes: limitedNodes, edges: filteredEdges };
+  return { nodes: enrichGraphNodes(limitedNodes, filteredEdges), edges: filteredEdges };
 }
 
 export function buildStudioContext(snapshot: StudioSnapshot, request: ContextRequest): BuiltContext {
@@ -854,7 +871,56 @@ function collectQueryMatchedNodeIds(graph: GraphSubgraph, query: string): Set<st
 }
 
 function graphNodeSearchText(node: GraphNode): string {
-  return `${node.id} ${node.objectId} ${node.type} ${node.label} ${node.path ?? ""}`.toLowerCase();
+  return [
+    node.id,
+    node.objectId,
+    node.type,
+    node.label,
+    node.summary ?? "",
+    node.path ?? "",
+    node.language ?? "",
+    ...node.tags,
+    metadataSearchText(node.metadata),
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
+function metadataSearchText(metadata: Record<string, unknown>): string {
+  return Object.entries(metadata)
+    .flatMap(([key, value]) => [key, metadataValueSearchText(value)])
+    .join(" ");
+}
+
+function metadataValueSearchText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.map((item) => metadataValueSearchText(item)).join(" ");
+  if (typeof value === "object") return metadataSearchText(value as Record<string, unknown>);
+  return "";
+}
+
+function enrichGraphNodes(nodes: GraphNode[], edges: GraphEdge[]): DisplayGraphNode[] {
+  return nodes.map((node) => {
+    const incoming = edges.filter((edge) => edge.to === node.id);
+    const outgoing = edges.filter((edge) => edge.from === node.id);
+    const edgeTypeCounts = asCountRecord(
+      [...incoming, ...outgoing].reduce(
+        (counts, edge) => counts.set(edge.type, (counts.get(edge.type) ?? 0) + 1),
+        new Map<string, number>(),
+      ),
+    );
+    return {
+      ...node,
+      display: {
+        incomingCount: incoming.length,
+        outgoingCount: outgoing.length,
+        degree: incoming.length + outgoing.length,
+        edgeTypeCounts,
+        isOrphan: incoming.length + outgoing.length === 0,
+      },
+    };
+  });
 }
 
 function inferIntent(query: string): NonNullable<ContextRequest["intent"]> {
