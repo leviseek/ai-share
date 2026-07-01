@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { CodexDryRun } from "./data.ts";
-import type { CodexPlanExec } from "./plan-exec.ts";
+import type { CodexPlanExec, PlanExecStreamEvent } from "./plan-exec.ts";
 
 export type StudioSessionSummary = {
   id: string;
@@ -23,6 +23,8 @@ export type StudioSessionStore = {
   recent(limit: number): Promise<StudioSessionSummary[]>;
   writeDetail(id: string, detail: StudioSessionDetail): Promise<void>;
   readDetail(id: string): Promise<StudioSessionDetail | undefined>;
+  appendEvent(id: string, event: PlanExecStreamEvent): Promise<void>;
+  readEvents(id: string): Promise<PlanExecStreamEvent[]>;
 };
 
 export class JsonlStudioSessionStore implements StudioSessionStore {
@@ -61,6 +63,23 @@ export class JsonlStudioSessionStore implements StudioSessionStore {
     const raw = await readTextIfExists(resolve(this.runsRoot, `${id}.json`));
     if (raw.length === 0) return undefined;
     return JSON.parse(raw) as StudioSessionDetail;
+  }
+
+  async appendEvent(id: string, event: PlanExecStreamEvent): Promise<void> {
+    assertSafeSessionId(id);
+    await mkdir(this.runsRoot, { recursive: true });
+    const path = resolve(this.runsRoot, `${id}.events.jsonl`);
+    const existing = await readTextIfExists(path);
+    await writeFile(path, `${existing}${JSON.stringify(event)}\n`);
+  }
+
+  async readEvents(id: string): Promise<PlanExecStreamEvent[]> {
+    assertSafeSessionId(id);
+    const raw = await readTextIfExists(resolve(this.runsRoot, `${id}.events.jsonl`));
+    return raw
+      .split(/\r?\n/)
+      .filter((line) => line.trim().length > 0)
+      .map((line) => JSON.parse(line) as PlanExecStreamEvent);
   }
 }
 

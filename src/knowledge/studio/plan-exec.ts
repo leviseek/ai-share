@@ -28,7 +28,30 @@ export type CodexPlanExec = {
   execResult: PlanExecResult;
 };
 
+export type PlanExecStreamEventType =
+  | "run_started"
+  | "dry_run_ready"
+  | "stdout"
+  | "stderr"
+  | "git_guard"
+  | "run_done"
+  | "run_error";
+
+export type PlanExecStreamEvent = {
+  timestamp: string;
+  type: PlanExecStreamEventType;
+  payload: unknown;
+};
+
 export type PlanExecRunner = (input: { prompt: string; timeoutMs: number }) => Promise<PlanExecResult>;
+
+export type PlanExecStreamRunner = (input: {
+  prompt: string;
+  timeoutMs: number;
+  emit: PlanExecStreamEmitter;
+}) => Promise<PlanExecResult>;
+
+export type PlanExecStreamEmitter = (event: PlanExecStreamEvent) => Promise<void> | void;
 
 export type GitStatusReader = () => Promise<string>;
 
@@ -87,6 +110,26 @@ export async function runCodexPlanExec(
   return { dryRun, guardResult, execResult };
 }
 
+export async function runCodexPlanExecStream(
+  dryRun: CodexDryRun,
+  emit: PlanExecStreamEmitter,
+  runner: PlanExecStreamRunner = runCodexExecStream,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  gitStatus: GitStatusReader = readGitStatus,
+): Promise<CodexPlanExec> {
+  await emit(event("run_started", { id: dryRun.id, prompt: dryRun.prompt }));
+  const beforeStatus = await gitStatus();
+  await emit(event("dry_run_ready", { dryRun }));
+  const prompt = composeReadonlyPlanPrompt(dryRun);
+  const execResult = await runner({ prompt, timeoutMs, emit });
+  const afterStatus = await gitStatus();
+  const guardResult = buildPlanExecGuard(beforeStatus, afterStatus);
+  await emit(event("git_guard", guardResult));
+  const planExec = { dryRun, guardResult, execResult };
+  await emit(event("run_done", summarizePlanExec(planExec)));
+  return planExec;
+}
+
 export async function runCodexExec(input: { prompt: string; timeoutMs: number }): Promise<PlanExecResult> {
   const startedAt = Date.now();
   try {
@@ -112,13 +155,46 @@ export async function runCodexExec(input: { prompt: string; timeoutMs: number })
       timedOut,
     };
   } catch (error) {
+    return failedExecResult(error, startedAt);
+  }
+}
+
+export async function runCodexExecStream(input: {
+  prompt: string;
+  timeoutMs: number;
+  emit: PlanExecStreamEmitter;
+}): Promise<PlanExecResult> {
+  const startedAt = Date.now();
+  try {
+    const process = Bun.spawn(["codex", "exec", input.prompt], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      process.kill();
+    }, input.timeoutMs);
+    const stdoutChunks: string[] = [];
+    const stderrChunks: string[] = [];
+    const [exitCode] = await Promise.all([
+      process.exited,
+      pipeTextStream(process.stdout, "stdout", stdoutChunks, input.emit),
+      pipeTextStream(process.stderr, "stderr", stderrChunks, input.emit),
+    ]).finally(() => clearTimeout(timeout));
+    const stdout = stdoutChunks.join("");
+    const baseStderr = stderrChunks.join("");
     return {
-      stdout: "",
-      stderr: error instanceof Error ? error.message : "无法启动 codex exec。",
-      exitCode: null,
+      stdout,
+      stderr: timedOut ? `${baseStderr}\nPlan Exec timed out after ${input.timeoutMs}ms.` : baseStderr,
+      exitCode,
       durationMs: Date.now() - startedAt,
-      timedOut: false,
+      timedOut,
     };
+  } catch (error) {
+    const result = failedExecResult(error, startedAt);
+    await input.emit(event("run_error", { stderr: result.stderr }));
+    return result;
   }
 }
 
@@ -134,6 +210,54 @@ export async function readGitStatus(): Promise<string> {
   ]);
   if (exitCode !== 0) throw new Error(`git status --short 失败：${stderr}`);
   return stdout.trimEnd();
+}
+
+export function event(type: PlanExecStreamEventType, payload: unknown): PlanExecStreamEvent {
+  return { timestamp: new Date().toISOString(), type, payload };
+}
+
+function failedExecResult(error: unknown, startedAt: number): PlanExecResult {
+  return {
+    stdout: "",
+    stderr: error instanceof Error ? error.message : "无法启动 codex exec。",
+    exitCode: null,
+    durationMs: Date.now() - startedAt,
+    timedOut: false,
+  };
+}
+
+async function pipeTextStream(
+  stream: ReadableStream<Uint8Array>,
+  type: "stdout" | "stderr",
+  chunks: string[],
+  emit: PlanExecStreamEmitter,
+): Promise<void> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  while (true) {
+    const result = await reader.read();
+    if (result.done) break;
+    const chunk = decoder.decode(result.value, { stream: true });
+    if (chunk.length === 0) continue;
+    chunks.push(chunk);
+    await emit(event(type, { chunk }));
+  }
+  const trailing = decoder.decode();
+  if (trailing.length > 0) {
+    chunks.push(trailing);
+    await emit(event(type, { chunk: trailing }));
+  }
+}
+
+function summarizePlanExec(planExec: CodexPlanExec): Record<string, unknown> {
+  return {
+    id: planExec.dryRun.id,
+    exitCode: planExec.execResult.exitCode,
+    durationMs: planExec.execResult.durationMs,
+    timedOut: planExec.execResult.timedOut,
+    guardOk: planExec.guardResult.ok,
+    changedFiles: planExec.guardResult.git.changedFiles,
+  };
 }
 
 function diffStatusFiles(beforeStatus: string, afterStatus: string): string[] {

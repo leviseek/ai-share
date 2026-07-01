@@ -84,6 +84,8 @@ type PlanExec = {
 
 type SessionDetail = DryRun | PlanExec;
 
+type StreamEvent = { timestamp: string; type: string; payload: unknown };
+
 function App() {
   const [tree, setTree] = useState<TreeNode | undefined>();
   const [graph, setGraph] = useState<GraphData>({ nodes: [], edges: [] });
@@ -96,6 +98,8 @@ function App() {
   const [dryRun, setDryRun] = useState<DryRun | undefined>();
   const [planExec, setPlanExec] = useState<PlanExec | undefined>();
   const [sessionDetail, setSessionDetail] = useState<SessionDetail | undefined>();
+  const [streamEvents, setStreamEvents] = useState<StreamEvent[]>([]);
+  const [streamStatus, setStreamStatus] = useState("idle");
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
 
   async function refresh() {
@@ -159,9 +163,39 @@ function App() {
     setSessions(await getJson<SessionSummary[]>("/api/codex-console/sessions?limit=20"));
   }
 
+  async function runPlanExecStream() {
+    setStreamEvents([]);
+    setStreamStatus("starting");
+    const created = await postJson<{ runId: string; dryRun: DryRun }>("/api/codex-console/plan-exec-stream", {
+      prompt,
+      maxObjects: 30,
+    });
+    setDryRun(created.dryRun);
+    setStreamStatus("running");
+    const source = new EventSource(`/api/codex-console/plan-exec-stream?id=${encodeURIComponent(created.runId)}`);
+    for (const type of ["run_started", "dry_run_ready", "stdout", "stderr", "git_guard", "run_done", "run_error"]) {
+      source.addEventListener(type, (event) => {
+        const streamEvent = parseStreamEvent(event);
+        if (streamEvent === undefined) return;
+        setStreamEvents((items) => [...items, streamEvent]);
+        if (streamEvent.type === "run_done" || streamEvent.type === "run_error") {
+          setStreamStatus(streamEvent.type);
+          source.close();
+          void getJson<SessionSummary[]>("/api/codex-console/sessions?limit=20").then(setSessions);
+        }
+      });
+    }
+    source.onerror = () => {
+      setStreamStatus("error");
+      source.close();
+    };
+  }
+
   async function loadSessionDetail(id: string) {
     const detail = await getJson<SessionDetail>(`/api/codex-console/session?id=${encodeURIComponent(id)}`);
+    const events = await getJson<StreamEvent[]>(`/api/codex-console/session-events?id=${encodeURIComponent(id)}`);
     setSessionDetail(detail);
+    setStreamEvents(events);
     if (isPlanExec(detail)) {
       setPlanExec(detail);
       setDryRun(detail.dryRun);
@@ -227,6 +261,9 @@ function App() {
             planExec={planExec}
             sessionDetail={sessionDetail}
             loadSessionDetail={loadSessionDetail}
+            runPlanExecStream={runPlanExecStream}
+            streamEvents={streamEvents}
+            streamStatus={streamStatus}
           />
         </section>
       </main>
@@ -316,6 +353,9 @@ function CodexConsole(props: {
   runDryRun(): Promise<void>;
   runPlanExec(): Promise<void>;
   loadSessionDetail(id: string): Promise<void>;
+  runPlanExecStream(): Promise<void>;
+  streamEvents: StreamEvent[];
+  streamStatus: string;
 }) {
   return (
     <>
@@ -324,6 +364,7 @@ function CodexConsole(props: {
         <input value={props.prompt} onInput={(event) => props.setPrompt(event.currentTarget.value)} />
         <button onClick={() => void props.runDryRun()}>Run Dry Run</button>
         <button onClick={() => void props.runPlanExec()}>Run Plan Exec</button>
+        <button onClick={() => void props.runPlanExecStream()}>Run Plan Exec Stream</button>
       </div>
       {props.dryRun === undefined ? (
         <p>运行 dry run 或 plan exec 后会展示知识引擎 trace、prompt bundle 与真实 Codex 只读执行结果。</p>
@@ -331,6 +372,7 @@ function CodexConsole(props: {
         <DryRunViewer dryRun={props.dryRun} />
       )}
       {props.planExec !== undefined && <PlanExecViewer planExec={props.planExec} />}
+      <StreamViewer events={props.streamEvents} status={props.streamStatus} />
       {props.sessionDetail !== undefined && <SessionDetailViewer detail={props.sessionDetail} />}
       <h2>Recent Sessions</h2>
       <div class="sessions">
@@ -407,6 +449,44 @@ function PlanExecViewer(props: { planExec: PlanExec }) {
       <pre class="bundle">{props.planExec.execResult.stdout || "(empty)"}</pre>
       <h3>stderr</h3>
       <pre class="bundle">{props.planExec.execResult.stderr || "(empty)"}</pre>
+    </div>
+  );
+}
+
+function parseStreamEvent(event: Event): StreamEvent | undefined {
+  if (!(event instanceof MessageEvent) || typeof event.data !== "string") return undefined;
+  const value = JSON.parse(event.data) as unknown;
+  if (typeof value !== "object" || value === null) return undefined;
+  const record = value as Record<string, unknown>;
+  if (typeof record.timestamp !== "string" || typeof record.type !== "string") return undefined;
+  return { timestamp: record.timestamp, type: record.type, payload: record.payload };
+}
+
+function StreamViewer(props: { events: StreamEvent[]; status: string }) {
+  const stdout = props.events
+    .filter((item) => item.type === "stdout")
+    .map((item) => (item.payload as { chunk?: string }).chunk ?? "")
+    .join("");
+  const stderr = props.events
+    .filter((item) => item.type === "stderr")
+    .map((item) => (item.payload as { chunk?: string }).chunk ?? "")
+    .join("");
+  if (props.events.length === 0 && props.status === "idle") return null;
+  return (
+    <div class="plan-exec">
+      <h3>Streaming Plan Exec · {props.status}</h3>
+      <div class="trace">
+        {props.events.map((item, index) => (
+          <article class="trace-step" key={`${item.timestamp}-${index}`}>
+            <h3>{item.type}</h3>
+            <pre>{JSON.stringify(item.payload, null, 2)}</pre>
+          </article>
+        ))}
+      </div>
+      <h3>stream stdout</h3>
+      <pre class="bundle">{stdout || "(empty)"}</pre>
+      <h3>stream stderr</h3>
+      <pre class="bundle">{stderr || "(empty)"}</pre>
     </div>
   );
 }

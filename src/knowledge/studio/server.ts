@@ -12,7 +12,7 @@ import {
   loadStudioSnapshot,
   type StudioSnapshot,
 } from "./data.ts";
-import { runCodexPlanExec } from "./plan-exec.ts";
+import { runCodexPlanExec, runCodexPlanExecStream, type PlanExecStreamEvent } from "./plan-exec.ts";
 import { createStudioSessionStore, type StudioSessionStore } from "./session-store.ts";
 
 const DEFAULT_PORT = 3737;
@@ -23,6 +23,7 @@ type StudioState = {
   snapshot: StudioSnapshot;
   lastContext?: BuiltContext;
   sessions: StudioSessionStore;
+  pendingStreams: Map<string, ReturnType<typeof buildCodexDryRun>>;
 };
 
 async function main(argv: string[]): Promise<void> {
@@ -31,6 +32,7 @@ async function main(argv: string[]): Promise<void> {
   const state: StudioState = {
     snapshot: await loadStudioSnapshot(repoRoot),
     sessions: createStudioSessionStore(repoRoot),
+    pendingStreams: new Map(),
   };
   const server = Bun.serve({
     port,
@@ -58,8 +60,11 @@ async function routeRequest(request: Request, state: StudioState): Promise<Respo
   if (url.pathname === "/api/codex-console/mock") return handleCodexMockRequest(request, state.snapshot);
   if (url.pathname === "/api/codex-console/dry-run") return handleCodexDryRunRequest(request, state);
   if (url.pathname === "/api/codex-console/plan-exec") return handleCodexPlanExecRequest(request, state);
+  if (url.pathname === "/api/codex-console/plan-exec-stream")
+    return handleCodexPlanExecStreamRequest(request, url, state);
   if (url.pathname === "/api/codex-console/sessions") return handleSessionsRequest(url, state);
   if (url.pathname === "/api/codex-console/session") return handleSessionDetailRequest(url, state);
+  if (url.pathname === "/api/codex-console/session-events") return handleSessionEventsRequest(url, state);
   return jsonResponse({ error: "未找到请求的 Studio 资源。" }, 404);
 }
 
@@ -154,6 +159,85 @@ async function handleCodexPlanExecRequest(request: Request, state: StudioState):
   return jsonResponse(planExec);
 }
 
+async function handleCodexPlanExecStreamRequest(request: Request, url: URL, state: StudioState): Promise<Response> {
+  if (request.method === "POST") return await createCodexPlanExecStreamRun(request, state);
+  if (request.method === "GET") return streamCodexPlanExecRun(url, state);
+  return jsonResponse({ error: "不支持的请求方法。" }, 405);
+}
+
+async function createCodexPlanExecStreamRun(request: Request, state: StudioState): Promise<Response> {
+  const body = await parseJsonObject(request);
+  const prompt = readString(body, "prompt");
+  if (prompt.length === 0) throw new Error("请提供 prompt。");
+  const dryRunRequest: Parameters<typeof buildCodexDryRun>[1] = {
+    prompt,
+    budget: { maxObjects: readPositiveInteger(body, "maxObjects", 30) },
+  };
+  const intent = readIntent(body);
+  if (intent !== undefined) dryRunRequest.intent = intent;
+  const dryRun = buildCodexDryRun(state.snapshot, dryRunRequest);
+  state.lastContext = dryRun.context;
+  state.pendingStreams.set(dryRun.id, dryRun);
+  await state.sessions.writeDetail(dryRun.id, dryRun);
+  return jsonResponse({ runId: dryRun.id, dryRun });
+}
+
+function streamCodexPlanExecRun(url: URL, state: StudioState): Response {
+  const id = url.searchParams.get("id");
+  if (id === null || id.length === 0) return jsonResponse({ error: "请提供 run id。" }, 400);
+  const dryRun = state.pendingStreams.get(id);
+  if (dryRun === undefined) return jsonResponse({ error: "未找到待执行 run。" }, 404);
+  state.pendingStreams.delete(id);
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller): void {
+      void runStreamingPlanExec(controller, encoder, dryRun, state);
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache",
+      connection: "keep-alive",
+    },
+  });
+}
+
+async function runStreamingPlanExec(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  encoder: TextEncoder,
+  dryRun: ReturnType<typeof buildCodexDryRun>,
+  state: StudioState,
+): Promise<void> {
+  const emit = async (event: PlanExecStreamEvent): Promise<void> => {
+    await state.sessions.appendEvent(dryRun.id, event);
+    controller.enqueue(encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`));
+  };
+  try {
+    const planExec = await runCodexPlanExecStream(dryRun, emit);
+    await state.sessions.append({
+      id: planExec.dryRun.id,
+      kind: "plan-exec",
+      timestamp: planExec.dryRun.timestamp,
+      prompt: planExec.dryRun.prompt,
+      intent: planExec.dryRun.intent,
+      traceSteps: planExec.dryRun.trace.map((step) => step.name),
+      bundleHash: planExec.dryRun.promptBundle.hash,
+      exitCode: planExec.execResult.exitCode,
+      durationMs: planExec.execResult.durationMs,
+      guardOk: planExec.guardResult.ok,
+    });
+    await state.sessions.writeDetail(planExec.dryRun.id, planExec);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Plan Exec stream failed.";
+    const event: PlanExecStreamEvent = { timestamp: new Date().toISOString(), type: "run_error", payload: { message } };
+    await state.sessions.appendEvent(dryRun.id, event);
+    controller.enqueue(encoder.encode(`event: run_error\ndata: ${JSON.stringify(event)}\n\n`));
+  } finally {
+    controller.close();
+  }
+}
+
 async function handleSessionsRequest(url: URL, state: StudioState): Promise<Response> {
   const limit = Number(url.searchParams.get("limit") ?? "20");
   return jsonResponse(await state.sessions.recent(Number.isInteger(limit) && limit > 0 ? limit : 20));
@@ -165,6 +249,12 @@ async function handleSessionDetailRequest(url: URL, state: StudioState): Promise
   const detail = await state.sessions.readDetail(id);
   if (detail === undefined) return jsonResponse({ error: "未找到 session detail。" }, 404);
   return jsonResponse(detail);
+}
+
+async function handleSessionEventsRequest(url: URL, state: StudioState): Promise<Response> {
+  const id = url.searchParams.get("id");
+  if (id === null || id.length === 0) throw new Error("请提供 session id。");
+  return jsonResponse(await state.sessions.readEvents(id));
 }
 
 async function staticResponse(path: string): Promise<Response> {

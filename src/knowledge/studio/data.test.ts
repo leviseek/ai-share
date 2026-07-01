@@ -11,7 +11,13 @@ import {
   buildStudioContext,
   type StudioSnapshot,
 } from "./data.ts";
-import { buildPlanExecGuard, composeReadonlyPlanPrompt, runCodexPlanExec } from "./plan-exec.ts";
+import {
+  buildPlanExecGuard,
+  composeReadonlyPlanPrompt,
+  event,
+  runCodexPlanExec,
+  runCodexPlanExecStream,
+} from "./plan-exec.ts";
 import { createStudioSessionStore } from "./session-store.ts";
 
 const now = "2026-07-01T00:00:00.000Z";
@@ -94,12 +100,15 @@ describe("Repository Intelligence Studio data", () => {
     });
     const dryRun = buildCodexDryRun(fixtureSnapshot(), { prompt: "second" }, now);
     await store.writeDetail("two", dryRun);
+    await store.appendEvent("two", event("run_started", { id: "two" }));
     const recent = await store.recent(1);
     const detail = await store.readDetail("two");
+    const events = await store.readEvents("two");
     expect(recent).toHaveLength(1);
     expect(recent[0]?.id).toBe("two");
     expect(recent[0]?.kind).toBe("plan-exec");
     expect(detail).toBeDefined();
+    expect(events[0]?.type).toBe("run_started");
   });
 
   test("composes readonly Codex plan exec prompt", () => {
@@ -136,6 +145,27 @@ describe("Repository Intelligence Studio data", () => {
     expect(guard.ok).toBe(false);
     expect(guard.git.changedFiles).toContain("after.ts");
     expect(guard.messages).toContain("Plan Exec produced workspace changes; review manually.");
+  });
+
+  test("streams Codex plan exec events through injectable runner", async () => {
+    const dryRun = buildCodexDryRun(fixtureSnapshot(), { prompt: "请设计 main 的修改方案" }, now);
+    const events = [] as string[];
+    const result = await runCodexPlanExecStream(
+      dryRun,
+      (item) => {
+        events.push(item.type);
+      },
+      async ({ emit }) => {
+        await emit(event("stdout", { chunk: "hello" }));
+        await emit(event("stderr", { chunk: "warn" }));
+        return { stdout: "hello", stderr: "warn", exitCode: 0, durationMs: 3, timedOut: false };
+      },
+      120_000,
+      () => Promise.resolve(""),
+    );
+    expect(events).toEqual(["run_started", "dry_run_ready", "stdout", "stderr", "git_guard", "run_done"]);
+    expect(result.execResult.stdout).toBe("hello");
+    expect(result.guardResult.ok).toBe(true);
   });
 });
 
