@@ -8,6 +8,4 @@ docs/schema/json/
 
 bun.lock
 
-.sisyphus/
-
 .codex/

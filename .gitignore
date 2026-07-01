@@ -31,8 +31,6 @@ omo-agent-monitor-state.json
 docs/superpowers/
 
 ### Local AI runtime state
-.sisyphus/evidence/
-.sisyphus/*.local.*
 .playwright-mcp/
 .codex/
 .env
