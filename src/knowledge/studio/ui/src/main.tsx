@@ -12,7 +12,7 @@ import {
   type SimulationNodeDatum,
 } from "d3";
 import { createRoot } from "react-dom/client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatedGradientText } from "@/components/magic/animated-gradient-text";
 import { DotPattern } from "@/components/magic/dot-pattern";
 import { MagicCard } from "@/components/magic/magic-card";
@@ -297,6 +297,9 @@ type RepositoryImportSummary = {
   buildHash: string;
 };
 
+type Locale = "zh-CN" | "en-US";
+type ThemeMode = "light" | "dark";
+
 type StudioPreferences = {
   graphFilters: GraphFilters;
   graphSeeds: string[];
@@ -309,6 +312,8 @@ type StudioPreferences = {
   selectedRecipeId: string;
   helpOpen: boolean;
   inspectorCollapsed: boolean;
+  locale: Locale;
+  theme: ThemeMode;
 };
 
 const nodeTypeOptions = [
@@ -352,7 +357,269 @@ const defaultPreferences: StudioPreferences = {
   selectedRecipeId: "",
   helpOpen: false,
   inspectorCollapsed: false,
+  locale: "zh-CN",
+  theme: "light",
 };
+
+const copies = {
+  "zh-CN": {
+    appTitle: "Repository Intelligence Studio",
+    appSubtitle: "交互式图谱探索 · 知识引擎 Trace · Codex 可观测性",
+    help: "帮助",
+    close: "关闭",
+    refresh: "刷新",
+    refreshing: "刷新中...",
+    languageToggle: "EN",
+    themeToggle: "黑色模式",
+    themeToggleDark: "白色模式",
+    repositoryExplorer: "仓库浏览器",
+    loadingRepository: "正在加载仓库",
+    loadingRepositoryMessage: "刷新完成后会显示仓库树。",
+    noRepositoryObjects: "没有仓库对象",
+    noRepositoryObjectsMessage: "请运行 knowledge build 或刷新 Studio 快照。",
+    dropRepositoryFolder: "拖入仓库文件夹",
+    buildingKnowledgeBase: "正在构建知识库...",
+    uploadLocalFolder: "上传本地文件夹副本并构建 Studio 快照。",
+    chooseFolder: "选择文件夹",
+    lastImport: "上次导入",
+    diagnostics: "诊断",
+    graphTitle: "交互式知识图谱",
+    nodes: "节点",
+    edges: "边",
+    seeds: "种子",
+    reset: "重置",
+    searchPlaceholder: "搜索 id / 标签 / 路径",
+    depth: "深度",
+    limit: "上限",
+    apply: "应用",
+    nodeTypes: "节点类型",
+    edgeTypes: "边类型",
+    inspector: "检查器",
+    expand: "展开",
+    collapse: "折叠",
+    graphInspector: "图谱检查器",
+    objectId: "对象 id",
+    graphInspectorEmpty: "选择一个节点查看摘要、标签、语言、metadata 与入/出边。",
+    analyzeImpact: "分析影响",
+    buildContext: "构建上下文",
+    contextBuilder: "上下文构建器",
+    building: "构建中...",
+    impactAnalyzer: "影响分析器",
+    analyzing: "分析中...",
+    contextQualityEmpty: "运行 Context Builder 或 Dry Run 后展示上下文质量。",
+    knowledgeDashboard: "知识仪表盘",
+    gaps: "缺口",
+    recommendations: "建议",
+    noGaps: "无明显缺口",
+    contextLab: "上下文实验室",
+    contextLabSubtitle: "在不执行 Codex 的前提下运行、保存、回放并比较上下文实验。",
+    runExperiment: "运行实验",
+    running: "运行中...",
+    experimentSetup: "实验设置",
+    experimentName: "实验名称",
+    intent: "意图",
+    maxObjects: "最大对象数",
+    recentExperiments: "最近实验",
+    noExperiments: "没有实验",
+    noExperimentsMessage: "运行一次 Context Lab 实验后即可比较上下文质量。",
+    compare: "比较",
+    leftExperiment: "左侧实验",
+    rightExperiment: "右侧实验",
+    compareExperiments: "比较实验",
+    score: "评分",
+    grade: "等级",
+    objects: "对象",
+    paths: "路径",
+    useAsPrompt: "用作 Codex prompt",
+    saveAsRecipe: "保存为 Recipe",
+    codexConsole: "Codex 控制台 · Dry Run / Plan Exec",
+    noRecipe: "无 recipe",
+    runRecipeDryRun: "运行 Recipe Dry Run",
+    runDryRun: "运行 Dry Run",
+    runPlanExec: "运行 Plan Exec",
+    runPlanExecStream: "运行 Plan Exec Stream",
+    starting: "启动中...",
+    consoleEmpty: "运行 dry run 或 plan exec 后会展示知识引擎 trace、prompt bundle 与真实 Codex 只读执行结果。",
+    recentSessions: "最近会话",
+    noSessions: "没有会话",
+    noSessionsMessage: "Dry Run 和 Plan Exec 会话会显示在这里。",
+    noStreamEvents: "没有流事件",
+    noStreamEventsMessage: "运行 Plan Exec Stream 查看实时事件。",
+    aiSummary: "AI 摘要",
+    aiSummaryGenerating: "AI 摘要：生成中...",
+    aiSummaryFailed: "AI 摘要失败",
+    aiSummaryIdle: "AI 摘要：空闲",
+    cached: "缓存",
+    generated: "已生成",
+    fileIntent: "文件意图",
+    dependencies: "依赖模块",
+    dependents: "被依赖",
+    date: "日期",
+    author: "作者",
+    unknown: "未知",
+    showDetails: "展开详情",
+    hideDetails: "收起详情",
+    exposedSymbols: "外部接口与全局变量",
+    noExposedSymbols: "未识别到明确暴露给外部使用的全局变量或接口。",
+    input: "输入",
+    output: "输出",
+    usage: "使用方式",
+    rawMetadata: "原始 metadata",
+    incoming: "入边",
+    outgoing: "出边",
+    none: "无",
+    metadataEmpty: "metadata: empty",
+    helpTitle: "Studio 帮助",
+    helpIntro: "Repository Intelligence Studio 展示 Knowledge Engine 如何选择上下文、分析影响并驱动 Codex 只读执行。",
+    shortcuts: "快捷键",
+    scoreDelta: "评分变化",
+    bundle: "Bundle",
+    changed: "已变化",
+    unchanged: "未变化",
+    relevantPaths: "相关路径",
+    added: "新增",
+    removed: "移除",
+    shared: "共有",
+    orphans: "孤立节点",
+    broken: "断裂边",
+    coverage: "覆盖率",
+    quality: "质量",
+    recs: "建议数",
+  },
+  "en-US": {
+    appTitle: "Repository Intelligence Studio",
+    appSubtitle: "Interactive Graph Explorer · Knowledge Engine Trace · Codex Observability",
+    help: "Help",
+    close: "Close",
+    refresh: "Refresh",
+    refreshing: "Refreshing...",
+    languageToggle: "中",
+    themeToggle: "Dark mode",
+    themeToggleDark: "Light mode",
+    repositoryExplorer: "Repository Explorer",
+    loadingRepository: "Loading repository",
+    loadingRepositoryMessage: "Repository tree will appear after refresh completes.",
+    noRepositoryObjects: "No repository objects",
+    noRepositoryObjectsMessage: "Run knowledge build or refresh the Studio snapshot.",
+    dropRepositoryFolder: "Drop repository folder",
+    buildingKnowledgeBase: "Building knowledge base...",
+    uploadLocalFolder: "Upload a local folder copy and build a Studio snapshot.",
+    chooseFolder: "Choose folder",
+    lastImport: "Last import",
+    diagnostics: "diagnostics",
+    graphTitle: "Interactive Knowledge Graph",
+    nodes: "nodes",
+    edges: "edges",
+    seeds: "seeds",
+    reset: "Reset",
+    searchPlaceholder: "Search id / label / path",
+    depth: "Depth",
+    limit: "Limit",
+    apply: "Apply",
+    nodeTypes: "Node Types",
+    edgeTypes: "Edge Types",
+    inspector: "Inspector",
+    expand: "Expand",
+    collapse: "Collapse",
+    graphInspector: "Graph Inspector",
+    objectId: "object id",
+    graphInspectorEmpty: "Select a node to inspect summary, tags, language, metadata, and incoming/outgoing edges.",
+    analyzeImpact: "Analyze Impact",
+    buildContext: "Build Context",
+    contextBuilder: "Context Builder",
+    building: "Building...",
+    impactAnalyzer: "Impact Analyzer",
+    analyzing: "Analyzing...",
+    contextQualityEmpty: "Context quality appears after Context Builder or Dry Run.",
+    knowledgeDashboard: "Knowledge Dashboard",
+    gaps: "Gaps",
+    recommendations: "Recommendations",
+    noGaps: "No obvious gaps",
+    contextLab: "Context Lab",
+    contextLabSubtitle: "Run, save, replay, and compare context experiments without executing Codex.",
+    runExperiment: "Run Experiment",
+    running: "Running...",
+    experimentSetup: "Experiment Setup",
+    experimentName: "Experiment name",
+    intent: "Intent",
+    maxObjects: "Max Objects",
+    recentExperiments: "Recent Experiments",
+    noExperiments: "No experiments",
+    noExperimentsMessage: "Run a Context Lab experiment to start comparing context quality.",
+    compare: "Compare",
+    leftExperiment: "Left experiment",
+    rightExperiment: "Right experiment",
+    compareExperiments: "Compare Experiments",
+    score: "Score",
+    grade: "Grade",
+    objects: "Objects",
+    paths: "Paths",
+    useAsPrompt: "Use as Codex prompt",
+    saveAsRecipe: "Save as Recipe",
+    codexConsole: "Codex Console · Dry Run / Plan Exec",
+    noRecipe: "No recipe",
+    runRecipeDryRun: "Run Recipe Dry Run",
+    runDryRun: "Run Dry Run",
+    runPlanExec: "Run Plan Exec",
+    runPlanExecStream: "Run Plan Exec Stream",
+    starting: "Starting...",
+    consoleEmpty:
+      "Run dry run or plan exec to view the knowledge trace, prompt bundle, and read-only Codex execution result.",
+    recentSessions: "Recent Sessions",
+    noSessions: "No sessions",
+    noSessionsMessage: "Dry Run and Plan Exec sessions will appear here.",
+    noStreamEvents: "No stream events",
+    noStreamEventsMessage: "Run Plan Exec Stream to observe live events.",
+    aiSummary: "AI Summary",
+    aiSummaryGenerating: "AI Summary: generating...",
+    aiSummaryFailed: "AI Summary failed",
+    aiSummaryIdle: "AI Summary: idle",
+    cached: "cached",
+    generated: "generated",
+    fileIntent: "File intent",
+    dependencies: "Dependencies",
+    dependents: "Dependents",
+    date: "Date",
+    author: "Author",
+    unknown: "unknown",
+    showDetails: "Show details",
+    hideDetails: "Hide details",
+    exposedSymbols: "External interfaces and globals",
+    noExposedSymbols: "No explicit external globals or interfaces were identified.",
+    input: "Input",
+    output: "Output",
+    usage: "Usage",
+    rawMetadata: "Raw metadata",
+    incoming: "Incoming",
+    outgoing: "Outgoing",
+    none: "none",
+    metadataEmpty: "metadata: empty",
+    helpTitle: "Studio Help",
+    helpIntro:
+      "Repository Intelligence Studio shows how Knowledge Engine selects context, analyzes impact, and drives read-only Codex execution.",
+    shortcuts: "Shortcuts",
+    scoreDelta: "Score delta",
+    bundle: "Bundle",
+    changed: "changed",
+    unchanged: "unchanged",
+    relevantPaths: "Relevant Paths",
+    added: "Added",
+    removed: "Removed",
+    shared: "Shared",
+    orphans: "Orphans",
+    broken: "Broken",
+    coverage: "Coverage",
+    quality: "Quality",
+    recs: "Recs",
+  },
+} as const;
+
+type Copy = (typeof copies)[Locale];
+const CopyContext = createContext<Copy>(copies["zh-CN"]);
+
+function useCopy(): Copy {
+  return useContext(CopyContext);
+}
 
 function App() {
   const [preferences, setPreferences] = useState(() => readStudioPreferences());
@@ -389,6 +656,9 @@ function App() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [helpOpen, setHelpOpen] = useState(preferences.helpOpen);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(preferences.inspectorCollapsed);
+  const [locale, setLocale] = useState<Locale>(preferences.locale);
+  const [theme, setTheme] = useState<ThemeMode>(preferences.theme);
+  const copy = copies[locale];
 
   const selectedDetail = useMemo(() => graphDetail(graph, selectedObjectId), [graph, selectedObjectId]);
   const selectedNodeId = selectedDetail?.node.id ?? "";
@@ -496,6 +766,24 @@ function App() {
     const next = !inspectorCollapsed;
     setInspectorCollapsed(next);
     updatePreferences({ inspectorCollapsed: next });
+  }
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+  }, [locale, theme]);
+
+  function toggleLocale() {
+    const next: Locale = locale === "zh-CN" ? "en-US" : "zh-CN";
+    setLocale(next);
+    updatePreferences({ locale: next });
+  }
+
+  function toggleTheme() {
+    const next: ThemeMode = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    updatePreferences({ theme: next });
   }
 
   async function importRepositoryFiles(files: File[]): Promise<void> {
@@ -780,27 +1068,29 @@ function App() {
   }, [graphSeeds, graphFilters, helpOpen, prompt]);
 
   return (
-    <>
+    <CopyContext.Provider value={copy}>
       <DotPattern />
       <header>
         <div>
           <h1>
-            <AnimatedGradientText>Repository Intelligence Studio</AnimatedGradientText>
+            <AnimatedGradientText>{copy.appTitle}</AnimatedGradientText>
           </h1>
-          <p>Interactive Graph Explorer · Knowledge Engine Trace · Codex Observability</p>
+          <p>{copy.appSubtitle}</p>
         </div>
         <div className="header-actions">
-          <button onClick={() => toggleHelp()}>Help</button>
+          <button onClick={() => toggleHelp()}>{copy.help}</button>
+          <button onClick={() => toggleLocale()}>{copy.languageToggle}</button>
+          <button onClick={() => toggleTheme()}>{theme === "light" ? copy.themeToggle : copy.themeToggleDark}</button>
           <button disabled={isBusy} onClick={() => void runAction("refresh", refresh, "Studio refreshed.")}>
-            {activeActions.includes("refresh") ? "Refreshing..." : "Refresh"}
+            {activeActions.includes("refresh") ? copy.refreshing : copy.refresh}
           </button>
         </div>
       </header>
       <ToastStack toasts={toasts} onDismiss={(id) => setToasts((items) => items.filter((item) => item.id !== id))} />
       {helpOpen && <HelpPanel onClose={toggleHelp} />}
       <main>
-        <aside className="panel explorer">
-          <h2>Repository Explorer</h2>
+        <MagicCard className="panel explorer">
+          <h2>{copy.repositoryExplorer}</h2>
           <RepositoryImportDropZone
             busy={isBusy}
             active={activeActions.includes("repository-import")}
@@ -814,17 +1104,17 @@ function App() {
             }
           />
           {tree === undefined ? (
-            <EmptyState title="Loading repository" message="Repository tree will appear after refresh completes." />
+            <EmptyState title={copy.loadingRepository} message={copy.loadingRepositoryMessage} />
           ) : tree.children.length === 0 ? (
-            <EmptyState title="No repository objects" message="Run knowledge build or refresh the Studio snapshot." />
+            <EmptyState title={copy.noRepositoryObjects} message={copy.noRepositoryObjectsMessage} />
           ) : (
             <RepositoryExplorer
               node={tree}
               onSelect={(id) => void runAction("select-object", () => selectObject(id))}
             />
           )}
-        </aside>
-        <section className="panel graph-panel">
+        </MagicCard>
+        <MagicCard className="panel graph-panel">
           <GraphExplorer
             graph={graph}
             filters={graphFilters}
@@ -839,11 +1129,11 @@ function App() {
             searchRef={graphSearchRef}
             busy={isBusy}
           />
-        </section>
-        <aside className={inspectorCollapsed ? "panel inspector collapsed" : "panel inspector"}>
+        </MagicCard>
+        <MagicCard className={inspectorCollapsed ? "panel inspector collapsed" : "panel inspector"}>
           <div className="panel-title">
-            <h2>Inspector</h2>
-            <button onClick={() => toggleInspector()}>{inspectorCollapsed ? "Expand" : "Collapse"}</button>
+            <h2>{copy.inspector}</h2>
+            <button onClick={() => toggleInspector()}>{inspectorCollapsed ? copy.expand : copy.collapse}</button>
           </div>
           {!inspectorCollapsed && (
             <>
@@ -858,38 +1148,38 @@ function App() {
                 }
               />
               <section>
-                <h2>Context Builder</h2>
+                <h2>{copy.contextBuilder}</h2>
                 <textarea
                   rows={3}
                   value={contextQuery}
                   onInput={(event) => setContextQueryValue(event.currentTarget.value)}
                 />
                 <button disabled={isBusy} onClick={() => void runAction("context", buildContext, "Context built.")}>
-                  {activeActions.includes("context") ? "Building..." : "Build Context"}
+                  {activeActions.includes("context") ? copy.building : copy.buildContext}
                 </button>
                 <pre>{contextOutput}</pre>
                 <ContextQualityPanel quality={contextQuality} />
               </section>
               <section>
-                <h2>Impact Analyzer</h2>
+                <h2>{copy.impactAnalyzer}</h2>
                 <input
                   value={selectedObjectId}
                   onInput={(event) => setSelectedObject(event.currentTarget.value)}
-                  placeholder="object id"
+                  placeholder={copy.objectId}
                 />
                 <button
                   disabled={isBusy || selectedObjectId.length === 0}
                   onClick={() => void runAction("impact", analyzeImpact, "Impact analyzed.")}
                 >
-                  {activeActions.includes("impact") ? "Analyzing..." : "Analyze"}
+                  {activeActions.includes("impact") ? copy.analyzing : copy.analyzeImpact}
                 </button>
                 <pre>{impactOutput}</pre>
               </section>
               <KnowledgeDashboard dashboard={dashboard} />
             </>
           )}
-        </aside>
-        <section className="panel context-lab-panel">
+        </MagicCard>
+        <MagicCard className="panel context-lab-panel">
           <ContextLab
             prompt={prompt}
             setPrompt={setPromptValue}
@@ -915,8 +1205,8 @@ function App() {
             busy={isBusy}
             activeActions={activeActions}
           />
-        </section>
-        <section className="panel console">
+        </MagicCard>
+        <MagicCard className="panel console">
           <CodexConsole
             prompt={prompt}
             setPrompt={setPromptValue}
@@ -941,9 +1231,9 @@ function App() {
             busy={isBusy}
             activeActions={activeActions}
           />
-        </section>
+        </MagicCard>
       </main>
-    </>
+    </CopyContext.Provider>
   );
 }
 
@@ -953,6 +1243,7 @@ function RepositoryImportDropZone(props: {
   summary: RepositoryImportSummary | undefined;
   onImport(files: File[]): void;
 }) {
+  const copy = useCopy();
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const className = dragActive ? "repo-drop-zone active" : "repo-drop-zone";
@@ -978,17 +1269,21 @@ function RepositoryImportDropZone(props: {
         if (transfer !== null) void collectDroppedFiles(transfer).then((files) => props.onImport(files));
       }}
     >
-      <strong>{props.active ? "Building knowledge base..." : "Drop repository folder"}</strong>
-      <span>Upload a local folder copy and build a Studio snapshot.</span>
+      <strong>{props.active ? copy.buildingKnowledgeBase : copy.dropRepositoryFolder}</strong>
+      <span>{copy.uploadLocalFolder}</span>
       <div className="repo-drop-actions">
         <button disabled={props.busy} onClick={() => inputRef.current?.click()}>
-          Choose folder
+          {copy.chooseFolder}
         </button>
-        {props.summary !== undefined && <code>{props.summary.objects} objects</code>}
+        {props.summary !== undefined && (
+          <code>
+            {props.summary.objects} {copy.objects}
+          </code>
+        )}
       </div>
       {props.summary !== undefined && (
         <small>
-          Last import: {props.summary.importId} · {props.summary.diagnostics} diagnostics
+          {copy.lastImport}: {props.summary.importId} · {props.summary.diagnostics} {copy.diagnostics}
         </small>
       )}
       <input
@@ -1085,14 +1380,15 @@ function EmptyState(props: { title: string; message: string }) {
 }
 
 function HelpPanel(props: { onClose(): void }) {
+  const copy = useCopy();
   return (
     <div className="help-backdrop" onClick={() => props.onClose()}>
       <section className="help-panel" onClick={(event) => event.stopPropagation()}>
         <div className="panel-title">
-          <h2>Studio Help</h2>
-          <button onClick={() => props.onClose()}>Close</button>
+          <h2>{copy.helpTitle}</h2>
+          <button onClick={() => props.onClose()}>{copy.close}</button>
         </div>
-        <p>Repository Intelligence Studio 展示 Knowledge Engine 如何选择上下文、分析影响并驱动 Codex 只读执行。</p>
+        <p>{copy.helpIntro}</p>
         <div className="help-grid">
           <article>
             <h3>Explorer</h3>
@@ -1119,7 +1415,7 @@ function HelpPanel(props: { onClose(): void }) {
             <p>Plan Exec 保持只读 prompt + Git guard；点击执行才会调用真实 Codex。</p>
           </article>
         </div>
-        <h3>Shortcuts</h3>
+        <h3>{copy.shortcuts}</h3>
         <ul className="shortcut-list">
           <li>
             <kbd>Ctrl/Cmd</kbd> + <kbd>R</kbd> Refresh
@@ -1204,30 +1500,32 @@ function GraphExplorer(props: {
   searchRef: { current: HTMLInputElement | null };
   busy: boolean;
 }) {
+  const copy = useCopy();
   const [draft, setDraft] = useState(props.filters);
   useEffect(() => setDraft(props.filters), [props.filters]);
   return (
     <>
       <div className="panel-title graph-title">
         <div>
-          <h2>Interactive Knowledge Graph</h2>
+          <h2>{copy.graphTitle}</h2>
           <span>
-            {props.graph.nodes.length} nodes / {props.graph.edges.length} edges · seeds {props.seeds.length}
+            {props.graph.nodes.length} {copy.nodes} / {props.graph.edges.length} {copy.edges} · {copy.seeds}{" "}
+            {props.seeds.length}
           </span>
         </div>
         <button disabled={props.busy} onClick={() => props.onReset()}>
-          Reset
+          {copy.reset}
         </button>
       </div>
       <div className="graph-controls">
         <input
           ref={props.searchRef}
           value={draft.query}
-          placeholder="Search id / label / path"
+          placeholder={copy.searchPlaceholder}
           onInput={(event) => setDraft({ ...draft, query: event.currentTarget.value })}
         />
         <label>
-          Depth
+          {copy.depth}
           <input
             type="number"
             min={0}
@@ -1237,7 +1535,7 @@ function GraphExplorer(props: {
           />
         </label>
         <label>
-          Limit
+          {copy.limit}
           <input
             type="number"
             min={1}
@@ -1247,17 +1545,17 @@ function GraphExplorer(props: {
           />
         </label>
         <button disabled={props.busy} onClick={() => props.onApply(draft)}>
-          Apply
+          {copy.apply}
         </button>
       </div>
       <FilterChips
-        title="Node Types"
+        title={copy.nodeTypes}
         values={nodeTypeOptions}
         selected={draft.nodeTypes}
         onChange={(nodeTypes) => setDraft({ ...draft, nodeTypes })}
       />
       <FilterChips
-        title="Edge Types"
+        title={copy.edgeTypes}
         values={edgeTypeOptions}
         selected={draft.edgeTypes}
         onChange={(edgeTypes) => setDraft({ ...draft, edgeTypes })}
@@ -1407,16 +1705,17 @@ function GraphInspector(props: {
   analyzeImpact(): void;
   buildContext(): void;
 }) {
+  const copy = useCopy();
   return (
     <section>
-      <h2>Graph Inspector</h2>
+      <h2>{copy.graphInspector}</h2>
       <input
         value={props.selectedObjectId}
         onInput={(event) => props.setSelectedObjectId(event.currentTarget.value)}
-        placeholder="object id"
+        placeholder={copy.objectId}
       />
       {props.detail === undefined ? (
-        <p>选择一个节点查看摘要、标签、语言、metadata 与入/出边。</p>
+        <p>{copy.graphInspectorEmpty}</p>
       ) : (
         <div className="node-detail">
           <div className="node-detail-header">
@@ -1443,55 +1742,64 @@ function GraphInspector(props: {
             <span>hash: {shortHash(props.detail.node.hash)}</span>
           </div>
           <MetadataTable metadata={props.detail.node.metadata ?? {}} />
-          <EdgeList title="Incoming" edges={props.detail.incoming} direction="from" />
-          <EdgeList title="Outgoing" edges={props.detail.outgoing} direction="to" />
+          <EdgeList title={copy.incoming} edges={props.detail.incoming} direction="from" />
+          <EdgeList title={copy.outgoing} edges={props.detail.outgoing} direction="to" />
           <details>
-            <summary>Raw metadata</summary>
+            <summary>{copy.rawMetadata}</summary>
             <pre>{JSON.stringify(props.detail.node.metadata ?? {}, null, 2)}</pre>
           </details>
         </div>
       )}
       <div className="inspector-actions">
-        <button onClick={() => props.analyzeImpact()}>Analyze Impact</button>
-        <button onClick={() => props.buildContext()}>Build Context</button>
+        <button onClick={() => props.analyzeImpact()}>{copy.analyzeImpact}</button>
+        <button onClick={() => props.buildContext()}>{copy.buildContext}</button>
       </div>
     </section>
   );
 }
 
 function AiSummaryPanel(props: { state: AiNodeSummaryState; nodeId: string }) {
+  const copy = useCopy();
   const [expanded, setExpanded] = useState(false);
   if (props.state.status === "loading" && props.state.nodeId === props.nodeId) {
-    return <MagicCard className="ai-summary-card pending">AI Summary: generating...</MagicCard>;
+    return <MagicCard className="ai-summary-card pending">{copy.aiSummaryGenerating}</MagicCard>;
   }
   if (props.state.status === "error" && props.state.nodeId === props.nodeId) {
-    return <MagicCard className="ai-summary-card error">AI Summary failed: {props.state.message}</MagicCard>;
+    return (
+      <MagicCard className="ai-summary-card error">
+        {copy.aiSummaryFailed}: {props.state.message}
+      </MagicCard>
+    );
   }
   if (props.state.status === "ready" && props.state.nodeId === props.nodeId) {
     return (
       <MagicCard className="ai-summary-card">
         <div className="ai-summary-title">
-          <strong>AI Summary</strong>
-          <span>{props.state.result.cached ? "cached" : "generated"}</span>
+          <strong>{copy.aiSummary}</strong>
+          <span>{props.state.result.cached ? copy.cached : copy.generated}</span>
         </div>
         <div className="ai-summary-overview">
           <div className="ai-summary-intent">
-            <span>文件意图</span>
+            <span>{copy.fileIntent}</span>
             <strong>{props.state.result.overview.intent}</strong>
           </div>
           <div className="ai-summary-facts">
             <span>
-              依赖模块 <strong>{props.state.result.overview.dependencyCount}</strong>
+              {copy.dependencies} <strong>{props.state.result.overview.dependencyCount}</strong>
             </span>
             <span>
-              被依赖 <strong>{props.state.result.overview.dependentCount}</strong>
+              {copy.dependents} <strong>{props.state.result.overview.dependentCount}</strong>
             </span>
-            <span>日期 {props.state.result.overview.date ?? "unknown"}</span>
-            <span>作者 {props.state.result.overview.author ?? "unknown"}</span>
+            <span>
+              {copy.date} {props.state.result.overview.date ?? copy.unknown}
+            </span>
+            <span>
+              {copy.author} {props.state.result.overview.author ?? copy.unknown}
+            </span>
           </div>
         </div>
         <button className="ai-summary-toggle" onClick={() => setExpanded((value) => !value)}>
-          {expanded ? "收起详情" : "展开详情"}
+          {expanded ? copy.hideDetails : copy.showDetails}
         </button>
         {expanded && (
           <div className="ai-summary-details">
@@ -1515,16 +1823,17 @@ function AiSummaryPanel(props: { state: AiNodeSummaryState; nodeId: string }) {
       </MagicCard>
     );
   }
-  return <MagicCard className="ai-summary-card pending">AI Summary: idle</MagicCard>;
+  return <MagicCard className="ai-summary-card pending">{copy.aiSummaryIdle}</MagicCard>;
 }
 
 function AiSummaryExposedList(props: { symbols: AiNodeSummary["details"]["exposed"] }) {
+  const copy = useCopy();
   if (props.symbols.length === 0) {
-    return <div className="ai-summary-empty">未识别到明确暴露给外部使用的全局变量或接口。</div>;
+    return <div className="ai-summary-empty">{copy.noExposedSymbols}</div>;
   }
   return (
     <div className="ai-summary-symbols">
-      <h3>外部接口与全局变量</h3>
+      <h3>{copy.exposedSymbols}</h3>
       {props.symbols.map((symbol) => (
         <article className="ai-summary-symbol" key={`${symbol.kind}:${symbol.name}`}>
           <div>
@@ -1542,17 +1851,17 @@ function AiSummaryExposedList(props: { symbols: AiNodeSummary["details"]["expose
             {symbol.kind !== "variable" && (
               <>
                 <div>
-                  <dt>输入</dt>
+                  <dt>{copy.input}</dt>
                   <dd>{symbol.inputs}</dd>
                 </div>
                 <div>
-                  <dt>输出</dt>
+                  <dt>{copy.output}</dt>
                   <dd>{symbol.outputs}</dd>
                 </div>
               </>
             )}
             <div>
-              <dt>使用方式</dt>
+              <dt>{copy.usage}</dt>
               <dd>{symbol.usage}</dd>
             </div>
           </dl>
@@ -1624,8 +1933,9 @@ function splitLongAiSummaryParagraph(paragraph: string): string[] {
 }
 
 function MetadataTable(props: { metadata: Record<string, unknown> }) {
+  const copy = useCopy();
   const entries = prioritizedMetadataEntries(props.metadata);
-  if (entries.length === 0) return <span>metadata: empty</span>;
+  if (entries.length === 0) return <span>{copy.metadataEmpty}</span>;
   return (
     <div className="metadata-grid">
       {entries.map(([key, value]) => (
@@ -1639,13 +1949,14 @@ function MetadataTable(props: { metadata: Record<string, unknown> }) {
 }
 
 function EdgeList(props: { title: string; edges: GraphEdge[]; direction: "from" | "to" }) {
+  const copy = useCopy();
   return (
     <details className="edge-list">
       <summary>
         {props.title}: {props.edges.length}
       </summary>
       {props.edges.length === 0 ? (
-        <span>none</span>
+        <span>{copy.none}</span>
       ) : (
         <ul>
           {props.edges.map((edge) => (
@@ -1661,7 +1972,8 @@ function EdgeList(props: { title: string; edges: GraphEdge[]; direction: "from" 
 }
 
 function ContextQualityPanel(props: { quality: ContextQuality | undefined }) {
-  if (props.quality === undefined) return <p>运行 Context Builder 或 Dry Run 后展示上下文质量。</p>;
+  const copy = useCopy();
+  if (props.quality === undefined) return <p>{copy.contextQualityEmpty}</p>;
   return (
     <div className="quality-panel">
       <div className="quality-score">
@@ -1677,10 +1989,10 @@ function ContextQualityPanel(props: { quality: ContextQuality | undefined }) {
           </div>
         ))}
       </div>
-      <h3>Gaps</h3>
+      <h3>{copy.gaps}</h3>
       <ul className="quality-list">
         {props.quality.gaps.length === 0 ? (
-          <li>无明显缺口</li>
+          <li>{copy.noGaps}</li>
         ) : (
           props.quality.gaps.map((gap) => (
             <li key={gap.code}>
@@ -1689,7 +2001,7 @@ function ContextQualityPanel(props: { quality: ContextQuality | undefined }) {
           ))
         )}
       </ul>
-      <h3>Recommendations</h3>
+      <h3>{copy.recommendations}</h3>
       <ul className="quality-list">
         {props.quality.recommendations.map((item) => (
           <li key={`${item.action}-${item.title}`}>
@@ -1702,29 +2014,30 @@ function ContextQualityPanel(props: { quality: ContextQuality | undefined }) {
 }
 
 function KnowledgeDashboard(props: { dashboard: Dashboard | undefined }) {
+  const copy = useCopy();
   const dashboard = props.dashboard;
   const cards =
     dashboard === undefined
       ? []
       : [
-          ["Objects", dashboard.objects],
-          ["Nodes", dashboard.nodes],
-          ["Edges", dashboard.edges],
-          ["Orphans", dashboard.orphanNodes],
-          ["Broken", dashboard.brokenEdges],
-          ["Coverage", `${Math.round(dashboard.contextCoverage * 100)}%`],
+          [copy.objects, dashboard.objects],
+          [copy.nodes, dashboard.nodes],
+          [copy.edges, dashboard.edges],
+          [copy.orphans, dashboard.orphanNodes],
+          [copy.broken, dashboard.brokenEdges],
+          [copy.coverage, `${Math.round(dashboard.contextCoverage * 100)}%`],
           [
-            "Quality",
+            copy.quality,
             dashboard.contextQuality === undefined
               ? "n/a"
               : `${dashboard.contextQuality.score} ${dashboard.contextQuality.grade}`,
           ],
-          ["Gaps", dashboard.contextQuality?.gaps ?? "n/a"],
-          ["Recs", dashboard.contextQuality?.recommendations ?? "n/a"],
+          [copy.gaps, dashboard.contextQuality?.gaps ?? "n/a"],
+          [copy.recs, dashboard.contextQuality?.recommendations ?? "n/a"],
         ];
   return (
     <section>
-      <h2>Knowledge Dashboard</h2>
+      <h2>{copy.knowledgeDashboard}</h2>
       <div className="metrics">
         {cards.map(([label, value]) => (
           <div className="metric" key={label}>
@@ -1762,29 +2075,30 @@ function ContextLab(props: {
   busy: boolean;
   activeActions: string[];
 }) {
+  const copy = useCopy();
   return (
     <>
       <div className="panel-title graph-title">
         <div>
-          <h2>Context Lab</h2>
-          <span>Run, save, replay, and compare context experiments without executing Codex.</span>
+          <h2>{copy.contextLab}</h2>
+          <span>{copy.contextLabSubtitle}</span>
         </div>
         <button disabled={props.busy} onClick={() => void props.runExperiment()}>
-          {props.activeActions.includes("context-experiment") ? "Running..." : "Run Experiment"}
+          {props.activeActions.includes("context-experiment") ? copy.running : copy.runExperiment}
         </button>
       </div>
       <div className="context-lab-grid">
         <section className="lab-card">
-          <h3>Experiment Setup</h3>
+          <h3>{copy.experimentSetup}</h3>
           <input
             value={props.experimentName}
-            placeholder="Experiment name"
+            placeholder={copy.experimentName}
             onInput={(event) => props.setExperimentName(event.currentTarget.value)}
           />
           <textarea rows={3} value={props.prompt} onInput={(event) => props.setPrompt(event.currentTarget.value)} />
           <div className="lab-form-row">
             <label>
-              Intent
+              {copy.intent}
               <select
                 value={props.experimentIntent}
                 onInput={(event) => props.setExperimentIntent(event.currentTarget.value)}
@@ -1797,7 +2111,7 @@ function ContextLab(props: {
               </select>
             </label>
             <label>
-              Max Objects
+              {copy.maxObjects}
               <input
                 type="number"
                 min={1}
@@ -1808,18 +2122,21 @@ function ContextLab(props: {
             </label>
           </div>
           <div className="lab-meta">
-            <span>Seeds: {props.graphSeeds.length}</span>
-            <span>Depth: {props.graphFilters.depth}</span>
-            <span>Limit: {props.graphFilters.limit}</span>
+            <span>
+              {copy.seeds}: {props.graphSeeds.length}
+            </span>
+            <span>
+              {copy.depth}: {props.graphFilters.depth}
+            </span>
+            <span>
+              {copy.limit}: {props.graphFilters.limit}
+            </span>
           </div>
         </section>
         <section className="lab-card">
-          <h3>Recent Experiments</h3>
+          <h3>{copy.recentExperiments}</h3>
           {props.experiments.length === 0 ? (
-            <EmptyState
-              title="No experiments"
-              message="Run a Context Lab experiment to start comparing context quality."
-            />
+            <EmptyState title={copy.noExperiments} message={copy.noExperimentsMessage} />
           ) : (
             <div className="experiments">
               {props.experiments.map((experiment) => (
@@ -1839,13 +2156,13 @@ function ContextLab(props: {
           )}
         </section>
         <section className="lab-card">
-          <h3>Compare</h3>
+          <h3>{copy.compare}</h3>
           <div className="lab-form-row">
             <select
               value={props.leftExperimentId}
               onInput={(event) => props.setLeftExperimentId(event.currentTarget.value)}
             >
-              <option value="">Left experiment</option>
+              <option value="">{copy.leftExperiment}</option>
               {props.experiments.map((experiment) => (
                 <option key={experiment.id} value={experiment.id}>
                   {experiment.name ?? experiment.id}
@@ -1856,7 +2173,7 @@ function ContextLab(props: {
               value={props.rightExperimentId}
               onInput={(event) => props.setRightExperimentId(event.currentTarget.value)}
             >
-              <option value="">Right experiment</option>
+              <option value="">{copy.rightExperiment}</option>
               {props.experiments.map((experiment) => (
                 <option key={experiment.id} value={experiment.id}>
                   {experiment.name ?? experiment.id}
@@ -1868,7 +2185,7 @@ function ContextLab(props: {
             disabled={props.busy || props.leftExperimentId.length === 0 || props.rightExperimentId.length === 0}
             onClick={() => void props.compareExperiments()}
           >
-            Compare Experiments
+            {copy.compareExperiments}
           </button>
           {props.comparison !== undefined && <ExperimentComparisonViewer comparison={props.comparison} />}
         </section>
@@ -1891,32 +2208,33 @@ function ExperimentViewer(props: {
   saveAsRecipe(): Promise<void>;
   busy: boolean;
 }) {
+  const copy = useCopy();
   return (
     <div className="experiment-detail">
       <div className="panel-title">
         <h3>Experiment Replay · {props.experiment.name ?? props.experiment.id}</h3>
         <div className="recipe-actions">
-          <button onClick={() => props.usePrompt()}>Use as Codex prompt</button>
+          <button onClick={() => props.usePrompt()}>{copy.useAsPrompt}</button>
           <button disabled={props.busy} onClick={() => void props.saveAsRecipe()}>
-            Save as Recipe
+            {copy.saveAsRecipe}
           </button>
         </div>
       </div>
       <div className="metrics">
         <div className="metric">
-          <span>Score</span>
+          <span>{copy.score}</span>
           <strong>{props.experiment.context.quality?.score ?? "n/a"}</strong>
         </div>
         <div className="metric">
-          <span>Grade</span>
+          <span>{copy.grade}</span>
           <strong>{props.experiment.context.quality?.grade ?? "n/a"}</strong>
         </div>
         <div className="metric">
-          <span>Objects</span>
+          <span>{copy.objects}</span>
           <strong>{props.experiment.context.objects.length}</strong>
         </div>
         <div className="metric">
-          <span>Paths</span>
+          <span>{copy.paths}</span>
           <strong>{props.experiment.promptBundle.relevantPaths.length}</strong>
         </div>
       </div>
@@ -1942,43 +2260,49 @@ function ExperimentViewer(props: {
 }
 
 function ExperimentComparisonViewer(props: { comparison: ContextExperimentComparison }) {
+  const copy = useCopy();
   return (
     <div className="comparison-viewer">
       <div className={props.comparison.scoreDelta >= 0 ? "delta positive" : "delta negative"}>
-        Score delta {props.comparison.scoreDelta >= 0 ? "+" : ""}
+        {copy.scoreDelta} {props.comparison.scoreDelta >= 0 ? "+" : ""}
         {props.comparison.scoreDelta} · {props.comparison.grade.left ?? "n/a"} → {props.comparison.grade.right ?? "n/a"}
       </div>
-      <div className="delta">Bundle {props.comparison.bundleChanged ? "changed" : "unchanged"}</div>
-      <ComparisonSetViewer title="Objects" value={props.comparison.objects} />
-      <ComparisonSetViewer title="Relevant Paths" value={props.comparison.relevantPaths} />
-      <ComparisonSetViewer title="Gaps" value={props.comparison.gaps} />
-      <ComparisonSetViewer title="Recommendations" value={props.comparison.recommendations} />
+      <div className="delta">
+        {copy.bundle} {props.comparison.bundleChanged ? copy.changed : copy.unchanged}
+      </div>
+      <ComparisonSetViewer title={copy.objects} value={props.comparison.objects} />
+      <ComparisonSetViewer title={copy.relevantPaths} value={props.comparison.relevantPaths} />
+      <ComparisonSetViewer title={copy.gaps} value={props.comparison.gaps} />
+      <ComparisonSetViewer title={copy.recommendations} value={props.comparison.recommendations} />
     </div>
   );
 }
 
 function ComparisonSetViewer(props: { title: string; value: ComparisonSet }) {
+  const copy = useCopy();
   return (
     <details className="comparison-set">
       <summary>
-        {props.title}: +{props.value.added.length} / -{props.value.removed.length} / shared {props.value.shared.length}
+        {props.title}: +{props.value.added.length} / -{props.value.removed.length} / {copy.shared}{" "}
+        {props.value.shared.length}
       </summary>
       <div className="comparison-columns">
-        <ComparisonList title="Added" values={props.value.added} />
-        <ComparisonList title="Removed" values={props.value.removed} />
-        <ComparisonList title="Shared" values={props.value.shared} />
+        <ComparisonList title={copy.added} values={props.value.added} />
+        <ComparisonList title={copy.removed} values={props.value.removed} />
+        <ComparisonList title={copy.shared} values={props.value.shared} />
       </div>
     </details>
   );
 }
 
 function ComparisonList(props: { title: string; values: string[] }) {
+  const copy = useCopy();
   return (
     <div>
       <strong>{props.title}</strong>
       <ul>
         {props.values.length === 0 ? (
-          <li>None</li>
+          <li>{copy.none}</li>
         ) : (
           props.values.slice(0, 12).map((value) => <li key={value}>{value}</li>)
         )}
@@ -2008,13 +2332,14 @@ function CodexConsole(props: {
   busy: boolean;
   activeActions: string[];
 }) {
+  const copy = useCopy();
   return (
     <>
-      <h2>Codex Console · Dry Run / Plan Exec</h2>
+      <h2>{copy.codexConsole}</h2>
       <div className="console-input">
         <input value={props.prompt} onInput={(event) => props.setPrompt(event.currentTarget.value)} />
         <select value={props.selectedRecipeId} onInput={(event) => props.setSelectedRecipe(event.currentTarget.value)}>
-          <option value="">No recipe</option>
+          <option value="">{copy.noRecipe}</option>
           {props.recipes.map((recipe) => (
             <option key={recipe.id} value={recipe.id}>
               {recipe.name}
@@ -2025,16 +2350,16 @@ function CodexConsole(props: {
           disabled={props.busy || props.selectedRecipeId.length === 0}
           onClick={() => void props.runRecipeDryRun()}
         >
-          {props.activeActions.includes("recipe-dry-run") ? "Running..." : "Run Recipe Dry Run"}
+          {props.activeActions.includes("recipe-dry-run") ? copy.running : copy.runRecipeDryRun}
         </button>
         <button disabled={props.busy} onClick={() => void props.runDryRun()}>
-          {props.activeActions.includes("dry-run") ? "Running..." : "Run Dry Run"}
+          {props.activeActions.includes("dry-run") ? copy.running : copy.runDryRun}
         </button>
         <button disabled={props.busy} onClick={() => void props.runPlanExec()}>
-          {props.activeActions.includes("plan-exec") ? "Running..." : "Run Plan Exec"}
+          {props.activeActions.includes("plan-exec") ? copy.running : copy.runPlanExec}
         </button>
         <button disabled={props.busy} onClick={() => void props.runPlanExecStream()}>
-          {props.activeActions.includes("plan-exec-stream") ? "Starting..." : "Run Plan Exec Stream"}
+          {props.activeActions.includes("plan-exec-stream") ? copy.starting : copy.runPlanExecStream}
         </button>
       </div>
       {props.selectedRecipe !== undefined && (
@@ -2050,17 +2375,13 @@ function CodexConsole(props: {
           <code>{props.selectedRecipe.baseline.bundleHash.slice(0, 12)}</code>
         </div>
       )}
-      {props.dryRun === undefined ? (
-        <p>运行 dry run 或 plan exec 后会展示知识引擎 trace、prompt bundle 与真实 Codex 只读执行结果。</p>
-      ) : (
-        <DryRunViewer dryRun={props.dryRun} />
-      )}
+      {props.dryRun === undefined ? <p>{copy.consoleEmpty}</p> : <DryRunViewer dryRun={props.dryRun} />}
       {props.planExec !== undefined && <PlanExecViewer planExec={props.planExec} />}
       <StreamViewer events={props.streamEvents} status={props.streamStatus} />
       {props.sessionDetail !== undefined && <SessionDetailViewer detail={props.sessionDetail} />}
-      <h2>Recent Sessions</h2>
+      <h2>{copy.recentSessions}</h2>
       {props.sessions.length === 0 ? (
-        <EmptyState title="No sessions" message="Dry Run and Plan Exec sessions will appear here." />
+        <EmptyState title={copy.noSessions} message={copy.noSessionsMessage} />
       ) : (
         <div className="sessions">
           {props.sessions.map((session) => (
@@ -2153,6 +2474,7 @@ function parseStreamEvent(event: Event): StreamEvent | undefined {
 }
 
 function StreamViewer(props: { events: StreamEvent[]; status: string }) {
+  const copy = useCopy();
   const stdout = props.events
     .filter((item) => item.type === "stdout")
     .map((item) => (item.payload as { chunk?: string }).chunk ?? "")
@@ -2162,7 +2484,7 @@ function StreamViewer(props: { events: StreamEvent[]; status: string }) {
     .map((item) => (item.payload as { chunk?: string }).chunk ?? "")
     .join("");
   if (props.events.length === 0 && props.status === "idle")
-    return <EmptyState title="No stream events" message="Run Plan Exec Stream to observe live events." />;
+    return <EmptyState title={copy.noStreamEvents} message={copy.noStreamEventsMessage} />;
   return (
     <div className="plan-exec">
       <h3>Streaming Plan Exec · {props.status}</h3>
@@ -2349,6 +2671,8 @@ function readStudioPreferences(): StudioPreferences {
       selectedRecipeId: typeof value.selectedRecipeId === "string" ? value.selectedRecipeId : "",
       helpOpen: typeof value.helpOpen === "boolean" ? value.helpOpen : false,
       inspectorCollapsed: typeof value.inspectorCollapsed === "boolean" ? value.inspectorCollapsed : false,
+      locale: value.locale === "en-US" || value.locale === "zh-CN" ? value.locale : defaultPreferences.locale,
+      theme: value.theme === "dark" || value.theme === "light" ? value.theme : defaultPreferences.theme,
     };
   } catch {
     return defaultPreferences;
