@@ -91,6 +91,33 @@ export function formatCodexConfigToml(config: CodexCliConfig): string {
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
+export function mergeCodexConfigToml(existingToml: string | undefined, generatedToml: string): string {
+  if (!existingToml) return generatedToml;
+
+  const generated = splitTomlDocument(generatedToml);
+  const existing = splitTomlDocument(existingToml);
+  const generatedTopLevelLines = trimBlankEdges(generated.topLevelLines);
+  const existingTopLevelLines = trimBlankEdges(
+    existing.topLevelLines.filter((line) => {
+      const key = topLevelAssignmentKey(line);
+      return !key || !MANAGED_CODEX_TOP_LEVEL_KEYS.has(key);
+    }),
+  );
+  const existingTables = existing.tables
+    .filter((table) => !isManagedCodexTable(table.headerPath))
+    .map((table) => trimBlankEdges(table.lines))
+    .filter((lines) => lines.length > 0);
+  const generatedTables = generated.tables
+    .map((table) => trimBlankEdges(table.lines))
+    .filter((lines) => lines.length > 0);
+
+  return `${[generatedTopLevelLines, existingTopLevelLines, ...existingTables, ...generatedTables]
+    .filter((lines) => lines.length > 0)
+    .map((lines) => lines.join("\n"))
+    .join("\n\n")
+    .trimEnd()}\n`;
+}
+
 function buildCodexProviders(providerSources: Record<string, ProviderSource>): Record<string, CodexCliProvider> {
   return Object.fromEntries(
     Object.entries(providerSources).map(([providerId, provider]) => [
@@ -165,4 +192,74 @@ function tomlString(value: string): string {
 
 function tomlStringArray(values: string[]): string {
   return `[${values.map(tomlString).join(", ")}]`;
+}
+
+const MANAGED_CODEX_TOP_LEVEL_KEYS = new Set([
+  "model",
+  "model_provider",
+  "model_reasoning_effort",
+  "model_instructions_file",
+]);
+
+type TomlTableBlock = {
+  headerPath: string;
+  lines: string[];
+};
+
+type TomlDocument = {
+  topLevelLines: string[];
+  tables: TomlTableBlock[];
+};
+
+function splitTomlDocument(toml: string): TomlDocument {
+  const lines = toml.replace(/\r\n?/g, "\n").split("\n");
+  if (lines.at(-1) === "") lines.pop();
+
+  const topLevelLines: string[] = [];
+  const tables: TomlTableBlock[] = [];
+  let currentTable: TomlTableBlock | undefined;
+
+  for (const line of lines) {
+    const headerPath = tableHeaderPath(line);
+    if (headerPath) {
+      currentTable = { headerPath, lines: [line] };
+      tables.push(currentTable);
+      continue;
+    }
+
+    if (currentTable) {
+      currentTable.lines.push(line);
+    } else {
+      topLevelLines.push(line);
+    }
+  }
+
+  return { topLevelLines, tables };
+}
+
+function tableHeaderPath(line: string): string | undefined {
+  const match = /^\s*\[([^\]]+)\]\s*(?:#.*)?$/.exec(line);
+  return match?.[1]?.trim();
+}
+
+function topLevelAssignmentKey(line: string): string | undefined {
+  const match = /^\s*([A-Za-z0-9_-]+)\s*=/.exec(line);
+  return match?.[1];
+}
+
+function isManagedCodexTable(headerPath: string): boolean {
+  return (
+    headerPath === "model_providers" ||
+    headerPath.startsWith("model_providers.") ||
+    headerPath === "mcp_servers" ||
+    headerPath.startsWith("mcp_servers.")
+  );
+}
+
+function trimBlankEdges(lines: string[]): string[] {
+  let start = 0;
+  let end = lines.length;
+  while (start < end && lines[start]?.trim() === "") start += 1;
+  while (end > start && lines[end - 1]?.trim() === "") end -= 1;
+  return lines.slice(start, end);
 }

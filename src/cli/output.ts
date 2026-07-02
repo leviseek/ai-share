@@ -2,6 +2,7 @@ import type { ProviderGroupMap } from "../types.ts";
 import { color } from "./color.ts";
 import type { DefaultConfigDrift } from "./default-config-drift.ts";
 import type { LocalProxyRuntimeCheck } from "./env-runtime-check.ts";
+import type { McpClientInjectionReport } from "./mcp-client-injection.ts";
 import type { GeneratorPaths } from "./paths.ts";
 
 export function printCheckSummary(input: {
@@ -74,7 +75,7 @@ function printDefaultConfigDrift(drift: DefaultConfigDrift): void {
     return;
   }
   console.log(
-    `${color.yellow("默认 config.toml 漂移")}：${color.yellow(drift.path)} 与当前 config/global.yaml 不等价；如需刷新请运行 bun run ai:gen -- --force。`,
+    `${color.yellow("默认 config.toml 漂移")}：${color.yellow(drift.path)} 与当前 config/global.yaml 不等价；如需合并刷新请运行 bun run ai:gen。`,
   );
 }
 
@@ -85,19 +86,25 @@ export function printGenerationSummary(input: {
   modelId: string;
   providerGroups: ProviderGroupMap;
   mcpServerIds: string[];
+  mcpClientReports: McpClientInjectionReport[];
 }): void {
   const prefix = input.dryRun ? "将生成" : "已生成";
   const installPrefix = input.dryRun ? "将安装" : "已安装";
-  const preserveHint = input.force ? "（--force 覆盖）" : "（存在时保留，--force 覆盖）";
+  const codexConfigHint = input.dryRun
+    ? "（预览合并结果，保留非 ai-share 配置）"
+    : input.force
+      ? "（存在时合并，保留非 ai-share 配置）"
+      : "（存在时保留，--force 合并刷新）";
   console.log(
-    `${color.green(prefix)} ${color.cyan("Codex CLI 默认配置")}：${color.bold(input.paths.targetCodexConfig)}${color.gray(preserveHint)}`,
+    `${color.green(prefix)} ${color.cyan("Codex CLI 默认配置")}：${color.bold(input.paths.targetCodexConfig)}${color.gray(codexConfigHint)}`,
   );
   console.log(`${color.green(prefix)} ${color.cyan("Codex 模型")}：${color.magenta(input.modelId)}`);
   console.log(
     `${color.green(prefix)} ${color.cyan("Codex MCP servers")}：${color.magenta(input.mcpServerIds.length > 0 ? input.mcpServerIds.join(" / ") : "none")}`,
   );
+  printMcpClientInjectionReports(input.mcpClientReports, input.dryRun);
   console.log(
-    `${color.green(prefix)} ${color.cyan("Codex CLI .env")}：${color.bold(input.paths.targetCodexEnv)}${color.gray("（存在时保留，--force 覆盖）")}`,
+    `${color.green(prefix)} ${color.cyan("Codex CLI .env")}：${color.bold(input.paths.targetCodexEnv)}${color.gray("（只更新 managed block，保留 block 外内容）")}`,
   );
   console.log(
     `${color.green(prefix)} ${color.cyan("AI runtime 清单")}：${color.bold(input.paths.targetRuntimeManifest)}`,
@@ -110,6 +117,21 @@ export function printGenerationSummary(input: {
   );
   console.log(`${color.cyan("模型组提供商")}：${formatProviderGroups(input.providerGroups)}`);
   console.log(color.gray("启动命令由 Codex CLI 提供：codex。"));
+}
+
+function printMcpClientInjectionReports(reports: readonly McpClientInjectionReport[], dryRun: boolean): void {
+  const activeReports = reports.filter((report) => report.status === "injected" || report.status === "configured");
+  if (activeReports.length === 0) {
+    console.log(`${color.cyan("RIE MCP 多客户端注入")}：${color.gray("未发现可写入的已安装客户端")}`);
+    return;
+  }
+
+  const action = dryRun ? "将注入" : "已注入";
+  console.log(
+    `${color.green(action)} ${color.cyan("RIE MCP 多客户端配置")}：${color.magenta(
+      activeReports.map((report) => report.target.name).join(" / "),
+    )}`,
+  );
 }
 
 function formatProviderGroups(providerGroups: ProviderGroupMap): string {

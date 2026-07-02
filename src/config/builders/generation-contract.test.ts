@@ -9,6 +9,7 @@ import {
   buildRuntimeManifest,
   formatCodexConfigToml,
   formatCodexEnvFile,
+  mergeCodexConfigToml,
 } from "../../config-builders.ts";
 import type { GeneratorPaths } from "../../cli/paths.ts";
 import { parseYamlObject } from "../../yaml.ts";
@@ -120,6 +121,57 @@ no_proxy=localhost,127.0.0.1,::1
 # END ai-share managed env
 
 USER_NOTE=keep
+`);
+  });
+
+  test("merges generated Codex config while preserving user-owned TOML", () => {
+    const existing = `# user config
+approval_policy = "on-request"
+model = "old"
+model_provider = "old-provider"
+
+[profiles.dev]
+model = "profile-model"
+
+[model_providers.old-provider]
+base_url = "https://old.example/v1"
+env_key = "OLD_API_KEY"
+
+[mcp_servers.old]
+command = "old"
+`;
+    const generated = `model = "gpt-5.5"
+model_provider = "codexapis"
+model_reasoning_effort = "medium"
+model_instructions_file = "/codex/AGENTS.md"
+
+[model_providers.codexapis]
+name = "Codex APIs"
+base_url = "https://www.codexapis.com/v1"
+env_key = "CODEXAPIS_API_KEY"
+
+[mcp_servers.rie]
+command = "bun"
+`;
+
+    expect(mergeCodexConfigToml(existing, generated)).toBe(`model = "gpt-5.5"
+model_provider = "codexapis"
+model_reasoning_effort = "medium"
+model_instructions_file = "/codex/AGENTS.md"
+
+# user config
+approval_policy = "on-request"
+
+[profiles.dev]
+model = "profile-model"
+
+[model_providers.codexapis]
+name = "Codex APIs"
+base_url = "https://www.codexapis.com/v1"
+env_key = "CODEXAPIS_API_KEY"
+
+[mcp_servers.rie]
+command = "bun"
 `);
   });
 

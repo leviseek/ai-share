@@ -51,11 +51,14 @@ bun run ai:gen -- --dry-run
 bun run ai:gen
 ```
 
-如果目标文件已存在并确认要覆盖：
+如果目标文件已存在并确认要刷新：
 
 ```sh
 bun run ai:gen -- --force
 ```
+
+`CODEX_HOME/config.toml` 会合并刷新 ai-share 管理的默认模型、provider 和 MCP 配置，并保留其他用户自定义
+TOML。`CODEX_HOME/.env` 只更新 ai-share managed block。
 
 ## Provider 选择
 

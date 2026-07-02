@@ -20,6 +20,7 @@ import {
   buildRuntimeManifest,
   codexEnvManagedBlockIsCurrent,
   formatCodexConfigToml,
+  mergeCodexConfigToml,
   modelProviderGroups,
 } from "./config-builders.ts";
 import { missingProviderApiKeyEnvNames } from "./cli/api-keys.ts";
@@ -27,6 +28,7 @@ import { checkCodexEnvLocalProxies } from "./cli/env-runtime-check.ts";
 import { atomicWriteFile, pathExists, StagedFileWriter, writeJson, writeText } from "./cli/fs.ts";
 import { installNativeSkills } from "./cli/install.ts";
 import { ensureAiWorkspaceLinks } from "./cli/memory-link.ts";
+import { injectRieMcpIntoKnownClients } from "./cli/mcp-client-injection.ts";
 import { parseCliOptions } from "./cli/options.ts";
 import { NATIVE_SKILLS } from "./cli/native-skills.ts";
 import { color } from "./cli/color.ts";
@@ -132,13 +134,14 @@ const stagedWriter =
   !dryRun && force
     ? await StagedFileWriter.create(resolve(paths.targetCodexConfigDir, ".ai-share-staging"))
     : undefined;
+let mcpClientReports: Awaited<ReturnType<typeof injectRieMcpIntoKnownClients>>;
 
 try {
   if (dryRun || force || !(await pathExists(paths.targetCodexConfig))) {
-    await writeGeneratedText(paths.targetCodexConfig, formatCodexConfigToml(codexCliConfig));
+    await writeCodexConfigToml(formatCodexConfigToml(codexCliConfig));
   } else {
     console.log(
-      `${color.yellow("保留")} ${color.cyan("Codex CLI 现有默认配置")}：${color.bold(paths.targetCodexConfig)}（如需覆盖请运行 bun run ai:gen -- --force）`,
+      `${color.yellow("保留")} ${color.cyan("Codex CLI 现有默认配置")}：${color.bold(paths.targetCodexConfig)}（如需合并刷新请运行 bun run ai:gen -- --force）`,
     );
   }
 
@@ -179,6 +182,10 @@ try {
     force,
     stagedWriter ? (path, content) => stagedWriter.writeText(path, content) : undefined,
   );
+  mcpClientReports = await injectRieMcpIntoKnownClients(paths, mcpConfig, {
+    dryRun,
+    ...(stagedWriter ? { writer: (path, content) => stagedWriter.writeText(path, content) } : {}),
+  });
   if (stagedWriter) {
     await stagedWriter.promote();
     console.log(
@@ -199,6 +206,7 @@ printGenerationSummary({
   mcpServerIds: Object.keys(mcpConfig.servers ?? {}).filter(
     (serverId) => mcpConfig.servers?.[serverId]?.enabled !== false,
   ),
+  mcpClientReports,
 });
 
 async function loadYaml<T extends object>(fileName: string): Promise<T> {
@@ -225,6 +233,30 @@ async function writeGeneratedJson(path: string, value: unknown): Promise<void> {
     return;
   }
   await writeJson(path, value, { dryRun, force });
+}
+
+async function writeCodexConfigToml(generatedToml: string): Promise<void> {
+  const existingToml = (await pathExists(paths.targetCodexConfig))
+    ? await readFile(paths.targetCodexConfig, "utf8")
+    : undefined;
+  const content = mergeCodexConfigToml(existingToml, generatedToml);
+
+  if (stagedWriter) {
+    await stagedWriter.writeText(paths.targetCodexConfig, content);
+    return;
+  }
+
+  if (dryRun) {
+    await writeText(paths.targetCodexConfig, content, { dryRun, force: true });
+    return;
+  }
+
+  await atomicWriteFile(paths.targetCodexConfig, content);
+  console.log(
+    existingToml
+      ? `${color.green("已合并")} ${color.cyan("Codex CLI 默认配置")}：${color.bold(paths.targetCodexConfig)}（保留非 ai-share 配置）`
+      : `${color.green("已创建")} ${color.cyan("Codex CLI 默认配置")}：${color.bold(paths.targetCodexConfig)}`,
+  );
 }
 
 async function selectProviderGroupsIfInteractive(
