@@ -1,8 +1,14 @@
 import { defineConfig, type UserConfig } from "vite";
-import preact from "@preact/preset-vite";
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
 
 const config: UserConfig = defineConfig({
-  plugins: [preact()],
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": new URL("./src/knowledge/studio/ui/src", import.meta.url).pathname,
+    },
+  },
   root: "src/knowledge/studio/ui",
   build: {
     outDir: "../public/dist",

@@ -11,8 +11,11 @@ import {
   type D3ZoomEvent,
   type SimulationNodeDatum,
 } from "d3";
-import { render } from "preact";
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { createRoot } from "react-dom/client";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatedGradientText } from "@/components/magic/animated-gradient-text";
+import { DotPattern } from "@/components/magic/dot-pattern";
+import { MagicCard } from "@/components/magic/magic-card";
 import "./styles.css";
 
 type TreeNode = {
@@ -758,12 +761,15 @@ function App() {
 
   return (
     <>
+      <DotPattern />
       <header>
         <div>
-          <h1>Repository Intelligence Studio</h1>
+          <h1>
+            <AnimatedGradientText>Repository Intelligence Studio</AnimatedGradientText>
+          </h1>
           <p>Interactive Graph Explorer · Knowledge Engine Trace · Codex Observability</p>
         </div>
-        <div class="header-actions">
+        <div className="header-actions">
           <button onClick={() => toggleHelp()}>Help</button>
           <button disabled={isBusy} onClick={() => void runAction("refresh", refresh, "Studio refreshed.")}>
             {activeActions.includes("refresh") ? "Refreshing..." : "Refresh"}
@@ -773,7 +779,7 @@ function App() {
       <ToastStack toasts={toasts} onDismiss={(id) => setToasts((items) => items.filter((item) => item.id !== id))} />
       {helpOpen && <HelpPanel onClose={toggleHelp} />}
       <main>
-        <aside class="panel explorer">
+        <aside className="panel explorer">
           <h2>Repository Explorer</h2>
           <RepositoryImportDropZone
             busy={isBusy}
@@ -798,7 +804,7 @@ function App() {
             />
           )}
         </aside>
-        <section class="panel graph-panel">
+        <section className="panel graph-panel">
           <GraphExplorer
             graph={graph}
             filters={graphFilters}
@@ -814,8 +820,8 @@ function App() {
             busy={isBusy}
           />
         </section>
-        <aside class={inspectorCollapsed ? "panel inspector collapsed" : "panel inspector"}>
-          <div class="panel-title">
+        <aside className={inspectorCollapsed ? "panel inspector collapsed" : "panel inspector"}>
+          <div className="panel-title">
             <h2>Inspector</h2>
             <button onClick={() => toggleInspector()}>{inspectorCollapsed ? "Expand" : "Collapse"}</button>
           </div>
@@ -863,7 +869,7 @@ function App() {
             </>
           )}
         </aside>
-        <section class="panel context-lab-panel">
+        <section className="panel context-lab-panel">
           <ContextLab
             prompt={prompt}
             setPrompt={setPromptValue}
@@ -890,7 +896,7 @@ function App() {
             activeActions={activeActions}
           />
         </section>
-        <section class="panel console">
+        <section className="panel console">
           <CodexConsole
             prompt={prompt}
             setPrompt={setPromptValue}
@@ -935,7 +941,7 @@ function RepositoryImportDropZone(props: {
   }, []);
   return (
     <section
-      class={className}
+      className={className}
       onDragEnter={(event) => {
         event.preventDefault();
         setDragActive(true);
@@ -954,7 +960,7 @@ function RepositoryImportDropZone(props: {
     >
       <strong>{props.active ? "Building knowledge base..." : "Drop repository folder"}</strong>
       <span>Upload a local folder copy and build a Studio snapshot.</span>
-      <div class="repo-drop-actions">
+      <div className="repo-drop-actions">
         <button disabled={props.busy} onClick={() => inputRef.current?.click()}>
           Choose folder
         </button>
@@ -967,7 +973,7 @@ function RepositoryImportDropZone(props: {
       )}
       <input
         ref={inputRef}
-        class="hidden-file-input"
+        className="hidden-file-input"
         type="file"
         multiple
         onInput={(event) => props.onImport([...(event.currentTarget.files ?? [])])}
@@ -1039,9 +1045,9 @@ function withRelativePath(file: File, relativePath: string): File {
 function ToastStack(props: { toasts: Toast[]; onDismiss(id: string): void }) {
   if (props.toasts.length === 0) return null;
   return (
-    <div class="toast-stack" role="status" aria-live="polite">
+    <div className="toast-stack" role="status" aria-live="polite">
       {props.toasts.map((toast) => (
-        <button class={`toast ${toast.kind}`} key={toast.id} onClick={() => props.onDismiss(toast.id)}>
+        <button className={`toast ${toast.kind}`} key={toast.id} onClick={() => props.onDismiss(toast.id)}>
           {toast.message}
         </button>
       ))}
@@ -1051,7 +1057,7 @@ function ToastStack(props: { toasts: Toast[]; onDismiss(id: string): void }) {
 
 function EmptyState(props: { title: string; message: string }) {
   return (
-    <div class="empty-state">
+    <div className="empty-state">
       <strong>{props.title}</strong>
       <span>{props.message}</span>
     </div>
@@ -1060,14 +1066,14 @@ function EmptyState(props: { title: string; message: string }) {
 
 function HelpPanel(props: { onClose(): void }) {
   return (
-    <div class="help-backdrop" onClick={() => props.onClose()}>
-      <section class="help-panel" onClick={(event) => event.stopPropagation()}>
-        <div class="panel-title">
+    <div className="help-backdrop" onClick={() => props.onClose()}>
+      <section className="help-panel" onClick={(event) => event.stopPropagation()}>
+        <div className="panel-title">
           <h2>Studio Help</h2>
           <button onClick={() => props.onClose()}>Close</button>
         </div>
         <p>Repository Intelligence Studio 展示 Knowledge Engine 如何选择上下文、分析影响并驱动 Codex 只读执行。</p>
-        <div class="help-grid">
+        <div className="help-grid">
           <article>
             <h3>Explorer</h3>
             <p>浏览仓库对象，点击文件或符号作为 graph seed。</p>
@@ -1094,7 +1100,7 @@ function HelpPanel(props: { onClose(): void }) {
           </article>
         </div>
         <h3>Shortcuts</h3>
-        <ul class="shortcut-list">
+        <ul className="shortcut-list">
           <li>
             <kbd>Ctrl/Cmd</kbd> + <kbd>R</kbd> Refresh
           </li>
@@ -1128,10 +1134,10 @@ function TreeBranch(props: { node: TreeNode; onSelect: (id: string) => void }) {
   const hasChildren = props.node.children.length > 0;
   const isDirectory = props.node.kind === "directory";
   return (
-    <ul class="tree">
-      <li class={props.node.kind} title={treeNodeTitle(props.node)}>
+    <ul className="tree">
+      <li className={props.node.kind} title={treeNodeTitle(props.node)}>
         <div
-          class="tree-row"
+          className="tree-row"
           onClick={(event) => {
             event.stopPropagation();
             const id = props.node.objectIds[0];
@@ -1140,7 +1146,7 @@ function TreeBranch(props: { node: TreeNode; onSelect: (id: string) => void }) {
         >
           {isDirectory ? (
             <button
-              class="tree-toggle"
+              className="tree-toggle"
               disabled={!hasChildren}
               aria-label={expanded ? `Collapse ${props.node.name}` : `Expand ${props.node.name}`}
               aria-expanded={expanded}
@@ -1152,12 +1158,12 @@ function TreeBranch(props: { node: TreeNode; onSelect: (id: string) => void }) {
               {hasChildren ? (expanded ? "▾" : "▸") : "•"}
             </button>
           ) : (
-            <span class="tree-toggle-placeholder">•</span>
+            <span className="tree-toggle-placeholder">•</span>
           )}
           <span>
             {treeNodeIcon(props.node)} {props.node.name}
           </span>
-          {props.node.objectIds.length > 0 && <span class="tree-badge">{props.node.objectIds.length}</span>}
+          {props.node.objectIds.length > 0 && <span className="tree-badge">{props.node.objectIds.length}</span>}
         </div>
         {expanded &&
           props.node.children.map((child) => <TreeBranch key={child.path} node={child} onSelect={props.onSelect} />)}
@@ -1182,7 +1188,7 @@ function GraphExplorer(props: {
   useEffect(() => setDraft(props.filters), [props.filters]);
   return (
     <>
-      <div class="panel-title graph-title">
+      <div className="panel-title graph-title">
         <div>
           <h2>Interactive Knowledge Graph</h2>
           <span>
@@ -1193,7 +1199,7 @@ function GraphExplorer(props: {
           Reset
         </button>
       </div>
-      <div class="graph-controls">
+      <div className="graph-controls">
         <input
           ref={props.searchRef}
           value={draft.query}
@@ -1249,11 +1255,11 @@ function GraphExplorer(props: {
 function FilterChips(props: { title: string; values: string[]; selected: string[]; onChange(values: string[]): void }) {
   const selected = new Set(props.selected);
   return (
-    <div class="chips" aria-label={props.title}>
+    <div className="chips" aria-label={props.title}>
       <strong>{props.title}</strong>
       {props.values.map((value) => (
         <button
-          class={selected.has(value) ? "chip active" : "chip"}
+          className={selected.has(value) ? "chip active" : "chip"}
           key={value}
           onClick={() => {
             const next = new Set(selected);
@@ -1366,9 +1372,11 @@ function D3Graph(props: {
         .attr("y2", (edge) => nodeY(edge.target));
       node.attr("transform", (item) => `translate(${item.x ?? width / 2},${item.y ?? height / 2})`);
     });
-    return () => simulation.stop();
+    return () => {
+      simulation.stop();
+    };
   }, [props.graph, props.selectedId]);
-  return <svg ref={ref} class="graph" role="img" aria-label="Interactive knowledge graph" />;
+  return <svg ref={ref} className="graph" role="img" aria-label="Interactive knowledge graph" />;
 }
 
 function GraphInspector(props: {
@@ -1390,23 +1398,23 @@ function GraphInspector(props: {
       {props.detail === undefined ? (
         <p>选择一个节点查看摘要、标签、语言、metadata 与入/出边。</p>
       ) : (
-        <div class="node-detail">
-          <div class="node-detail-header">
+        <div className="node-detail">
+          <div className="node-detail-header">
             <strong>{props.detail.node.label}</strong>
-            <span class="node-type">{props.detail.node.type}</span>
+            <span className="node-type">{props.detail.node.type}</span>
           </div>
           <code>{props.detail.node.id}</code>
           <span>{props.detail.node.path ?? "no path"}</span>
           {props.detail.node.summary !== undefined && <p>{props.detail.node.summary}</p>}
           <AiSummaryPanel state={props.aiSummary} nodeId={props.detail.node.id} />
-          <div class="tag-list">
+          <div className="tag-list">
             {(props.detail.node.tags ?? []).map((tag) => (
-              <span class="tag" key={tag}>
+              <span className="tag" key={tag}>
                 {tag}
               </span>
             ))}
           </div>
-          <div class="node-facts">
+          <div className="node-facts">
             <span>language: {props.detail.node.language ?? "n/a"}</span>
             <span>incoming: {displayMetrics(props.detail).incomingCount}</span>
             <span>outgoing: {displayMetrics(props.detail).outgoingCount}</span>
@@ -1423,7 +1431,7 @@ function GraphInspector(props: {
           </details>
         </div>
       )}
-      <div class="inspector-actions">
+      <div className="inspector-actions">
         <button onClick={() => props.analyzeImpact()}>Analyze Impact</button>
         <button onClick={() => props.buildContext()}>Build Context</button>
       </div>
@@ -1433,15 +1441,15 @@ function GraphInspector(props: {
 
 function AiSummaryPanel(props: { state: AiNodeSummaryState; nodeId: string }) {
   if (props.state.status === "loading" && props.state.nodeId === props.nodeId) {
-    return <div class="ai-summary-card pending">AI Summary: generating...</div>;
+    return <MagicCard className="ai-summary-card pending">AI Summary: generating...</MagicCard>;
   }
   if (props.state.status === "error" && props.state.nodeId === props.nodeId) {
-    return <div class="ai-summary-card error">AI Summary failed: {props.state.message}</div>;
+    return <MagicCard className="ai-summary-card error">AI Summary failed: {props.state.message}</MagicCard>;
   }
   if (props.state.status === "ready" && props.state.nodeId === props.nodeId) {
     return (
-      <div class="ai-summary-card">
-        <div class="ai-summary-title">
+      <MagicCard className="ai-summary-card">
+        <div className="ai-summary-title">
           <strong>AI Summary</strong>
           <span>{props.state.result.cached ? "cached" : "generated"}</span>
         </div>
@@ -1459,19 +1467,19 @@ function AiSummaryPanel(props: { state: AiNodeSummaryState; nodeId: string }) {
               : ` · ${props.state.result.fileContext.diagnostics.join("; ")}`}
           </small>
         )}
-      </div>
+      </MagicCard>
     );
   }
-  return <div class="ai-summary-card pending">AI Summary: idle</div>;
+  return <MagicCard className="ai-summary-card pending">AI Summary: idle</MagicCard>;
 }
 
 function MetadataTable(props: { metadata: Record<string, unknown> }) {
   const entries = prioritizedMetadataEntries(props.metadata);
   if (entries.length === 0) return <span>metadata: empty</span>;
   return (
-    <div class="metadata-grid">
+    <div className="metadata-grid">
       {entries.map(([key, value]) => (
-        <div class="metadata-row" key={key}>
+        <div className="metadata-row" key={key}>
           <span>{key}</span>
           <code>{formatMetadataValue(value)}</code>
         </div>
@@ -1482,7 +1490,7 @@ function MetadataTable(props: { metadata: Record<string, unknown> }) {
 
 function EdgeList(props: { title: string; edges: GraphEdge[]; direction: "from" | "to" }) {
   return (
-    <details class="edge-list">
+    <details className="edge-list">
       <summary>
         {props.title}: {props.edges.length}
       </summary>
@@ -1505,22 +1513,22 @@ function EdgeList(props: { title: string; edges: GraphEdge[]; direction: "from" 
 function ContextQualityPanel(props: { quality: ContextQuality | undefined }) {
   if (props.quality === undefined) return <p>运行 Context Builder 或 Dry Run 后展示上下文质量。</p>;
   return (
-    <div class="quality-panel">
-      <div class="quality-score">
+    <div className="quality-panel">
+      <div className="quality-score">
         <strong>{props.quality.score}</strong>
         <span>{props.quality.grade}</span>
       </div>
       <h3>Metrics</h3>
-      <div class="quality-metrics">
+      <div className="quality-metrics">
         {Object.entries(props.quality.metrics).map(([key, value]) => (
-          <div class="quality-metric" key={key}>
+          <div className="quality-metric" key={key}>
             <span>{key}</span>
             <strong>{value}</strong>
           </div>
         ))}
       </div>
       <h3>Gaps</h3>
-      <ul class="quality-list">
+      <ul className="quality-list">
         {props.quality.gaps.length === 0 ? (
           <li>无明显缺口</li>
         ) : (
@@ -1532,7 +1540,7 @@ function ContextQualityPanel(props: { quality: ContextQuality | undefined }) {
         )}
       </ul>
       <h3>Recommendations</h3>
-      <ul class="quality-list">
+      <ul className="quality-list">
         {props.quality.recommendations.map((item) => (
           <li key={`${item.action}-${item.title}`}>
             {item.title} · {item.confidence}
@@ -1567,9 +1575,9 @@ function KnowledgeDashboard(props: { dashboard: Dashboard | undefined }) {
   return (
     <section>
       <h2>Knowledge Dashboard</h2>
-      <div class="metrics">
+      <div className="metrics">
         {cards.map(([label, value]) => (
-          <div class="metric" key={label}>
+          <div className="metric" key={label}>
             <span>{label}</span>
             <strong>{value}</strong>
           </div>
@@ -1606,7 +1614,7 @@ function ContextLab(props: {
 }) {
   return (
     <>
-      <div class="panel-title graph-title">
+      <div className="panel-title graph-title">
         <div>
           <h2>Context Lab</h2>
           <span>Run, save, replay, and compare context experiments without executing Codex.</span>
@@ -1615,8 +1623,8 @@ function ContextLab(props: {
           {props.activeActions.includes("context-experiment") ? "Running..." : "Run Experiment"}
         </button>
       </div>
-      <div class="context-lab-grid">
-        <section class="lab-card">
+      <div className="context-lab-grid">
+        <section className="lab-card">
           <h3>Experiment Setup</h3>
           <input
             value={props.experimentName}
@@ -1624,7 +1632,7 @@ function ContextLab(props: {
             onInput={(event) => props.setExperimentName(event.currentTarget.value)}
           />
           <textarea rows={3} value={props.prompt} onInput={(event) => props.setPrompt(event.currentTarget.value)} />
-          <div class="lab-form-row">
+          <div className="lab-form-row">
             <label>
               Intent
               <select
@@ -1649,13 +1657,13 @@ function ContextLab(props: {
               />
             </label>
           </div>
-          <div class="lab-meta">
+          <div className="lab-meta">
             <span>Seeds: {props.graphSeeds.length}</span>
             <span>Depth: {props.graphFilters.depth}</span>
             <span>Limit: {props.graphFilters.limit}</span>
           </div>
         </section>
-        <section class="lab-card">
+        <section className="lab-card">
           <h3>Recent Experiments</h3>
           {props.experiments.length === 0 ? (
             <EmptyState
@@ -1663,10 +1671,10 @@ function ContextLab(props: {
               message="Run a Context Lab experiment to start comparing context quality."
             />
           ) : (
-            <div class="experiments">
+            <div className="experiments">
               {props.experiments.map((experiment) => (
                 <article
-                  class="experiment"
+                  className="experiment"
                   key={experiment.id}
                   onClick={() => void props.loadExperiment(experiment.id)}
                 >
@@ -1680,9 +1688,9 @@ function ContextLab(props: {
             </div>
           )}
         </section>
-        <section class="lab-card">
+        <section className="lab-card">
           <h3>Compare</h3>
-          <div class="lab-form-row">
+          <div className="lab-form-row">
             <select
               value={props.leftExperimentId}
               onInput={(event) => props.setLeftExperimentId(event.currentTarget.value)}
@@ -1734,40 +1742,40 @@ function ExperimentViewer(props: {
   busy: boolean;
 }) {
   return (
-    <div class="experiment-detail">
-      <div class="panel-title">
+    <div className="experiment-detail">
+      <div className="panel-title">
         <h3>Experiment Replay · {props.experiment.name ?? props.experiment.id}</h3>
-        <div class="recipe-actions">
+        <div className="recipe-actions">
           <button onClick={() => props.usePrompt()}>Use as Codex prompt</button>
           <button disabled={props.busy} onClick={() => void props.saveAsRecipe()}>
             Save as Recipe
           </button>
         </div>
       </div>
-      <div class="metrics">
-        <div class="metric">
+      <div className="metrics">
+        <div className="metric">
           <span>Score</span>
           <strong>{props.experiment.context.quality?.score ?? "n/a"}</strong>
         </div>
-        <div class="metric">
+        <div className="metric">
           <span>Grade</span>
           <strong>{props.experiment.context.quality?.grade ?? "n/a"}</strong>
         </div>
-        <div class="metric">
+        <div className="metric">
           <span>Objects</span>
           <strong>{props.experiment.context.objects.length}</strong>
         </div>
-        <div class="metric">
+        <div className="metric">
           <span>Paths</span>
           <strong>{props.experiment.promptBundle.relevantPaths.length}</strong>
         </div>
       </div>
-      <div class="dry-run-grid">
+      <div className="dry-run-grid">
         <div>
           <h3>Trace</h3>
-          <div class="trace">
+          <div className="trace">
             {props.experiment.trace.map((step) => (
-              <article class="trace-step" key={step.name}>
+              <article className="trace-step" key={step.name}>
                 <h3>{step.name}</h3>
                 <pre>{JSON.stringify(step.output, null, 2)}</pre>
               </article>
@@ -1776,7 +1784,7 @@ function ExperimentViewer(props: {
         </div>
         <div>
           <h3>Prompt Bundle · {props.experiment.promptBundle.hash.slice(0, 12)}</h3>
-          <pre class="bundle">{props.experiment.promptBundle.markdown}</pre>
+          <pre className="bundle">{props.experiment.promptBundle.markdown}</pre>
         </div>
       </div>
     </div>
@@ -1785,12 +1793,12 @@ function ExperimentViewer(props: {
 
 function ExperimentComparisonViewer(props: { comparison: ContextExperimentComparison }) {
   return (
-    <div class="comparison-viewer">
-      <div class={props.comparison.scoreDelta >= 0 ? "delta positive" : "delta negative"}>
+    <div className="comparison-viewer">
+      <div className={props.comparison.scoreDelta >= 0 ? "delta positive" : "delta negative"}>
         Score delta {props.comparison.scoreDelta >= 0 ? "+" : ""}
         {props.comparison.scoreDelta} · {props.comparison.grade.left ?? "n/a"} → {props.comparison.grade.right ?? "n/a"}
       </div>
-      <div class="delta">Bundle {props.comparison.bundleChanged ? "changed" : "unchanged"}</div>
+      <div className="delta">Bundle {props.comparison.bundleChanged ? "changed" : "unchanged"}</div>
       <ComparisonSetViewer title="Objects" value={props.comparison.objects} />
       <ComparisonSetViewer title="Relevant Paths" value={props.comparison.relevantPaths} />
       <ComparisonSetViewer title="Gaps" value={props.comparison.gaps} />
@@ -1801,11 +1809,11 @@ function ExperimentComparisonViewer(props: { comparison: ContextExperimentCompar
 
 function ComparisonSetViewer(props: { title: string; value: ComparisonSet }) {
   return (
-    <details class="comparison-set">
+    <details className="comparison-set">
       <summary>
         {props.title}: +{props.value.added.length} / -{props.value.removed.length} / shared {props.value.shared.length}
       </summary>
-      <div class="comparison-columns">
+      <div className="comparison-columns">
         <ComparisonList title="Added" values={props.value.added} />
         <ComparisonList title="Removed" values={props.value.removed} />
         <ComparisonList title="Shared" values={props.value.shared} />
@@ -1853,7 +1861,7 @@ function CodexConsole(props: {
   return (
     <>
       <h2>Codex Console · Dry Run / Plan Exec</h2>
-      <div class="console-input">
+      <div className="console-input">
         <input value={props.prompt} onInput={(event) => props.setPrompt(event.currentTarget.value)} />
         <select value={props.selectedRecipeId} onInput={(event) => props.setSelectedRecipe(event.currentTarget.value)}>
           <option value="">No recipe</option>
@@ -1880,7 +1888,7 @@ function CodexConsole(props: {
         </button>
       </div>
       {props.selectedRecipe !== undefined && (
-        <div class="recipe-detail-card">
+        <div className="recipe-detail-card">
           <strong>{props.selectedRecipe.name}</strong>
           <span>
             {props.selectedRecipe.intent} · baseline {props.selectedRecipe.baseline.qualityScore ?? "n/a"}
@@ -1904,9 +1912,9 @@ function CodexConsole(props: {
       {props.sessions.length === 0 ? (
         <EmptyState title="No sessions" message="Dry Run and Plan Exec sessions will appear here." />
       ) : (
-        <div class="sessions">
+        <div className="sessions">
           {props.sessions.map((session) => (
-            <article class="session" key={session.id} onClick={() => void props.loadSessionDetail(session.id)}>
+            <article className="session" key={session.id} onClick={() => void props.loadSessionDetail(session.id)}>
               <strong>
                 {session.kind ?? "dry-run"} · {session.intent}
               </strong>
@@ -1927,12 +1935,12 @@ function CodexConsole(props: {
 
 function DryRunViewer(props: { dryRun: DryRun }) {
   return (
-    <div class="dry-run-grid">
+    <div className="dry-run-grid">
       <div>
         <h3>Trace Timeline{props.dryRun.recipeName === undefined ? "" : ` · Recipe ${props.dryRun.recipeName}`}</h3>
-        <div class="trace">
+        <div className="trace">
           {props.dryRun.trace.map((step) => (
-            <article class="trace-step" key={step.name}>
+            <article className="trace-step" key={step.name}>
               <h3>
                 {step.name} · {step.durationMs}ms
               </h3>
@@ -1943,7 +1951,7 @@ function DryRunViewer(props: { dryRun: DryRun }) {
       </div>
       <div>
         <h3>Prompt Bundle · {props.dryRun.promptBundle.hash.slice(0, 12)}</h3>
-        <pre class="bundle">{props.dryRun.promptBundle.markdown}</pre>
+        <pre className="bundle">{props.dryRun.promptBundle.markdown}</pre>
       </div>
     </div>
   );
@@ -1951,36 +1959,36 @@ function DryRunViewer(props: { dryRun: DryRun }) {
 
 function PlanExecViewer(props: { planExec: PlanExec }) {
   return (
-    <div class="plan-exec">
+    <div className="plan-exec">
       <h3>Plan Exec Result</h3>
-      <div class="metrics">
-        <div class="metric">
+      <div className="metrics">
+        <div className="metric">
           <span>Guard</span>
           <strong>{props.planExec.guardResult.ok ? "OK" : "FAIL"}</strong>
         </div>
-        <div class="metric">
+        <div className="metric">
           <span>Command</span>
           <strong>{props.planExec.guardResult.command}</strong>
         </div>
-        <div class="metric">
+        <div className="metric">
           <span>Exit</span>
           <strong>{props.planExec.execResult.exitCode ?? "null"}</strong>
         </div>
-        <div class="metric">
+        <div className="metric">
           <span>Duration</span>
           <strong>{props.planExec.execResult.durationMs}ms</strong>
         </div>
       </div>
       <h3>Git Guard</h3>
-      <pre class="bundle">
+      <pre className="bundle">
         {props.planExec.guardResult.git.changedFiles.length === 0
           ? "No workspace changes detected."
           : props.planExec.guardResult.git.changedFiles.join("\n")}
       </pre>
       <h3>stdout</h3>
-      <pre class="bundle">{props.planExec.execResult.stdout || "(empty)"}</pre>
+      <pre className="bundle">{props.planExec.execResult.stdout || "(empty)"}</pre>
       <h3>stderr</h3>
-      <pre class="bundle">{props.planExec.execResult.stderr || "(empty)"}</pre>
+      <pre className="bundle">{props.planExec.execResult.stderr || "(empty)"}</pre>
     </div>
   );
 }
@@ -2006,20 +2014,20 @@ function StreamViewer(props: { events: StreamEvent[]; status: string }) {
   if (props.events.length === 0 && props.status === "idle")
     return <EmptyState title="No stream events" message="Run Plan Exec Stream to observe live events." />;
   return (
-    <div class="plan-exec">
+    <div className="plan-exec">
       <h3>Streaming Plan Exec · {props.status}</h3>
-      <div class="trace">
+      <div className="trace">
         {props.events.map((item, index) => (
-          <article class="trace-step" key={`${item.timestamp}-${index}`}>
+          <article className="trace-step" key={`${item.timestamp}-${index}`}>
             <h3>{item.type}</h3>
             <pre>{JSON.stringify(item.payload, null, 2)}</pre>
           </article>
         ))}
       </div>
       <h3>stream stdout</h3>
-      <pre class="bundle">{stdout || "(empty)"}</pre>
+      <pre className="bundle">{stdout || "(empty)"}</pre>
       <h3>stream stderr</h3>
-      <pre class="bundle">{stderr || "(empty)"}</pre>
+      <pre className="bundle">{stderr || "(empty)"}</pre>
     </div>
   );
 }
@@ -2027,14 +2035,14 @@ function StreamViewer(props: { events: StreamEvent[]; status: string }) {
 function SessionDetailViewer(props: { detail: SessionDetail }) {
   if (isPlanExec(props.detail)) {
     return (
-      <div class="plan-exec">
+      <div className="plan-exec">
         <h3>Session Replay · Plan Exec</h3>
         <PlanExecViewer planExec={props.detail} />
       </div>
     );
   }
   return (
-    <div class="plan-exec">
+    <div className="plan-exec">
       <h3>Session Replay · Dry Run</h3>
       <DryRunViewer dryRun={props.detail} />
     </div>
@@ -2229,4 +2237,4 @@ async function postForm<T>(path: string, body: FormData): Promise<T> {
 
 const app = document.querySelector("#app");
 if (app === null) throw new Error("Missing #app root.");
-render(<App />, app);
+createRoot(app).render(<App />);

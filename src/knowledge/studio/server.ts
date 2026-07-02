@@ -52,6 +52,18 @@ type StudioState = {
   activeImport?: RepositoryImportSummary;
 };
 
+type RepositoryImportFile = {
+  name: string;
+  size: number;
+  arrayBuffer(): Promise<ArrayBuffer>;
+  webkitRelativePath?: string;
+};
+
+type RepositoryImportFormData = {
+  getAll(name: string): unknown[];
+  entries(): Iterable<[string, unknown]>;
+};
+
 export type RepositoryImportSummary = {
   importId: string;
   repoRoot: string;
@@ -432,7 +444,7 @@ async function handleContextRecipeDryRunRequest(request: Request, state: StudioS
 }
 
 export async function importRepositoryFromFormData(
-  formData: FormData,
+  formData: RepositoryImportFormData,
   state: Pick<StudioState, "snapshot" | "lastContext" | "activeImport">,
   repoRoot: string,
 ): Promise<RepositoryImportSummary> {
@@ -446,8 +458,8 @@ export async function importRepositoryFromFormData(
   await rm(importRoot, { recursive: true, force: true });
   await mkdir(importedRepoRoot, { recursive: true });
   for (const [key, value] of formData.entries()) {
-    if (key !== "files" || typeof value === "string") continue;
-    const file = value as File;
+    if (key !== "files" || !isRepositoryImportFile(value)) continue;
+    const file = value;
     const relativePath = safeImportRelativePath(paths[fileCount] ?? readUploadRelativePath(file));
     fileCount++;
     if (fileCount > MAX_IMPORT_FILES) throw new Error(`导入文件数量超过限制：${MAX_IMPORT_FILES}`);
@@ -492,10 +504,22 @@ function buildImportSummary(
   };
 }
 
-function readUploadRelativePath(file: File): string {
-  const record = file as File & { webkitRelativePath?: string };
-  return record.webkitRelativePath !== undefined && record.webkitRelativePath.length > 0
-    ? record.webkitRelativePath
+function isRepositoryImportFile(value: unknown): value is RepositoryImportFile {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "name" in value &&
+    "size" in value &&
+    "arrayBuffer" in value &&
+    typeof value.name === "string" &&
+    typeof value.size === "number" &&
+    typeof value.arrayBuffer === "function"
+  );
+}
+
+function readUploadRelativePath(file: RepositoryImportFile): string {
+  return file.webkitRelativePath !== undefined && file.webkitRelativePath.length > 0
+    ? file.webkitRelativePath
     : file.name;
 }
 
