@@ -1018,6 +1018,57 @@ kbd {
   border-color: color-mix(in srgb, var(--info) 24%, var(--border));
 }
 
+.ai-summary-overview,
+.ai-summary-details,
+.ai-summary-symbols,
+.ai-summary-symbol {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.ai-summary-overview {
+  background: color-mix(in srgb, var(--info) 4%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--info) 18%, var(--border));
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+}
+
+.ai-summary-intent {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.ai-summary-intent span,
+.ai-summary-facts span,
+.ai-summary-symbol dt,
+.ai-summary-empty {
+  color: var(--muted-foreground);
+  font-size: var(--font-caption);
+  line-height: var(--line-body);
+}
+
+.ai-summary-intent strong {
+  color: var(--foreground);
+  font-size: var(--font-body);
+  font-weight: 650;
+  line-height: 1.58;
+}
+
+.ai-summary-facts {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ai-summary-facts strong {
+  color: var(--foreground);
+  font-weight: 700;
+}
+
+.ai-summary-toggle {
+  justify-self: start;
+}
+
 .ai-summary-body {
   display: grid;
   gap: var(--space-3);
@@ -1054,6 +1105,74 @@ kbd {
   position: absolute;
   top: 0.78em;
   width: 5px;
+}
+
+.ai-summary-symbols {
+  margin-top: var(--space-1);
+}
+
+.ai-summary-symbols h3 {
+  color: var(--foreground);
+  font-size: var(--font-card);
+  margin: 0;
+}
+
+.ai-summary-symbol {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+}
+
+.ai-summary-symbol > div:first-child {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.ai-summary-symbol > div:first-child span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--secondary);
+  font-size: 11px;
+  line-height: 1;
+  padding: 5px 8px;
+}
+
+.ai-summary-symbol strong {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.ai-summary-symbol strong small {
+  color: var(--muted-foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.ai-summary-symbol p {
+  color: var(--foreground);
+}
+
+.ai-summary-symbol dl {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.ai-summary-symbol dl div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.ai-summary-symbol dd {
+  color: var(--foreground);
+  font-size: var(--font-caption);
+  line-height: var(--line-body);
+  margin: 0;
 }
 
 .magic-card {

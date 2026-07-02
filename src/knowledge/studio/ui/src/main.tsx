@@ -234,6 +234,26 @@ type GraphNodeDetail = {
 type AiNodeSummary = {
   nodeId: string;
   summary: string;
+  overview: {
+    intent: string;
+    dependencyCount: number;
+    dependentCount: number;
+    date?: string;
+    author?: string;
+  };
+  details: {
+    description: string;
+    exposed: {
+      name: string;
+      kind: "function" | "class" | "interface" | "type" | "variable" | "module" | "unknown";
+      typeInference: string;
+      implemented: boolean;
+      intent: string;
+      inputs: string;
+      outputs: string;
+      usage: string;
+    }[];
+  };
   model: string;
   provider: string;
   cached: boolean;
@@ -1440,6 +1460,7 @@ function GraphInspector(props: {
 }
 
 function AiSummaryPanel(props: { state: AiNodeSummaryState; nodeId: string }) {
+  const [expanded, setExpanded] = useState(false);
   if (props.state.status === "loading" && props.state.nodeId === props.nodeId) {
     return <MagicCard className="ai-summary-card pending">AI Summary: generating...</MagicCard>;
   }
@@ -1453,7 +1474,31 @@ function AiSummaryPanel(props: { state: AiNodeSummaryState; nodeId: string }) {
           <strong>AI Summary</strong>
           <span>{props.state.result.cached ? "cached" : "generated"}</span>
         </div>
-        <AiSummaryText text={props.state.result.summary} />
+        <div className="ai-summary-overview">
+          <div className="ai-summary-intent">
+            <span>文件意图</span>
+            <strong>{props.state.result.overview.intent}</strong>
+          </div>
+          <div className="ai-summary-facts">
+            <span>
+              依赖模块 <strong>{props.state.result.overview.dependencyCount}</strong>
+            </span>
+            <span>
+              被依赖 <strong>{props.state.result.overview.dependentCount}</strong>
+            </span>
+            <span>日期 {props.state.result.overview.date ?? "unknown"}</span>
+            <span>作者 {props.state.result.overview.author ?? "unknown"}</span>
+          </div>
+        </div>
+        <button className="ai-summary-toggle" onClick={() => setExpanded((value) => !value)}>
+          {expanded ? "收起详情" : "展开详情"}
+        </button>
+        {expanded && (
+          <div className="ai-summary-details">
+            <AiSummaryText text={props.state.result.details.description} />
+            <AiSummaryExposedList symbols={props.state.result.details.exposed} />
+          </div>
+        )}
         <small>
           {props.state.result.provider}/{props.state.result.model} · {formatDate(props.state.result.generatedAt)} ·{" "}
           {props.state.result.cacheKey.slice(0, 12)}
@@ -1471,6 +1516,50 @@ function AiSummaryPanel(props: { state: AiNodeSummaryState; nodeId: string }) {
     );
   }
   return <MagicCard className="ai-summary-card pending">AI Summary: idle</MagicCard>;
+}
+
+function AiSummaryExposedList(props: { symbols: AiNodeSummary["details"]["exposed"] }) {
+  if (props.symbols.length === 0) {
+    return <div className="ai-summary-empty">未识别到明确暴露给外部使用的全局变量或接口。</div>;
+  }
+  return (
+    <div className="ai-summary-symbols">
+      <h3>外部接口与全局变量</h3>
+      {props.symbols.map((symbol) => (
+        <article className="ai-summary-symbol" key={`${symbol.kind}:${symbol.name}`}>
+          <div>
+            <strong>
+              {symbol.name}
+              <small>
+                {symbol.typeInference}
+                {symbol.implemented ? "" : "（未实现）"}
+              </small>
+            </strong>
+            <span>{symbol.kind}</span>
+          </div>
+          <p>{symbol.intent}</p>
+          <dl>
+            {symbol.kind !== "variable" && (
+              <>
+                <div>
+                  <dt>输入</dt>
+                  <dd>{symbol.inputs}</dd>
+                </div>
+                <div>
+                  <dt>输出</dt>
+                  <dd>{symbol.outputs}</dd>
+                </div>
+              </>
+            )}
+            <div>
+              <dt>使用方式</dt>
+              <dd>{symbol.usage}</dd>
+            </div>
+          </dl>
+        </article>
+      ))}
+    </div>
+  );
 }
 
 type AiSummaryTextBlock = { kind: "paragraph"; text: string } | { kind: "list"; items: string[] };

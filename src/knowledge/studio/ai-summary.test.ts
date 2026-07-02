@@ -46,8 +46,66 @@ describe("Studio AI node summary", () => {
     expect(second.cached).toBe(true);
     expect(second.summary).toBe(first.summary);
     expect(second.cacheKey).toBe(first.cacheKey);
+    expect(first.overview.dependencyCount).toBe(1);
+    expect(first.overview.dependentCount).toBe(1);
+    expect(first.overview.author).toBe("Levi");
+    expect(first.details.exposed.some((symbol) => symbol.name === "main")).toBe(true);
+    expect(first.details.exposed.find((symbol) => symbol.name === "main")?.typeInference).toContain("()");
     expect(second.fileContext?.path).toBe("src/main.ts");
     expect(second.fileContext?.snippets.length).toBeGreaterThan(0);
+  });
+
+  test("uses structured overview and exposed API details from JSON responses", async () => {
+    const result = await generateAiNodeSummary({
+      snapshot: fixtureSnapshot(),
+      nodeId: "codefile:src/main.ts",
+      cache: memoryCache(),
+      modelConfig: modelConfig(),
+      now,
+      fetchImpl: () =>
+        Promise.resolve(
+          jsonResponse({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    summary: "main.ts 是应用入口。",
+                    overview: {
+                      intent: "应用入口编排。",
+                      dependencyCount: 1,
+                      dependentCount: 1,
+                      date: now,
+                      author: "Levi",
+                    },
+                    details: {
+                      description: "main.ts 暴露 main() 供启动流程调用。",
+                      exposed: [
+                        {
+                          name: "main",
+                          kind: "function",
+                          typeInference: "() => string",
+                          implemented: true,
+                          intent: "启动应用。",
+                          inputs: "none",
+                          outputs: "helper() 的返回值",
+                          usage: "import { main } from './main';",
+                        },
+                      ],
+                    },
+                  }),
+                },
+              },
+            ],
+          }),
+        ),
+    });
+
+    expect(result.overview.intent).toBe("应用入口编排。");
+    expect(result.overview.date).toBe(now);
+    expect(result.details.description).toContain("main()");
+    expect(result.details.exposed[0]?.inputs).toBe("none");
+    expect(result.details.exposed[0]?.typeInference).toBe("() => string");
+    expect(result.details.exposed[0]?.implemented).toBe(true);
   });
 
   test("changes cache key when model changes", async () => {
@@ -202,7 +260,7 @@ function fixtureSnapshot(): StudioSnapshot {
         path: "src/main.ts",
         language: "typescript",
         updatedAt: now,
-        metadata: { lineCount: 12 },
+        metadata: { lineCount: 12, author: "Levi" },
         hash: "main-hash",
       },
       {

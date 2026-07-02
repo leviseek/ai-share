@@ -12,6 +12,8 @@ import type { StudioSnapshot } from "./data.ts";
 export type AiNodeSummaryResult = {
   nodeId: string;
   summary: string;
+  overview: AiNodeSummaryOverview;
+  details: AiNodeSummaryDetails;
   model: string;
   provider: string;
   cached: boolean;
@@ -20,6 +22,30 @@ export type AiNodeSummaryResult = {
   inputHash: string;
   fileContext?: AiNodeSummaryFileContext;
   diagnostics: string[];
+};
+
+export type AiNodeSummaryOverview = {
+  intent: string;
+  dependencyCount: number;
+  dependentCount: number;
+  date?: string;
+  author?: string;
+};
+
+export type AiNodeSummaryDetails = {
+  description: string;
+  exposed: AiNodeSummaryExposedSymbol[];
+};
+
+export type AiNodeSummaryExposedSymbol = {
+  name: string;
+  kind: "function" | "class" | "interface" | "type" | "variable" | "module" | "unknown";
+  typeInference: string;
+  implemented: boolean;
+  intent: string;
+  inputs: string;
+  outputs: string;
+  usage: string;
 };
 
 export type AiNodeSummaryFileSnippet = {
@@ -68,6 +94,7 @@ type PromptNode = {
   label: string;
   path?: string;
   language?: string;
+  updatedAt?: string;
   tags: string[];
   summary?: string;
   metadata: Record<string, unknown>;
@@ -88,7 +115,12 @@ type PromptInput = {
   fileContext?: AiNodeSummaryFileContext;
 };
 
-const PROMPT_VERSION = "rie-ai-node-summary-v1";
+type AiNodeSummaryOverviewDraft = Omit<AiNodeSummaryOverview, "date" | "author"> & {
+  date: string | undefined;
+  author: string | undefined;
+};
+
+const PROMPT_VERSION = "rie-ai-node-summary-v3";
 const AI_SUMMARY_MAX_LENGTH = 2000;
 const DEFAULT_MAX_TOKENS = 2600;
 const MAX_FILE_CONTEXT_BYTES = 200_000;
@@ -139,12 +171,15 @@ export async function generateAiNodeSummary(input: AiNodeSummaryInput): Promise<
     providerId: modelConfig.providerId,
   });
   const cached = await input.cache.read(cacheKey);
-  if (cached !== undefined) return cached;
+  if (cached?.overview !== undefined && cached.details !== undefined) return cached;
 
-  const summary = await requestAiNodeSummary(promptInput, modelConfig, input.fetchImpl ?? fetch);
+  const aiSummary = await requestAiNodeSummary(promptInput, modelConfig, input.fetchImpl ?? fetch);
+  const content = parseAiNodeSummaryContent(aiSummary, promptInput);
   const result: AiNodeSummaryResult = {
     nodeId: input.nodeId,
-    summary: normalizeAiSummaryText(summary),
+    summary: normalizeAiSummaryText(content.summary),
+    overview: content.overview,
+    details: content.details,
     model: modelConfig.modelId,
     provider: modelConfig.providerId,
     cached: false,
@@ -238,9 +273,15 @@ function chatRequestBody(promptInput: PromptInput, model: ModelSource): Record<s
         role: "system",
         content: [
           "你是 Repository Intelligence Engine 的节点解释器。",
-          "请根据用户提供的节点、边、一跳邻居信息和可选文件片段，生成简体中文节点 summary。",
-          "要求：2000 字以内；内容可以包含节点用途、关键依赖、重要符号、文件片段依据和维护建议；保留代码标识符、路径和 API 名称；不要输出密钥、token、cookie、password 或无法从输入推出的信息。",
-          "只输出 summary 正文，不要 Markdown 标题。",
+          "请根据用户提供的节点、边、一跳邻居信息和可选文件片段，生成结构化简体中文节点 summary。",
+          "必须只输出 JSON 对象，不要 Markdown，不要代码围栏。",
+          "JSON 字段：summary:string；overview:{intent:string,dependencyCount:number,dependentCount:number,date?:string,author?:string}；details:{description:string,exposed:Array<{name:string,kind:string,typeInference:string,implemented:boolean,intent:string,inputs:string,outputs:string,usage:string}>}。",
+          "overview 用于默认折叠态，必须简洁；dependencyCount 表示 outgoing 边数量，被依赖数 dependentCount 表示 incoming 边数量；date/author 只能来自输入节点或 metadata，未知则写 unknown。",
+          "details.exposed 只列出暴露给外部使用的全局变量、导出函数、类、interface、type、模块入口等。",
+          "变量：typeInference 必须写类型推断；inputs/outputs 写 unknown 即可，前端不会展示变量输入输出。",
+          "函数/接口/类/type/模块：inputs 与 outputs 必须尽量包含类型推断；如果只有声明没有实现，implemented=false。",
+          "未知字段写 unknown，不要编造。",
+          "总内容控制在 2000 字以内；保留代码标识符、路径和 API 名称；不要输出密钥、token、cookie、password 或无法从输入推出的信息。",
         ].join("\n"),
       },
       {
@@ -263,8 +304,212 @@ function toPromptNode(node: GraphNode): PromptNode {
   };
   if (node.path !== undefined) promptNode.path = node.path;
   if (node.language !== undefined) promptNode.language = node.language;
+  if (node.updatedAt !== undefined) promptNode.updatedAt = node.updatedAt;
   if (node.summary !== undefined) promptNode.summary = normalizeSummaryText(node.summary);
   return promptNode;
+}
+
+function parseAiNodeSummaryContent(
+  value: string,
+  promptInput: PromptInput,
+): Pick<AiNodeSummaryResult, "summary" | "overview" | "details"> {
+  const parsed = parseJsonObject(value);
+  const fallbackSummary = normalizeAiSummaryText(value);
+  const summary = readString(parsed?.summary) ?? fallbackSummary;
+  const fallbackOverview = buildFallbackOverview(promptInput, summary);
+  const overviewRecord = isRecord(parsed?.overview) ? parsed.overview : undefined;
+  const detailsRecord = isRecord(parsed?.details) ? parsed.details : undefined;
+  return {
+    summary,
+    overview: buildOverview({
+      intent: readString(overviewRecord?.intent) ?? fallbackOverview.intent,
+      dependencyCount: readNumber(overviewRecord?.dependencyCount) ?? fallbackOverview.dependencyCount,
+      dependentCount: readNumber(overviewRecord?.dependentCount) ?? fallbackOverview.dependentCount,
+      date: readOptionalKnownString(overviewRecord?.date) ?? fallbackOverview.date,
+      author: readOptionalKnownString(overviewRecord?.author) ?? fallbackOverview.author,
+    }),
+    details: {
+      description: readString(detailsRecord?.description) ?? summary,
+      exposed: readExposedSymbols(detailsRecord?.exposed, promptInput),
+    },
+  };
+}
+
+function buildFallbackOverview(promptInput: PromptInput, summary: string): AiNodeSummaryOverview {
+  const inferredIntent = firstSentence(summary);
+  return buildOverview({
+    intent:
+      inferredIntent.length > 0
+        ? inferredIntent
+        : (promptInput.node.summary ?? `${promptInput.node.label} 的节点用途待进一步分析。`),
+    dependencyCount: promptInput.outgoing.length,
+    dependentCount: promptInput.incoming.length,
+    date: promptInput.node.updatedAt,
+    author: readAuthor(promptInput.node.metadata),
+  });
+}
+
+function buildOverview(input: AiNodeSummaryOverviewDraft): AiNodeSummaryOverview {
+  return {
+    intent: input.intent,
+    dependencyCount: input.dependencyCount,
+    dependentCount: input.dependentCount,
+    ...(input.date === undefined ? {} : { date: input.date }),
+    ...(input.author === undefined ? {} : { author: input.author }),
+  };
+}
+
+function readExposedSymbols(value: unknown, promptInput: PromptInput): AiNodeSummaryExposedSymbol[] {
+  if (!Array.isArray(value)) return inferExposedSymbols(promptInput);
+  const symbols = value.flatMap((item) => {
+    if (!isRecord(item)) return [];
+    const name = readString(item.name);
+    if (name === undefined) return [];
+    return [
+      {
+        name,
+        kind: normalizeExposedKind(readString(item.kind)),
+        typeInference: readString(item.typeInference) ?? "unknown",
+        implemented: readBoolean(item.implemented) ?? true,
+        intent: readString(item.intent) ?? "unknown",
+        inputs: readString(item.inputs) ?? "unknown",
+        outputs: readString(item.outputs) ?? "unknown",
+        usage: readString(item.usage) ?? "unknown",
+      },
+    ];
+  });
+  return symbols.length === 0 ? inferExposedSymbols(promptInput) : symbols.slice(0, 24);
+}
+
+function inferExposedSymbols(promptInput: PromptInput): AiNodeSummaryExposedSymbol[] {
+  const snippets = promptInput.fileContext?.snippets ?? [];
+  const symbols: AiNodeSummaryExposedSymbol[] = [];
+  for (const snippet of snippets) {
+    const text = snippet.text;
+    const tsMatch =
+      /^\s*export\s+(?:async\s+)?function\s+([\w$]+)\s*\(([^)]*)\)/.exec(text) ??
+      /^\s*export\s+(class|interface|type|const|let|var)\s+([\w$]+)(.*)$/.exec(text);
+    if (tsMatch !== null) {
+      const first = tsMatch[1] ?? "";
+      const second = tsMatch[2] ?? "";
+      const rest = tsMatch[3] ?? "";
+      const isFunction = text.includes("function");
+      symbols.push({
+        name: isFunction ? first : second,
+        kind: isFunction ? "function" : normalizeExposedKind(first),
+        typeInference: isFunction ? inferFunctionType(text) : inferDeclarationType(first, rest),
+        implemented: inferImplemented(text),
+        intent: "由 export 暴露给外部模块使用。",
+        inputs: isFunction ? inferFunctionInputs(second) : "unknown",
+        outputs: isFunction ? inferFunctionOutput(text) : "unknown",
+        usage: `从 ${promptInput.node.path ?? promptInput.node.label} import 后使用。`,
+      });
+      continue;
+    }
+    const luaMatch = /^\s*(?:function\s+([\w.:-]+)|([\w.:-]+)\s*=)/.exec(text);
+    if (luaMatch !== null && !text.includes("local ")) {
+      symbols.push({
+        name: luaMatch[1] ?? luaMatch[2] ?? "unknown",
+        kind: text.includes("function") ? "function" : "variable",
+        typeInference: text.includes("function") ? "function" : "unknown",
+        implemented: true,
+        intent: "Lua 全局或模块表成员，可能被外部脚本调用。",
+        inputs: "unknown",
+        outputs: "unknown",
+        usage: "通过 Lua require/module table 或全局命名空间使用。",
+      });
+    }
+  }
+  return uniqueExposedSymbols(symbols).slice(0, 24);
+}
+
+function uniqueExposedSymbols(symbols: AiNodeSummaryExposedSymbol[]): AiNodeSummaryExposedSymbol[] {
+  const seen = new Set<string>();
+  return symbols.filter((symbol) => {
+    const key = `${symbol.kind}:${symbol.name}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizeExposedKind(value: string | undefined): AiNodeSummaryExposedSymbol["kind"] {
+  if (value === "function" || value === "class" || value === "interface" || value === "type") return value;
+  if (value === "const" || value === "let" || value === "var" || value === "variable") return "variable";
+  if (value === "module") return "module";
+  return "unknown";
+}
+
+function inferFunctionType(text: string): string {
+  const name = /^\s*export\s+(?:async\s+)?function\s+[\w$]+\s*(\([^)]*\)\s*(?::\s*[^({;]+)?)/.exec(text)?.[1];
+  return name?.trim() ?? "function";
+}
+
+function inferFunctionInputs(params: string): string {
+  const value = params.trim();
+  return value.length === 0 ? "none" : value;
+}
+
+function inferFunctionOutput(text: string): string {
+  return /\)\s*:\s*([^({;]+)/.exec(text)?.[1]?.trim() ?? "unknown";
+}
+
+function inferDeclarationType(kind: string, rest: string): string {
+  if (kind === "interface" || kind === "type" || kind === "class") return kind;
+  const explicit = /^\s*:\s*([^=;]+)/.exec(rest)?.[1]?.trim();
+  if (explicit !== undefined && explicit.length > 0) return explicit;
+  if (/=\s*["'`]/.test(rest)) return "string";
+  if (/=\s*\d/.test(rest)) return "number";
+  if (/=\s*(true|false)\b/.test(rest)) return "boolean";
+  if (/=\s*\[/.test(rest)) return "array";
+  if (/=\s*\{/.test(rest)) return "object";
+  return "unknown";
+}
+
+function inferImplemented(text: string): boolean {
+  if (/\bdeclare\b/.test(text)) return false;
+  if (/^\s*export\s+interface\b/.test(text) || /^\s*export\s+type\b/.test(text)) return false;
+  if (/;\s*$/.test(text) && !/[{=]/.test(text)) return false;
+  return true;
+}
+
+function parseJsonObject(value: string): Record<string, unknown> | undefined {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return isRecord(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? normalizeAiSummaryText(value) : undefined;
+}
+
+function readOptionalKnownString(value: unknown): string | undefined {
+  const text = readString(value);
+  return text === undefined || text.toLowerCase() === "unknown" ? undefined : text;
+}
+
+function readNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.trunc(value) : undefined;
+}
+
+function readBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function firstSentence(value: string): string {
+  return /^[^。！？.!?]+[。！？.!?]?/.exec(value)?.[0]?.trim() ?? "";
+}
+
+function readAuthor(metadata: Record<string, unknown>): string | undefined {
+  for (const key of ["author", "authors", "owner", "maintainer", "gitAuthor"]) {
+    const value = metadata[key];
+    if (typeof value === "string" && value.trim().length > 0) return normalizeSummaryText(value);
+    if (Array.isArray(value) && value.length > 0) return value.map(String).join(", ");
+  }
+  return undefined;
 }
 
 function normalizeAiSummaryText(value: string): string {
