@@ -36,21 +36,25 @@ export async function runStdioMcpServer(inputOptions: RepositorySelectionInput =
     const request = parseJsonRpc(line);
     try {
       const result = await handleJsonRpc(tools, request.method, request.params);
-      console.log(JSON.stringify({ jsonrpc: "2.0", id: request.id, result }));
+      if (request.id !== undefined && result !== undefined) {
+        console.log(JSON.stringify({ jsonrpc: "2.0", id: request.id, result }));
+      }
     } catch (error) {
-      console.log(
-        JSON.stringify({
-          jsonrpc: "2.0",
-          id: request.id,
-          error: { code: -32000, message: error instanceof Error ? error.message : "Unknown MCP error" },
-        }),
-      );
+      if (request.id !== undefined) {
+        console.log(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: request.id,
+            error: { code: -32000, message: error instanceof Error ? error.message : "Unknown MCP error" },
+          }),
+        );
+      }
     }
   }
 }
 
 type JsonRpcRequest = {
-  id: unknown;
+  id?: unknown;
   method: string;
   params: unknown;
 };
@@ -58,17 +62,23 @@ type JsonRpcRequest = {
 function parseJsonRpc(line: string): JsonRpcRequest {
   const parsed = JSON.parse(line) as Partial<JsonRpcRequest>;
   if (typeof parsed.method !== "string") throw new Error("JSON-RPC method is required.");
-  return { id: parsed.id, method: parsed.method, params: parsed.params };
+  return { ...(parsed.id === undefined ? {} : { id: parsed.id }), method: parsed.method, params: parsed.params };
 }
 
-async function handleJsonRpc(tools: RepositoryMcpTools, method: string, params: unknown): Promise<unknown> {
-  if (method === "initialize") return { protocolVersion: "2024-11-05", serverInfo: { name: "rie", version: "0.1.0" } };
+export async function handleJsonRpc(tools: RepositoryMcpTools, method: string, params: unknown): Promise<unknown> {
+  if (method === "initialize")
+    return {
+      protocolVersion: "2024-11-05",
+      capabilities: { tools: { listChanged: false } },
+      serverInfo: { name: "rie", version: "0.1.0" },
+    };
+  if (method === "notifications/initialized") return undefined;
   if (method === "tools/list") {
-    return { tools: RIE_MCP_TOOL_DEFINITIONS.map((tool) => ({ name: tool.name, description: tool.description })) };
+    return { tools: RIE_MCP_TOOL_DEFINITIONS };
   }
   if (method !== "tools/call") throw new Error(`Unsupported MCP method: ${method}`);
   const call = params as { name?: string; arguments?: unknown };
-  return await callTool(tools, call.name, call.arguments);
+  return mcpToolResult(await callTool(tools, call.name, call.arguments));
 }
 
 async function callTool(tools: RepositoryMcpTools, name: string | undefined, args: unknown): Promise<unknown> {
@@ -137,6 +147,17 @@ function requireString(value: unknown, field: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function mcpToolResult(value: unknown): Record<string, unknown> {
+  return {
+    content: [
+      {
+        type: "text",
+        text: typeof value === "string" ? value : JSON.stringify(value, null, 2),
+      },
+    ],
+  };
 }
 
 if (import.meta.main) await runStdioMcpServer();

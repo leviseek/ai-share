@@ -42,18 +42,73 @@ export type RepositoryMcpTools = {
 export type McpToolDefinition = {
   name: string;
   description: string;
+  inputSchema: Record<string, unknown>;
 };
 
 export const RIE_MCP_TOOL_DEFINITIONS: readonly McpToolDefinition[] = [
-  { name: "rie.search", description: "Search repository knowledge objects by text query." },
-  { name: "rie.context", description: "Build a repository context bundle for a query or seeds." },
-  { name: "rie.graph", description: "Return the repository knowledge graph or a seeded subgraph." },
-  { name: "rie.neighbors", description: "Return graph neighbors for one repository object." },
-  { name: "rie.impact", description: "Return impact graph for one repository object." },
-  { name: "rie.explain", description: "Build explanation-focused context for one repository object." },
-  { name: "rie.context_quality", description: "Return the quality report for a context request." },
-  { name: "rie.graph_export", description: "Export the repository graph as json or mermaid." },
-  { name: "rie.readiness", description: "Diagnose whether RIE MCP injection and repository snapshot are ready." },
+  {
+    name: "rie.search",
+    description: "Search repository knowledge objects by text query.",
+    inputSchema: objectSchema({ query: stringSchema(), limit: numberSchema(), repoRoot: stringSchema() }, ["query"]),
+  },
+  {
+    name: "rie.context",
+    description: "Build a repository context bundle for a query or seeds.",
+    inputSchema: objectSchema(
+      {
+        query: stringSchema(),
+        intent: enumSchema(["plan", "implement", "debug", "review", "test", "explain"]),
+        paths: stringArraySchema(),
+        objectIds: stringArraySchema(),
+        repoRoot: stringSchema(),
+      },
+      ["query"],
+    ),
+  },
+  {
+    name: "rie.graph",
+    description: "Return the repository knowledge graph or a seeded subgraph.",
+    inputSchema: objectSchema({ seedIds: stringArraySchema(), depth: numberSchema(), repoRoot: stringSchema() }),
+  },
+  {
+    name: "rie.neighbors",
+    description: "Return graph neighbors for one repository object.",
+    inputSchema: objectSchema({ objectId: stringSchema(), repoRoot: stringSchema() }, ["objectId"]),
+  },
+  {
+    name: "rie.impact",
+    description: "Return impact graph for one repository object.",
+    inputSchema: objectSchema({ objectId: stringSchema(), repoRoot: stringSchema() }, ["objectId"]),
+  },
+  {
+    name: "rie.explain",
+    description: "Build explanation-focused context for one repository object.",
+    inputSchema: objectSchema({ objectId: stringSchema(), repoRoot: stringSchema() }, ["objectId"]),
+  },
+  {
+    name: "rie.context_quality",
+    description: "Return the quality report for a context request.",
+    inputSchema: objectSchema(
+      {
+        query: stringSchema(),
+        intent: enumSchema(["plan", "implement", "debug", "review", "test", "explain"]),
+        paths: stringArraySchema(),
+        objectIds: stringArraySchema(),
+        repoRoot: stringSchema(),
+      },
+      ["query"],
+    ),
+  },
+  {
+    name: "rie.graph_export",
+    description: "Export the repository graph as json or mermaid.",
+    inputSchema: objectSchema({ format: enumSchema(["json", "mermaid"]), repoRoot: stringSchema() }),
+  },
+  {
+    name: "rie.readiness",
+    description: "Diagnose whether RIE MCP injection and repository snapshot are ready.",
+    inputSchema: objectSchema({ repoRoot: stringSchema(), refresh: booleanSchema() }),
+  },
 ];
 
 export function createKnowledgeMcpTools(result: Pick<BuildResult, "objects" | "nodes" | "edges">): KnowledgeMcpTools {
@@ -175,6 +230,35 @@ function repositorySnapshotInput(
 
 function optionalRepoRoot(repoRoot: string | undefined): { repoRoot?: string } {
   return repoRoot === undefined ? {} : { repoRoot };
+}
+
+function objectSchema(properties: Record<string, unknown>, required: string[] = []): Record<string, unknown> {
+  return {
+    type: "object",
+    properties,
+    ...(required.length > 0 ? { required } : {}),
+    additionalProperties: false,
+  };
+}
+
+function stringSchema(): Record<string, string> {
+  return { type: "string" };
+}
+
+function numberSchema(): Record<string, string> {
+  return { type: "number" };
+}
+
+function booleanSchema(): Record<string, string> {
+  return { type: "boolean" };
+}
+
+function stringArraySchema(): Record<string, unknown> {
+  return { type: "array", items: stringSchema() };
+}
+
+function enumSchema(values: string[]): Record<string, unknown> {
+  return { type: "string", enum: values };
 }
 
 function importSubgraph(graph: GraphSubgraph, seedIds: string[], depth: number): GraphSubgraph {
