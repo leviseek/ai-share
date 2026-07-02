@@ -28,6 +28,7 @@ describe("Codex generation contract", () => {
       fixture.global,
       fixture.mcp,
       "/codex/AGENTS.md",
+      projectRoot,
     );
 
     expect(formatCodexConfigToml(codexConfig)).toBe(`model = "gpt-5.5"
@@ -49,6 +50,10 @@ env_key = "PACKYAPI_API_KEY"
 name = "Axas API"
 base_url = "https://api.asxs.top/v1"
 env_key = "AXASAPI_API_KEY"
+
+[mcp_servers.rie]
+command = "bun"
+args = ["run", "--cwd", "D:\\\\ai-share", "knowledge:mcp"]
 `);
   });
 
@@ -64,6 +69,7 @@ env_key = "AXASAPI_API_KEY"
       fixture.global,
       fixture.mcp,
       "/codex/AGENTS.md",
+      projectRoot,
     );
 
     expect(codexConfig.model).toBe("gpt-5.5");

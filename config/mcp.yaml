@@ -18,3 +18,11 @@
 #     env:
 #       LOCAL_TOOL_API_KEY: ${LOCAL_TOOL_API_KEY}
 servers:
+  rie:
+    transport: stdio
+    command: bun
+    args:
+      - run
+      - --cwd
+      - .
+      - knowledge:mcp

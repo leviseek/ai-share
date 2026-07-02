@@ -143,6 +143,7 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
         servers: objectSchema({
           additionalProperties: objectSchema({
             properties: {
+              enabled: booleanSchema("Whether this MCP server is enabled in generated Codex config."),
               transport: enumStringSchema(["stdio", "http"], "MCP transport."),
               command: stringSchema("stdio MCP command."),
               args: stringArraySchema("stdio MCP command args."),
@@ -193,6 +194,10 @@ function stringArraySchema(description: string): Extract<SchemaNode, { type: "ar
     items: stringSchema(description),
     description,
   };
+}
+
+function booleanSchema(description: string): Extract<SchemaNode, { type: "boolean" }> {
+  return { type: "boolean", description };
 }
 
 function numberSchema(description: string): Extract<SchemaNode, { type: "number" }> {

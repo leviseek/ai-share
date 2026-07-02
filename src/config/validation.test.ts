@@ -141,6 +141,24 @@ describe("validateYamlConsistency", () => {
       expect(errors).toContain(expectedError);
     }
   });
+
+  test("reports RIE MCP identity conflicts", () => {
+    const models: ModelsYaml = {
+      "valid-model": model("valid-model"),
+    };
+    const mcpConfig = {
+      servers: {
+        rie: {
+          transport: "http",
+          url: "https://example.test/mcp",
+        },
+      },
+    } as McpYaml;
+
+    const errors = validateYamlConsistency(models, providers(), { model: "valid-model" }, mcpConfig).map(formatError);
+
+    expect(errors).toContain("mcp.yaml:servers.rie.transport:RIE MCP server 'rie' must use stdio transport");
+  });
 });
 
 function model(modelName: string): ModelsYaml[string] {

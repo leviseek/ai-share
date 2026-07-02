@@ -11,6 +11,7 @@ export type EnvYaml = {
 };
 
 export type McpServerSource = {
+  enabled?: boolean;
   transport?: "stdio" | "http";
   command?: string;
   args?: string[];

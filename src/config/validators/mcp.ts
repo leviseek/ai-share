@@ -7,6 +7,8 @@ export function validateMcpServers(errors: ValidationError[], mcpConfig: McpYaml
   for (const [serverId, server] of Object.entries(mcpServers)) {
     if (!isRecord(server)) continue;
     const source = server;
+    if (source.enabled === false) continue;
+    validateRieServerIdentity(errors, serverId, source);
     const isHttp = source.transport === "http" || source.url !== undefined;
     if (isHttp) {
       validateHttpMcpServer(errors, serverId, source);
@@ -14,6 +16,21 @@ export function validateMcpServers(errors: ValidationError[], mcpConfig: McpYaml
     }
 
     validateStdioMcpServer(errors, serverId, source);
+  }
+}
+
+function validateRieServerIdentity(
+  errors: ValidationError[],
+  serverId: string,
+  server: Readonly<Record<string, unknown>>,
+): void {
+  if (serverId !== "rie") return;
+  if (server.transport === "http" || server.url !== undefined) {
+    errors.push({
+      file: "mcp.yaml",
+      path: "servers.rie.transport",
+      message: "RIE MCP server 'rie' must use stdio transport",
+    });
   }
 }
 

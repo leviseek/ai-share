@@ -22,7 +22,9 @@ export function printCheckSummary(input: {
   console.log(`${color.cyan("已配置 provider 数量")}：${color.bold(String(input.configuredProviderCount))}`);
   console.log(`${color.cyan("模型分组")}：${color.magenta(input.modelGroups.join(" / "))}`);
   console.log(`${color.cyan("Codex 模型")}：${color.magenta(input.modelId)}`);
-  console.log(`${color.cyan("MCP servers")}：${color.magenta(input.mcpServerIds.join(" / ") || "none")}`);
+  console.log(
+    `${color.cyan("MCP servers")}：${color.magenta(input.mcpServerIds.length > 0 ? input.mcpServerIds.join(" / ") : "none")}`,
+  );
   console.log(
     `${color.cyan("Local config overlays")}：${color.magenta(input.localConfigOverlays.join(" / ") || "none")}`,
   );
@@ -82,6 +84,7 @@ export function printGenerationSummary(input: {
   paths: GeneratorPaths;
   modelId: string;
   providerGroups: ProviderGroupMap;
+  mcpServerIds: string[];
 }): void {
   const prefix = input.dryRun ? "将生成" : "已生成";
   const installPrefix = input.dryRun ? "将安装" : "已安装";
@@ -90,6 +93,9 @@ export function printGenerationSummary(input: {
     `${color.green(prefix)} ${color.cyan("Codex CLI 默认配置")}：${color.bold(input.paths.targetCodexConfig)}${color.gray(preserveHint)}`,
   );
   console.log(`${color.green(prefix)} ${color.cyan("Codex 模型")}：${color.magenta(input.modelId)}`);
+  console.log(
+    `${color.green(prefix)} ${color.cyan("Codex MCP servers")}：${color.magenta(input.mcpServerIds.length > 0 ? input.mcpServerIds.join(" / ") : "none")}`,
+  );
   console.log(
     `${color.green(prefix)} ${color.cyan("Codex CLI .env")}：${color.bold(input.paths.targetCodexEnv)}${color.gray("（存在时保留，--force 覆盖）")}`,
   );

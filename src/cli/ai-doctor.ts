@@ -18,6 +18,7 @@ import { checkMemoryPrivacy } from "./memory-privacy-check.ts";
 import { parseCliOptions } from "./options.ts";
 import { buildGeneratorPaths } from "./paths.ts";
 import { checkProviderCanaries, checkProviderModels } from "./provider-model-check.ts";
+import { createRieMcpDoctorCheck } from "./ai-doctor-rie-mcp.ts";
 import { checkVersions } from "./registry-check.ts";
 import { listLocalConfigOverlaysSync, loadConfigYamlSync } from "../config/local-overlay.ts";
 import { validateYamlConsistency } from "../config/validation.ts";
@@ -68,7 +69,14 @@ checks.push({
 
 const providers = providersConfig.providers ?? {};
 const models = applyProviderGroups(modelsConfig, providers, cliOptions.providerGroups);
-const codexCliConfig = buildCodexCliConfig(providers, models, globalConfig, mcpConfig, paths.targetCodexInstructions);
+const codexCliConfig = buildCodexCliConfig(
+  providers,
+  models,
+  globalConfig,
+  mcpConfig,
+  paths.targetCodexInstructions,
+  paths.projectRoot,
+);
 
 const apiKeyStartedAt = performance.now();
 const missingApiKeys = missingProviderApiKeyEnvNames(providers);
@@ -128,6 +136,14 @@ checks.push({
   elapsed_ms: elapsedSince(localProxyStartedAt),
   details: localProxyChecks,
 });
+
+checks.push(
+  await createRieMcpDoctorCheck({
+    mcpConfig,
+    codexHome: paths.targetCodexConfigDir,
+    repoRoot: paths.projectRoot,
+  }),
+);
 
 const memoryPrivacyStartedAt = performance.now();
 const memoryFindings = checkMemoryPrivacy(paths.projectRoot);

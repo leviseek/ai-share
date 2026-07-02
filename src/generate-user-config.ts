@@ -71,7 +71,14 @@ if (!checkOnly && !cliOptions.providerGroupsSpecified) {
   providerGroups = await selectProviderGroupsIfInteractive(providerGroups, providers, modelsConfig);
 }
 const models = applyProviderGroups(modelsConfig, providers, providerGroups);
-const codexCliConfig = buildCodexCliConfig(providers, models, globalConfig, mcpConfig, paths.targetCodexInstructions);
+const codexCliConfig = buildCodexCliConfig(
+  providers,
+  models,
+  globalConfig,
+  mcpConfig,
+  paths.targetCodexInstructions,
+  paths.projectRoot,
+);
 const instructionFiles = buildInstructionsPaths(paths.projectRoot, "");
 const missingApiKeys = missingProviderApiKeyEnvNames(providers);
 const localConfigOverlays = await listLocalConfigOverlays(paths.configDir);
@@ -189,6 +196,9 @@ printGenerationSummary({
   paths,
   modelId: globalConfig.model ?? "",
   providerGroups,
+  mcpServerIds: Object.keys(mcpConfig.servers ?? {}).filter(
+    (serverId) => mcpConfig.servers?.[serverId]?.enabled !== false,
+  ),
 });
 
 async function loadYaml<T extends object>(fileName: string): Promise<T> {

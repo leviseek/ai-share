@@ -18,6 +18,7 @@ export function buildCodexCliConfig(
   globalConfig: GlobalYaml,
   mcpConfig: McpYaml,
   instructionsFile: string,
+  projectRoot: string = process.cwd(),
 ): CodexCliConfig {
   const modelId = modelIdFromRef(modelRef(requireString(globalConfig.model, "global.model"), modelSources));
   const modelSource = modelSources[modelId];
@@ -30,7 +31,7 @@ export function buildCodexCliConfig(
     ...(modelReasoningEffort ? { model_reasoning_effort: modelReasoningEffort } : {}),
     model_instructions_file: instructionsFile,
     model_providers: buildCodexProviders(providerSources),
-    ...nonEmptyMcpServers(buildCodexMcpServers(mcpConfig)),
+    ...nonEmptyMcpServers(buildCodexMcpServers(mcpConfig, projectRoot)),
   };
 }
 
@@ -103,16 +104,15 @@ function buildCodexProviders(providerSources: Record<string, ProviderSource>): R
   );
 }
 
-function buildCodexMcpServers(mcpConfig: McpYaml): Record<string, CodexMcpServer> {
+function buildCodexMcpServers(mcpConfig: McpYaml, projectRoot: string): Record<string, CodexMcpServer> {
   return Object.fromEntries(
-    Object.entries(mcpConfig.servers ?? {}).map(([serverId, server]) => [
-      serverId,
-      buildCodexMcpServer(serverId, server),
-    ]),
+    Object.entries(mcpConfig.servers ?? {})
+      .filter(([, server]) => server.enabled !== false)
+      .map(([serverId, server]) => [serverId, buildCodexMcpServer(serverId, server, projectRoot)]),
   );
 }
 
-function buildCodexMcpServer(serverId: string, server: McpServerSource): CodexMcpServer {
+function buildCodexMcpServer(serverId: string, server: McpServerSource, projectRoot: string): CodexMcpServer {
   if (server.transport === "http" || server.url) {
     return {
       url: requireString(server.url, `mcp.servers.${serverId}.url`),
@@ -124,9 +124,13 @@ function buildCodexMcpServer(serverId: string, server: McpServerSource): CodexMc
 
   return {
     command: requireString(server.command, `mcp.servers.${serverId}.command`),
-    ...(server.args ? { args: server.args } : {}),
+    ...(server.args ? { args: resolveMcpArgs(server.args, projectRoot) } : {}),
     ...(server.env ? { env: server.env } : {}),
   };
+}
+
+function resolveMcpArgs(args: string[], projectRoot: string): string[] {
+  return args.map((arg, index) => (arg === "." && args[index - 1] === "--cwd" ? projectRoot : arg));
 }
 
 function nonEmptyMcpServers(servers: Record<string, CodexMcpServer>): Pick<CodexCliConfig, "mcp_servers"> {

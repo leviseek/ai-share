@@ -26,7 +26,8 @@
     "knowledge:stats": "bun run ./src/knowledge/cli.ts stats",
     "knowledge:studio": "bun run knowledge:studio:build && bun run ./src/knowledge/studio/server.ts",
     "knowledge:studio:dev": "vite --config vite.config.ts --host 127.0.0.1",
-    "knowledge:studio:build": "vite build --config vite.config.ts"
+    "knowledge:studio:build": "vite build --config vite.config.ts",
+    "knowledge:mcp": "bun run ./src/knowledge/mcp/server.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
