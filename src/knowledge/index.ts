@@ -3,6 +3,7 @@ import { canonicalJsonHash, contentHash } from "./core/ids.ts";
 import { buildGraph } from "./graph/builder.ts";
 import { directoryParser } from "./parsers/directory.ts";
 import { genericFileParser } from "./parsers/generic-file.ts";
+import { luaParser } from "./parsers/lua.ts";
 import { markdownParser } from "./parsers/markdown.ts";
 import { packageJsonParser } from "./parsers/package-json.ts";
 import { ParserRegistry } from "./parsers/registry.ts";
@@ -34,6 +35,7 @@ export async function buildKnowledge(options: BuildKnowledgeOptions): Promise<Bu
     packageJsonParser,
     yamlJsonParser,
     typescriptParser,
+    luaParser,
     genericFileParser,
   ]);
   const now = new Date().toISOString();

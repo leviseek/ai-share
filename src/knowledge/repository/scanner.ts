@@ -141,6 +141,7 @@ function detectLanguage(name: string): string | undefined {
   if (name.endsWith("AGENTS.md") || name.endsWith("CODEX.md") || name.endsWith("README.md")) return "markdown";
   const ext = extname(name).toLowerCase();
   if (ext === ".ts" || ext === ".tsx") return "typescript";
+  if (ext === ".lua") return "lua";
   if (ext === ".md") return "markdown";
   if (ext === ".json") return "json";
   if (ext === ".yaml" || ext === ".yml") return "yaml";

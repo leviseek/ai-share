@@ -27,6 +27,11 @@ async function fixtureRepo(): Promise<string> {
     "import { helper } from './util';\nexport function main() { return helper(); }\n",
   );
   await writeFile(join(root, "src", "util.ts"), "export function helper() { return 1; }\n");
+  await writeFile(
+    join(root, "src", "init.lua"),
+    "local util = require('src.util')\nlocal function local_helper() return util.value end\nfunction M.run() return local_helper() end\n",
+  );
+  await writeFile(join(root, "src", "util.lua"), "local M = {}\nM.value = 1\nreturn M\n");
   return root;
 }
 
@@ -38,6 +43,21 @@ describe("RIE build", () => {
     expect(result.objects.some((object) => object.type === "Script" && object.title === "check")).toBe(true);
     expect(result.objects.some((object) => object.type === "Project")).toBe(true);
     expect(result.edges.some((edge) => edge.type === "imports" && edge.to === "codefile:src/util.ts")).toBe(true);
+    expect(
+      result.objects.some(
+        (object) => object.id === "codefile:src/init.lua" && object.type === "CodeFile" && object.language === "lua",
+      ),
+    ).toBe(true);
+    expect(
+      result.objects.some(
+        (object) =>
+          object.type === "CodeSymbol" &&
+          object.language === "lua" &&
+          object.title === "M.run" &&
+          object.metadata.exported === true,
+      ),
+    ).toBe(true);
+    expect(result.edges.some((edge) => edge.type === "imports" && edge.to === "codefile:src/util.lua")).toBe(true);
     expect(result.metadata.schemaVersion).toBe(1);
   });
 
