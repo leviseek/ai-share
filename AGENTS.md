@@ -95,3 +95,9 @@ bun run schema:gen
 - `memory/` contains user-level memory files loaded as Codex startup instructions via `buildInstructionsPaths`.
 - Memory privacy layers are documented in `docs/memory-privacy.md`; local/private/project memory directories are ignored.
 - Existing local knowledge files: `config/AGENTS.md`, `src/AGENTS.md`.
+
+<!-- SPECKIT START -->
+
+Current Spec Kit plan: `specs/002-rie-node-display/plan.md`
+
+<!-- SPECKIT END -->
