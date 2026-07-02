@@ -836,6 +836,34 @@ select {
   margin: 0;
 }
 
+.ai-summary-card {
+  background: #111c33;
+  border: 1px solid #2f4771;
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+}
+
+.ai-summary-card.pending {
+  color: #adc2e9;
+}
+
+.ai-summary-card.error {
+  border-color: #f87171;
+  color: #fecaca;
+}
+
+.ai-summary-title {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.ai-summary-card small {
+  color: #93a9ca;
+}
+
 .tag-list {
   display: flex;
   flex-wrap: wrap;

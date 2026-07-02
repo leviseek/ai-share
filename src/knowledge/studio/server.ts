@@ -31,6 +31,7 @@ import {
   type ContextRecipeStore,
   type StudioSessionStore,
 } from "./session-store.ts";
+import { createAiNodeSummaryCache, generateAiNodeSummary, type AiNodeSummaryCache } from "./ai-summary.ts";
 
 const DEFAULT_PORT = 3737;
 const DIST_DIR = join(import.meta.dir, "public", "dist");
@@ -40,11 +41,13 @@ const MAX_IMPORT_FILE_BYTES = 1_000_000;
 const MAX_IMPORT_TOTAL_BYTES = 50_000_000;
 
 type StudioState = {
+  repoRoot: string;
   snapshot: StudioSnapshot;
   lastContext?: BuiltContext;
   sessions: StudioSessionStore;
   experiments: ContextExperimentStore;
   recipes: ContextRecipeStore;
+  aiSummaries: AiNodeSummaryCache;
   pendingStreams: Map<string, ReturnType<typeof buildCodexDryRun>>;
   activeImport?: RepositoryImportSummary;
 };
@@ -63,10 +66,12 @@ async function main(argv: string[]): Promise<void> {
   const repoRoot = process.cwd();
   const port = parsePort(argv);
   const state: StudioState = {
+    repoRoot,
     snapshot: await loadStudioSnapshot(repoRoot),
     sessions: createStudioSessionStore(repoRoot),
     experiments: createContextExperimentStore(repoRoot),
     recipes: createContextRecipeStore(repoRoot),
+    aiSummaries: createAiNodeSummaryCache(repoRoot),
     pendingStreams: new Map(),
   };
   const server = Bun.serve({
@@ -92,6 +97,7 @@ async function routeRequest(request: Request, state: StudioState): Promise<Respo
   if (url.pathname === "/api/graph") return jsonResponse(handleGraphRequest(url, state.snapshot));
   if (url.pathname === "/api/context") return handleContextRequest(request, state);
   if (url.pathname === "/api/impact") return jsonResponse(handleImpactRequest(url, state.snapshot));
+  if (url.pathname === "/api/ai/node-summary") return handleAiNodeSummaryRequest(request, state);
   if (url.pathname === "/api/dashboard") return jsonResponse(buildDashboardMetrics(state.snapshot, state.lastContext));
   if (url.pathname === "/api/codex-console/mock") return handleCodexMockRequest(request, state.snapshot);
   if (url.pathname === "/api/codex-console/dry-run") return handleCodexDryRunRequest(request, state);
@@ -111,6 +117,21 @@ async function routeRequest(request: Request, state: StudioState): Promise<Respo
   if (url.pathname === "/api/context-recipes/recipe") return handleContextRecipeRequest(url, state);
   if (url.pathname === "/api/context-recipes/dry-run") return handleContextRecipeDryRunRequest(request, state);
   return jsonResponse({ error: "未找到请求的 Studio 资源。" }, 404);
+}
+
+async function handleAiNodeSummaryRequest(request: Request, state: StudioState): Promise<Response> {
+  if (request.method !== "POST") return jsonResponse({ error: "不支持的请求方法。" }, 405);
+  const body = await parseJsonObject(request);
+  const nodeId = readString(body, "nodeId");
+  if (nodeId.length === 0) throw new Error("请提供 nodeId。");
+  return jsonResponse(
+    await generateAiNodeSummary({
+      snapshot: state.snapshot,
+      nodeId,
+      cache: state.aiSummaries,
+      repoRoot: state.activeImport?.repoRoot ?? state.repoRoot,
+    }),
+  );
 }
 
 function handleGraphRequest(url: URL, snapshot: StudioSnapshot): unknown {

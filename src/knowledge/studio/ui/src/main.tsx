@@ -228,6 +228,32 @@ type GraphNodeDetail = {
   outgoing: GraphEdge[];
 };
 
+type AiNodeSummary = {
+  nodeId: string;
+  summary: string;
+  model: string;
+  provider: string;
+  cached: boolean;
+  generatedAt: string;
+  cacheKey: string;
+  inputHash: string;
+  fileContext?: {
+    path: string;
+    snippets: { lineStart: number; lineEnd: number; text: string }[];
+    diagnostics: string[];
+    language?: string;
+    sizeBytes?: number;
+    hash?: string;
+  };
+  diagnostics: string[];
+};
+
+type AiNodeSummaryState =
+  | { status: "idle" }
+  | { status: "loading"; nodeId: string }
+  | { status: "ready"; nodeId: string; result: AiNodeSummary }
+  | { status: "error"; nodeId: string; message: string };
+
 type SessionDetail = DryRun | PlanExec;
 
 type StreamEvent = { timestamp: string; type: string; payload: unknown };
@@ -342,6 +368,8 @@ function App() {
   const [inspectorCollapsed, setInspectorCollapsed] = useState(preferences.inspectorCollapsed);
 
   const selectedDetail = useMemo(() => graphDetail(graph, selectedObjectId), [graph, selectedObjectId]);
+  const selectedNodeId = selectedDetail?.node.id ?? "";
+  const [aiNodeSummary, setAiNodeSummary] = useState<AiNodeSummaryState>({ status: "idle" });
 
   const graphSearchRef = useRef<HTMLInputElement>(null);
   const isBusy = activeActions.length > 0;
@@ -349,6 +377,30 @@ function App() {
   useEffect(() => {
     writeStudioPreferences(preferences);
   }, [preferences]);
+
+  useEffect(() => {
+    if (selectedNodeId.length === 0) {
+      setAiNodeSummary({ status: "idle" });
+      return;
+    }
+    let cancelled = false;
+    setAiNodeSummary({ status: "loading", nodeId: selectedNodeId });
+    void postJson<AiNodeSummary>("/api/ai/node-summary", { nodeId: selectedNodeId })
+      .then((result) => {
+        if (!cancelled) setAiNodeSummary({ status: "ready", nodeId: selectedNodeId, result });
+      })
+      .catch((error: unknown) => {
+        if (!cancelled)
+          setAiNodeSummary({
+            status: "error",
+            nodeId: selectedNodeId,
+            message: error instanceof Error ? error.message : "AI summary failed.",
+          });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedNodeId]);
 
   function updatePreferences(patch: Partial<StudioPreferences>) {
     setPreferences((current) => ({ ...current, ...patch }));
@@ -771,6 +823,7 @@ function App() {
             <>
               <GraphInspector
                 detail={selectedDetail}
+                aiSummary={aiNodeSummary}
                 selectedObjectId={selectedObjectId}
                 setSelectedObjectId={setSelectedObject}
                 analyzeImpact={() => void runAction("impact", analyzeImpact, "Impact analyzed.")}
@@ -1320,6 +1373,7 @@ function D3Graph(props: {
 
 function GraphInspector(props: {
   detail: GraphNodeDetail | undefined;
+  aiSummary: AiNodeSummaryState;
   selectedObjectId: string;
   setSelectedObjectId(id: string): void;
   analyzeImpact(): void;
@@ -1344,6 +1398,7 @@ function GraphInspector(props: {
           <code>{props.detail.node.id}</code>
           <span>{props.detail.node.path ?? "no path"}</span>
           {props.detail.node.summary !== undefined && <p>{props.detail.node.summary}</p>}
+          <AiSummaryPanel state={props.aiSummary} nodeId={props.detail.node.id} />
           <div class="tag-list">
             {(props.detail.node.tags ?? []).map((tag) => (
               <span class="tag" key={tag}>
@@ -1374,6 +1429,40 @@ function GraphInspector(props: {
       </div>
     </section>
   );
+}
+
+function AiSummaryPanel(props: { state: AiNodeSummaryState; nodeId: string }) {
+  if (props.state.status === "loading" && props.state.nodeId === props.nodeId) {
+    return <div class="ai-summary-card pending">AI Summary: generating...</div>;
+  }
+  if (props.state.status === "error" && props.state.nodeId === props.nodeId) {
+    return <div class="ai-summary-card error">AI Summary failed: {props.state.message}</div>;
+  }
+  if (props.state.status === "ready" && props.state.nodeId === props.nodeId) {
+    return (
+      <div class="ai-summary-card">
+        <div class="ai-summary-title">
+          <strong>AI Summary</strong>
+          <span>{props.state.result.cached ? "cached" : "generated"}</span>
+        </div>
+        <p>{props.state.result.summary}</p>
+        <small>
+          {props.state.result.provider}/{props.state.result.model} · {formatDate(props.state.result.generatedAt)} ·{" "}
+          {props.state.result.cacheKey.slice(0, 12)}
+        </small>
+        {props.state.result.fileContext !== undefined && (
+          <small>
+            file context: {props.state.result.fileContext.path} · {props.state.result.fileContext.snippets.length}{" "}
+            snippets
+            {props.state.result.fileContext.diagnostics.length === 0
+              ? ""
+              : ` · ${props.state.result.fileContext.diagnostics.join("; ")}`}
+          </small>
+        )}
+      </div>
+    );
+  }
+  return <div class="ai-summary-card pending">AI Summary: idle</div>;
 }
 
 function MetadataTable(props: { metadata: Record<string, unknown> }) {
