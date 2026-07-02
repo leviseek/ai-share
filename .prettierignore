@@ -1,5 +1,7 @@
 node_modules/
 dist/
+build/
+coverage/
 target/
 .git/
 .bun/
@@ -7,5 +9,8 @@ target/
 docs/schema/json/
 
 bun.lock
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
 .codex/

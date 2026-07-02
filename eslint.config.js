@@ -6,6 +6,9 @@ export default tseslint.config(
     ignores: [
       "node_modules/**",
       "dist/**",
+      "build/**",
+      "coverage/**",
+      "*.min.js",
       "bun.lock",
       "src/knowledge/studio/public/**",
       "src/knowledge/studio/ui/dist/**",

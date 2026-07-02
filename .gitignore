@@ -18,8 +18,17 @@ bun.lockb
 
 ### TypeScript
 dist/
+build/
 target/
 *.tsbuildinfo
+*.log
+
+### Universal
+.DS_Store
+*.tmp
+*.swp
+.vscode/
+.idea/
 
 ### Local monitor state
 omo-agent-monitor-state.json
