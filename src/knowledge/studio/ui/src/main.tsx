@@ -343,6 +343,17 @@ const edgeTypeOptions = [
   "exports",
 ];
 const defaultFilters: GraphFilters = { query: "", depth: 1, limit: 120, nodeTypes: [], edgeTypes: [] };
+const REPOSITORY_IMPORT_IGNORED_SEGMENTS = new Set([
+  ".git",
+  "node_modules",
+  "dist",
+  "target",
+  ".rie",
+  ".worktrees",
+  ".codex",
+  ".pnpm-store",
+]);
+const REPOSITORY_IMPORT_IGNORED_FILE_NAMES = new Set(["bun.lockb"]);
 const intentOptions = ["implement", "debug", "review", "explain", "plan", "test"];
 const preferencesKey = "rie.studio.preferences.v1";
 const defaultPreferences: StudioPreferences = {
@@ -789,11 +800,18 @@ function App() {
   async function importRepositoryFiles(files: File[]): Promise<void> {
     if (files.length === 0) throw new Error("No repository files selected.");
     const formData = new FormData();
+    let skipped = 0;
     for (const file of files) {
       const relativePath = browserRelativePath(file);
+      if (shouldSkipRepositoryImportPath(relativePath)) {
+        skipped++;
+        continue;
+      }
       formData.append("files", file, relativePath);
       formData.append("paths", relativePath);
     }
+    if (skipped > 0) showToast("success", `Skipped ${skipped} ignored repository files.`);
+    if (formData.getAll("files").length === 0) throw new Error("No importable repository files selected.");
     const summary = await postForm<RepositoryImportSummary>("/api/repository/import", formData);
     setRepositoryImport(summary);
     setSelectedObject("");
@@ -1302,6 +1320,17 @@ function browserRelativePath(file: File): string {
   return record.webkitRelativePath !== undefined && record.webkitRelativePath.length > 0
     ? record.webkitRelativePath
     : file.name;
+}
+
+function shouldSkipRepositoryImportPath(path: string): boolean {
+  const normalized = path.replaceAll("\\", "/").replace(/^\/+/, "");
+  const segments = normalized.split("/").filter((segment) => segment.length > 0);
+  const fileName = segments.at(-1) ?? "";
+  if (REPOSITORY_IMPORT_IGNORED_FILE_NAMES.has(fileName)) return true;
+  return segments.some(
+    (segment) =>
+      REPOSITORY_IMPORT_IGNORED_SEGMENTS.has(segment) || (segment.startsWith(".") && segment !== ".gitignore"),
+  );
 }
 
 async function collectDroppedFiles(dataTransfer: DataTransfer): Promise<File[]> {

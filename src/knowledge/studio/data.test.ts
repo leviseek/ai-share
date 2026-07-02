@@ -286,6 +286,26 @@ describe("Repository Intelligence Studio data", () => {
     expect(state.snapshot.objects.some((object) => object.id === "package:demo")).toBe(true);
   });
 
+  test("skips ignored repository folders before enforcing import limits", async () => {
+    const root = await mkdtemp(join(tmpdir(), "studio-import-ignored-"));
+    const state: { snapshot: StudioSnapshot; activeImport?: RepositoryImportSummary } = { snapshot: fixtureSnapshot() };
+    const formData = new FormData();
+    formData.append("files", uploadFile("demo/.pnpm-store/large.bin", "x".repeat(1_000_001)));
+    formData.append("paths", "demo/.pnpm-store/large.bin");
+    formData.append(
+      "files",
+      uploadFile("demo/src/main.ts", "export function main() { return 1; }\n"),
+      "demo/src/main.ts",
+    );
+    formData.append("paths", "demo/src/main.ts");
+
+    const summary = await importRepositoryFromFormData(formData, state, root);
+
+    expect(summary.objects).toBeGreaterThan(0);
+    expect(state.snapshot.objects.some((object) => object.path === "demo/.pnpm-store/large.bin")).toBe(false);
+    expect(state.snapshot.objects.some((object) => object.path === "demo/src/main.ts")).toBe(true);
+  });
+
   test("rejects unsafe uploaded repository paths", async () => {
     const root = await mkdtemp(join(tmpdir(), "studio-import-unsafe-"));
     const state: { snapshot: StudioSnapshot; activeImport?: RepositoryImportSummary } = { snapshot: fixtureSnapshot() };

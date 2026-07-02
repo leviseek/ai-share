@@ -39,6 +39,17 @@ const PUBLIC_DIR = join(import.meta.dir, "public");
 const MAX_IMPORT_FILES = 5000;
 const MAX_IMPORT_FILE_BYTES = 1_000_000;
 const MAX_IMPORT_TOTAL_BYTES = 50_000_000;
+const IMPORT_IGNORED_SEGMENTS = new Set([
+  ".git",
+  "node_modules",
+  "dist",
+  "target",
+  ".rie",
+  ".worktrees",
+  ".codex",
+  ".pnpm-store",
+]);
+const IMPORT_IGNORED_FILE_NAMES = new Set(["bun.lockb"]);
 
 type StudioState = {
   repoRoot: string;
@@ -453,16 +464,19 @@ export async function importRepositoryFromFormData(
   const importedRepoRoot = resolve(importRoot, "repo");
   const storeRoot = resolve(importRoot, "store");
   const paths = formData.getAll("paths").filter((item): item is string => typeof item === "string");
-  let fileCount = 0;
+  let uploadedFileIndex = 0;
+  let importedFileCount = 0;
   let totalBytes = 0;
   await rm(importRoot, { recursive: true, force: true });
   await mkdir(importedRepoRoot, { recursive: true });
   for (const [key, value] of formData.entries()) {
     if (key !== "files" || !isRepositoryImportFile(value)) continue;
     const file = value;
-    const relativePath = safeImportRelativePath(paths[fileCount] ?? readUploadRelativePath(file));
-    fileCount++;
-    if (fileCount > MAX_IMPORT_FILES) throw new Error(`导入文件数量超过限制：${MAX_IMPORT_FILES}`);
+    const relativePath = safeImportRelativePath(paths[uploadedFileIndex] ?? readUploadRelativePath(file));
+    uploadedFileIndex++;
+    if (shouldSkipRepositoryImportPath(relativePath)) continue;
+    importedFileCount++;
+    if (importedFileCount > MAX_IMPORT_FILES) throw new Error(`导入文件数量超过限制：${MAX_IMPORT_FILES}`);
     if (file.size > MAX_IMPORT_FILE_BYTES) throw new Error(`导入文件超过单文件大小限制：${relativePath}`);
     totalBytes += file.size;
     if (totalBytes > MAX_IMPORT_TOTAL_BYTES) throw new Error(`导入总大小超过限制：${MAX_IMPORT_TOTAL_BYTES}`);
@@ -471,7 +485,7 @@ export async function importRepositoryFromFormData(
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, new Uint8Array(await file.arrayBuffer()));
   }
-  if (fileCount === 0) throw new Error("请上传至少一个仓库文件。");
+  if (importedFileCount === 0) throw new Error("请上传至少一个仓库文件。");
   const result = await buildKnowledge({ repoRoot: importedRepoRoot });
   await writeBuildResult(createJsonlKnowledgeStore(storeRoot), result);
   state.snapshot = result;
@@ -528,6 +542,15 @@ function safeImportRelativePath(path: string): string {
   if (normalized.length === 0 || normalized.includes("..") || /^[a-zA-Z]:/.test(normalized))
     throw new Error(`非法导入路径：${path}`);
   return normalized;
+}
+
+function shouldSkipRepositoryImportPath(path: string): boolean {
+  const segments = path.split("/").filter((segment) => segment.length > 0);
+  const fileName = segments.at(-1) ?? "";
+  if (IMPORT_IGNORED_FILE_NAMES.has(fileName)) return true;
+  return segments.some(
+    (segment) => IMPORT_IGNORED_SEGMENTS.has(segment) || (segment.startsWith(".") && segment !== ".gitignore"),
+  );
 }
 
 function isWithin(root: string, target: string): boolean {
