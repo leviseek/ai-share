@@ -1453,7 +1453,7 @@ function AiSummaryPanel(props: { state: AiNodeSummaryState; nodeId: string }) {
           <strong>AI Summary</strong>
           <span>{props.state.result.cached ? "cached" : "generated"}</span>
         </div>
-        <p>{props.state.result.summary}</p>
+        <AiSummaryText text={props.state.result.summary} />
         <small>
           {props.state.result.provider}/{props.state.result.model} · {formatDate(props.state.result.generatedAt)} ·{" "}
           {props.state.result.cacheKey.slice(0, 12)}
@@ -1471,6 +1471,67 @@ function AiSummaryPanel(props: { state: AiNodeSummaryState; nodeId: string }) {
     );
   }
   return <MagicCard className="ai-summary-card pending">AI Summary: idle</MagicCard>;
+}
+
+type AiSummaryTextBlock = { kind: "paragraph"; text: string } | { kind: "list"; items: string[] };
+
+function AiSummaryText(props: { text: string }) {
+  const blocks = splitAiSummaryText(props.text);
+  return (
+    <div className="ai-summary-body">
+      {blocks.map((block, index) =>
+        block.kind === "list" ? (
+          <ul key={`list-${index}`}>
+            {block.items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        ) : (
+          <p key={`paragraph-${index}`}>{block.text}</p>
+        ),
+      )}
+    </div>
+  );
+}
+
+function splitAiSummaryText(text: string): AiSummaryTextBlock[] {
+  const normalized = text.replace(/\r\n/g, "\n").trim();
+  if (normalized.length === 0) return [];
+  return normalized
+    .split(/\n{2,}/)
+    .flatMap((block) => splitAiSummaryBlock(block.trim()))
+    .filter((block) => (block.kind === "list" ? block.items.length > 0 : block.text.length > 0));
+}
+
+function splitAiSummaryBlock(block: string): AiSummaryTextBlock[] {
+  const lines = block
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  if (lines.length === 0) return [];
+  if (lines.every((line) => /^[-*•]\s+/.test(line))) {
+    return [{ kind: "list", items: lines.map((line) => line.replace(/^[-*•]\s+/, "").trim()) }];
+  }
+  const paragraph = lines.join(" ");
+  if (paragraph.length <= 260) return [{ kind: "paragraph", text: paragraph }];
+  return splitLongAiSummaryParagraph(paragraph).map((text) => ({ kind: "paragraph", text }));
+}
+
+function splitLongAiSummaryParagraph(paragraph: string): string[] {
+  const sentences = paragraph.match(/[^。！？.!?]+[。！？.!?]?/g) ?? [paragraph];
+  const chunks: string[] = [];
+  let current = "";
+  for (const sentence of sentences.map((item) => item.trim()).filter((item) => item.length > 0)) {
+    const next = current.length === 0 ? sentence : `${current}${sentence}`;
+    if (next.length > 220 && current.length > 0) {
+      chunks.push(current);
+      current = sentence;
+    } else {
+      current = next;
+    }
+  }
+  if (current.length > 0) chunks.push(current);
+  return chunks;
 }
 
 function MetadataTable(props: { metadata: Record<string, unknown> }) {
