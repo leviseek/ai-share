@@ -417,7 +417,12 @@ pre {
 }
 
 .explorer {
+  display: flex;
+  flex-direction: column;
   grid-row: 1 / 3;
+  max-height: calc(100vh - 148px);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .context-lab-panel,
@@ -642,18 +647,61 @@ pre {
   display: none;
 }
 
-.tree,
-.tree ul {
-  list-style: none;
-  margin: 0;
-  padding-left: var(--space-4);
+.repository-tree-shell {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--primary) 6%, transparent), transparent 160px),
+    color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
+  flex: 1 1 auto;
+  margin-top: var(--space-3);
+  min-height: 220px;
+  overflow: auto;
+  padding: 6px;
+  scrollbar-color: color-mix(in srgb, var(--primary) 42%, var(--border)) transparent;
+  scrollbar-width: thin;
+}
+
+.repository-tree-shell::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+.repository-tree-shell::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--primary) 42%, var(--border));
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
 }
 
 .tree {
+  list-style: none;
+  margin: 0;
   padding-left: 0;
 }
 
-.tree li {
+.tree-nested {
+  margin-left: 8px;
+  padding-left: 9px;
+  position: relative;
+}
+
+.tree-nested::before {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tree-depth-color, var(--border)) 70%, transparent),
+    transparent
+  );
+  bottom: 4px;
+  content: "";
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 1px;
+}
+
+.tree-node {
   color: var(--muted-foreground);
   line-height: 1.7;
   white-space: nowrap;
@@ -661,35 +709,137 @@ pre {
 
 .tree-row {
   align-items: center;
-  border-radius: var(--radius-md);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--tree-depth-color, var(--primary)) 10%, transparent), transparent),
+    color-mix(in srgb, var(--surface-raised) 78%, transparent);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   display: flex;
-  gap: var(--space-1);
-  margin: 1px 0;
-  min-height: 28px;
-  padding: 0 var(--space-2);
+  font-size: 11px;
+  gap: 5px;
+  margin: 2px 0;
+  min-height: 26px;
+  padding: 0 6px;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
 }
 
 .tree-row:hover {
-  background: var(--surface-muted);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--tree-depth-color, var(--primary)) 18%, transparent), transparent),
+    var(--surface-muted);
+  border-color: color-mix(in srgb, var(--tree-depth-color, var(--primary)) 34%, var(--border));
   color: var(--foreground);
+  transform: translateX(2px);
 }
 
 .tree .directory > .tree-row {
-  color: var(--secondary);
+  color: color-mix(in srgb, var(--tree-depth-color, var(--primary)) 72%, var(--foreground));
   font-weight: 600;
 }
 
 .tree-toggle,
 .tree-toggle-placeholder {
   align-items: center;
+  border: 1px solid color-mix(in srgb, var(--tree-depth-color, var(--primary)) 28%, var(--border));
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--tree-depth-color, var(--primary)) 78%, var(--foreground));
   display: inline-flex;
-  flex: 0 0 20px;
-  font-size: 12px;
-  height: 22px;
+  flex: 0 0 17px;
+  font-size: 10px;
+  height: 17px;
   justify-content: center;
   padding: 0;
-  width: 20px;
+  width: 17px;
+}
+
+.tree-toggle:disabled {
+  opacity: 0.62;
+}
+
+.tree-toggle-dot {
+  background: currentcolor;
+  border-radius: 999px;
+  height: 3px;
+  width: 3px;
+}
+
+.tree-node-icon {
+  align-items: center;
+  color: color-mix(in srgb, var(--tree-depth-color, var(--primary)) 72%, var(--secondary));
+  display: inline-flex;
+  flex: 0 0 14px;
+  justify-content: center;
+}
+
+.tree-node-name {
+  flex: 1 1 20ch;
+  font-size: 11px;
+  min-width: 20ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-type {
+  border: 1px solid color-mix(in srgb, var(--tree-depth-color, var(--primary)) 24%, var(--border));
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--tree-depth-color, var(--primary)) 66%, var(--muted-foreground));
+  flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  margin-left: auto;
+  padding: 3px 5px;
+  text-transform: uppercase;
+}
+
+.tree-type.directory-type {
+  text-transform: none;
+}
+
+.tree-type.code-type {
+  --tree-depth-color: var(--primary);
+}
+
+.tree-type.config-type {
+  --tree-depth-color: var(--accent);
+}
+
+.tree-type.doc-type {
+  --tree-depth-color: var(--success);
+}
+
+.tree-type.asset-type {
+  --tree-depth-color: var(--warning);
+}
+
+.tree-depth-0 {
+  --tree-depth-color: var(--primary);
+}
+
+.tree-depth-1 {
+  --tree-depth-color: var(--accent);
+}
+
+.tree-depth-2 {
+  --tree-depth-color: var(--info);
+}
+
+.tree-depth-3 {
+  --tree-depth-color: var(--success);
+}
+
+.tree-depth-4 {
+  --tree-depth-color: var(--warning);
+}
+
+.tree-depth-5 {
+  --tree-depth-color: var(--danger);
 }
 
 pre,

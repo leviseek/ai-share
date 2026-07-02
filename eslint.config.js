@@ -8,6 +8,7 @@ export default tseslint.config(
       "dist/**",
       "build/**",
       "coverage/**",
+      ".rie/**",
       "*.min.js",
       "bun.lock",
       "src/knowledge/studio/public/**",

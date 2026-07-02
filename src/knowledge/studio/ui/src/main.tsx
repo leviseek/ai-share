@@ -13,6 +13,7 @@ import {
 } from "d3";
 import { createRoot } from "react-dom/client";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, ChevronRight, FileCode2, FileJson2, FileText, Folder, FolderOpen, Settings } from "lucide-react";
 import { AnimatedGradientText } from "@/components/magic/animated-gradient-text";
 import { DotPattern } from "@/components/magic/dot-pattern";
 import { MagicCard } from "@/components/magic/magic-card";
@@ -1471,16 +1472,21 @@ function HelpPanel(props: { onClose(): void }) {
 }
 
 function RepositoryExplorer(props: { node: TreeNode; onSelect: (id: string) => void }) {
-  return <TreeBranch node={props.node} onSelect={props.onSelect} />;
+  return (
+    <div className="repository-tree-shell">
+      <TreeBranch node={props.node} onSelect={props.onSelect} depth={0} />
+    </div>
+  );
 }
 
-function TreeBranch(props: { node: TreeNode; onSelect: (id: string) => void }) {
+function TreeBranch(props: { node: TreeNode; onSelect: (id: string) => void; depth: number }) {
   const [expanded, setExpanded] = useState(true);
   const hasChildren = props.node.children.length > 0;
   const isDirectory = props.node.kind === "directory";
+  const nodeClassName = `tree-node ${props.node.kind} ${treeDepthClass(props.depth)}`;
   return (
-    <ul className="tree">
-      <li className={props.node.kind} title={treeNodeTitle(props.node)}>
+    <ul className={props.depth === 0 ? "tree tree-root" : "tree tree-nested"}>
+      <li className={nodeClassName} title={treeNodeTitle(props.node)}>
         <div
           className="tree-row"
           onClick={(event) => {
@@ -1500,18 +1506,24 @@ function TreeBranch(props: { node: TreeNode; onSelect: (id: string) => void }) {
                 if (hasChildren) setExpanded((value) => !value);
               }}
             >
-              {hasChildren ? (expanded ? "▾" : "▸") : "•"}
+              {hasChildren && expanded && <ChevronDown size={14} strokeWidth={2.4} />}
+              {hasChildren && !expanded && <ChevronRight size={14} strokeWidth={2.4} />}
+              {!hasChildren && <span className="tree-toggle-dot" />}
             </button>
           ) : (
-            <span className="tree-toggle-placeholder">•</span>
+            <span className="tree-toggle-placeholder" />
           )}
-          <span>
-            {treeNodeIcon(props.node)} {props.node.name}
+          <span className="tree-node-icon" aria-hidden="true">
+            {treeNodeIcon(props.node, expanded)}
           </span>
+          <span className="tree-node-name">{props.node.name}</span>
+          <span className={treeTypeBadgeClass(props.node)}>{treeNodeTypeLabel(props.node)}</span>
           {props.node.objectIds.length > 0 && <span className="tree-badge">{props.node.objectIds.length}</span>}
         </div>
         {expanded &&
-          props.node.children.map((child) => <TreeBranch key={child.path} node={child} onSelect={props.onSelect} />)}
+          props.node.children.map((child) => (
+            <TreeBranch key={child.path} node={child} onSelect={props.onSelect} depth={props.depth + 1} />
+          ))}
       </li>
     </ul>
   );
@@ -2575,8 +2587,47 @@ function graphDetail(graph: GraphData, id: string): GraphNodeDetail | undefined 
   };
 }
 
-function treeNodeIcon(node: TreeNode): string {
-  return node.kind === "directory" ? "▣" : "•";
+function treeNodeIcon(node: TreeNode, expanded: boolean) {
+  if (node.kind === "directory")
+    return expanded ? <FolderOpen size={13} strokeWidth={2.2} /> : <Folder size={13} strokeWidth={2.2} />;
+  const extension = treeNodeExtension(node);
+  if (extension === "json" || extension === "yaml" || extension === "yml")
+    return <FileJson2 size={13} strokeWidth={2.1} />;
+  if (["ts", "tsx", "js", "jsx", "css", "html", "lua"].includes(extension))
+    return <FileCode2 size={13} strokeWidth={2.1} />;
+  if (extension === "toml" || extension === "lock") return <Settings size={13} strokeWidth={2.1} />;
+  return <FileText size={13} strokeWidth={2.1} />;
+}
+
+function treeDepthClass(depth: number): string {
+  return `tree-depth-${depth % 6}`;
+}
+
+function treeTypeBadgeClass(node: TreeNode): string {
+  return node.kind === "directory" ? "tree-type directory-type" : `tree-type file-type ${treeFileTypeClass(node)}`;
+}
+
+function treeFileTypeClass(node: TreeNode): string {
+  const extension = treeNodeExtension(node);
+  if (["ts", "tsx", "js", "jsx"].includes(extension)) return "code-type";
+  if (extension === "json" || extension === "yaml" || extension === "yml" || extension === "toml") return "config-type";
+  if (extension === "md" || extension === "mdx" || extension === "txt") return "doc-type";
+  if (extension === "css" || extension === "html" || extension === "svg") return "asset-type";
+  return "generic-type";
+}
+
+function treeNodeTypeLabel(node: TreeNode): string {
+  if (node.kind === "directory") return `${node.children.length} items`;
+  const extension = treeNodeExtension(node);
+  return extension.length > 0 ? extension : "file";
+}
+
+function treeNodeExtension(node: TreeNode): string {
+  const fileName = node.name.toLowerCase();
+  if (fileName === "package.json") return "pkg";
+  if (fileName.endsWith(".lock") || fileName.includes("lock.")) return "lock";
+  const index = fileName.lastIndexOf(".");
+  return index > -1 && index < fileName.length - 1 ? fileName.slice(index + 1) : "";
 }
 
 function treeNodeTitle(node: TreeNode): string {
