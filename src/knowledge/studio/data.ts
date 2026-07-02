@@ -23,7 +23,76 @@ export type RepositoryTreeNode = {
   kind: "directory" | "file";
   objectIds: string[];
   children: RepositoryTreeNode[];
+  matchType?: RepositorySearchMatchType;
+  contentMatches?: RepositoryContentMatch[];
+  descendantMatchCount?: number;
 };
+
+export type RepositorySearchMatchType = "name" | "content" | "both";
+
+export type RepositoryContentMatch = {
+  text: string;
+  line: number;
+  column: number;
+};
+
+export type RepositoryContentMatchFile = {
+  path: string;
+  matches: RepositoryContentMatch[];
+};
+
+export type RepositorySearchQuery =
+  | {
+      raw: string;
+      trimmed: string;
+      status: "empty";
+      contentText: string;
+      caseSensitive: boolean;
+    }
+  | {
+      raw: string;
+      trimmed: string;
+      status: "valid";
+      nameRegex: RegExp;
+      contentText: string;
+      caseSensitive: boolean;
+    }
+  | {
+      raw: string;
+      trimmed: string;
+      status: "invalid";
+      contentText: string;
+      caseSensitive: boolean;
+      errorMessage: string;
+    };
+
+export type RepositorySearchResultFile = {
+  path: string;
+  name: string;
+  objectIds: string[];
+  matchType: RepositorySearchMatchType;
+  contentReadable: boolean;
+  contentMatches?: RepositoryContentMatch[];
+};
+
+export type RepositorySearchSkippedFile = {
+  path: string;
+  reason: "binary" | "unreadable" | "out-of-scope";
+};
+
+export type RepositorySearchResponse =
+  | {
+      query: string;
+      status: "ok" | "no-results";
+      tree: RepositoryTreeNode;
+      results: RepositorySearchResultFile[];
+      skipped: RepositorySearchSkippedFile[];
+    }
+  | {
+      query: string;
+      status: "invalid-query";
+      error: string;
+    };
 
 export type DashboardMetrics = {
   objects: number;
@@ -277,6 +346,57 @@ export function buildRepositoryTree(objects: KnowledgeObject[]): RepositoryTreeN
   }
   sortTree(root);
   return root;
+}
+
+export function normalizeRepositorySearchQuery(raw: string, caseSensitive = false): RepositorySearchQuery {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return { raw, trimmed, status: "empty", contentText: trimmed, caseSensitive };
+  try {
+    return {
+      raw,
+      trimmed,
+      status: "valid",
+      nameRegex: new RegExp(trimmed, caseSensitive ? "" : "i"),
+      contentText: trimmed,
+      caseSensitive,
+    };
+  } catch (error) {
+    return {
+      raw,
+      trimmed,
+      status: "invalid",
+      contentText: trimmed,
+      caseSensitive,
+      errorMessage: error instanceof Error ? error.message : "Invalid regular expression.",
+    };
+  }
+}
+
+export function buildRepositorySearchResponse(
+  tree: RepositoryTreeNode,
+  rawQuery: string,
+  contentMatches: (string | RepositoryContentMatchFile)[] = [],
+  skipped: RepositorySearchSkippedFile[] = [],
+): RepositorySearchResponse {
+  const query = normalizeRepositorySearchQuery(rawQuery);
+  if (query.status === "invalid") return { query: query.trimmed, status: "invalid-query", error: query.errorMessage };
+  if (query.status === "empty") return { query: query.trimmed, status: "ok", tree, results: [], skipped };
+
+  const contentMatchMap = normalizeRepositoryContentMatches(contentMatches);
+  const resultsByPath = new Map<string, RepositorySearchResultFile>();
+  const filteredTree = filterRepositoryTreeForSearch(tree, query.nameRegex, contentMatchMap, resultsByPath);
+  const results = [...resultsByPath.values()].sort((left, right) => left.path.localeCompare(right.path));
+  return {
+    query: query.trimmed,
+    status: results.length === 0 ? "no-results" : "ok",
+    tree: filteredTree ?? emptyRepositoryTree(),
+    results,
+    skipped,
+  };
+}
+
+export function shouldIgnoreRepositorySearchResult(queryId: number, currentQueryId: number): boolean {
+  return queryId !== currentQueryId;
 }
 
 export function buildDashboardMetrics(snapshot: StudioSnapshot, lastContext?: BuiltContext): DashboardMetrics {
@@ -836,6 +956,70 @@ function sortTree(node: RepositoryTreeNode): void {
     return left.name.localeCompare(right.name);
   });
   for (const child of node.children) sortTree(child);
+}
+
+function filterRepositoryTreeForSearch(
+  node: RepositoryTreeNode,
+  nameRegex: RegExp,
+  contentMatchMap: Map<string, RepositoryContentMatch[]>,
+  resultsByPath: Map<string, RepositorySearchResultFile>,
+): RepositoryTreeNode | undefined {
+  const children = node.children
+    .map((child) => filterRepositoryTreeForSearch(child, nameRegex, contentMatchMap, resultsByPath))
+    .filter((child): child is RepositoryTreeNode => child !== undefined);
+  const nameMatched = node.kind === "file" && (nameRegex.test(node.name) || nameRegex.test(node.path));
+  nameRegex.lastIndex = 0;
+  const contentMatches = node.kind === "file" ? contentMatchMap.get(node.path) : undefined;
+  const contentMatched = node.kind === "file" && contentMatchMap.has(node.path);
+  if (node.kind === "file" && (nameMatched || contentMatched)) {
+    const matchType = matchTypeFor(nameMatched, contentMatched);
+    const result: RepositorySearchResultFile = {
+      path: node.path,
+      name: node.name,
+      objectIds: node.objectIds,
+      matchType,
+      contentReadable: contentMatched,
+    };
+    if (contentMatches !== undefined && contentMatches.length > 0) result.contentMatches = contentMatches;
+    resultsByPath.set(node.path, result);
+    return {
+      ...node,
+      children: [],
+      matchType,
+      ...(contentMatches === undefined || contentMatches.length === 0 ? {} : { contentMatches }),
+    };
+  }
+  if (children.length > 0) {
+    const descendantMatchCount = children.reduce(
+      (count, child) => count + (child.kind === "file" ? 1 : (child.descendantMatchCount ?? 0)),
+      0,
+    );
+    return { ...node, children, descendantMatchCount };
+  }
+  return node.path.length === 0 ? { ...node, children: [] } : undefined;
+}
+
+function normalizeRepositoryContentMatches(
+  contentMatches: (string | RepositoryContentMatchFile)[],
+): Map<string, RepositoryContentMatch[]> {
+  const map = new Map<string, RepositoryContentMatch[]>();
+  for (const match of contentMatches) {
+    if (typeof match === "string") {
+      map.set(match, []);
+    } else {
+      map.set(match.path, match.matches);
+    }
+  }
+  return map;
+}
+
+function matchTypeFor(nameMatched: boolean, contentMatched: boolean): RepositorySearchMatchType {
+  if (nameMatched && contentMatched) return "both";
+  return nameMatched ? "name" : "content";
+}
+
+function emptyRepositoryTree(): RepositoryTreeNode {
+  return { name: ".", path: "", kind: "directory", objectIds: [], children: [] };
 }
 
 function asCountRecord(value: unknown): Record<string, number> {

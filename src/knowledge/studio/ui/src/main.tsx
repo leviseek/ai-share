@@ -25,7 +25,46 @@ type TreeNode = {
   kind: "directory" | "file";
   objectIds: string[];
   children: TreeNode[];
+  matchType?: RepositorySearchMatchType;
+  contentMatches?: RepositoryContentMatch[];
+  descendantMatchCount?: number;
 };
+
+type RepositorySearchMatchType = "name" | "content" | "both";
+
+type RepositorySearchResultFile = {
+  path: string;
+  name: string;
+  objectIds: string[];
+  matchType: RepositorySearchMatchType;
+  contentReadable: boolean;
+  contentMatches?: RepositoryContentMatch[];
+};
+
+type RepositoryContentMatch = {
+  text: string;
+  line: number;
+  column: number;
+};
+
+type RepositorySearchSkippedFile = {
+  path: string;
+  reason: "binary" | "unreadable" | "out-of-scope";
+};
+
+type RepositorySearchResponse =
+  | {
+      query: string;
+      status: "ok" | "no-results";
+      tree: TreeNode;
+      results: RepositorySearchResultFile[];
+      skipped: RepositorySearchSkippedFile[];
+    }
+  | {
+      query: string;
+      status: "invalid-query";
+      error: string;
+    };
 
 type GraphNodeDisplay = {
   incomingCount: number;
@@ -385,6 +424,18 @@ const copies = {
     themeToggle: "黑色模式",
     themeToggleDark: "白色模式",
     repositoryExplorer: "仓库浏览器",
+    repositorySearchPlaceholder: "按文件名正则或内容文本搜索",
+    repositorySearchLoading: "正在搜索仓库...",
+    repositorySearchInvalid: "无效的正则表达式",
+    repositorySearchNoResults: "没有匹配文件",
+    repositorySearchNoResultsMessage: "调整搜索内容或清空输入以恢复完整目录树。",
+    repositorySearchResults: "匹配文件",
+    repositorySearchSkipped: "已跳过",
+    repositorySearchMatchName: "名称",
+    repositorySearchMatchContent: "内容",
+    repositorySearchMatchBoth: "名称+内容",
+    repositorySearchContains: "包含",
+    repositorySearchLineColumn: "行/列",
     loadingRepository: "正在加载仓库",
     loadingRepositoryMessage: "刷新完成后会显示仓库树。",
     noRepositoryObjects: "没有仓库对象",
@@ -509,6 +560,18 @@ const copies = {
     themeToggle: "Dark mode",
     themeToggleDark: "Light mode",
     repositoryExplorer: "Repository Explorer",
+    repositorySearchPlaceholder: "Search by file-name regex or content text",
+    repositorySearchLoading: "Searching repository...",
+    repositorySearchInvalid: "Invalid regular expression",
+    repositorySearchNoResults: "No matching files",
+    repositorySearchNoResultsMessage: "Adjust the query or clear the input to restore the full tree.",
+    repositorySearchResults: "matching files",
+    repositorySearchSkipped: "skipped",
+    repositorySearchMatchName: "name",
+    repositorySearchMatchContent: "content",
+    repositorySearchMatchBoth: "name+content",
+    repositorySearchContains: "Contains",
+    repositorySearchLineColumn: "Line/column",
     loadingRepository: "Loading repository",
     loadingRepositoryMessage: "Repository tree will appear after refresh completes.",
     noRepositoryObjects: "No repository objects",
@@ -636,6 +699,9 @@ function useCopy(): Copy {
 function App() {
   const [preferences, setPreferences] = useState(() => readStudioPreferences());
   const [tree, setTree] = useState<TreeNode | undefined>();
+  const [repositorySearchQuery, setRepositorySearchQuery] = useState("");
+  const [repositorySearchResponse, setRepositorySearchResponse] = useState<RepositorySearchResponse | undefined>();
+  const [repositorySearchLoading, setRepositorySearchLoading] = useState(false);
   const [graph, setGraph] = useState<GraphData>({ nodes: [], edges: [] });
   const [dashboard, setDashboard] = useState<Dashboard | undefined>();
   const [repositoryImport, setRepositoryImport] = useState<RepositoryImportSummary | undefined>();
@@ -677,6 +743,7 @@ function App() {
   const [aiNodeSummary, setAiNodeSummary] = useState<AiNodeSummaryState>({ status: "idle" });
 
   const graphSearchRef = useRef<HTMLInputElement>(null);
+  const repositorySearchRequestRef = useRef(0);
   const isBusy = activeActions.length > 0;
 
   useEffect(() => {
@@ -706,6 +773,34 @@ function App() {
       cancelled = true;
     };
   }, [selectedNodeId]);
+
+  useEffect(() => {
+    const requestId = repositorySearchRequestRef.current + 1;
+    repositorySearchRequestRef.current = requestId;
+    const query = repositorySearchQuery.trim();
+    if (tree === undefined || query.length === 0) {
+      setRepositorySearchResponse(undefined);
+      setRepositorySearchLoading(false);
+      return;
+    }
+    setRepositorySearchLoading(true);
+    void getJson<RepositorySearchResponse>(`/api/repository/search?q=${encodeURIComponent(repositorySearchQuery)}`)
+      .then((result) => {
+        if (requestId === repositorySearchRequestRef.current) setRepositorySearchResponse(result);
+      })
+      .catch((error: unknown) => {
+        if (requestId === repositorySearchRequestRef.current) {
+          setRepositorySearchResponse({
+            query,
+            status: "invalid-query",
+            error: error instanceof Error ? error.message : "Search failed.",
+          });
+        }
+      })
+      .finally(() => {
+        if (requestId === repositorySearchRequestRef.current) setRepositorySearchLoading(false);
+      });
+  }, [repositorySearchQuery, tree]);
 
   function updatePreferences(patch: Partial<StudioPreferences>) {
     setPreferences((current) => ({ ...current, ...patch }));
@@ -1129,6 +1224,10 @@ function App() {
           ) : (
             <RepositoryExplorer
               node={tree}
+              query={repositorySearchQuery}
+              response={repositorySearchResponse}
+              loading={repositorySearchLoading}
+              onQueryChange={setRepositorySearchQuery}
               onSelect={(id) => void runAction("select-object", () => selectObject(id))}
             />
           )}
@@ -1471,15 +1570,56 @@ function HelpPanel(props: { onClose(): void }) {
   );
 }
 
-function RepositoryExplorer(props: { node: TreeNode; onSelect: (id: string) => void }) {
+function RepositoryExplorer(props: {
+  node: TreeNode;
+  query: string;
+  response: RepositorySearchResponse | undefined;
+  loading: boolean;
+  onQueryChange: (value: string) => void;
+  onSelect: (id: string) => void;
+}) {
+  const copy = useCopy();
+  const visibleTree =
+    props.response !== undefined && props.response.status !== "invalid-query" ? props.response.tree : props.node;
+  const resultCount =
+    props.response === undefined || props.response.status === "invalid-query" ? 0 : props.response.results.length;
+  const skippedCount =
+    props.response === undefined || props.response.status === "invalid-query" ? 0 : props.response.skipped.length;
   return (
     <div className="repository-tree-shell">
-      <TreeBranch node={props.node} onSelect={props.onSelect} depth={0} />
+      <div className="repository-search">
+        <input
+          aria-label={copy.repositorySearchPlaceholder}
+          value={props.query}
+          placeholder={copy.repositorySearchPlaceholder}
+          onInput={(event) => props.onQueryChange(event.currentTarget.value)}
+        />
+        <div className="repository-search-status">
+          {props.loading && <span>{copy.repositorySearchLoading}</span>}
+          {!props.loading && props.response?.status === "invalid-query" && (
+            <span className="repository-search-error">
+              {copy.repositorySearchInvalid}: {props.response.error}
+            </span>
+          )}
+          {!props.loading && props.response !== undefined && props.response.status !== "invalid-query" && (
+            <span>
+              {resultCount} {copy.repositorySearchResults}
+              {skippedCount > 0 ? ` · ${skippedCount} ${copy.repositorySearchSkipped}` : ""}
+            </span>
+          )}
+        </div>
+      </div>
+      {props.response?.status === "no-results" ? (
+        <EmptyState title={copy.repositorySearchNoResults} message={copy.repositorySearchNoResultsMessage} />
+      ) : (
+        <TreeBranch node={visibleTree} onSelect={props.onSelect} depth={0} />
+      )}
     </div>
   );
 }
 
 function TreeBranch(props: { node: TreeNode; onSelect: (id: string) => void; depth: number }) {
+  const copy = useCopy();
   const [expanded, setExpanded] = useState(true);
   const hasChildren = props.node.children.length > 0;
   const isDirectory = props.node.kind === "directory";
@@ -1518,14 +1658,48 @@ function TreeBranch(props: { node: TreeNode; onSelect: (id: string) => void; dep
           </span>
           <span className="tree-node-name">{props.node.name}</span>
           <span className={treeTypeBadgeClass(props.node)}>{treeNodeTypeLabel(props.node)}</span>
+          {props.node.matchType !== undefined && (
+            <span className={`tree-match-badge match-${props.node.matchType}`}>
+              {treeMatchTypeLabel(props.node.matchType, copy)}
+            </span>
+          )}
+          {props.node.kind === "directory" && props.node.descendantMatchCount !== undefined && (
+            <span className="tree-match-badge match-descendant">{props.node.descendantMatchCount}</span>
+          )}
           {props.node.objectIds.length > 0 && <span className="tree-badge">{props.node.objectIds.length}</span>}
         </div>
+        {props.node.kind === "file" &&
+          props.node.contentMatches !== undefined &&
+          props.node.contentMatches.length > 0 && <TreeHoverCard node={props.node} copy={copy} />}
         {expanded &&
           props.node.children.map((child) => (
             <TreeBranch key={child.path} node={child} onSelect={props.onSelect} depth={props.depth + 1} />
           ))}
       </li>
     </ul>
+  );
+}
+
+function TreeHoverCard(props: { node: TreeNode; copy: Copy }) {
+  const firstMatch = props.node.contentMatches?.[0];
+  if (firstMatch === undefined) return null;
+  return (
+    <div className="tree-hover-card" role="tooltip">
+      <div className="tree-hover-match">
+        <strong>{props.copy.repositorySearchContains}</strong>
+        <span>{firstMatch.text}</span>
+        <code>
+          {props.copy.repositorySearchLineColumn}: {firstMatch.line}:{firstMatch.column}
+        </code>
+      </div>
+      <div className="tree-hover-meta">
+        {treeNodeTitle(props.node)
+          .split("\n")
+          .map((line) => (
+            <span key={line}>{line}</span>
+          ))}
+      </div>
+    </div>
   );
 }
 
@@ -2620,6 +2794,12 @@ function treeNodeTypeLabel(node: TreeNode): string {
   if (node.kind === "directory") return `${node.children.length} items`;
   const extension = treeNodeExtension(node);
   return extension.length > 0 ? extension : "file";
+}
+
+function treeMatchTypeLabel(matchType: RepositorySearchMatchType, copy: Copy): string {
+  if (matchType === "name") return copy.repositorySearchMatchName;
+  if (matchType === "content") return copy.repositorySearchMatchContent;
+  return copy.repositorySearchMatchBoth;
 }
 
 function treeNodeExtension(node: TreeNode): string {

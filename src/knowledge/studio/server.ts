@@ -12,12 +12,18 @@ import {
   buildGraphView,
   buildImpactView,
   buildRepositoryTree,
+  buildRepositorySearchResponse,
   buildStudioContext,
   compareContextExperiments,
   loadStudioSnapshot,
   markContextRecipeUsed,
+  normalizeRepositorySearchQuery,
   summarizeContextExperiment,
   summarizeContextRecipe,
+  type RepositoryContentMatch,
+  type RepositoryContentMatchFile,
+  type RepositorySearchSkippedFile,
+  type RepositoryTreeNode,
   type StudioSnapshot,
 } from "./data.ts";
 import { buildKnowledge } from "../index.ts";
@@ -116,6 +122,7 @@ async function routeRequest(request: Request, state: StudioState): Promise<Respo
   if (url.pathname === "/") return await staticResponse("index.html");
   if (url.pathname.startsWith("/assets/")) return await staticResponse(url.pathname.slice(1));
   if (url.pathname === "/api/repository/tree") return jsonResponse(buildRepositoryTree(state.snapshot.objects));
+  if (url.pathname === "/api/repository/search") return await handleRepositorySearchRequest(url, state);
   if (url.pathname === "/api/repository/import") return handleRepositoryImportRequest(request, state);
   if (url.pathname === "/api/graph") return jsonResponse(handleGraphRequest(url, state.snapshot));
   if (url.pathname === "/api/context") return handleContextRequest(request, state);
@@ -140,6 +147,94 @@ async function routeRequest(request: Request, state: StudioState): Promise<Respo
   if (url.pathname === "/api/context-recipes/recipe") return handleContextRecipeRequest(url, state);
   if (url.pathname === "/api/context-recipes/dry-run") return handleContextRecipeDryRunRequest(request, state);
   return jsonResponse({ error: "未找到请求的 Studio 资源。" }, 404);
+}
+
+async function handleRepositorySearchRequest(url: URL, state: StudioState): Promise<Response> {
+  const query = url.searchParams.get("q") ?? "";
+  const tree = buildRepositoryTree(state.snapshot.objects);
+  const normalized = normalizeRepositorySearchQuery(query);
+  if (normalized.status !== "valid") return jsonResponse(buildRepositorySearchResponse(tree, query));
+  const repoRoot = state.activeImport?.repoRoot ?? state.repoRoot;
+  const { matches, skipped } = await collectRepositoryContentMatches(tree, normalized.contentText, repoRoot);
+  return jsonResponse(buildRepositorySearchResponse(tree, query, matches, skipped));
+}
+
+async function collectRepositoryContentMatches(
+  tree: RepositoryTreeNode,
+  query: string,
+  repoRoot: string,
+): Promise<{ matches: RepositoryContentMatchFile[]; skipped: RepositorySearchSkippedFile[] }> {
+  const matches: RepositoryContentMatchFile[] = [];
+  const skipped: RepositorySearchSkippedFile[] = [];
+  const lowerQuery = query.toLowerCase();
+  for (const file of repositoryTreeFiles(tree)) {
+    const target = resolve(repoRoot, file.path);
+    if (!isWithin(repoRoot, target)) {
+      skipped.push({ path: file.path, reason: "out-of-scope" });
+      continue;
+    }
+    try {
+      const content = await readFile(target);
+      if (content.includes(0)) {
+        skipped.push({ path: file.path, reason: "binary" });
+        continue;
+      }
+      const text = new TextDecoder("utf-8", { fatal: false }).decode(content);
+      const contentMatches = findFirstRepositoryContentMatch(text, query, lowerQuery);
+      if (contentMatches.length > 0) matches.push({ path: file.path, matches: contentMatches });
+    } catch {
+      skipped.push({ path: file.path, reason: "unreadable" });
+    }
+  }
+  return { matches, skipped };
+}
+
+export function findFirstRepositoryContentMatch(
+  text: string,
+  query: string,
+  lowerQuery: string,
+): RepositoryContentMatch[] {
+  const lowerText = text.toLowerCase();
+  const offset = lowerText.indexOf(lowerQuery);
+  if (offset < 0) return [];
+  const nameRange = contentNameRangeAt(text, offset, query.length);
+  return [
+    {
+      text: text.slice(nameRange.start, nameRange.end),
+      ...lineColumnForOffset(text, nameRange.start),
+    },
+  ];
+}
+
+function contentNameRangeAt(text: string, offset: number, length: number): { start: number; end: number } {
+  let start = offset;
+  let end = offset + length;
+  while (start > 0 && isContentNameCharacter(text[start - 1] ?? "")) start--;
+  while (end < text.length && isContentNameCharacter(text[end] ?? "")) end++;
+  return { start, end };
+}
+
+function isContentNameCharacter(value: string): boolean {
+  return /^[\p{L}\p{N}_$./\\:@#-]$/u.test(value);
+}
+
+function lineColumnForOffset(text: string, offset: number): Pick<RepositoryContentMatch, "line" | "column"> {
+  let line = 1;
+  let column = 1;
+  for (let index = 0; index < offset; index++) {
+    if (text[index] === "\n") {
+      line++;
+      column = 1;
+    } else {
+      column++;
+    }
+  }
+  return { line, column };
+}
+
+function repositoryTreeFiles(node: RepositoryTreeNode): RepositoryTreeNode[] {
+  if (node.kind === "file") return [node];
+  return node.children.flatMap((child) => repositoryTreeFiles(child));
 }
 
 async function handleAiNodeSummaryRequest(request: Request, state: StudioState): Promise<Response> {

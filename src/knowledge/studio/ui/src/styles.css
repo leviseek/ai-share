@@ -517,6 +517,7 @@ pre {
 
 .chip,
 .tree-badge,
+.tree-match-badge,
 .node-type,
 .tag {
   border: 1px solid var(--border);
@@ -526,6 +527,40 @@ pre {
   line-height: 1;
   min-height: 24px;
   padding: 5px 8px;
+}
+
+.tree-match-badge {
+  flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  min-height: 20px;
+  padding: 4px 6px;
+  text-transform: uppercase;
+}
+
+.match-name {
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
+  color: var(--primary);
+}
+
+.match-content {
+  background: color-mix(in srgb, var(--success) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--success) 42%, var(--border));
+  color: var(--success);
+}
+
+.match-both {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  color: var(--accent);
+}
+
+.match-descendant {
+  background: color-mix(in srgb, var(--info) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--info) 34%, var(--border));
+  color: var(--info);
 }
 
 .chip.active {
@@ -668,6 +703,27 @@ pre {
   width: 10px;
 }
 
+.repository-search {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.repository-search input {
+  width: 100%;
+}
+
+.repository-search-status {
+  color: var(--muted-foreground);
+  font-size: var(--font-caption);
+  line-height: var(--line-body);
+  min-height: 18px;
+}
+
+.repository-search-error {
+  color: var(--danger);
+}
+
 .repository-tree-shell::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--primary) 42%, var(--border));
   border: 3px solid transparent;
@@ -704,6 +760,7 @@ pre {
 .tree-node {
   color: var(--muted-foreground);
   line-height: 1.7;
+  position: relative;
   white-space: nowrap;
 }
 
@@ -735,6 +792,65 @@ pre {
   border-color: color-mix(in srgb, var(--tree-depth-color, var(--primary)) 34%, var(--border));
   color: var(--foreground);
   transform: translateX(2px);
+}
+
+.tree-hover-card {
+  background: color-mix(in srgb, var(--surface-raised) 96%, var(--primary));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-hover);
+  color: var(--foreground);
+  display: none;
+  left: var(--space-6);
+  min-width: 280px;
+  overflow: hidden;
+  position: absolute;
+  top: calc(100% - 2px);
+  white-space: normal;
+  z-index: 20;
+}
+
+.tree-node.file:hover > .tree-hover-card {
+  display: block;
+}
+
+.tree-hover-match {
+  background: color-mix(in srgb, var(--success) 16%, var(--surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--success) 36%, var(--border));
+  color: var(--success);
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+}
+
+.tree-hover-match strong {
+  color: inherit;
+  font-size: var(--font-caption);
+}
+
+.tree-hover-match span {
+  color: var(--foreground);
+  font-size: var(--font-body);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.tree-hover-match code {
+  color: var(--success);
+  font-size: var(--font-code);
+}
+
+.tree-hover-meta {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+}
+
+.tree-hover-meta span {
+  color: var(--muted-foreground);
+  font-size: var(--font-caption);
+  line-height: var(--line-body);
+  overflow-wrap: anywhere;
 }
 
 .tree .directory > .tree-row {

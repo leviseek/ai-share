@@ -12,11 +12,14 @@ import {
   buildDashboardMetrics,
   buildGraphView,
   buildRepositoryTree,
+  buildRepositorySearchResponse,
   buildStudioContext,
   compareContextExperiments,
   markContextRecipeUsed,
+  normalizeRepositorySearchQuery,
   summarizeContextExperiment,
   summarizeContextRecipe,
+  shouldIgnoreRepositorySearchResult,
   type StudioSnapshot,
 } from "./data.ts";
 import {
@@ -27,7 +30,11 @@ import {
   runCodexPlanExecStream,
 } from "./plan-exec.ts";
 import { createContextExperimentStore, createContextRecipeStore, createStudioSessionStore } from "./session-store.ts";
-import { importRepositoryFromFormData, type RepositoryImportSummary } from "./server.ts";
+import {
+  findFirstRepositoryContentMatch,
+  importRepositoryFromFormData,
+  type RepositoryImportSummary,
+} from "./server.ts";
 
 const now = "2026-07-01T00:00:00.000Z";
 
@@ -41,6 +48,116 @@ describe("Repository Intelligence Studio data", () => {
     expect(tree.children[0]?.name).toBe("src");
     expect(tree.children[0]?.children[0]?.name).toBe("main.ts");
     expect(tree.children[0]?.children[0]?.objectIds).toContain("codefile:src/main.ts");
+  });
+
+  test("filters repository tree by valid name and path regex with parent directories", () => {
+    const tree = buildRepositoryTree(searchFixtureObjects());
+    const response = buildRepositorySearchResponse(tree, "main\\.ts");
+    expect(response.status).toBe("ok");
+    if (response.status === "invalid-query") throw new Error("Expected valid search response.");
+    expect(response.results).toEqual([
+      {
+        path: "src/main.ts",
+        name: "main.ts",
+        objectIds: ["codefile:src/main.ts"],
+        matchType: "name",
+        contentReadable: false,
+      },
+    ]);
+    expect(response.tree.children[0]?.name).toBe("src");
+    expect(response.tree.children[0]?.children[0]?.path).toBe("src/main.ts");
+  });
+
+  test("returns the unfiltered repository tree for an empty search query", () => {
+    const tree = buildRepositoryTree(searchFixtureObjects());
+    const response = buildRepositorySearchResponse(tree, "   ");
+    expect(response.status).toBe("ok");
+    if (response.status === "invalid-query") throw new Error("Expected empty search response.");
+    expect(response.results).toEqual([]);
+    expect(response.tree).toBe(tree);
+  });
+
+  test("returns a no-results search response with an empty tree", () => {
+    const tree = buildRepositoryTree(searchFixtureObjects());
+    const response = buildRepositorySearchResponse(tree, "missing");
+    expect(response.status).toBe("no-results");
+    if (response.status === "invalid-query") throw new Error("Expected no-results search response.");
+    expect(response.results).toEqual([]);
+    expect(response.tree.children).toEqual([]);
+  });
+
+  test("adds literal content matches when file names do not match", () => {
+    const tree = buildRepositoryTree(searchFixtureObjects());
+    const response = buildRepositorySearchResponse(tree, "needle", ["docs/readme.md"]);
+    expect(response.status).toBe("ok");
+    if (response.status === "invalid-query") throw new Error("Expected content search response.");
+    expect(response.results).toEqual([
+      {
+        path: "docs/readme.md",
+        name: "readme.md",
+        objectIds: ["doc:docs/readme.md"],
+        matchType: "content",
+        contentReadable: true,
+      },
+    ]);
+  });
+
+  test("deduplicates name and content matches into both classification", () => {
+    const tree = buildRepositoryTree(searchFixtureObjects());
+    const response = buildRepositorySearchResponse(tree, "main\\.ts", ["src/main.ts"]);
+    expect(response.status).toBe("ok");
+    if (response.status === "invalid-query") throw new Error("Expected combined search response.");
+    expect(response.results).toHaveLength(1);
+    expect(response.results[0]?.matchType).toBe("both");
+  });
+
+  test("preserves content match text and location for hover details", () => {
+    const tree = buildRepositoryTree(searchFixtureObjects());
+    const response = buildRepositorySearchResponse(tree, "needle", [
+      { path: "docs/readme.md", matches: [{ text: "needle", line: 2, column: 5 }] },
+    ]);
+    expect(response.status).toBe("ok");
+    if (response.status === "invalid-query") throw new Error("Expected detailed content search response.");
+    expect(response.results[0]?.contentMatches).toEqual([{ text: "needle", line: 2, column: 5 }]);
+    expect(response.tree.children[0]?.children[0]?.contentMatches).toEqual([{ text: "needle", line: 2, column: 5 }]);
+  });
+
+  test("extracts the complete content name containing the search text for hover details", () => {
+    expect(findFirstRepositoryContentMatch("const fullName = targetSymbolName;\n", "Symbol", "symbol")).toEqual([
+      { text: "targetSymbolName", line: 1, column: 18 },
+    ]);
+    expect(findFirstRepositoryContentMatch("next line has path src/knowledge/studio.ts\n", "studio", "studio")).toEqual(
+      [{ text: "src/knowledge/studio.ts", line: 1, column: 20 }],
+    );
+  });
+
+  test("carries skipped file diagnostics without failing search", () => {
+    const tree = buildRepositoryTree(searchFixtureObjects());
+    const response = buildRepositorySearchResponse(tree, "main", [], [{ path: "assets/logo.bin", reason: "binary" }]);
+    expect(response.status).toBe("ok");
+    if (response.status === "invalid-query") throw new Error("Expected skipped-file search response.");
+    expect(response.skipped).toEqual([{ path: "assets/logo.bin", reason: "binary" }]);
+  });
+
+  test("normalizes invalid regex without clearing the raw query", () => {
+    const query = normalizeRepositorySearchQuery("[");
+    expect(query.status).toBe("invalid");
+    expect(query.raw).toBe("[");
+    if (query.status !== "invalid") throw new Error("Expected invalid query.");
+    expect(query.errorMessage.length).toBeGreaterThan(0);
+  });
+
+  test("distinguishes invalid-query from no-results search responses", () => {
+    const tree = buildRepositoryTree(searchFixtureObjects());
+    const invalid = buildRepositorySearchResponse(tree, "[");
+    const noResults = buildRepositorySearchResponse(tree, "not-found");
+    expect(invalid.status).toBe("invalid-query");
+    expect(noResults.status).toBe("no-results");
+  });
+
+  test("detects stale repository search request identifiers", () => {
+    expect(shouldIgnoreRepositorySearchResult(1, 2)).toBe(true);
+    expect(shouldIgnoreRepositorySearchResult(2, 2)).toBe(false);
   });
 
   test("calculates dashboard health metrics", () => {
@@ -462,6 +579,17 @@ function fixtureSnapshot(): StudioSnapshot {
     { id: "edge:2", from: "codefile:src/main.ts", to: "module:./util", type: "imports", metadata: {} },
   ];
   return { objects, nodes, edges };
+}
+
+function searchFixtureObjects(): KnowledgeObject[] {
+  return [
+    object("dir:src", "Directory", "src", "src"),
+    object("codefile:src/main.ts", "CodeFile", "main.ts", "src/main.ts"),
+    object("codefile:src/util.ts", "CodeFile", "util.ts", "src/util.ts"),
+    object("dir:docs", "Directory", "docs", "docs"),
+    object("doc:docs/readme.md", "Document", "readme.md", "docs/readme.md"),
+    object("file:assets/logo.bin", "File", "logo.bin", "assets/logo.bin"),
+  ];
 }
 
 function object(id: string, type: KnowledgeObject["type"], title: string, path: string): KnowledgeObject {
