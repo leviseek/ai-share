@@ -23,6 +23,17 @@ export type KnowledgeObjectType =
   | "Test"
   | "GeneratedArtifact";
 
+export type SummarySource = "explicit" | "inferred" | "no-summary" | "ai-enhanced";
+
+export type SummaryConfidence = "high" | "medium" | "low";
+
+export type SummaryProvenance = {
+  source: SummarySource;
+  signals: string[];
+  confidence: SummaryConfidence;
+  fallbackReason?: string;
+};
+
 export type RelationshipType =
   | "contains"
   | "belongs_to"
@@ -58,6 +69,7 @@ export type KnowledgeObject = {
   type: KnowledgeObjectType;
   title: string;
   summary?: string;
+  summaryProvenance?: SummaryProvenance;
   tags: string[];
   metadata: Record<string, unknown>;
   path?: string;
@@ -112,6 +124,7 @@ export type GraphNode = {
   type: KnowledgeObjectType;
   label: string;
   summary?: string;
+  summaryProvenance?: SummaryProvenance;
   tags: string[];
   path?: string;
   language?: string;

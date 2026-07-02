@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
 import { buildContext } from "../context/builder.ts";
+import { exportGraph } from "../graph/export.ts";
 import { createKnowledgeMcpTools } from "../mcp/tools.ts";
 import { buildKnowledge } from "../index.ts";
 import { createJsonlKnowledgeStore, readBuildResult, writeBuildResult } from "../storage/jsonl-store.ts";
@@ -19,6 +20,8 @@ async function fixtureRepo(): Promise<string> {
     join(root, "package.json"),
     JSON.stringify({ name: "demo", scripts: { check: "tsc --noEmit" }, devDependencies: { typescript: "latest" } }),
   );
+  await writeFile(join(root, "config.yaml"), "provider: demo\napi_key: should-redact\n");
+  await writeFile(join(root, "notes.unknown"), "plain notes\n");
   await writeFile(
     join(root, "src", "main.ts"),
     "import { helper } from './util';\nexport function main() { return helper(); }\n",
@@ -36,6 +39,27 @@ describe("RIE build", () => {
     expect(result.objects.some((object) => object.type === "Project")).toBe(true);
     expect(result.edges.some((edge) => edge.type === "imports" && edge.to === "codefile:src/util.ts")).toBe(true);
     expect(result.metadata.schemaVersion).toBe(1);
+  });
+
+  test("persists display summaries and provenance for supported node types", async () => {
+    const root = await fixtureRepo();
+    const result = await buildKnowledge({ repoRoot: root });
+    const expectedTypes = ["Directory", "CodeFile", "CodeSymbol", "Config", "Script", "Package", "Project", "File"];
+
+    for (const type of expectedTypes)
+      expect(result.objects.some((object) => object.type === type && object.summaryProvenance !== undefined)).toBe(
+        true,
+      );
+    for (const object of result.objects) {
+      expect(object.summary).toBeDefined();
+      expect(object.summary?.length).toBeGreaterThan(0);
+      expect(object.summaryProvenance).toBeDefined();
+      expect(object.summary).not.toContain("should-redact");
+    }
+    for (const node of result.nodes) {
+      expect(node.summary).toBeDefined();
+      expect(node.summaryProvenance).toBeDefined();
+    }
   });
 
   test("keeps building when files are invalid, unknown, ignored, binary, or oversized", async () => {
@@ -76,6 +100,22 @@ describe("RIE build", () => {
     expect(diagnostics).toBe("");
   });
 
+  test("round-trips summary provenance through production snapshot files", async () => {
+    const root = await fixtureRepo();
+    const result = await buildKnowledge({ repoRoot: root });
+    const storeRoot = join(root, ".custom-rie");
+    const store = createJsonlKnowledgeStore(storeRoot);
+
+    await writeBuildResult(store, result);
+    const reloaded = await readBuildResult(store);
+    const object = reloaded.objects.find((item) => item.id === "codefile:src/main.ts");
+    const node = reloaded.nodes.find((item) => item.id === "codefile:src/main.ts");
+
+    expect(object?.summaryProvenance?.source).toBe("inferred");
+    expect(object?.summaryProvenance?.signals).toContain("path");
+    expect(node?.summaryProvenance).toEqual(object?.summaryProvenance);
+  });
+
   test("builds graph-first context", async () => {
     const root = await fixtureRepo();
     const result = await buildKnowledge({ repoRoot: root });
@@ -95,5 +135,25 @@ describe("RIE build", () => {
     expect(context.quality).toBeDefined();
     expect(quality.score).toBe(context.quality?.score ?? -1);
     expect(quality.recommendations.length).toBeGreaterThan(0);
+  });
+
+  test("reuses persisted summaries across graph, context, impact, export, and MCP surfaces", async () => {
+    const root = await fixtureRepo();
+    const result = await buildKnowledge({ repoRoot: root });
+    const objectId = "codefile:src/main.ts";
+    const sourceNode = result.nodes.find((node) => node.id === objectId);
+    const tools = createKnowledgeMcpTools(result);
+    const context = buildContext(result, { query: "main", objectIds: [objectId], intent: "explain" });
+    const exported = JSON.parse(exportGraph({ nodes: result.nodes, edges: result.edges }, "json")) as typeof result;
+
+    expect(sourceNode?.summary).toBeDefined();
+    expect(context.graph.nodes.find((node) => node.id === objectId)?.summary).toBe(sourceNode?.summary);
+    expect(tools.graph([objectId], 1).nodes.find((node) => node.id === objectId)?.summaryProvenance).toEqual(
+      sourceNode?.summaryProvenance,
+    );
+    expect(tools.impact(objectId).nodes.find((node) => node.id === objectId)?.summary).toBe(sourceNode?.summary);
+    expect(exported.nodes.find((node) => node.id === objectId)?.summaryProvenance).toEqual(
+      sourceNode?.summaryProvenance,
+    );
   });
 });

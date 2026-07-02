@@ -73,6 +73,7 @@ export type PromptBundleObject = {
   title: string;
   path?: string;
   summary?: string;
+  summaryProvenance?: KnowledgeObject["summaryProvenance"];
 };
 
 export type PromptBundle = {
@@ -974,6 +975,7 @@ function buildPromptBundle(input: {
     };
     if (object.path !== undefined) bundleObject.path = object.path;
     if (object.summary !== undefined) bundleObject.summary = object.summary;
+    if (object.summaryProvenance !== undefined) bundleObject.summaryProvenance = object.summaryProvenance;
     return bundleObject;
   });
   const relevantPaths = [

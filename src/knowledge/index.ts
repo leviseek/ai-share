@@ -9,6 +9,7 @@ import { ParserRegistry } from "./parsers/registry.ts";
 import { typescriptParser } from "./parsers/typescript.ts";
 import { yamlJsonParser } from "./parsers/yaml-json.ts";
 import { scanRepository, type ScanOptions } from "./repository/scanner.ts";
+import { applyNodeSummaries } from "./summary/index.ts";
 import type { BuildResult, KnowledgeObject, ParserContext } from "./core/types.ts";
 
 const KNOWLEDGE_SCHEMA_VERSION = 1;
@@ -44,10 +45,14 @@ export async function buildKnowledge(options: BuildKnowledgeOptions): Promise<Bu
     ),
   };
   const results = await Promise.all(scan.resources.map((resource) => registry.parse(resource, context)));
-  const objects = [projectObject(repoRoot, now, scan.resources.length), ...results.flatMap((result) => result.objects)];
+  const parsedObjects = [
+    projectObject(repoRoot, now, scan.resources.length),
+    ...results.flatMap((result) => result.objects),
+  ];
   const relationships = results.flatMap((result) => result.relationships);
-  for (const object of objects)
+  for (const object of parsedObjects)
     object.relationships = relationships.filter((relationship) => relationship.from === object.id);
+  const objects = applyNodeSummaries(parsedObjects, relationships);
   const graph = buildGraph(objects, relationships);
   const diagnostics = [...scan.diagnostics, ...results.flatMap((result) => result.diagnostics)];
   const buildHash = canonicalJsonHash({

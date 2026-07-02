@@ -23,6 +23,7 @@ export function buildGraph(objects: KnowledgeObject[], relationships: KnowledgeR
     return {
       ...base,
       ...(object.summary === undefined ? {} : { summary: object.summary }),
+      ...(object.summaryProvenance === undefined ? {} : { summaryProvenance: object.summaryProvenance }),
       ...(object.path === undefined ? {} : { path: object.path }),
       ...(object.language === undefined ? {} : { language: object.language }),
     };

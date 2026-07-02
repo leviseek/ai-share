@@ -92,6 +92,7 @@ describe("Repository Intelligence Studio data", () => {
     const bySummary = buildGraphView(fixtureSnapshot(), { query: "bootstrap" });
     const mainNode = bySummary.nodes.find((node) => node.id === "codefile:src/main.ts");
     expect(mainNode?.summary).toBe("Main application bootstrap.");
+    expect(mainNode?.summaryProvenance?.source).toBe("explicit");
     expect(mainNode?.tags).toContain("entrypoint");
     expect(mainNode?.language).toBe("typescript");
     expect(mainNode?.updatedAt).toBe(now);
@@ -132,6 +133,9 @@ describe("Repository Intelligence Studio data", () => {
     expect(dryRun.promptBundle.markdown).toContain("## Context Quality");
     expect(dryRun.context.quality?.grade).toBeDefined();
     expect(dryRun.promptBundle.relevantPaths).toContain("src/main.ts");
+    expect(
+      dryRun.promptBundle.knowledgeObjects.find((object) => object.id === "codefile:src/main.ts")?.summaryProvenance,
+    ).toBeDefined();
     expect(dryRun.promptBundle.hash.length).toBeGreaterThan(0);
   });
 
@@ -397,11 +401,17 @@ function uploadFile(relativePath: string, content: string): File {
 }
 
 function fixtureSnapshot(): StudioSnapshot {
+  const mainSummaryProvenance: NonNullable<KnowledgeObject["summaryProvenance"]> = {
+    source: "explicit",
+    signals: ["metadata"],
+    confidence: "high",
+  };
   const objects = [
     object("dir:src", "Directory", "src", "src"),
     {
       ...object("codefile:src/main.ts", "CodeFile", "main.ts", "src/main.ts"),
       summary: "Main application bootstrap.",
+      summaryProvenance: mainSummaryProvenance,
       tags: ["entrypoint"],
       metadata: { lineCount: 12 },
       language: "typescript",
@@ -422,6 +432,7 @@ function fixtureSnapshot(): StudioSnapshot {
     return {
       ...node,
       ...(item.summary === undefined ? {} : { summary: item.summary }),
+      ...(item.summaryProvenance === undefined ? {} : { summaryProvenance: item.summaryProvenance }),
       ...(item.path === undefined ? {} : { path: item.path }),
       ...(item.language === undefined ? {} : { language: item.language }),
     };
