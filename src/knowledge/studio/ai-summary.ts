@@ -15,6 +15,7 @@ export type AiNodeSummaryResult = {
   provider: string;
   cached: boolean;
   generatedAt: string;
+  apiRequestDurationMs?: number;
   cacheKey: string;
   inputHash: string;
   fileContext?: AiNodeSummaryFileContext;
@@ -173,7 +174,9 @@ export async function generateAiNodeSummary(input: AiNodeSummaryInput): Promise<
   const cached = await input.cache.read(cacheKey);
   if (cached?.overview !== undefined && cached.details !== undefined) return cached;
 
+  const requestStartedAt = performance.now();
   const aiSummary = await requestAiNodeSummary(promptInput, modelConfig, input.fetchImpl ?? fetch);
+  const apiRequestDurationMs = Math.max(0, Math.round(performance.now() - requestStartedAt));
   const content = parseAiNodeSummaryContent(aiSummary, promptInput);
   const result: AiNodeSummaryResult = {
     nodeId: input.nodeId,
@@ -184,6 +187,7 @@ export async function generateAiNodeSummary(input: AiNodeSummaryInput): Promise<
     provider: modelConfig.providerId,
     cached: false,
     generatedAt: input.now ?? new Date().toISOString(),
+    apiRequestDurationMs,
     cacheKey,
     inputHash,
     ...(promptInput.fileContext === undefined ? {} : { fileContext: promptInput.fileContext }),

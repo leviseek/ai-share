@@ -1584,3 +1584,112 @@ kbd {
     transition-duration: 0.01ms !important;
   }
 }
+
+.ai-summary-live {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.ai-summary-hero {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.ai-summary-hero > div {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.ai-summary-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ai-summary-hero > div > strong {
+  color: var(--foreground);
+  font-size: var(--font-card);
+  line-height: 1.55;
+}
+
+.ai-summary-hero > span {
+  background: color-mix(in srgb, var(--info) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--info) 30%, var(--border));
+  border-radius: 999px;
+  color: var(--info);
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 7px 10px;
+}
+
+.ai-summary-model-strip {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.ai-summary-model-strip span,
+.ai-summary-metrics span {
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--info) 16%, var(--border));
+  border-radius: var(--radius-lg);
+  color: var(--muted-foreground);
+  display: grid;
+  font-size: var(--font-caption);
+  gap: var(--space-1);
+  padding: var(--space-2);
+}
+
+.ai-summary-model-strip strong,
+.ai-summary-metrics strong {
+  color: var(--foreground);
+  font-size: var(--font-caption);
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.ai-summary-progress {
+  background: color-mix(in srgb, var(--info) 12%, var(--surface));
+  border-radius: 999px;
+  height: 4px;
+  overflow: hidden;
+}
+
+.ai-summary-progress span {
+  animation: ai-summary-progress 1.35s ease-in-out infinite;
+  background: linear-gradient(90deg, var(--primary), var(--accent), var(--info));
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  width: 42%;
+}
+
+.ai-summary-intent p {
+  color: var(--foreground);
+  font-size: var(--font-body);
+  line-height: 1.66;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.ai-summary-footnote {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+@keyframes ai-summary-progress {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}

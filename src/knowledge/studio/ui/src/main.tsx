@@ -19,6 +19,9 @@ import { DotPattern } from "@/components/magic/dot-pattern";
 import { MagicCard } from "@/components/magic/magic-card";
 import "./styles.css";
 
+const AI_SUMMARY_PROVIDER_LABEL = "DeepSeek";
+const AI_SUMMARY_MODEL_LABEL = "deepseek-v4-pro";
+
 type TreeNode = {
   name: string;
   path: string;
@@ -298,6 +301,7 @@ type AiNodeSummary = {
   provider: string;
   cached: boolean;
   generatedAt: string;
+  apiRequestDurationMs?: number;
   cacheKey: string;
   inputHash: string;
   fileContext?: {
@@ -313,7 +317,7 @@ type AiNodeSummary = {
 
 type AiNodeSummaryState =
   | { status: "idle" }
-  | { status: "loading"; nodeId: string }
+  | { status: "loading"; nodeId: string; startedAt: number; provider: string; model: string }
   | { status: "ready"; nodeId: string; result: AiNodeSummary }
   | { status: "error"; nodeId: string; message: string };
 
@@ -510,6 +514,10 @@ const copies = {
     noStreamEventsMessage: "运行 Plan Exec Stream 查看实时事件。",
     aiSummary: "AI 摘要",
     aiSummaryGenerating: "AI 摘要：生成中...",
+    aiSummaryCalling: "正在调用",
+    aiSummaryModel: "当前模型",
+    apiElapsed: "已用时",
+    requestDuration: "API 请求耗时",
     aiSummaryFailed: "AI 摘要失败",
     aiSummaryIdle: "AI 摘要：空闲",
     cached: "缓存",
@@ -647,6 +655,10 @@ const copies = {
     noStreamEventsMessage: "Run Plan Exec Stream to observe live events.",
     aiSummary: "AI Summary",
     aiSummaryGenerating: "AI Summary: generating...",
+    aiSummaryCalling: "calling",
+    aiSummaryModel: "Model",
+    apiElapsed: "Elapsed",
+    requestDuration: "API duration",
     aiSummaryFailed: "AI Summary failed",
     aiSummaryIdle: "AI Summary: idle",
     cached: "cached",
@@ -756,7 +768,13 @@ function App() {
       return;
     }
     let cancelled = false;
-    setAiNodeSummary({ status: "loading", nodeId: selectedNodeId });
+    setAiNodeSummary({
+      status: "loading",
+      nodeId: selectedNodeId,
+      startedAt: Date.now(),
+      provider: AI_SUMMARY_PROVIDER_LABEL,
+      model: AI_SUMMARY_MODEL_LABEL,
+    });
     void postJson<AiNodeSummary>("/api/ai/node-summary", { nodeId: selectedNodeId })
       .then((result) => {
         if (!cancelled) setAiNodeSummary({ status: "ready", nodeId: selectedNodeId, result });
@@ -1976,8 +1994,42 @@ function GraphInspector(props: {
 function AiSummaryPanel(props: { state: AiNodeSummaryState; nodeId: string }) {
   const copy = useCopy();
   const [expanded, setExpanded] = useState(false);
+  const [clockNow, setClockNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (props.state.status !== "loading" || props.state.nodeId !== props.nodeId) return;
+    setClockNow(Date.now());
+    const timer = window.setInterval(() => setClockNow(Date.now()), 250);
+    return () => window.clearInterval(timer);
+  }, [props.nodeId, props.state]);
+
   if (props.state.status === "loading" && props.state.nodeId === props.nodeId) {
-    return <MagicCard className="ai-summary-card pending">{copy.aiSummaryGenerating}</MagicCard>;
+    return (
+      <MagicCard className="ai-summary-card pending ai-summary-live">
+        <div className="ai-summary-title ai-summary-hero">
+          <div>
+            <AnimatedGradientText className="ai-summary-kicker">{copy.aiSummary}</AnimatedGradientText>
+            <strong>{copy.aiSummaryGenerating}</strong>
+          </div>
+          <span>{copy.aiSummaryCalling}</span>
+        </div>
+        <div className="ai-summary-model-strip">
+          <span>
+            {copy.aiSummaryModel}
+            <strong>
+              {props.state.provider}/{props.state.model}
+            </strong>
+          </span>
+          <span>
+            {copy.apiElapsed}
+            <strong>{formatDuration(clockNow - props.state.startedAt, copy.unknown)}</strong>
+          </span>
+        </div>
+        <div className="ai-summary-progress" aria-hidden="true">
+          <span />
+        </div>
+      </MagicCard>
+    );
   }
   if (props.state.status === "error" && props.state.nodeId === props.nodeId) {
     return (
@@ -1987,29 +2039,46 @@ function AiSummaryPanel(props: { state: AiNodeSummaryState; nodeId: string }) {
     );
   }
   if (props.state.status === "ready" && props.state.nodeId === props.nodeId) {
+    const result = props.state.result;
     return (
-      <MagicCard className="ai-summary-card">
-        <div className="ai-summary-title">
-          <strong>{copy.aiSummary}</strong>
-          <span>{props.state.result.cached ? copy.cached : copy.generated}</span>
+      <MagicCard className="ai-summary-card ai-summary-live">
+        <div className="ai-summary-title ai-summary-hero">
+          <div>
+            <AnimatedGradientText className="ai-summary-kicker">{copy.aiSummary}</AnimatedGradientText>
+            <strong>{result.overview.intent}</strong>
+          </div>
+          <span>{result.cached ? copy.cached : copy.generated}</span>
+        </div>
+        <div className="ai-summary-model-strip">
+          <span>
+            {copy.aiSummaryModel}
+            <strong>
+              {result.provider}/{result.model}
+            </strong>
+          </span>
+          <span>
+            {copy.requestDuration}
+            <strong>{formatDuration(result.apiRequestDurationMs, copy.unknown)}</strong>
+          </span>
+          <span>
+            {copy.date}
+            <strong>{formatDate(result.generatedAt)}</strong>
+          </span>
         </div>
         <div className="ai-summary-overview">
           <div className="ai-summary-intent">
             <span>{copy.fileIntent}</span>
-            <strong>{props.state.result.overview.intent}</strong>
+            <p>{result.summary}</p>
           </div>
-          <div className="ai-summary-facts">
+          <div className="ai-summary-facts ai-summary-metrics">
             <span>
-              {copy.dependencies} <strong>{props.state.result.overview.dependencyCount}</strong>
+              {copy.dependencies} <strong>{result.overview.dependencyCount}</strong>
             </span>
             <span>
-              {copy.dependents} <strong>{props.state.result.overview.dependentCount}</strong>
+              {copy.dependents} <strong>{result.overview.dependentCount}</strong>
             </span>
             <span>
-              {copy.date} {props.state.result.overview.date ?? copy.unknown}
-            </span>
-            <span>
-              {copy.author} {props.state.result.overview.author ?? copy.unknown}
+              {copy.author} <strong>{result.overview.author ?? copy.unknown}</strong>
             </span>
           </div>
         </div>
@@ -2018,21 +2087,15 @@ function AiSummaryPanel(props: { state: AiNodeSummaryState; nodeId: string }) {
         </button>
         {expanded && (
           <div className="ai-summary-details">
-            <AiSummaryText text={props.state.result.details.description} />
-            <AiSummaryExposedList symbols={props.state.result.details.exposed} />
+            <AiSummaryText text={result.details.description} />
+            <AiSummaryExposedList symbols={result.details.exposed} />
           </div>
         )}
-        <small>
-          {props.state.result.provider}/{props.state.result.model} · {formatDate(props.state.result.generatedAt)} ·{" "}
-          {props.state.result.cacheKey.slice(0, 12)}
-        </small>
-        {props.state.result.fileContext !== undefined && (
-          <small>
-            file context: {props.state.result.fileContext.path} · {props.state.result.fileContext.snippets.length}{" "}
-            snippets
-            {props.state.result.fileContext.diagnostics.length === 0
-              ? ""
-              : ` · ${props.state.result.fileContext.diagnostics.join("; ")}`}
+        <small className="ai-summary-footnote">cache {result.cacheKey.slice(0, 12)}</small>
+        {result.fileContext !== undefined && (
+          <small className="ai-summary-footnote">
+            file context: {result.fileContext.path} · {result.fileContext.snippets.length} snippets
+            {result.fileContext.diagnostics.length === 0 ? "" : ` · ${result.fileContext.diagnostics.join("; ")}`}
           </small>
         )}
       </MagicCard>
@@ -2878,6 +2941,12 @@ function formatMetadataValue(value: unknown): string {
   if (value === undefined) return "undefined";
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
   return JSON.stringify(value);
+}
+
+function formatDuration(value: number | undefined, fallback: string): string {
+  if (value === undefined || !Number.isFinite(value)) return fallback;
+  if (value < 1000) return `${Math.max(0, Math.round(value))}ms`;
+  return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)}s`;
 }
 
 function formatDate(value: string | undefined): string {

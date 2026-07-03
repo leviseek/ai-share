@@ -48,6 +48,7 @@ describe("Studio AI node summary", () => {
 
     expect(calls).toBe(1);
     expect(first.cached).toBe(false);
+    expect(first.apiRequestDurationMs).toBeGreaterThanOrEqual(0);
     expect(second.cached).toBe(true);
     expect(second.summary).toBe(first.summary);
     expect(second.cacheKey).toBe(first.cacheKey);
