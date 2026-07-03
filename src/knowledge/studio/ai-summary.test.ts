@@ -3,7 +3,12 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
 import type { AiNodeSummaryCache, AiNodeSummaryModelConfig } from "./ai-summary.ts";
-import { buildPromptInput, createAiNodeSummaryCache, generateAiNodeSummary } from "./ai-summary.ts";
+import {
+  buildPromptInput,
+  createAiNodeSummaryCache,
+  generateAiNodeSummary,
+  resolveAiNodeSummaryModelConfig,
+} from "./ai-summary.ts";
 import type { StudioSnapshot } from "./data.ts";
 
 const now = "2026-07-02T00:00:00.000Z";
@@ -114,6 +119,20 @@ describe("Studio AI node summary", () => {
     const second = await generateWithMemoryCache(snapshot, "gpt-5.4-mini");
 
     expect(first.cacheKey).not.toBe(second.cacheKey);
+  });
+
+  test("resolves AI summary model to direct DeepSeek API", () => {
+    const config = resolveAiNodeSummaryModelConfig({ DEEPSEEK_API_KEY: "test-deepseek-key" }, []);
+
+    expect(config.modelId).toBe("deepseek-v4-pro");
+    expect(config.model.model_name).toBe("deepseek-v4-pro");
+    expect(config.providerId).toBe("deepseek");
+    expect(config.provider.base_url).toBe("https://api.deepseek.com/v1");
+    expect(config.apiKey).toBe("test-deepseek-key");
+  });
+
+  test("requires DeepSeek API key for AI summaries", () => {
+    expect(() => resolveAiNodeSummaryModelConfig({}, [])).toThrow("缺少环境变量：DEEPSEEK_API_KEY");
   });
 
   test("keeps AI summaries longer than local display summaries but under 2000 chars", async () => {

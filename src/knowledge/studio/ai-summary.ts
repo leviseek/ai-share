@@ -1,9 +1,6 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { applyProviderGroups } from "../../config-builders.ts";
-import { loadConfigYamlSync } from "../../config/local-overlay.ts";
-import { parseCliOptions } from "../../cli/options.ts";
-import type { GlobalYaml, ModelsYaml, ModelSource, ProviderSource, ProviderYaml } from "../../types.ts";
+import type { ModelSource, ProviderSource } from "../../types.ts";
 import { canonicalJsonHash, contentHash, normalizePath } from "../core/ids.ts";
 import type { GraphEdge, GraphNode } from "../core/types.ts";
 import { normalizeSummaryText, redactSecretLikeText } from "../summary/index.ts";
@@ -123,9 +120,14 @@ type AiNodeSummaryOverviewDraft = Omit<AiNodeSummaryOverview, "date" | "author">
 const PROMPT_VERSION = "rie-ai-node-summary-v3";
 const AI_SUMMARY_MAX_LENGTH = 2000;
 const DEFAULT_MAX_TOKENS = 2600;
+const AI_SUMMARY_PROVIDER_ID = "deepseek";
+const AI_SUMMARY_MODEL_ID = "deepseek-v4-pro";
+const AI_SUMMARY_MODEL_NAME = "deepseek-v4-pro";
+const AI_SUMMARY_BASE_URL = "https://api.deepseek.com/v1";
+const AI_SUMMARY_API_KEY_ENV = "DEEPSEEK_API_KEY";
+const AI_SUMMARY_TIMEOUT_MS = 600_000;
 const MAX_FILE_CONTEXT_BYTES = 200_000;
 const MAX_SNIPPET_LINES = 200;
-const projectRoot = resolve(import.meta.dirname, "..", "..", "..");
 const fileContextNodeTypes = new Set(["CodeFile", "Config", "Document", "Script", "Test", "File"]);
 
 export class JsonFileAiNodeSummaryCache implements AiNodeSummaryCache {
@@ -195,25 +197,28 @@ export async function generateAiNodeSummary(input: AiNodeSummaryInput): Promise<
 
 export function resolveAiNodeSummaryModelConfig(
   env: Record<string, string | undefined> = Bun.env,
-  argv: readonly string[] = Bun.argv,
+  _argv: readonly string[] = Bun.argv,
 ): AiNodeSummaryModelConfig {
-  const configDir = resolve(projectRoot, "config");
-  const providersConfig = loadConfigYamlSync(configDir, "provider.yaml") as ProviderYaml;
-  const modelsConfig = loadConfigYamlSync(configDir, "models.yaml") as ModelsYaml;
-  const globalConfig = loadConfigYamlSync(configDir, "global.yaml") as GlobalYaml;
-  const providerGroups = parseCliOptions(argv, env).providerGroups;
-  const models = applyProviderGroups(modelsConfig, providersConfig.providers ?? {}, providerGroups);
-  const modelId = requireNonEmptyString(globalConfig.model, "global.model");
-  const model = models[modelId];
-  if (model === undefined) throw new Error(`AI summary 模型未定义：${modelId}`);
-  const providerId = requireNonEmptyString(model.provider, `models.${modelId}.provider`);
-  const provider = providersConfig.providers?.[providerId];
-  if (provider === undefined) throw new Error(`AI summary provider 未定义：${providerId}`);
-  const apiKeyName = envKeyName(provider.api_key);
-  if (apiKeyName === undefined) throw new Error(`provider.${providerId}.api_key 必须是 \${ENV_NAME} 引用`);
-  const apiKey = env[apiKeyName];
-  if (apiKey === undefined || apiKey.length === 0) throw new Error(`缺少环境变量：${apiKeyName}`);
-  return { modelId, model, providerId, provider, apiKey };
+  const apiKey = env[AI_SUMMARY_API_KEY_ENV];
+  if (apiKey === undefined || apiKey.length === 0) throw new Error(`缺少环境变量：${AI_SUMMARY_API_KEY_ENV}`);
+  return {
+    modelId: AI_SUMMARY_MODEL_ID,
+    model: {
+      provider: AI_SUMMARY_PROVIDER_ID,
+      model_name: AI_SUMMARY_MODEL_NAME,
+      capabilities: ["reasoning", "coding", "summary"],
+      temperature: 0.2,
+    },
+    providerId: AI_SUMMARY_PROVIDER_ID,
+    provider: {
+      name: "DeepSeek",
+      short_name: "DeepSeek",
+      base_url: AI_SUMMARY_BASE_URL,
+      api_key: `\${${AI_SUMMARY_API_KEY_ENV}}`,
+      timeout: AI_SUMMARY_TIMEOUT_MS,
+    },
+    apiKey,
+  };
 }
 
 export async function buildPromptInput(
@@ -678,10 +683,6 @@ function providerTimeoutMs(provider: ProviderSource): number {
 function chatCompletionsUrl(baseUrl: string | undefined): string {
   const value = requireNonEmptyString(baseUrl, "provider.base_url");
   return `${value.replace(/\/+$/, "")}/chat/completions`;
-}
-
-function envKeyName(value: string | undefined): string | undefined {
-  return /^\$\{([A-Z_][A-Z0-9_]*)\}$/.exec(value ?? "")?.[1];
 }
 
 function requireNonEmptyString(value: unknown, name: string): string {
