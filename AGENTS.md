@@ -100,6 +100,6 @@ bun run schema:gen
 
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/004-rie-browser-search/plan.md
+at specs/005-stable-summary-cache/plan.md
 
 <!-- SPECKIT END -->
