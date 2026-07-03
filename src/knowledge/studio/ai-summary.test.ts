@@ -112,7 +112,105 @@ describe("Studio AI node summary", () => {
     expect(result.details.exposed[0]?.typeInference).toBe("() => string");
     expect(result.details.exposed[0]?.implemented).toBe(true);
   });
+  test("parses DeepSeek JSON responses with raw newlines inside strings", async () => {
+    const result = await generateAiNodeSummary({
+      snapshot: fixtureSnapshot(),
+      nodeId: "codefile:src/main.ts",
+      cache: memoryCache(),
+      modelConfig: modelConfig(),
+      now,
+      fetchImpl: () =>
+        Promise.resolve(
+          jsonResponse({
+            choices: [
+              {
+                message: {
+                  content: `{
+  "summary": "main.ts 是应用入口。",
+  "overview": {
+    "intent": "应用入口编排。
 
+包含启动逻辑。",
+    "dependencyCount": 1,
+    "dependentCount": 1,
+    "date": "${now}",
+    "author": "Levi"
+  },
+  "details": {
+    "description": "第一段说明。
+
+第二段说明。",
+    "exposed": [
+      {
+        "name": "main",
+        "kind": "function",
+        "typeInference": "() => string",
+        "implemented": true,
+        "intent": "启动应用。
+
+返回 helper 输出。",
+        "inputs": "none",
+        "outputs": "string",
+        "usage": "import { main } from './main';"
+      }
+    ]
+  }
+}`,
+                },
+              },
+            ],
+          }),
+        ),
+    });
+
+    expect(result.summary).toBe("main.ts 是应用入口。");
+    expect(result.summary).not.toContain('"overview"');
+    expect(result.overview.intent).toContain("应用入口编排");
+    expect(result.details.description).toContain("第二段说明");
+    expect(result.details.exposed[0]?.name).toBe("main");
+    expect(result.details.exposed[0]?.intent).toContain("返回 helper 输出");
+  });
+
+  test("extracts display fields from truncated DeepSeek JSON responses", async () => {
+    const result = await generateAiNodeSummary({
+      snapshot: fixtureSnapshot(),
+      nodeId: "codefile:src/main.ts",
+      cache: memoryCache(),
+      modelConfig: modelConfig(),
+      now,
+      fetchImpl: () =>
+        Promise.resolve(
+          jsonResponse({
+            choices: [
+              {
+                message: {
+                  content: `{
+  "summary": "该模块实现了内购商店弹窗LayerPop界面及iapPurchase对象，支持显示价格、发起购买、恢复购买等功能。",
+  "overview": {
+    "intent": "提供内购商店弹窗及IAP购买处理逻辑",
+    "dependencyCount": 20,
+    "dependentCount": 1,
+    "date": "2026-07-03",
+    "author": "unknown"
+  },
+  "details": {
+    "description": "定义了LayerPop类用于管理商店弹窗的显示和交互，包括按钮布局、价格展示、购买回调等。\n\n同时包含了iapPurchase对象的startRequest和restorePurchase方法。",
+    "exposed": [
+      { "name": "LayerPop.ctor", "kind": "function", "inputs": "`,
+                },
+              },
+            ],
+          }),
+        ),
+    });
+
+    expect(result.summary).toContain("内购商店弹窗");
+    expect(result.summary).not.toContain('"overview"');
+    expect(result.overview.intent).toBe("提供内购商店弹窗及IAP购买处理逻辑");
+    expect(result.overview.dependencyCount).toBe(20);
+    expect(result.details.description).toContain("LayerPop类");
+    expect(result.details.description).not.toContain('"exposed"');
+  });
   test("changes cache key when model changes", async () => {
     const snapshot = fixtureSnapshot();
     const first = await generateWithMemoryCache(snapshot, "gpt-5.5");
@@ -135,7 +233,7 @@ describe("Studio AI node summary", () => {
     expect(() => resolveAiNodeSummaryModelConfig({}, [])).toThrow("缺少环境变量：DEEPSEEK_API_KEY");
   });
 
-  test("keeps AI summaries longer than local display summaries but under 2000 chars", async () => {
+  test("keeps AI summaries longer than local display summaries without truncating output", async () => {
     const longSummary = `main.ts ${"负责协调 Lua、TypeScript 与配置节点的上下文分析。".repeat(80)}`;
     const result = await generateAiNodeSummary({
       snapshot: fixtureSnapshot(),
@@ -146,8 +244,7 @@ describe("Studio AI node summary", () => {
       fetchImpl: () => Promise.resolve(jsonResponse({ choices: [{ message: { content: longSummary } }] })),
     });
 
-    expect(result.summary.length).toBeGreaterThan(120);
-    expect(result.summary.length).toBeLessThanOrEqual(2000);
+    expect(result.summary).toBe(longSummary);
   });
 
   test("adds safe file snippets to prompt input for file-class nodes", async () => {

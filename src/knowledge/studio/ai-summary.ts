@@ -117,9 +117,7 @@ type AiNodeSummaryOverviewDraft = Omit<AiNodeSummaryOverview, "date" | "author">
   author: string | undefined;
 };
 
-const PROMPT_VERSION = "rie-ai-node-summary-v3";
-const AI_SUMMARY_MAX_LENGTH = 2000;
-const DEFAULT_MAX_TOKENS = 2600;
+const PROMPT_VERSION = "rie-ai-node-summary-v4";
 const AI_SUMMARY_PROVIDER_ID = "deepseek";
 const AI_SUMMARY_MODEL_ID = "deepseek-v4-pro";
 const AI_SUMMARY_MODEL_NAME = "deepseek-v4-pro";
@@ -279,14 +277,14 @@ function chatRequestBody(promptInput: PromptInput, model: ModelSource): Record<s
         content: [
           "你是 Repository Intelligence Engine 的节点解释器。",
           "请根据用户提供的节点、边、一跳邻居信息和可选文件片段，生成结构化简体中文节点 summary。",
-          "必须只输出 JSON 对象，不要 Markdown，不要代码围栏。",
+          "必须只输出严格 JSON 对象，不要 Markdown，不要代码围栏。",
           "JSON 字段：summary:string；overview:{intent:string,dependencyCount:number,dependentCount:number,date?:string,author?:string}；details:{description:string,exposed:Array<{name:string,kind:string,typeInference:string,implemented:boolean,intent:string,inputs:string,outputs:string,usage:string}>}。",
           "overview 用于默认折叠态，必须简洁；dependencyCount 表示 outgoing 边数量，被依赖数 dependentCount 表示 incoming 边数量；date/author 只能来自输入节点或 metadata，未知则写 unknown。",
           "details.exposed 只列出暴露给外部使用的全局变量、导出函数、类、interface、type、模块入口等。",
           "变量：typeInference 必须写类型推断；inputs/outputs 写 unknown 即可，前端不会展示变量输入输出。",
           "函数/接口/类/type/模块：inputs 与 outputs 必须尽量包含类型推断；如果只有声明没有实现，implemented=false。",
-          "未知字段写 unknown，不要编造。",
-          "总内容控制在 2000 字以内；保留代码标识符、路径和 API 名称；不要输出密钥、token、cookie、password 或无法从输入推出的信息。",
+          "未知字段写 unknown，不要编造。JSON 字符串内部换行必须写成 \\n，不要输出未转义的原始换行。",
+          "内容长度按节点复杂度自然展开，优先保证 JSON 完整和字段完整；保留代码标识符、路径和 API 名称；不要输出密钥、token、cookie、password 或无法从输入推出的信息。",
         ].join("\n"),
       },
       {
@@ -294,7 +292,6 @@ function chatRequestBody(promptInput: PromptInput, model: ModelSource): Record<s
         content: JSON.stringify(promptInput, null, 2),
       },
     ],
-    max_tokens: DEFAULT_MAX_TOKENS,
     ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}),
   };
 }
@@ -318,7 +315,7 @@ function parseAiNodeSummaryContent(
   value: string,
   promptInput: PromptInput,
 ): Pick<AiNodeSummaryResult, "summary" | "overview" | "details"> {
-  const parsed = parseJsonObject(value);
+  const parsed = parseJsonObject(value) ?? parsePartialAiNodeSummaryObject(value);
   const fallbackSummary = normalizeAiSummaryText(value);
   const summary = readString(parsed?.summary) ?? fallbackSummary;
   const fallbackOverview = buildFallbackOverview(promptInput, summary);
@@ -479,12 +476,198 @@ function inferImplemented(text: string): boolean {
 }
 
 function parseJsonObject(value: string): Record<string, unknown> | undefined {
+  const candidates = jsonObjectCandidates(value);
+  for (const candidate of candidates) {
+    const parsed = tryParseJsonObject(candidate) ?? tryParseJsonObject(escapeJsonStringControlCharacters(candidate));
+    if (parsed !== undefined) return parsed;
+  }
+  return undefined;
+}
+function parsePartialAiNodeSummaryObject(value: string): Record<string, unknown> | undefined {
+  const text = extractJsonObjectStartText(stripJsonCodeFence(value));
+  const summary = extractJsonStringField(text, "summary");
+  const overviewText = extractObjectFieldText(text, "overview");
+  const detailsText = extractObjectFieldText(text, "details");
+  const overview =
+    overviewText === undefined
+      ? undefined
+      : (parseJsonObject(overviewText) ?? parsePartialOverviewObject(overviewText));
+  const details =
+    detailsText === undefined ? undefined : (parseJsonObject(detailsText) ?? parsePartialDetailsObject(detailsText));
+  if (summary === undefined && overview === undefined && details === undefined) return undefined;
+  return {
+    ...(summary === undefined ? {} : { summary }),
+    ...(overview === undefined ? {} : { overview }),
+    ...(details === undefined ? {} : { details }),
+  };
+}
+
+function parsePartialOverviewObject(value: string): Record<string, unknown> | undefined {
+  const output: Record<string, unknown> = {};
+  const intent = extractJsonStringField(value, "intent");
+  const dependencyCount = extractJsonNumberField(value, "dependencyCount");
+  const dependentCount = extractJsonNumberField(value, "dependentCount");
+  const date = extractJsonStringField(value, "date");
+  const author = extractJsonStringField(value, "author");
+  if (intent !== undefined) output.intent = intent;
+  if (dependencyCount !== undefined) output.dependencyCount = dependencyCount;
+  if (dependentCount !== undefined) output.dependentCount = dependentCount;
+  if (date !== undefined) output.date = date;
+  if (author !== undefined) output.author = author;
+  return Object.keys(output).length === 0 ? undefined : output;
+}
+
+function parsePartialDetailsObject(value: string): Record<string, unknown> | undefined {
+  const description = extractJsonStringField(value, "description");
+  return description === undefined ? undefined : { description };
+}
+
+function extractObjectFieldText(value: string, field: string): string | undefined {
+  const keyIndex = value.search(new RegExp(`"${escapeRegExp(field)}"\\s*:`));
+  if (keyIndex < 0) return undefined;
+  const objectStart = value.indexOf("{", keyIndex);
+  if (objectStart < 0) return undefined;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = objectStart; index < value.length; index++) {
+    const char = value[index] ?? "";
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === "{") depth++;
+    if (char === "}") {
+      depth--;
+      if (depth === 0) return value.slice(objectStart, index + 1);
+    }
+  }
+  return value.slice(objectStart);
+}
+
+function extractJsonStringField(value: string, field: string): string | undefined {
+  const match = new RegExp(`"${escapeRegExp(field)}"\\s*:\\s*"`, "g").exec(value);
+  if (match === null) return undefined;
+  const start = match.index + match[0].length;
+  let output = "";
+  let escaped = false;
+  for (let index = start; index < value.length; index++) {
+    const char = value[index] ?? "";
+    if (escaped) {
+      output += char === "n" ? "\n" : char === "r" ? "\r" : char === "t" ? "\t" : char;
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') return normalizeAiSummaryText(output);
+    output += char;
+  }
+  return normalizeAiSummaryText(output);
+}
+
+function extractJsonNumberField(value: string, field: string): number | undefined {
+  const match = new RegExp(`"${escapeRegExp(field)}"\\s*:\\s*(\\d+)`).exec(value);
+  return match?.[1] === undefined ? undefined : Number.parseInt(match[1], 10);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function jsonObjectCandidates(value: string): string[] {
+  const trimmed = value.trim();
+  const withoutFence = stripJsonCodeFence(trimmed);
+  return uniqueStrings([trimmed, withoutFence, extractJsonObjectText(withoutFence)]);
+}
+
+function stripJsonCodeFence(value: string): string {
+  return value
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+}
+
+function extractJsonObjectText(value: string): string {
+  const start = value.indexOf("{");
+  const end = value.lastIndexOf("}");
+  return start >= 0 && end > start ? value.slice(start, end + 1).trim() : value;
+}
+function extractJsonObjectStartText(value: string): string {
+  const start = value.indexOf("{");
+  return start >= 0 ? value.slice(start).trim() : value.trim();
+}
+
+function tryParseJsonObject(value: string): Record<string, unknown> | undefined {
   try {
     const parsed: unknown = JSON.parse(value);
     return isRecord(parsed) ? parsed : undefined;
   } catch {
     return undefined;
   }
+}
+
+function escapeJsonStringControlCharacters(value: string): string {
+  let output = "";
+  let inString = false;
+  let escaped = false;
+  for (const char of value) {
+    if (!inString) {
+      output += char;
+      if (char === '"') inString = true;
+      continue;
+    }
+    if (escaped) {
+      output += char;
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      output += char;
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      output += char;
+      inString = false;
+      continue;
+    }
+    if (char === "\n") {
+      output += "\\n";
+      continue;
+    }
+    if (char === "\r") {
+      output += "\\r";
+      continue;
+    }
+    if (char === "\t") {
+      output += "\\t";
+      continue;
+    }
+    output += char;
+  }
+  return output;
+}
+
+function uniqueStrings(values: string[]): string[] {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    if (value.length === 0 || seen.has(value)) return false;
+    seen.add(value);
+    return true;
+  });
 }
 
 function readString(value: unknown): string | undefined {
@@ -518,9 +701,13 @@ function readAuthor(metadata: Record<string, unknown>): string | undefined {
 }
 
 function normalizeAiSummaryText(value: string): string {
-  const redacted = redactSecretLikeText(value).replace(/\s+/g, " ").trim();
-  if (redacted.length <= AI_SUMMARY_MAX_LENGTH) return redacted;
-  return `${redacted.slice(0, AI_SUMMARY_MAX_LENGTH - 1).trimEnd()}…`;
+  return redactSecretLikeText(value)
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function sanitizeEdges(edges: GraphEdge[]): PromptEdge[] {
