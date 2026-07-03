@@ -355,6 +355,17 @@ type Toast = {
   message: string;
 };
 
+type RieCacheSettingsResponse = {
+  settings: { cacheDir: string };
+  cache: {
+    cacheDir: string;
+    effectiveRoot: string;
+    storeDir: string;
+    aiSummaryDir: string;
+    mode: "project" | "external";
+  };
+};
+
 type RepositoryImportSummary = {
   importId: string;
   repoRoot: string;
@@ -542,6 +553,15 @@ const copies = {
     noStreamEvents: "没有流事件",
     noStreamEventsMessage: "运行 Plan Exec Stream 查看实时事件。",
     aiSummary: "AI 摘要",
+    rieCacheConfig: "RIE 缓存目录",
+    rieCacheConfigIntro: "设置 RIE 知识快照和 AI Summary 的持久缓存目录；下次打开同一项目且文件未变化时会直接复用。",
+    rieCacheDir: "缓存目录",
+    rieCacheDirPlaceholder: "留空使用项目内 .rie；例如 D:\\rie-cache",
+    rieCacheApply: "应用缓存目录",
+    rieCacheApplying: "应用中...",
+    rieCacheEffective: "当前有效目录",
+    rieCacheStore: "知识快照",
+    rieCacheAiSummary: "AI Summary 缓存",
     aiSummaryConfig: "AI 摘要配置",
     aiSummaryConfigIntro: "集中配置 RIE 节点摘要使用的 AI 大模型 API。",
     aiSummaryProviderSelect: "模型提供商",
@@ -699,6 +719,16 @@ const copies = {
     noStreamEvents: "No stream events",
     noStreamEventsMessage: "Run Plan Exec Stream to observe live events.",
     aiSummary: "AI Summary",
+    rieCacheConfig: "RIE Cache Directory",
+    rieCacheConfigIntro:
+      "Configure persistent cache storage for RIE snapshots and AI Summary; unchanged projects reuse it next time.",
+    rieCacheDir: "Cache directory",
+    rieCacheDirPlaceholder: "Leave empty for project .rie; e.g. D:\\rie-cache",
+    rieCacheApply: "Apply cache dir",
+    rieCacheApplying: "Applying...",
+    rieCacheEffective: "Effective root",
+    rieCacheStore: "Snapshot store",
+    rieCacheAiSummary: "AI Summary cache",
     aiSummaryConfig: "AI Summary Config",
     aiSummaryConfigIntro: "Configure the AI model API used by RIE node summaries.",
     aiSummaryProviderSelect: "Model provider",
@@ -777,6 +807,8 @@ function App() {
   const [graph, setGraph] = useState<GraphData>({ nodes: [], edges: [] });
   const [dashboard, setDashboard] = useState<Dashboard | undefined>();
   const [repositoryImport, setRepositoryImport] = useState<RepositoryImportSummary | undefined>();
+  const [rieCacheDir, setRieCacheDir] = useState("");
+  const [rieCacheInfo, setRieCacheInfo] = useState<RieCacheSettingsResponse["cache"] | undefined>();
   const [selectedObjectId, setSelectedObjectId] = useState(preferences.selectedObjectId);
   const [graphSeeds, setGraphSeeds] = useState<string[]>(preferences.graphSeeds);
   const [graphFilters, setGraphFilters] = useState<GraphFilters>(preferences.graphFilters);
@@ -921,6 +953,18 @@ function App() {
       });
   }
 
+  function setRieCacheDirValue(value: string) {
+    setRieCacheDir(value);
+  }
+
+  async function applyRieCacheDir() {
+    const settings = await postJson<RieCacheSettingsResponse>("/api/settings", { cacheDir: rieCacheDir });
+    setRieCacheDir(settings.settings.cacheDir);
+    setRieCacheInfo(settings.cache);
+    setSelectedObject("");
+    await refresh();
+  }
+
   function setSelectedObject(value: string) {
     setSelectedObjectId(value);
     updatePreferences({ selectedObjectId: value });
@@ -1037,25 +1081,32 @@ function App() {
     setContextOutput("");
     setImpactOutput("");
     setContextQuality(undefined);
-    const [treeData, graphData, dashboardData] = await Promise.all([
+    const [settingsData, treeData, graphData, dashboardData] = await Promise.all([
+      getJson<RieCacheSettingsResponse>("/api/settings"),
       getJson<TreeNode>("/api/repository/tree"),
       loadGraph([], defaultFilters),
       getJson<Dashboard>("/api/dashboard"),
     ]);
+    setRieCacheDir(settingsData.settings.cacheDir);
+    setRieCacheInfo(settingsData.cache);
     setTree(treeData);
     setGraph(graphData);
     setDashboard(dashboardData);
   }
 
   async function refresh() {
-    const [treeData, graphData, dashboardData, sessionData, experimentData, recipeData] = await Promise.all([
-      getJson<TreeNode>("/api/repository/tree"),
-      loadGraph(graphSeeds, graphFilters),
-      getJson<Dashboard>("/api/dashboard"),
-      getJson<SessionSummary[]>("/api/codex-console/sessions?limit=20"),
-      getJson<ContextExperimentSummary[]>("/api/context-lab/experiments?limit=20"),
-      getJson<ContextRecipeSummary[]>("/api/context-recipes?limit=20"),
-    ]);
+    const [settingsData, treeData, graphData, dashboardData, sessionData, experimentData, recipeData] =
+      await Promise.all([
+        getJson<RieCacheSettingsResponse>("/api/settings"),
+        getJson<TreeNode>("/api/repository/tree"),
+        loadGraph(graphSeeds, graphFilters),
+        getJson<Dashboard>("/api/dashboard"),
+        getJson<SessionSummary[]>("/api/codex-console/sessions?limit=20"),
+        getJson<ContextExperimentSummary[]>("/api/context-lab/experiments?limit=20"),
+        getJson<ContextRecipeSummary[]>("/api/context-recipes?limit=20"),
+      ]);
+    setRieCacheDir(settingsData.settings.cacheDir);
+    setRieCacheInfo(settingsData.cache);
     setTree(treeData);
     setGraph(graphData);
     setDashboard(dashboardData);
@@ -1334,6 +1385,11 @@ function App() {
           updateConfig={updateAiSummaryConfig}
           updateProvider={updateAiSummaryProvider}
           loadModels={loadAiSummaryModels}
+          cacheDir={rieCacheDir}
+          cacheInfo={rieCacheInfo}
+          updateCacheDir={setRieCacheDirValue}
+          applyCacheDir={() => void runAction("settings-cache", applyRieCacheDir, "RIE cache directory updated.")}
+          cacheApplying={activeActions.includes("settings-cache")}
           onClose={toggleSettings}
         />
       )}
@@ -1649,6 +1705,11 @@ function SettingsPanel(props: {
   updateConfig(patch: Partial<AiSummaryConfig>): void;
   updateProvider(provider: AiSummaryProvider): void;
   loadModels(): void;
+  cacheDir: string;
+  cacheInfo: RieCacheSettingsResponse["cache"] | undefined;
+  updateCacheDir(value: string): void;
+  applyCacheDir(): void;
+  cacheApplying: boolean;
   onClose(): void;
 }) {
   const copy = useCopy();
@@ -1662,22 +1723,59 @@ function SettingsPanel(props: {
         <div className="settings-layout">
           <nav className="settings-nav" aria-label={copy.settings}>
             <button className="active" type="button">
+              {copy.rieCacheConfig}
+            </button>
+            <button className="active" type="button">
               {copy.aiSummaryConfig}
             </button>
           </nav>
-          <MagicCard className="settings-content">
-            <div className="settings-content-header">
-              <AnimatedGradientText className="ai-summary-kicker">{copy.aiSummaryConfig}</AnimatedGradientText>
-              <p>{copy.aiSummaryConfigIntro}</p>
-            </div>
-            <AiSummaryConfigPanel
-              config={props.config}
-              models={props.models}
-              updateConfig={props.updateConfig}
-              updateProvider={props.updateProvider}
-              loadModels={props.loadModels}
-            />
-          </MagicCard>
+          <div className="settings-stack">
+            <MagicCard className="settings-content">
+              <div className="settings-content-header">
+                <AnimatedGradientText className="ai-summary-kicker">{copy.rieCacheConfig}</AnimatedGradientText>
+                <p>{copy.rieCacheConfigIntro}</p>
+              </div>
+              <div className="rie-cache-config">
+                <label>
+                  <span>{copy.rieCacheDir}</span>
+                  <input
+                    value={props.cacheDir}
+                    onInput={(event) => props.updateCacheDir(event.currentTarget.value)}
+                    placeholder={copy.rieCacheDirPlaceholder}
+                  />
+                </label>
+                <button type="button" onClick={() => props.applyCacheDir()} disabled={props.cacheApplying}>
+                  {props.cacheApplying ? copy.rieCacheApplying : copy.rieCacheApply}
+                </button>
+                {props.cacheInfo !== undefined && (
+                  <div className="rie-cache-facts">
+                    <span>
+                      {copy.rieCacheEffective} <strong>{props.cacheInfo.effectiveRoot}</strong>
+                    </span>
+                    <span>
+                      {copy.rieCacheStore} <strong>{props.cacheInfo.storeDir}</strong>
+                    </span>
+                    <span>
+                      {copy.rieCacheAiSummary} <strong>{props.cacheInfo.aiSummaryDir}</strong>
+                    </span>
+                  </div>
+                )}
+              </div>
+            </MagicCard>
+            <MagicCard className="settings-content">
+              <div className="settings-content-header">
+                <AnimatedGradientText className="ai-summary-kicker">{copy.aiSummaryConfig}</AnimatedGradientText>
+                <p>{copy.aiSummaryConfigIntro}</p>
+              </div>
+              <AiSummaryConfigPanel
+                config={props.config}
+                models={props.models}
+                updateConfig={(patch) => props.updateConfig(patch)}
+                updateProvider={(provider) => props.updateProvider(provider)}
+                loadModels={() => props.loadModels()}
+              />
+            </MagicCard>
+          </div>
         </div>
       </section>
     </div>
@@ -2275,7 +2373,7 @@ function AiSummaryConfigPanel(props: {
     <div className="ai-summary-config">
       <div className="ai-summary-config-title">
         <AnimatedGradientText className="ai-summary-kicker">{copy.aiSummaryConfig}</AnimatedGradientText>
-        <button type="button" onClick={props.loadModels} disabled={props.models.status === "loading"}>
+        <button type="button" onClick={() => props.loadModels()} disabled={props.models.status === "loading"}>
           {props.models.status === "loading" ? copy.aiSummaryLoadingModels : copy.aiSummaryLoadModels}
         </button>
       </div>

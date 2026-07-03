@@ -130,6 +130,49 @@ type PromptInput = {
   fileContext?: AiNodeSummaryFileContext;
 };
 
+type StableNodeIdentity = {
+  id: string;
+  type: string;
+  path?: string;
+  hash: string;
+};
+
+type RelationshipTopologyIdentity = {
+  from: StableNodeIdentity;
+  to: StableNodeIdentity;
+  direction: "incoming" | "outgoing";
+  type: string;
+};
+
+type FileContentIdentity = {
+  path: string;
+  hash: string;
+};
+
+type AiConfigurationIdentity = {
+  provider: string;
+  baseUrl: string;
+  model: string;
+  promptVersion: string;
+};
+
+type SummaryCacheIdentity = {
+  kind: "ai-node-summary";
+  promptVersion: string;
+  selectedNode: StableNodeIdentity;
+  oneHopNodes: StableNodeIdentity[];
+  incoming: RelationshipTopologyIdentity[];
+  outgoing: RelationshipTopologyIdentity[];
+  aiConfiguration: AiConfigurationIdentity;
+  fileContent?: FileContentIdentity;
+};
+
+type SummaryCacheIdentityResult = {
+  payload: SummaryCacheIdentity;
+  reusable: boolean;
+  diagnostics: string[];
+};
+
 type AiNodeSummaryOverviewDraft = Omit<AiNodeSummaryOverview, "date" | "author"> & {
   date: string | undefined;
   author: string | undefined;
@@ -167,8 +210,8 @@ const fileContextNodeTypes = new Set(["CodeFile", "Config", "Document", "Script"
 export class JsonFileAiNodeSummaryCache implements AiNodeSummaryCache {
   readonly root: string;
 
-  constructor(repoRoot: string) {
-    this.root = resolve(repoRoot, ".rie", "studio", "ai-summaries");
+  constructor(repoRoot: string, cacheRoot?: string) {
+    this.root = cacheRoot === undefined ? resolve(repoRoot, ".rie", "studio", "ai-summaries") : resolve(cacheRoot);
   }
 
   async read(cacheKey: string): Promise<AiNodeSummaryResult | undefined> {
@@ -191,23 +234,17 @@ export class JsonFileAiNodeSummaryCache implements AiNodeSummaryCache {
   }
 }
 
-export function createAiNodeSummaryCache(repoRoot: string): AiNodeSummaryCache {
-  return new JsonFileAiNodeSummaryCache(repoRoot);
+export function createAiNodeSummaryCache(repoRoot: string, cacheRoot?: string): AiNodeSummaryCache {
+  return new JsonFileAiNodeSummaryCache(repoRoot, cacheRoot);
 }
 
 export async function generateAiNodeSummary(input: AiNodeSummaryInput): Promise<AiNodeSummaryResult> {
   const modelConfig = input.modelConfig ?? resolveAiNodeSummaryModelConfig(Bun.env, Bun.argv, input.requestConfig);
   const promptInput = await buildPromptInput(input.snapshot, input.nodeId, input.repoRoot);
-  const inputHash = canonicalJsonHash(promptInput);
-  const cacheKey = canonicalJsonHash({
-    kind: "ai-node-summary",
-    promptVersion: PROMPT_VERSION,
-    inputHash,
-    modelId: modelConfig.modelId,
-    providerId: modelConfig.providerId,
-    providerBaseUrl: modelConfig.provider.base_url,
-  });
-  const cached = await input.cache.read(cacheKey);
+  const cacheIdentity = buildSummaryCacheIdentity(input.snapshot, input.nodeId, promptInput, modelConfig);
+  const inputHash = canonicalJsonHash(cacheIdentity.payload);
+  const cacheKey = canonicalJsonHash({ kind: "ai-node-summary-cache-entry", inputHash });
+  const cached = cacheIdentity.reusable ? await input.cache.read(cacheKey) : undefined;
   if (cached?.overview !== undefined && cached.details !== undefined) return cached;
 
   const requestStartedAt = performance.now();
@@ -227,9 +264,9 @@ export async function generateAiNodeSummary(input: AiNodeSummaryInput): Promise<
     cacheKey,
     inputHash,
     ...(promptInput.fileContext === undefined ? {} : { fileContext: promptInput.fileContext }),
-    diagnostics: [],
+    diagnostics: cacheIdentity.diagnostics,
   };
-  await input.cache.write(cacheKey, result);
+  if (cacheIdentity.reusable) await input.cache.write(cacheKey, result);
   return result;
 }
 
@@ -238,6 +275,7 @@ export function resolveAiNodeSummaryModelConfig(
   _argv: readonly string[] = Bun.argv,
   requestConfig: AiNodeSummaryRequestConfig = {},
 ): AiNodeSummaryModelConfig {
+  void _argv;
   const providerId = requestConfig.provider ?? DEFAULT_AI_SUMMARY_PROVIDER;
   const defaults = aiSummaryProviderDefaults(providerId);
   const baseUrl = requireNonEmptyString(requestConfig.baseUrl ?? defaults.baseUrl, "aiSummary.baseUrl");
@@ -281,6 +319,104 @@ export async function listAiNodeSummaryModels(
   const models = readModelIds(payload);
   if (models.length === 0) throw new Error("AI summary 模型列表为空。");
   return models;
+}
+
+function buildSummaryCacheIdentity(
+  snapshot: StudioSnapshot,
+  nodeId: string,
+  promptInput: PromptInput,
+  modelConfig: AiNodeSummaryModelConfig,
+): SummaryCacheIdentityResult {
+  const diagnostics: string[] = [];
+  const nodeById = new Map(snapshot.nodes.map((node) => [node.id, node]));
+  const selectedNode = stableNodeIdentity(requiredGraphNode(nodeById, nodeId), diagnostics);
+  const incoming = snapshot.edges.filter((edge) => edge.to === nodeId);
+  const outgoing = snapshot.edges.filter((edge) => edge.from === nodeId);
+  const oneHopIds = new Set([...incoming.map((edge) => edge.from), ...outgoing.map((edge) => edge.to)]);
+  const oneHopNodes = [...oneHopIds]
+    .map((id) => stableNodeIdentity(requiredGraphNode(nodeById, id), diagnostics))
+    .sort(compareStableNodeIdentity);
+  const payload: SummaryCacheIdentity = {
+    kind: "ai-node-summary",
+    promptVersion: PROMPT_VERSION,
+    selectedNode,
+    oneHopNodes,
+    incoming: incoming
+      .map((edge) => relationshipTopologyIdentity(edge, "incoming", nodeById, diagnostics))
+      .sort(compareRelationshipTopologyIdentity),
+    outgoing: outgoing
+      .map((edge) => relationshipTopologyIdentity(edge, "outgoing", nodeById, diagnostics))
+      .sort(compareRelationshipTopologyIdentity),
+    aiConfiguration: {
+      provider: modelConfig.providerId,
+      baseUrl: requireNonEmptyString(modelConfig.provider.base_url, "provider.base_url"),
+      model: modelConfig.modelId,
+      promptVersion: PROMPT_VERSION,
+    },
+    ...(promptInput.fileContext?.hash === undefined
+      ? {}
+      : { fileContent: { path: normalizePath(promptInput.fileContext.path), hash: promptInput.fileContext.hash } }),
+  };
+  return { payload, reusable: diagnostics.length === 0, diagnostics };
+}
+
+function requiredGraphNode(nodeById: Map<string, GraphNode>, id: string): GraphNode {
+  const node = nodeById.get(id);
+  if (node !== undefined) return node;
+  return {
+    id,
+    objectId: id,
+    type: "GeneratedArtifact",
+    label: id,
+    tags: [],
+    updatedAt: "unknown",
+    hash: "",
+    metadata: {},
+  };
+}
+
+function stableNodeIdentity(node: GraphNode, diagnostics: string[]): StableNodeIdentity {
+  const hash = typeof node.hash === "string" ? node.hash.trim() : "";
+  if (hash.length === 0) diagnostics.push(`cache reuse skipped: missing content hash for node ${node.id}`);
+  return {
+    id: node.id,
+    type: node.type,
+    ...(node.path === undefined ? {} : { path: normalizePath(node.path) }),
+    hash: hash.length === 0 ? "__missing__" : hash,
+  };
+}
+
+function relationshipTopologyIdentity(
+  edge: GraphEdge,
+  direction: RelationshipTopologyIdentity["direction"],
+  nodeById: Map<string, GraphNode>,
+  diagnostics: string[],
+): RelationshipTopologyIdentity {
+  return {
+    from: stableNodeIdentity(requiredGraphNode(nodeById, edge.from), diagnostics),
+    to: stableNodeIdentity(requiredGraphNode(nodeById, edge.to), diagnostics),
+    direction,
+    type: edge.type,
+  };
+}
+
+function compareStableNodeIdentity(left: StableNodeIdentity, right: StableNodeIdentity): number {
+  return stableNodeSortKey(left).localeCompare(stableNodeSortKey(right));
+}
+
+function stableNodeSortKey(value: StableNodeIdentity): string {
+  return `${value.id}\0${value.type}\0${value.path ?? ""}\0${value.hash}`;
+}
+
+function compareRelationshipTopologyIdentity(
+  left: RelationshipTopologyIdentity,
+  right: RelationshipTopologyIdentity,
+): number {
+  return relationshipTopologySortKey(left).localeCompare(relationshipTopologySortKey(right));
+}
+
+function relationshipTopologySortKey(value: RelationshipTopologyIdentity): string {
+  return `${value.direction}\0${stableNodeSortKey(value.from)}\0${stableNodeSortKey(value.to)}\0${value.type}`;
 }
 
 export async function buildPromptInput(
@@ -947,7 +1083,8 @@ function readStreamingCompletionLine(line: string): string {
   try {
     const payload = JSON.parse(data) as unknown;
     if (!isRecord(payload) || !Array.isArray(payload.choices)) return "";
-    const choice = payload.choices[0];
+    const choices: unknown[] = payload.choices;
+    const choice = choices[0];
     if (!isRecord(choice) || !isRecord(choice.delta)) return "";
     const content = choice.delta.content;
     return typeof content === "string" ? content : "";

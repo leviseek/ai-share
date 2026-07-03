@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, extname, join, resolve } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import type { BuiltContext, ContextRequest } from "../context/builder.ts";
 import type { BuildResult, KnowledgeObjectType, RelationshipType } from "../core/types.ts";
 import {
@@ -61,6 +62,24 @@ const IMPORT_IGNORED_SEGMENTS = new Set([
   ".pnpm-store",
 ]);
 const IMPORT_IGNORED_FILE_NAMES = new Set(["bun.lockb"]);
+const STUDIO_SETTINGS_PATH = [".rie", "studio", "settings.json"] as const;
+
+export type StudioSettings = {
+  cacheDir: string;
+};
+
+type StudioCacheLayout = {
+  cacheDir: string;
+  effectiveRoot: string;
+  storeDir: string;
+  aiSummaryDir: string;
+  mode: "project" | "external";
+};
+
+export type StudioSettingsResponse = {
+  settings: StudioSettings;
+  cache: StudioCacheLayout;
+};
 
 type StudioState = {
   repoRoot: string;
@@ -70,6 +89,8 @@ type StudioState = {
   experiments: ContextExperimentStore;
   recipes: ContextRecipeStore;
   aiSummaries: AiNodeSummaryCache;
+  settings: StudioSettings;
+  cache: StudioCacheLayout;
   pendingStreams: Map<string, ReturnType<typeof buildCodexDryRun>>;
   activeImport?: RepositoryImportSummary;
 };
@@ -99,13 +120,17 @@ export type RepositoryImportSummary = {
 async function main(argv: string[]): Promise<void> {
   const repoRoot = process.cwd();
   const port = parsePort(argv);
+  const settings = await readStudioSettings(repoRoot);
+  const cache = resolveStudioCacheLayout(repoRoot, settings);
   const state: StudioState = {
     repoRoot,
-    snapshot: await loadStudioSnapshot(repoRoot),
+    snapshot: await loadStudioSnapshot(repoRoot, cache.storeDir),
     sessions: createStudioSessionStore(repoRoot),
     experiments: createContextExperimentStore(repoRoot),
     recipes: createContextRecipeStore(repoRoot),
-    aiSummaries: createAiNodeSummaryCache(repoRoot),
+    aiSummaries: createAiNodeSummaryCache(repoRoot, cache.aiSummaryDir),
+    settings,
+    cache,
     pendingStreams: new Map(),
   };
   const server = Bun.serve({
@@ -126,6 +151,7 @@ async function routeRequest(request: Request, state: StudioState): Promise<Respo
   const url = new URL(request.url);
   if (url.pathname === "/") return await staticResponse("index.html");
   if (url.pathname.startsWith("/assets/")) return await staticResponse(url.pathname.slice(1));
+  if (url.pathname === "/api/settings") return handleSettingsRequest(request, state);
   if (url.pathname === "/api/repository/tree") return jsonResponse(buildRepositoryTree(state.snapshot.objects));
   if (url.pathname === "/api/repository/search") return await handleRepositorySearchRequest(url, state);
   if (url.pathname === "/api/repository/import") return handleRepositoryImportRequest(request, state);
@@ -153,6 +179,30 @@ async function routeRequest(request: Request, state: StudioState): Promise<Respo
   if (url.pathname === "/api/context-recipes/recipe") return handleContextRecipeRequest(url, state);
   if (url.pathname === "/api/context-recipes/dry-run") return handleContextRecipeDryRunRequest(request, state);
   return jsonResponse({ error: "未找到请求的 Studio 资源。" }, 404);
+}
+
+async function handleSettingsRequest(request: Request, state: StudioState): Promise<Response> {
+  if (request.method === "GET") return jsonResponse(studioSettingsResponse(state));
+  if (request.method !== "POST") return jsonResponse({ error: "不支持的请求方法。" }, 405);
+  const body = await parseJsonObject(request);
+  const nextSettings: StudioSettings = { cacheDir: readString(body, "cacheDir") };
+  await writeStudioSettings(state.repoRoot, nextSettings);
+  await applyStudioSettings(state, nextSettings);
+  return jsonResponse(studioSettingsResponse(state));
+}
+
+async function applyStudioSettings(state: StudioState, settings: StudioSettings): Promise<void> {
+  const cache = resolveStudioCacheLayout(state.repoRoot, settings);
+  state.settings = settings;
+  state.cache = cache;
+  state.snapshot = await loadStudioSnapshot(state.repoRoot, cache.storeDir);
+  state.aiSummaries = createAiNodeSummaryCache(state.repoRoot, cache.aiSummaryDir);
+  delete state.lastContext;
+  delete state.activeImport;
+}
+
+function studioSettingsResponse(state: StudioState): StudioSettingsResponse {
+  return { settings: state.settings, cache: state.cache };
 }
 
 async function handleRepositorySearchRequest(url: URL, state: StudioState): Promise<Response> {
@@ -628,7 +678,7 @@ export async function importRepositoryFromFormData(
 async function handleRepositoryImportRequest(request: Request, state: StudioState): Promise<Response> {
   if (request.method !== "POST") return jsonResponse({ error: "不支持的请求方法。" }, 405);
   const formData = await request.formData();
-  return jsonResponse(await importRepositoryFromFormData(formData, state, process.cwd()));
+  return jsonResponse(await importRepositoryFromFormData(formData, state, state.repoRoot));
 }
 
 function buildImportSummary(
@@ -681,6 +731,65 @@ function shouldSkipRepositoryImportPath(path: string): boolean {
   return segments.some(
     (segment) => IMPORT_IGNORED_SEGMENTS.has(segment) || (segment.startsWith(".") && segment !== ".gitignore"),
   );
+}
+
+export async function readStudioSettings(repoRoot: string): Promise<StudioSettings> {
+  try {
+    const raw = await readFile(studioSettingsFile(repoRoot), "utf-8");
+    const value = JSON.parse(raw) as unknown;
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return defaultStudioSettings();
+    const record = value as Record<string, unknown>;
+    return { cacheDir: typeof record.cacheDir === "string" ? record.cacheDir.trim() : "" };
+  } catch {
+    return defaultStudioSettings();
+  }
+}
+
+export async function writeStudioSettings(repoRoot: string, settings: StudioSettings): Promise<void> {
+  const file = studioSettingsFile(repoRoot);
+  await mkdir(dirname(file), { recursive: true });
+  await writeFile(
+    file,
+    `${JSON.stringify(settings, null, 2)}
+`,
+  );
+}
+
+export function resolveStudioCacheLayout(repoRoot: string, settings: StudioSettings): StudioCacheLayout {
+  const cacheDir = settings.cacheDir.trim();
+  if (cacheDir.length === 0) {
+    return {
+      cacheDir: "",
+      effectiveRoot: resolve(repoRoot, ".rie"),
+      storeDir: ".rie",
+      aiSummaryDir: resolve(repoRoot, ".rie", "studio", "ai-summaries"),
+      mode: "project",
+    };
+  }
+  const root = resolve(cacheDir, `${safeCacheProjectName(repoRoot)}-${hashText(resolve(repoRoot)).slice(0, 12)}`);
+  return {
+    cacheDir,
+    effectiveRoot: root,
+    storeDir: resolve(root, "store"),
+    aiSummaryDir: resolve(root, "ai-summaries"),
+    mode: "external",
+  };
+}
+
+function defaultStudioSettings(): StudioSettings {
+  return { cacheDir: "" };
+}
+
+function studioSettingsFile(repoRoot: string): string {
+  return resolve(repoRoot, ...STUDIO_SETTINGS_PATH);
+}
+
+function safeCacheProjectName(repoRoot: string): string {
+  return (basename(resolve(repoRoot)) || "repo").replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 48) || "repo";
+}
+
+function hashText(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 function isWithin(root: string, target: string): boolean {

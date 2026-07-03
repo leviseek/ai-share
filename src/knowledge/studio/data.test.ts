@@ -1,5 +1,5 @@
 import { mkdtemp, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
 import type { GraphEdge, GraphNode, KnowledgeObject } from "../core/types.ts";
@@ -33,6 +33,9 @@ import { createContextExperimentStore, createContextRecipeStore, createStudioSes
 import {
   findFirstRepositoryContentMatch,
   importRepositoryFromFormData,
+  readStudioSettings,
+  resolveStudioCacheLayout,
+  writeStudioSettings,
   type RepositoryImportSummary,
 } from "./server.ts";
 
@@ -437,6 +440,39 @@ describe("Repository Intelligence Studio data", () => {
       expect(error).toBeInstanceOf(Error);
       expect((error as Error).message).toContain("非法导入路径");
     }
+  });
+
+  test("stores RIE Studio cache settings in the project and derives an external cache layout", async () => {
+    const root = await mkdtemp(join(tmpdir(), "studio-cache-project-"));
+    const cacheDir = join(tmpdir(), "rie-cache-shared");
+
+    await writeStudioSettings(root, { cacheDir });
+    const settings = await readStudioSettings(root);
+    const layout = resolveStudioCacheLayout(root, settings);
+
+    expect(settings.cacheDir).toBe(cacheDir);
+    expect(layout.mode).toBe("external");
+    expect(layout.effectiveRoot.startsWith(resolve(cacheDir))).toBe(true);
+    expect(layout.storeDir).toBe(join(layout.effectiveRoot, "store"));
+    expect(layout.aiSummaryDir).toBe(join(layout.effectiveRoot, "ai-summaries"));
+  });
+
+  test("defaults RIE Studio cache to the project .rie directory", () => {
+    const root = resolve("/tmp/example-project");
+    const layout = resolveStudioCacheLayout(root, { cacheDir: "" });
+
+    expect(layout.mode).toBe("project");
+    expect(layout.storeDir).toBe(".rie");
+    expect(layout.aiSummaryDir).toBe(resolve(root, ".rie", "studio", "ai-summaries"));
+  });
+
+  test("exposes AI summary cache layout for cached and generated summary state", () => {
+    const root = resolve("/tmp/example-project");
+    const layout = resolveStudioCacheLayout(root, { cacheDir: join(tmpdir(), "rie-cache-shared") });
+
+    expect(layout.mode).toBe("external");
+    expect(layout.aiSummaryDir).toBe(join(layout.effectiveRoot, "ai-summaries"));
+    expect(JSON.stringify(layout)).toContain("aiSummaryDir");
   });
 
   test("stores and reads recent Studio sessions", async () => {

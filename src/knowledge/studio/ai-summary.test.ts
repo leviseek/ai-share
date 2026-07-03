@@ -221,6 +221,237 @@ describe("Studio AI node summary", () => {
     expect(first.cacheKey).not.toBe(second.cacheKey);
   });
 
+  test("reuses cache when only volatile node timestamps change", async () => {
+    const cache = memoryCache();
+    const firstSnapshot = fixtureSnapshot();
+    const secondSnapshot = cloneSnapshot(firstSnapshot);
+    for (const node of secondSnapshot.nodes) node.updatedAt = "2030-01-01T00:00:00.000Z";
+    let calls = 0;
+
+    const first = await generateAiNodeSummary({
+      snapshot: firstSnapshot,
+      nodeId: "codefile:src/main.ts",
+      cache,
+      modelConfig: modelConfig(),
+      now,
+      fetchImpl: () => {
+        calls++;
+        return Promise.resolve(jsonResponse({ choices: [{ message: { content: "AI 生成的节点总结。" } }] }));
+      },
+    });
+    const second = await generateAiNodeSummary({
+      snapshot: secondSnapshot,
+      nodeId: "codefile:src/main.ts",
+      cache,
+      modelConfig: modelConfig(),
+      now,
+      fetchImpl: () => Promise.reject(new Error("fetch should not be called on timestamp-only cache hit")),
+    });
+
+    expect(calls).toBe(1);
+    expect(second.cached).toBe(true);
+    expect(second.cacheKey).toBe(first.cacheKey);
+  });
+
+  test("reuses cache across different repo roots when stable file content matches", async () => {
+    const firstRoot = await mkdtemp(join(tmpdir(), "rie-ai-summary-root-a-"));
+    const secondRoot = await mkdtemp(join(tmpdir(), "rie-ai-summary-root-b-"));
+    await writeFixtureFiles(firstRoot);
+    await writeFixtureFiles(secondRoot);
+    const cache = memoryCache();
+    let calls = 0;
+
+    const first = await generateAiNodeSummary({
+      snapshot: fixtureSnapshot(),
+      nodeId: "codefile:src/main.ts",
+      cache,
+      repoRoot: firstRoot,
+      modelConfig: modelConfig(),
+      now,
+      fetchImpl: () => {
+        calls++;
+        return Promise.resolve(jsonResponse({ choices: [{ message: { content: "AI 生成的节点总结。" } }] }));
+      },
+    });
+    const second = await generateAiNodeSummary({
+      snapshot: fixtureSnapshot(),
+      nodeId: "codefile:src/main.ts",
+      cache,
+      repoRoot: secondRoot,
+      modelConfig: modelConfig(),
+      now,
+      fetchImpl: () => Promise.reject(new Error("fetch should not be called for matching file content")),
+    });
+
+    expect(calls).toBe(1);
+    expect(second.cached).toBe(true);
+    expect(second.cacheKey).toBe(first.cacheKey);
+  });
+
+  test("builds cache identity deterministically when node and edge order changes", async () => {
+    const firstSnapshot = fixtureSnapshot();
+    const secondSnapshot = cloneSnapshot(firstSnapshot);
+    secondSnapshot.nodes.reverse();
+    secondSnapshot.edges.reverse();
+
+    const first = await generateWithMemoryCache(firstSnapshot, "gpt-5.5");
+    const second = await generateWithMemoryCache(secondSnapshot, "gpt-5.5");
+
+    expect(second.cacheKey).toBe(first.cacheKey);
+    expect(second.inputHash).toBe(first.inputHash);
+  });
+
+  test("excludes stream mode and API key from cache identity", async () => {
+    const cache = memoryCache();
+    const firstConfig = modelConfig("gpt-5.5");
+    const secondConfig: AiNodeSummaryModelConfig = {
+      ...modelConfig("gpt-5.5"),
+      apiKey: "different-secret",
+      stream: true,
+    };
+    let calls = 0;
+
+    const first = await generateAiNodeSummary({
+      snapshot: fixtureSnapshot(),
+      nodeId: "codefile:src/main.ts",
+      cache,
+      modelConfig: firstConfig,
+      now,
+      fetchImpl: () => {
+        calls++;
+        return Promise.resolve(jsonResponse({ choices: [{ message: { content: "AI 生成的节点总结。" } }] }));
+      },
+    });
+    const second = await generateAiNodeSummary({
+      snapshot: fixtureSnapshot(),
+      nodeId: "codefile:src/main.ts",
+      cache,
+      modelConfig: secondConfig,
+      now,
+      fetchImpl: () => Promise.reject(new Error("fetch should not be called when only stream/API key changes")),
+    });
+
+    expect(calls).toBe(1);
+    expect(second.cached).toBe(true);
+    expect(second.cacheKey).toBe(first.cacheKey);
+  });
+
+  test("changes cache key when selected or one-hop node content hash changes", async () => {
+    const selectedChanged = cloneSnapshot(fixtureSnapshot());
+    findFixtureNode(selectedChanged, "codefile:src/main.ts").hash = "main-hash-changed";
+    const neighborChanged = cloneSnapshot(fixtureSnapshot());
+    findFixtureNode(neighborChanged, "config:config.yaml").hash = "config-hash-changed";
+
+    const first = await generateWithMemoryCache(fixtureSnapshot(), "gpt-5.5");
+    const second = await generateWithMemoryCache(selectedChanged, "gpt-5.5");
+    const third = await generateWithMemoryCache(neighborChanged, "gpt-5.5");
+
+    expect(second.cacheKey).not.toBe(first.cacheKey);
+    expect(third.cacheKey).not.toBe(first.cacheKey);
+  });
+
+  test("changes cache key when relationship type or direction changes but ignores edge metadata", async () => {
+    const metadataChanged = cloneSnapshot(fixtureSnapshot());
+    metadataChanged.edges = metadataChanged.edges.map((edge) => ({
+      ...edge,
+      id: `${edge.id}:new`,
+      metadata: { updatedAt: "2030-01-01T00:00:00.000Z", importRoot: "D:/tmp/import" },
+    }));
+    const typeChanged = cloneSnapshot(fixtureSnapshot());
+    const configEdge = typeChanged.edges.find((edge) => edge.id === "edge:main-config");
+    if (configEdge !== undefined) configEdge.type = "depends_on";
+    const directionChanged = cloneSnapshot(fixtureSnapshot());
+    const edge = directionChanged.edges.find((item) => item.id === "edge:main-config");
+    if (edge !== undefined) {
+      edge.from = "config:config.yaml";
+      edge.to = "codefile:src/main.ts";
+    }
+
+    const first = await generateWithMemoryCache(fixtureSnapshot(), "gpt-5.5");
+    const second = await generateWithMemoryCache(metadataChanged, "gpt-5.5");
+    const third = await generateWithMemoryCache(typeChanged, "gpt-5.5");
+    const fourth = await generateWithMemoryCache(directionChanged, "gpt-5.5");
+
+    expect(second.cacheKey).toBe(first.cacheKey);
+    expect(third.cacheKey).not.toBe(first.cacheKey);
+    expect(fourth.cacheKey).not.toBe(first.cacheKey);
+  });
+
+  test("changes cache key when provider endpoint or provider id changes", async () => {
+    const first = await generateWithMemoryCache(fixtureSnapshot(), "gpt-5.5");
+    const differentEndpoint = await generateAiNodeSummary({
+      snapshot: fixtureSnapshot(),
+      nodeId: "codefile:src/main.ts",
+      cache: memoryCache(),
+      modelConfig: {
+        ...modelConfig("gpt-5.5"),
+        provider: { ...modelConfig("gpt-5.5").provider, base_url: "https://other.test/v1" },
+      },
+      now,
+      fetchImpl: () => Promise.resolve(jsonResponse({ choices: [{ message: { content: "AI 生成的节点总结。" } }] })),
+    });
+    const differentProvider = await generateAiNodeSummary({
+      snapshot: fixtureSnapshot(),
+      nodeId: "codefile:src/main.ts",
+      cache: memoryCache(),
+      modelConfig: { ...modelConfig("gpt-5.5"), providerId: "other-provider" },
+      now,
+      fetchImpl: () => Promise.resolve(jsonResponse({ choices: [{ message: { content: "AI 生成的节点总结。" } }] })),
+    });
+
+    expect(differentEndpoint.cacheKey).not.toBe(first.cacheKey);
+    expect(differentProvider.cacheKey).not.toBe(first.cacheKey);
+  });
+
+  test("does not reuse cache when selected or one-hop node hash is missing", async () => {
+    const selectedMissingHash = cloneSnapshot(fixtureSnapshot());
+    findFixtureNode(selectedMissingHash, "codefile:src/main.ts").hash = "";
+    const neighborMissingHash = cloneSnapshot(fixtureSnapshot());
+    findFixtureNode(neighborMissingHash, "config:config.yaml").hash = "";
+    const cache = memoryCache();
+    let calls = 0;
+
+    await generateAiNodeSummary({
+      snapshot: selectedMissingHash,
+      nodeId: "codefile:src/main.ts",
+      cache,
+      modelConfig: modelConfig(),
+      now,
+      fetchImpl: () => {
+        calls++;
+        return Promise.resolve(jsonResponse({ choices: [{ message: { content: "AI 生成的节点总结。" } }] }));
+      },
+    });
+    const second = await generateAiNodeSummary({
+      snapshot: selectedMissingHash,
+      nodeId: "codefile:src/main.ts",
+      cache,
+      modelConfig: modelConfig(),
+      now,
+      fetchImpl: () => {
+        calls++;
+        return Promise.resolve(jsonResponse({ choices: [{ message: { content: "AI 再次生成的节点总结。" } }] }));
+      },
+    });
+    const third = await generateAiNodeSummary({
+      snapshot: neighborMissingHash,
+      nodeId: "codefile:src/main.ts",
+      cache,
+      modelConfig: modelConfig(),
+      now,
+      fetchImpl: () => {
+        calls++;
+        return Promise.resolve(jsonResponse({ choices: [{ message: { content: "AI 第三次生成的节点总结。" } }] }));
+      },
+    });
+
+    expect(calls).toBe(3);
+    expect(second.cached).toBe(false);
+    expect(third.cached).toBe(false);
+    expect(second.diagnostics).toContain("cache reuse skipped: missing content hash for node codefile:src/main.ts");
+    expect(third.diagnostics).toContain("cache reuse skipped: missing content hash for node config:config.yaml");
+  });
+
   test("resolves AI summary model to direct DeepSeek API", () => {
     const config = resolveAiNodeSummaryModelConfig({ DEEPSEEK_API_KEY: "test-deepseek-key" }, []);
 
@@ -418,6 +649,28 @@ async function generateWithMemoryCache(snapshot: StudioSnapshot, modelId: string
     now,
     fetchImpl: () => Promise.resolve(jsonResponse({ choices: [{ message: { content: "AI 生成的节点总结。" } }] })),
   });
+}
+
+function findFixtureNode(snapshot: StudioSnapshot, id: string): StudioSnapshot["nodes"][number] {
+  const node = snapshot.nodes.find((item) => item.id === id);
+  if (node === undefined) throw new Error(`missing fixture node: ${id}`);
+  return node;
+}
+
+function cloneSnapshot(snapshot: StudioSnapshot): StudioSnapshot {
+  return {
+    objects: snapshot.objects.map((object) => ({
+      ...object,
+      tags: [...object.tags],
+      metadata: { ...object.metadata },
+      relationships: object.relationships.map((relationship) => ({
+        ...relationship,
+        metadata: { ...relationship.metadata },
+      })),
+    })),
+    nodes: snapshot.nodes.map((node) => ({ ...node, tags: [...node.tags], metadata: { ...node.metadata } })),
+    edges: snapshot.edges.map((edge) => ({ ...edge, metadata: { ...edge.metadata } })),
+  };
 }
 
 async function writeFixtureFiles(repoRoot: string): Promise<void> {

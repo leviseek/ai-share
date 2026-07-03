@@ -1798,3 +1798,47 @@ kbd {
     grid-template-columns: 1fr;
   }
 }
+
+.settings-stack,
+.rie-cache-config,
+.rie-cache-facts {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.rie-cache-config label {
+  color: var(--muted-foreground);
+  display: grid;
+  font-size: var(--font-caption);
+  gap: var(--space-1);
+}
+
+.rie-cache-config label > span {
+  color: var(--foreground);
+  font-weight: 700;
+}
+
+.rie-cache-config button {
+  justify-self: start;
+}
+
+.rie-cache-facts {
+  background: color-mix(in srgb, var(--primary) 5%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+}
+
+.rie-cache-facts span {
+  color: var(--muted-foreground);
+  display: grid;
+  font-size: var(--font-caption);
+  gap: var(--space-1);
+}
+
+.rie-cache-facts strong {
+  color: var(--foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
