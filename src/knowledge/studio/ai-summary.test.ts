@@ -7,6 +7,7 @@ import {
   buildPromptInput,
   createAiNodeSummaryCache,
   generateAiNodeSummary,
+  listAiNodeSummaryModels,
   resolveAiNodeSummaryModelConfig,
 } from "./ai-summary.ts";
 import type { StudioSnapshot } from "./data.ts";
@@ -228,6 +229,91 @@ describe("Studio AI node summary", () => {
     expect(config.providerId).toBe("deepseek");
     expect(config.provider.base_url).toBe("https://api.deepseek.com/v1");
     expect(config.apiKey).toBe("test-deepseek-key");
+    expect(config.stream).toBe(true);
+  });
+
+  test("resolves configurable AI summary model API settings", () => {
+    const config = resolveAiNodeSummaryModelConfig({ CUSTOM_AI_KEY: "custom-secret" }, [], {
+      baseUrl: "https://example.test/v1",
+      apiKey: "${CUSTOM_AI_KEY}",
+      model: "custom-summary-model",
+      stream: false,
+    });
+
+    expect(config.modelId).toBe("custom-summary-model");
+    expect(config.model.model_name).toBe("custom-summary-model");
+    expect(config.provider.base_url).toBe("https://example.test/v1");
+    expect(config.provider.api_key).toBe("${CUSTOM_AI_KEY}");
+    expect(config.apiKey).toBe("custom-secret");
+    expect(config.stream).toBe(false);
+  });
+
+  test("resolves GPT provider defaults for AI summaries", () => {
+    const config = resolveAiNodeSummaryModelConfig({ OPENAI_API_KEY: "test-openai-key" }, [], { provider: "gpt" });
+
+    expect(config.providerId).toBe("gpt");
+    expect(config.provider.name).toBe("GPT");
+    expect(config.provider.base_url).toBe("https://api.openai.com/v1");
+    expect(config.modelId).toBe("gpt-5.5");
+    expect(config.apiKey).toBe("test-openai-key");
+    expect(config.stream).toBe(true);
+  });
+
+  test("lists AI summary models from configurable OpenAI-compatible API", async () => {
+    const urls: string[] = [];
+    const models = await listAiNodeSummaryModels(
+      {
+        baseUrl: "https://example.test/v1/",
+        apiKey: "${CUSTOM_AI_KEY}",
+        fetchImpl: (url, init) => {
+          urls.push(url);
+          expect(init.headers).toEqual({ Authorization: "Bearer custom-secret" });
+          return Promise.resolve(
+            jsonResponse({
+              data: [{ id: "zeta" }, { id: "alpha" }, { id: "" }, { name: "missing-id" }],
+            }),
+          );
+        },
+      },
+      { CUSTOM_AI_KEY: "custom-secret" },
+    );
+
+    expect(urls).toEqual(["https://example.test/v1/models"]);
+    expect(models).toEqual(["alpha", "zeta"]);
+  });
+
+  test("reads streamed AI summary completion chunks", async () => {
+    const result = await generateAiNodeSummary({
+      snapshot: fixtureSnapshot(),
+      nodeId: "codefile:src/main.ts",
+      cache: memoryCache(),
+      modelConfig: { ...modelConfig(), stream: true },
+      now,
+      fetchImpl: () =>
+        Promise.resolve(
+          new Response(
+            [
+              `data: ${JSON.stringify({ choices: [{ delta: { content: '{"summary":"流式' } }] })}`,
+              `data: ${JSON.stringify({
+                choices: [
+                  {
+                    delta: {
+                      content:
+                        '摘要","overview":{"intent":"流式调用","dependencyCount":1,"dependentCount":0},"details":{"description":"SSE chunks","exposed":[]}}',
+                    },
+                  },
+                ],
+              })}`,
+              "data: [DONE]",
+              "",
+            ].join("\n"),
+            { status: 200, headers: { "content-type": "text/event-stream" } },
+          ),
+        ),
+    });
+
+    expect(result.summary).toBe("流式摘要");
+    expect(result.overview.intent).toBe("流式调用");
   });
 
   test("requires DeepSeek API key for AI summaries", () => {
@@ -430,6 +516,7 @@ function modelConfig(modelId = "gpt-5.5"): AiNodeSummaryModelConfig {
     providerId: "codexapis",
     provider: { base_url: "https://example.test/v1", api_key: "${TEST_API_KEY}", timeout: 1000 },
     apiKey: "test-key",
+    stream: false,
   };
 }
 

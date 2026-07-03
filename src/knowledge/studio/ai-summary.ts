@@ -67,6 +67,22 @@ export type AiNodeSummaryModelConfig = {
   providerId: string;
   provider: ProviderSource;
   apiKey: string;
+  stream: boolean;
+};
+
+export type AiNodeSummaryRequestConfig = {
+  provider?: AiSummaryProviderId;
+  baseUrl?: string;
+  apiKey?: string;
+  model?: string;
+  stream?: boolean;
+};
+
+export type AiNodeSummaryModelListInput = {
+  provider?: AiSummaryProviderId;
+  baseUrl?: string;
+  apiKey?: string;
+  fetchImpl?: FetchLike;
 };
 
 export type AiNodeSummaryCache = {
@@ -80,6 +96,7 @@ export type AiNodeSummaryInput = {
   cache: AiNodeSummaryCache;
   repoRoot?: string;
   modelConfig?: AiNodeSummaryModelConfig;
+  requestConfig?: AiNodeSummaryRequestConfig;
   fetchImpl?: FetchLike;
   now?: string;
 };
@@ -119,11 +136,29 @@ type AiNodeSummaryOverviewDraft = Omit<AiNodeSummaryOverview, "date" | "author">
 };
 
 const PROMPT_VERSION = "rie-ai-node-summary-v4";
-const AI_SUMMARY_PROVIDER_ID = "deepseek";
-const AI_SUMMARY_MODEL_ID = "deepseek-v4-pro";
-const AI_SUMMARY_MODEL_NAME = "deepseek-v4-pro";
-const AI_SUMMARY_BASE_URL = "https://api.deepseek.com/v1";
-const AI_SUMMARY_API_KEY_ENV = "DEEPSEEK_API_KEY";
+export type AiSummaryProviderId = "deepseek" | "gpt";
+const DEFAULT_AI_SUMMARY_PROVIDER: AiSummaryProviderId = "deepseek";
+const AI_SUMMARY_PROVIDER_DEFAULTS: Record<
+  AiSummaryProviderId,
+  { baseUrl: string; apiKey: string; model: string; name: string }
+> = {
+  deepseek: {
+    baseUrl: "https://api.deepseek.com/v1",
+    apiKey: "${DEEPSEEK_API_KEY}",
+    model: "deepseek-v4-pro",
+    name: "DeepSeek",
+  },
+  gpt: {
+    baseUrl: "https://api.openai.com/v1",
+    apiKey: "${OPENAI_API_KEY}",
+    model: "gpt-5.5",
+    name: "GPT",
+  },
+};
+export const DEFAULT_AI_SUMMARY_BASE_URL: string = AI_SUMMARY_PROVIDER_DEFAULTS.deepseek.baseUrl;
+export const DEFAULT_AI_SUMMARY_API_KEY: string = AI_SUMMARY_PROVIDER_DEFAULTS.deepseek.apiKey;
+export const DEFAULT_AI_SUMMARY_MODEL: string = AI_SUMMARY_PROVIDER_DEFAULTS.deepseek.model;
+export const DEFAULT_AI_SUMMARY_STREAM = true;
 const AI_SUMMARY_TIMEOUT_MS = 600_000;
 const MAX_FILE_CONTEXT_BYTES = 200_000;
 const MAX_SNIPPET_LINES = 200;
@@ -161,7 +196,7 @@ export function createAiNodeSummaryCache(repoRoot: string): AiNodeSummaryCache {
 }
 
 export async function generateAiNodeSummary(input: AiNodeSummaryInput): Promise<AiNodeSummaryResult> {
-  const modelConfig = input.modelConfig ?? resolveAiNodeSummaryModelConfig();
+  const modelConfig = input.modelConfig ?? resolveAiNodeSummaryModelConfig(Bun.env, Bun.argv, input.requestConfig);
   const promptInput = await buildPromptInput(input.snapshot, input.nodeId, input.repoRoot);
   const inputHash = canonicalJsonHash(promptInput);
   const cacheKey = canonicalJsonHash({
@@ -170,6 +205,7 @@ export async function generateAiNodeSummary(input: AiNodeSummaryInput): Promise<
     inputHash,
     modelId: modelConfig.modelId,
     providerId: modelConfig.providerId,
+    providerBaseUrl: modelConfig.provider.base_url,
   });
   const cached = await input.cache.read(cacheKey);
   if (cached?.overview !== undefined && cached.details !== undefined) return cached;
@@ -200,27 +236,51 @@ export async function generateAiNodeSummary(input: AiNodeSummaryInput): Promise<
 export function resolveAiNodeSummaryModelConfig(
   env: Record<string, string | undefined> = Bun.env,
   _argv: readonly string[] = Bun.argv,
+  requestConfig: AiNodeSummaryRequestConfig = {},
 ): AiNodeSummaryModelConfig {
-  const apiKey = env[AI_SUMMARY_API_KEY_ENV];
-  if (apiKey === undefined || apiKey.length === 0) throw new Error(`缺少环境变量：${AI_SUMMARY_API_KEY_ENV}`);
+  const providerId = requestConfig.provider ?? DEFAULT_AI_SUMMARY_PROVIDER;
+  const defaults = aiSummaryProviderDefaults(providerId);
+  const baseUrl = requireNonEmptyString(requestConfig.baseUrl ?? defaults.baseUrl, "aiSummary.baseUrl");
+  const apiKeyRef = requireNonEmptyString(requestConfig.apiKey ?? defaults.apiKey, "aiSummary.apiKey");
+  const modelId = requireNonEmptyString(requestConfig.model ?? defaults.model, "aiSummary.model");
   return {
-    modelId: AI_SUMMARY_MODEL_ID,
+    modelId,
     model: {
-      provider: AI_SUMMARY_PROVIDER_ID,
-      model_name: AI_SUMMARY_MODEL_NAME,
+      provider: providerId,
+      model_name: modelId,
       capabilities: ["reasoning", "coding", "summary"],
       temperature: 0.2,
     },
-    providerId: AI_SUMMARY_PROVIDER_ID,
+    providerId,
     provider: {
-      name: "DeepSeek",
-      short_name: "DeepSeek",
-      base_url: AI_SUMMARY_BASE_URL,
-      api_key: `\${${AI_SUMMARY_API_KEY_ENV}}`,
+      name: defaults.name,
+      short_name: defaults.name,
+      base_url: baseUrl,
+      api_key: apiKeyRef,
       timeout: AI_SUMMARY_TIMEOUT_MS,
     },
-    apiKey,
+    apiKey: resolveApiKey(apiKeyRef, env),
+    stream: requestConfig.stream ?? DEFAULT_AI_SUMMARY_STREAM,
   };
+}
+
+export async function listAiNodeSummaryModels(
+  input: AiNodeSummaryModelListInput,
+  env: Record<string, string | undefined> = Bun.env,
+): Promise<string[]> {
+  const defaults = aiSummaryProviderDefaults(input.provider ?? DEFAULT_AI_SUMMARY_PROVIDER);
+  const baseUrl = requireNonEmptyString(input.baseUrl ?? defaults.baseUrl, "aiSummary.baseUrl");
+  const apiKeyRef = requireNonEmptyString(input.apiKey ?? defaults.apiKey, "aiSummary.apiKey");
+  const response = await (input.fetchImpl ?? fetch)(modelsUrl(baseUrl), {
+    method: "GET",
+    headers: { Authorization: `Bearer ${resolveApiKey(apiKeyRef, env)}` },
+    signal: AbortSignal.timeout(AI_SUMMARY_TIMEOUT_MS),
+  });
+  if (!response.ok) throw new Error(`AI summary 模型列表请求失败：HTTP ${response.status}`);
+  const payload = (await response.json()) as unknown;
+  const models = readModelIds(payload);
+  if (models.length === 0) throw new Error("AI summary 模型列表为空。");
+  return models;
 }
 
 export async function buildPromptInput(
@@ -261,17 +321,19 @@ async function requestAiNodeSummary(
       Authorization: `Bearer ${modelConfig.apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(chatRequestBody(promptInput, modelConfig.model)),
+    body: JSON.stringify(chatRequestBody(promptInput, modelConfig)),
     signal: AbortSignal.timeout(providerTimeoutMs(modelConfig.provider)),
   });
   if (!response.ok) throw new Error(`AI summary 请求失败：HTTP ${response.status}`);
-  const payload = (await response.json()) as unknown;
-  const content = readCompletionContent(payload);
+  const content = modelConfig.stream
+    ? await readStreamingCompletionContent(response)
+    : readCompletionContent((await response.json()) as unknown);
   if (content.length === 0) throw new Error("AI summary 响应为空。");
   return content;
 }
 
-function chatRequestBody(promptInput: PromptInput, model: ModelSource): Record<string, unknown> {
+function chatRequestBody(promptInput: PromptInput, modelConfig: AiNodeSummaryModelConfig): Record<string, unknown> {
+  const model = modelConfig.model;
   return {
     ...modelParameters(model.parameters ?? {}),
     model: requireNonEmptyString(model.model_name, "model.model_name"),
@@ -297,6 +359,7 @@ function chatRequestBody(promptInput: PromptInput, model: ModelSource): Record<s
       },
     ],
     ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}),
+    ...(modelConfig.stream ? { stream: true } : {}),
   };
 }
 
@@ -855,6 +918,71 @@ function readCompletionContent(payload: unknown): string {
   if (!isRecord(choice) || !isRecord(choice.message)) return "";
   const content = choice.message.content;
   return typeof content === "string" ? content.trim() : "";
+}
+
+async function readStreamingCompletionContent(response: Response): Promise<string> {
+  const reader = response.body?.getReader();
+  if (reader === undefined) return "";
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let output = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? "";
+    for (const line of lines) output += readStreamingCompletionLine(line);
+  }
+  output += decoder.decode();
+  output += readStreamingCompletionLine(buffer);
+  return output.trim();
+}
+
+function readStreamingCompletionLine(line: string): string {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("data:")) return "";
+  const data = trimmed.slice("data:".length).trim();
+  if (data.length === 0 || data === "[DONE]") return "";
+  try {
+    const payload = JSON.parse(data) as unknown;
+    if (!isRecord(payload) || !Array.isArray(payload.choices)) return "";
+    const choice = payload.choices[0];
+    if (!isRecord(choice) || !isRecord(choice.delta)) return "";
+    const content = choice.delta.content;
+    return typeof content === "string" ? content : "";
+  } catch {
+    return "";
+  }
+}
+
+function readModelIds(payload: unknown): string[] {
+  if (!isRecord(payload) || !Array.isArray(payload.data)) return [];
+  return payload.data
+    .flatMap((item) => (isRecord(item) && typeof item.id === "string" && item.id.length > 0 ? [item.id] : []))
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function aiSummaryProviderDefaults(
+  providerId: AiSummaryProviderId,
+): (typeof AI_SUMMARY_PROVIDER_DEFAULTS)[AiSummaryProviderId] {
+  return AI_SUMMARY_PROVIDER_DEFAULTS[providerId];
+}
+
+function modelsUrl(baseUrl: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/models`;
+}
+
+function resolveApiKey(value: string, env: Record<string, string | undefined>): string {
+  const envName = envKeyName(value);
+  if (envName === undefined) return value;
+  const apiKey = env[envName];
+  if (apiKey === undefined || apiKey.length === 0) throw new Error(`缺少环境变量：${envName}`);
+  return apiKey;
+}
+
+function envKeyName(value: string): string | undefined {
+  return /^\$\{([A-Z_][A-Z0-9_]*)\}$/.exec(value)?.[1];
 }
 
 function modelParameters(parameters: Record<string, unknown>): Record<string, unknown> {

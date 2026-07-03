@@ -37,7 +37,12 @@ import {
   type ContextRecipeStore,
   type StudioSessionStore,
 } from "./session-store.ts";
-import { createAiNodeSummaryCache, generateAiNodeSummary, type AiNodeSummaryCache } from "./ai-summary.ts";
+import {
+  createAiNodeSummaryCache,
+  generateAiNodeSummary,
+  listAiNodeSummaryModels,
+  type AiNodeSummaryCache,
+} from "./ai-summary.ts";
 
 const DEFAULT_PORT = 3737;
 const DIST_DIR = join(import.meta.dir, "public", "dist");
@@ -127,6 +132,7 @@ async function routeRequest(request: Request, state: StudioState): Promise<Respo
   if (url.pathname === "/api/graph") return jsonResponse(handleGraphRequest(url, state.snapshot));
   if (url.pathname === "/api/context") return handleContextRequest(request, state);
   if (url.pathname === "/api/impact") return jsonResponse(handleImpactRequest(url, state.snapshot));
+  if (url.pathname === "/api/ai/models") return handleAiModelsRequest(request);
   if (url.pathname === "/api/ai/node-summary") return handleAiNodeSummaryRequest(request, state);
   if (url.pathname === "/api/dashboard") return jsonResponse(buildDashboardMetrics(state.snapshot, state.lastContext));
   if (url.pathname === "/api/codex-console/mock") return handleCodexMockRequest(request, state.snapshot);
@@ -248,8 +254,37 @@ async function handleAiNodeSummaryRequest(request: Request, state: StudioState):
       nodeId,
       cache: state.aiSummaries,
       repoRoot: state.activeImport?.repoRoot ?? state.repoRoot,
+      requestConfig: readAiSummaryRequestConfig(body),
     }),
   );
+}
+
+async function handleAiModelsRequest(request: Request): Promise<Response> {
+  if (request.method !== "POST") return jsonResponse({ error: "不支持的请求方法。" }, 405);
+  const body = await parseJsonObject(request);
+  return jsonResponse({ models: await listAiNodeSummaryModels(readAiSummaryRequestConfig(body)) });
+}
+
+function readAiSummaryRequestConfig(body: Record<string, unknown>): {
+  provider?: "deepseek" | "gpt";
+  baseUrl?: string;
+  apiKey?: string;
+  model?: string;
+  stream?: boolean;
+} {
+  const config = body.aiSummaryConfig;
+  if (typeof config !== "object" || config === null || Array.isArray(config)) return {};
+  const record = config as Record<string, unknown>;
+  const provider = record.provider === "gpt" || record.provider === "deepseek" ? record.provider : undefined;
+  return {
+    ...(provider !== undefined ? { provider } : {}),
+    ...(typeof record.baseUrl === "string" && record.baseUrl.trim().length > 0
+      ? { baseUrl: record.baseUrl.trim() }
+      : {}),
+    ...(typeof record.apiKey === "string" && record.apiKey.trim().length > 0 ? { apiKey: record.apiKey.trim() } : {}),
+    ...(typeof record.model === "string" && record.model.trim().length > 0 ? { model: record.model.trim() } : {}),
+    ...(typeof record.stream === "boolean" ? { stream: record.stream } : {}),
+  };
 }
 
 function handleGraphRequest(url: URL, snapshot: StudioSnapshot): unknown {
