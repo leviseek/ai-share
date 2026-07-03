@@ -19,8 +19,16 @@ import { DotPattern } from "@/components/magic/dot-pattern";
 import { MagicCard } from "@/components/magic/magic-card";
 import "./styles.css";
 
-const AI_SUMMARY_PROVIDER_LABEL = "DeepSeek";
-const AI_SUMMARY_MODEL_LABEL = "deepseek-v4-pro";
+const aiSummaryProviderPresets: Record<AiSummaryProvider, { baseUrl: string; apiKey: string; model: string }> = {
+  deepseek: { baseUrl: "https://api.deepseek.com/v1", apiKey: "${DEEPSEEK_API_KEY}", model: "deepseek-v4-pro" },
+  gpt: { baseUrl: "https://api.openai.com/v1", apiKey: "${OPENAI_API_KEY}", model: "gpt-5.5" },
+};
+
+const defaultAiSummaryConfig: AiSummaryConfig = {
+  provider: "deepseek",
+  ...aiSummaryProviderPresets.deepseek,
+  stream: true,
+};
 
 type TreeNode = {
   name: string;
@@ -315,6 +323,22 @@ type AiNodeSummary = {
   diagnostics: string[];
 };
 
+type AiSummaryProvider = "deepseek" | "gpt";
+
+type AiSummaryConfig = {
+  provider: AiSummaryProvider;
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  stream: boolean;
+};
+
+type AiSummaryModelListState =
+  | { status: "idle"; models: string[] }
+  | { status: "loading"; models: string[] }
+  | { status: "ready"; models: string[] }
+  | { status: "error"; models: string[]; message: string };
+
 type AiNodeSummaryState =
   | { status: "idle" }
   | { status: "loading"; nodeId: string; startedAt: number; provider: string; model: string }
@@ -356,8 +380,10 @@ type StudioPreferences = {
   selectedRecipeId: string;
   helpOpen: boolean;
   inspectorCollapsed: boolean;
+  settingsOpen: boolean;
   locale: Locale;
   theme: ThemeMode;
+  aiSummaryConfig: AiSummaryConfig;
 };
 
 const nodeTypeOptions = [
@@ -412,8 +438,10 @@ const defaultPreferences: StudioPreferences = {
   selectedRecipeId: "",
   helpOpen: false,
   inspectorCollapsed: false,
+  settingsOpen: false,
   locale: "zh-CN",
   theme: "light",
+  aiSummaryConfig: defaultAiSummaryConfig,
 };
 
 const copies = {
@@ -421,6 +449,7 @@ const copies = {
     appTitle: "Repository Intelligence Studio",
     appSubtitle: "交互式图谱探索 · 知识引擎 Trace · Codex 可观测性",
     help: "帮助",
+    settings: "设置",
     close: "关闭",
     refresh: "刷新",
     refreshing: "刷新中...",
@@ -513,9 +542,24 @@ const copies = {
     noStreamEvents: "没有流事件",
     noStreamEventsMessage: "运行 Plan Exec Stream 查看实时事件。",
     aiSummary: "AI 摘要",
+    aiSummaryConfig: "AI 摘要配置",
+    aiSummaryConfigIntro: "集中配置 RIE 节点摘要使用的 AI 大模型 API。",
+    aiSummaryProviderSelect: "模型提供商",
+    aiSummaryBaseUrl: "Base URL",
+    aiSummaryApiKey: "API Key",
+    aiSummaryApiKeyHint: "支持 ${ENV_VAR} 环境变量引用，避免在页面里保存明文密钥。",
+    aiSummaryModelSelect: "模型",
+    aiSummaryLoadModels: "加载模型",
+    aiSummaryLoadingModels: "加载中...",
+    aiSummaryModelLoadFailed: "模型列表加载失败",
+    aiSummaryStream: "流式输出",
+    aiSummaryStreamHint: "默认开启，生成时会实时接收 DeepSeek/OpenAI 兼容 SSE。",
     aiSummaryGenerating: "AI 摘要：生成中...",
     aiSummaryCalling: "正在调用",
     aiSummaryModel: "当前模型",
+    aiSummaryProvider: "当前 API",
+    aiSummaryProviderDeepSeek: "DeepSeek",
+    aiSummaryProviderGpt: "GPT",
     apiElapsed: "已用时",
     requestDuration: "API 请求耗时",
     aiSummaryFailed: "AI 摘要失败",
@@ -561,6 +605,7 @@ const copies = {
     appTitle: "Repository Intelligence Studio",
     appSubtitle: "Interactive Graph Explorer · Knowledge Engine Trace · Codex Observability",
     help: "Help",
+    settings: "Settings",
     close: "Close",
     refresh: "Refresh",
     refreshing: "Refreshing...",
@@ -654,9 +699,24 @@ const copies = {
     noStreamEvents: "No stream events",
     noStreamEventsMessage: "Run Plan Exec Stream to observe live events.",
     aiSummary: "AI Summary",
+    aiSummaryConfig: "AI Summary Config",
+    aiSummaryConfigIntro: "Configure the AI model API used by RIE node summaries.",
+    aiSummaryProviderSelect: "Model provider",
+    aiSummaryBaseUrl: "Base URL",
+    aiSummaryApiKey: "API Key",
+    aiSummaryApiKeyHint: "Supports ${ENV_VAR} references to avoid storing plaintext secrets in the page.",
+    aiSummaryModelSelect: "Model",
+    aiSummaryLoadModels: "Load models",
+    aiSummaryLoadingModels: "Loading...",
+    aiSummaryModelLoadFailed: "Model list failed",
+    aiSummaryStream: "Stream output",
+    aiSummaryStreamHint: "On by default; generation receives DeepSeek/OpenAI-compatible SSE chunks.",
     aiSummaryGenerating: "AI Summary: generating...",
     aiSummaryCalling: "calling",
     aiSummaryModel: "Model",
+    aiSummaryProvider: "API",
+    aiSummaryProviderDeepSeek: "DeepSeek",
+    aiSummaryProviderGpt: "GPT",
     apiElapsed: "Elapsed",
     requestDuration: "API duration",
     aiSummaryFailed: "AI Summary failed",
@@ -745,9 +805,12 @@ function App() {
   const [activeActions, setActiveActions] = useState<string[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [helpOpen, setHelpOpen] = useState(preferences.helpOpen);
+  const [settingsOpen, setSettingsOpen] = useState(preferences.settingsOpen);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(preferences.inspectorCollapsed);
   const [locale, setLocale] = useState<Locale>(preferences.locale);
   const [theme, setTheme] = useState<ThemeMode>(preferences.theme);
+  const [aiSummaryConfig, setAiSummaryConfig] = useState<AiSummaryConfig>(preferences.aiSummaryConfig);
+  const [aiSummaryModels, setAiSummaryModels] = useState<AiSummaryModelListState>({ status: "idle", models: [] });
   const copy = copies[locale];
 
   const selectedDetail = useMemo(() => graphDetail(graph, selectedObjectId), [graph, selectedObjectId]);
@@ -772,10 +835,10 @@ function App() {
       status: "loading",
       nodeId: selectedNodeId,
       startedAt: Date.now(),
-      provider: AI_SUMMARY_PROVIDER_LABEL,
-      model: AI_SUMMARY_MODEL_LABEL,
+      provider: aiSummaryProviderLabel(aiSummaryConfig.provider),
+      model: aiSummaryConfig.model,
     });
-    void postJson<AiNodeSummary>("/api/ai/node-summary", { nodeId: selectedNodeId })
+    void postJson<AiNodeSummary>("/api/ai/node-summary", { nodeId: selectedNodeId, aiSummaryConfig })
       .then((result) => {
         if (!cancelled) setAiNodeSummary({ status: "ready", nodeId: selectedNodeId, result });
       })
@@ -790,7 +853,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [selectedNodeId]);
+  }, [aiSummaryConfig, selectedNodeId]);
 
   useEffect(() => {
     const requestId = repositorySearchRequestRef.current + 1;
@@ -822,6 +885,40 @@ function App() {
 
   function updatePreferences(patch: Partial<StudioPreferences>) {
     setPreferences((current) => ({ ...current, ...patch }));
+  }
+
+  function updateAiSummaryConfig(patch: Partial<AiSummaryConfig>) {
+    setAiSummaryConfig((current) => {
+      const next = { ...current, ...patch };
+      updatePreferences({ aiSummaryConfig: next });
+      return next;
+    });
+  }
+
+  function updateAiSummaryProvider(provider: AiSummaryProvider) {
+    const next: AiSummaryConfig = { provider, ...aiSummaryProviderPresets[provider], stream: aiSummaryConfig.stream };
+    setAiSummaryConfig(next);
+    setAiSummaryModels({ status: "idle", models: [] });
+    updatePreferences({ aiSummaryConfig: next });
+  }
+
+  function loadAiSummaryModels() {
+    setAiSummaryModels((current) => ({ status: "loading", models: current.models }));
+    const requestConfig = aiSummaryConfig;
+    void postJson<{ models: string[] }>("/api/ai/models", { aiSummaryConfig: requestConfig })
+      .then((result) => {
+        const models = uniqueStrings(result.models);
+        setAiSummaryModels({ status: "ready", models });
+        if (models.length > 0 && !models.includes(aiSummaryConfig.model))
+          updateAiSummaryConfig({ model: models[0] ?? aiSummaryConfig.model });
+      })
+      .catch((error: unknown) => {
+        setAiSummaryModels((current) => ({
+          status: "error",
+          models: current.models,
+          message: error instanceof Error ? error.message : "AI model list failed.",
+        }));
+      });
   }
 
   function setSelectedObject(value: string) {
@@ -885,6 +982,12 @@ function App() {
     const next = !helpOpen;
     setHelpOpen(next);
     updatePreferences({ helpOpen: next });
+  }
+
+  function toggleSettings() {
+    const next = !settingsOpen;
+    setSettingsOpen(next);
+    updatePreferences({ settingsOpen: next });
   }
 
   function toggleInspector() {
@@ -1187,7 +1290,10 @@ function App() {
       }
       if (event.key === "Escape") {
         dismissToasts();
-        if (helpOpen) {
+        if (settingsOpen) {
+          setSettingsOpen(false);
+          updatePreferences({ settingsOpen: false });
+        } else if (helpOpen) {
           setHelpOpen(false);
           updatePreferences({ helpOpen: false });
         } else {
@@ -1197,7 +1303,7 @@ function App() {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [graphSeeds, graphFilters, helpOpen, prompt]);
+  }, [graphSeeds, graphFilters, helpOpen, prompt, settingsOpen]);
 
   return (
     <CopyContext.Provider value={copy}>
@@ -1211,6 +1317,7 @@ function App() {
         </div>
         <div className="header-actions">
           <button onClick={() => toggleHelp()}>{copy.help}</button>
+          <button onClick={() => toggleSettings()}>{copy.settings}</button>
           <button onClick={() => toggleLocale()}>{copy.languageToggle}</button>
           <button onClick={() => toggleTheme()}>{theme === "light" ? copy.themeToggle : copy.themeToggleDark}</button>
           <button disabled={isBusy} onClick={() => void runAction("refresh", refresh, "Studio refreshed.")}>
@@ -1220,6 +1327,16 @@ function App() {
       </header>
       <ToastStack toasts={toasts} onDismiss={(id) => setToasts((items) => items.filter((item) => item.id !== id))} />
       {helpOpen && <HelpPanel onClose={toggleHelp} />}
+      {settingsOpen && (
+        <SettingsPanel
+          config={aiSummaryConfig}
+          models={aiSummaryModels}
+          updateConfig={updateAiSummaryConfig}
+          updateProvider={updateAiSummaryProvider}
+          loadModels={loadAiSummaryModels}
+          onClose={toggleSettings}
+        />
+      )}
       <main>
         <MagicCard className="panel explorer">
           <h2>{copy.repositoryExplorer}</h2>
@@ -1522,6 +1639,47 @@ function EmptyState(props: { title: string; message: string }) {
     <div className="empty-state">
       <strong>{props.title}</strong>
       <span>{props.message}</span>
+    </div>
+  );
+}
+
+function SettingsPanel(props: {
+  config: AiSummaryConfig;
+  models: AiSummaryModelListState;
+  updateConfig(patch: Partial<AiSummaryConfig>): void;
+  updateProvider(provider: AiSummaryProvider): void;
+  loadModels(): void;
+  onClose(): void;
+}) {
+  const copy = useCopy();
+  return (
+    <div className="help-backdrop" onClick={() => props.onClose()}>
+      <section className="help-panel settings-panel" onClick={(event) => event.stopPropagation()}>
+        <div className="panel-title">
+          <h2>{copy.settings}</h2>
+          <button onClick={() => props.onClose()}>{copy.close}</button>
+        </div>
+        <div className="settings-layout">
+          <nav className="settings-nav" aria-label={copy.settings}>
+            <button className="active" type="button">
+              {copy.aiSummaryConfig}
+            </button>
+          </nav>
+          <MagicCard className="settings-content">
+            <div className="settings-content-header">
+              <AnimatedGradientText className="ai-summary-kicker">{copy.aiSummaryConfig}</AnimatedGradientText>
+              <p>{copy.aiSummaryConfigIntro}</p>
+            </div>
+            <AiSummaryConfigPanel
+              config={props.config}
+              models={props.models}
+              updateConfig={props.updateConfig}
+              updateProvider={props.updateProvider}
+              loadModels={props.loadModels}
+            />
+          </MagicCard>
+        </div>
+      </section>
     </div>
   );
 }
@@ -2101,7 +2259,86 @@ function AiSummaryPanel(props: { state: AiNodeSummaryState; nodeId: string }) {
       </MagicCard>
     );
   }
-  return <MagicCard className="ai-summary-card pending">{copy.aiSummaryIdle}</MagicCard>;
+  return <MagicCard className="ai-summary-card pending ai-summary-live">{copy.aiSummaryIdle}</MagicCard>;
+}
+
+function AiSummaryConfigPanel(props: {
+  config: AiSummaryConfig;
+  models: AiSummaryModelListState;
+  updateConfig(patch: Partial<AiSummaryConfig>): void;
+  updateProvider(provider: AiSummaryProvider): void;
+  loadModels(): void;
+}) {
+  const copy = useCopy();
+  const modelOptions = uniqueStrings([props.config.model, ...props.models.models]).filter((model) => model.length > 0);
+  return (
+    <div className="ai-summary-config">
+      <div className="ai-summary-config-title">
+        <AnimatedGradientText className="ai-summary-kicker">{copy.aiSummaryConfig}</AnimatedGradientText>
+        <button type="button" onClick={props.loadModels} disabled={props.models.status === "loading"}>
+          {props.models.status === "loading" ? copy.aiSummaryLoadingModels : copy.aiSummaryLoadModels}
+        </button>
+      </div>
+      <label>
+        <span>{copy.aiSummaryProviderSelect}</span>
+        <select
+          value={props.config.provider}
+          onChange={(event) => props.updateProvider(event.currentTarget.value as AiSummaryProvider)}
+        >
+          <option value="deepseek">{copy.aiSummaryProviderDeepSeek}</option>
+          <option value="gpt">{copy.aiSummaryProviderGpt}</option>
+        </select>
+      </label>
+      <label>
+        <span>{copy.aiSummaryBaseUrl}</span>
+        <input
+          value={props.config.baseUrl}
+          onInput={(event) => props.updateConfig({ baseUrl: event.currentTarget.value })}
+          placeholder="https://api.deepseek.com/v1"
+        />
+      </label>
+      <label>
+        <span>{copy.aiSummaryApiKey}</span>
+        <input
+          value={props.config.apiKey}
+          onInput={(event) => props.updateConfig({ apiKey: event.currentTarget.value })}
+          placeholder="${DEEPSEEK_API_KEY}"
+        />
+        <small>{copy.aiSummaryApiKeyHint}</small>
+      </label>
+      <div className="ai-summary-config-row">
+        <label>
+          <span>{copy.aiSummaryModelSelect}</span>
+          <select
+            value={props.config.model}
+            onChange={(event) => props.updateConfig({ model: event.currentTarget.value })}
+          >
+            {modelOptions.map((model) => (
+              <option value={model} key={model}>
+                {model}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="ai-summary-switch">
+          <input
+            type="checkbox"
+            checked={props.config.stream}
+            onChange={(event) => props.updateConfig({ stream: event.currentTarget.checked })}
+          />
+          <span>
+            {copy.aiSummaryStream}
+            <small>{copy.aiSummaryStreamHint}</small>
+          </span>
+        </label>
+      </div>
+      {props.models.status === "error" && (
+        <small className="ai-summary-config-error">
+          {copy.aiSummaryModelLoadFailed}: {props.models.message}
+        </small>
+      )}
+    </div>
+  );
 }
 
 function AiSummaryExposedList(props: { symbols: AiNodeSummary["details"]["exposed"] }) {
@@ -3000,12 +3237,37 @@ function readStudioPreferences(): StudioPreferences {
       selectedRecipeId: typeof value.selectedRecipeId === "string" ? value.selectedRecipeId : "",
       helpOpen: typeof value.helpOpen === "boolean" ? value.helpOpen : false,
       inspectorCollapsed: typeof value.inspectorCollapsed === "boolean" ? value.inspectorCollapsed : false,
+      settingsOpen: typeof value.settingsOpen === "boolean" ? value.settingsOpen : false,
       locale: value.locale === "en-US" || value.locale === "zh-CN" ? value.locale : defaultPreferences.locale,
       theme: value.theme === "dark" || value.theme === "light" ? value.theme : defaultPreferences.theme,
+      aiSummaryConfig: readAiSummaryConfig(value.aiSummaryConfig),
     };
   } catch {
     return defaultPreferences;
   }
+}
+
+function readAiSummaryConfig(value: unknown): AiSummaryConfig {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return defaultAiSummaryConfig;
+  const record = value as Record<string, unknown>;
+  const provider: AiSummaryProvider =
+    record.provider === "gpt" || record.provider === "deepseek" ? record.provider : "deepseek";
+  const preset = aiSummaryProviderPresets[provider];
+  return {
+    provider,
+    baseUrl: typeof record.baseUrl === "string" ? record.baseUrl : preset.baseUrl,
+    apiKey: typeof record.apiKey === "string" ? record.apiKey : preset.apiKey,
+    model: typeof record.model === "string" ? record.model : preset.model,
+    stream: typeof record.stream === "boolean" ? record.stream : defaultAiSummaryConfig.stream,
+  };
+}
+
+function uniqueStrings(values: readonly string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter((value) => value.length > 0))];
+}
+
+function aiSummaryProviderLabel(provider: AiSummaryProvider): string {
+  return provider === "gpt" ? "GPT" : "DeepSeek";
 }
 
 function writeStudioPreferences(preferences: StudioPreferences): void {
