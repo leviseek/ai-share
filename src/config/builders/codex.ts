@@ -23,12 +23,19 @@ export function buildCodexCliConfig(
   const modelSource = modelSources[modelId];
   const providerId = requireString(modelSource?.provider, `models.${modelId}.provider`);
   const modelReasoningEffort = reasoningEffort(modelId, modelSources);
+  const windowsConfig = nonEmptyRecord(globalConfig.codex_windows);
+  const shellEnvironmentPolicy = nonEmptyRecord(globalConfig.codex_shell_environment_policy);
 
   return {
     model: modelSource?.model_name ?? modelId,
     model_provider: providerId,
     ...(modelReasoningEffort ? { model_reasoning_effort: modelReasoningEffort } : {}),
     model_instructions_file: instructionsFile,
+    ...(globalConfig.codex_allow_login_shell === undefined
+      ? {}
+      : { allow_login_shell: globalConfig.codex_allow_login_shell }),
+    ...(windowsConfig ? { windows: windowsConfig } : {}),
+    ...(shellEnvironmentPolicy ? { shell_environment_policy: shellEnvironmentPolicy } : {}),
     model_providers: buildCodexProviders(providerSources),
     ...nonEmptyMcpServers(buildCodexMcpServers(mcpConfig)),
   };
@@ -58,8 +65,42 @@ export function formatCodexConfigToml(config: CodexCliConfig): string {
     `model_provider = ${tomlString(config.model_provider)}`,
     ...(config.model_reasoning_effort ? [`model_reasoning_effort = ${tomlString(config.model_reasoning_effort)}`] : []),
     `model_instructions_file = ${tomlString(config.model_instructions_file)}`,
+    ...(config.allow_login_shell === undefined ? [] : [`allow_login_shell = ${tomlBoolean(config.allow_login_shell)}`]),
     "",
   ];
+
+  if (config.windows && Object.keys(config.windows).length > 0) {
+    lines.push("[windows]");
+    if (config.windows.sandbox) lines.push(`sandbox = ${tomlString(config.windows.sandbox)}`);
+    lines.push("");
+  }
+
+  if (config.shell_environment_policy && Object.keys(config.shell_environment_policy).length > 0) {
+    lines.push("[shell_environment_policy]");
+    if (config.shell_environment_policy.inherit) {
+      lines.push(`inherit = ${tomlString(config.shell_environment_policy.inherit)}`);
+    }
+    if (config.shell_environment_policy.ignore_default_excludes !== undefined) {
+      lines.push(`ignore_default_excludes = ${tomlBoolean(config.shell_environment_policy.ignore_default_excludes)}`);
+    }
+    if (config.shell_environment_policy.experimental_use_profile !== undefined) {
+      lines.push(`experimental_use_profile = ${tomlBoolean(config.shell_environment_policy.experimental_use_profile)}`);
+    }
+    if (config.shell_environment_policy.exclude) {
+      lines.push(`exclude = ${tomlStringArray(config.shell_environment_policy.exclude)}`);
+    }
+    if (config.shell_environment_policy.include_only) {
+      lines.push(`include_only = ${tomlStringArray(config.shell_environment_policy.include_only)}`);
+    }
+    if (config.shell_environment_policy.set && Object.keys(config.shell_environment_policy.set).length > 0) {
+      lines.push("");
+      lines.push("[shell_environment_policy.set]");
+      for (const [envKey, envValue] of Object.entries(config.shell_environment_policy.set)) {
+        lines.push(`${tomlBareKey(envKey)} = ${tomlString(envValue)}`);
+      }
+    }
+    lines.push("");
+  }
 
   for (const [providerId, provider] of Object.entries(config.model_providers)) {
     lines.push(`[model_providers.${tomlBareKey(providerId)}]`);
@@ -161,4 +202,12 @@ function tomlString(value: string): string {
 
 function tomlStringArray(values: string[]): string {
   return `[${values.map(tomlString).join(", ")}]`;
+}
+
+function tomlBoolean(value: boolean): string {
+  return value ? "true" : "false";
+}
+
+function nonEmptyRecord<T extends object>(value: T | undefined): T | undefined {
+  return value && Object.keys(value).length > 0 ? value : undefined;
 }

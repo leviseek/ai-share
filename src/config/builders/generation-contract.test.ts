@@ -34,6 +34,16 @@ describe("Codex generation contract", () => {
 model_provider = "codexapis"
 model_reasoning_effort = "medium"
 model_instructions_file = "/codex/AGENTS.md"
+allow_login_shell = false
+
+[windows]
+sandbox = "elevated"
+
+[shell_environment_policy]
+inherit = "all"
+ignore_default_excludes = false
+experimental_use_profile = false
+exclude = ["CONDA_*", "_CE_*"]
 
 [model_providers.codexapis]
 name = "Codex APIs"
@@ -49,6 +59,11 @@ env_key = "PACKYAPI_API_KEY"
 name = "Axas API"
 base_url = "https://api.asxs.top/v1"
 env_key = "AXASAPI_API_KEY"
+
+[model_providers.lingsuan]
+name = "Lingsuan API"
+base_url = "https://lingsuan.top"
+env_key = "LINGSUAN_API_KEY"
 `);
   });
 

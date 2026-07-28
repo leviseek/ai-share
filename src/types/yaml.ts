@@ -57,4 +57,20 @@ export type ModelSource = {
 export type GlobalYaml = {
   model?: string;
   codex_min_version?: string;
+  codex_allow_login_shell?: boolean;
+  codex_windows?: CodexWindowsSource;
+  codex_shell_environment_policy?: CodexShellEnvironmentPolicySource;
+};
+
+export type CodexWindowsSource = {
+  sandbox?: "elevated" | "unelevated";
+};
+
+export type CodexShellEnvironmentPolicySource = {
+  inherit?: "all" | "core" | "none";
+  ignore_default_excludes?: boolean;
+  experimental_use_profile?: boolean;
+  exclude?: string[];
+  include_only?: string[];
+  set?: Record<string, string>;
 };

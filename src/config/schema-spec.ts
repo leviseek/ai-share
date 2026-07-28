@@ -72,6 +72,25 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
       properties: {
         model: stringSchema("Default Codex model id from models.yaml."),
         codex_min_version: stringSchema("Minimum Codex CLI version checked by ai:check."),
+        codex_allow_login_shell: booleanSchema("Whether Codex shell commands may use login shells."),
+        codex_windows: objectSchema({
+          properties: {
+            sandbox: enumStringSchema(["elevated", "unelevated"], "Windows sandbox backend."),
+          },
+        }),
+        codex_shell_environment_policy: objectSchema({
+          properties: {
+            inherit: enumStringSchema(["all", "core", "none"], "Inherited environment policy for shell commands."),
+            ignore_default_excludes: booleanSchema("Whether to ignore Codex default env excludes."),
+            experimental_use_profile: booleanSchema("Whether to read shell profile files for command environments."),
+            exclude: stringArraySchema("Environment variable patterns excluded from shell commands."),
+            include_only: stringArraySchema("Environment variable patterns included in shell commands."),
+            set: objectSchema({
+              propertyNames: { pattern: ENV_FILE_NAME_PATTERN },
+              additionalProperties: stringSchema("Explicit shell command environment value."),
+            }),
+          },
+        }),
       },
     }),
   },
@@ -197,6 +216,10 @@ function stringArraySchema(description: string): Extract<SchemaNode, { type: "ar
 
 function numberSchema(description: string): Extract<SchemaNode, { type: "number" }> {
   return { type: "number", description };
+}
+
+function booleanSchema(description: string): Extract<SchemaNode, { type: "boolean" }> {
+  return { type: "boolean", description };
 }
 
 function positiveNumberSchema(description: string): Extract<SchemaNode, { type: "number" }> {

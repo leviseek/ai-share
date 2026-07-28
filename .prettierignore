@@ -9,3 +9,5 @@ docs/schema/json/
 bun.lock
 
 .codex/
+.codegraph/
+.rie/
