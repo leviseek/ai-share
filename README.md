@@ -149,7 +149,8 @@ bun run schema:check     # 只读检查缺失、漂移和额外 schema
 
 ## 运行态诊断
 
-`ai:doctor` 默认离线；缺少 API Key、Codex 或生成输出只报告 warning。`--online` 才访问 Provider `/models`，`--canary` 才发送最小 completion（并自动启用 online）。
+`ai:doctor` 默认不访问外部 Provider，但会探测配置的本地代理端口；缺少 API Key、Codex 或生成输出只报告 warning。
+`--online` 才访问 Provider `/models`，`--canary` 才发送最小 completion（并自动启用 online）。
 
 ```sh
 bun run ai:doctor

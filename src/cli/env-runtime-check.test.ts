@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { checkCodexEnvLocalProxies, collectLocalProxyTargets } from "./env-runtime-check.ts";
+import { checkCodexEnvLocalProxies, collectLocalProxyTargets, summarizeLocalProxyChecks } from "./env-runtime-check.ts";
 
 describe("Codex .env runtime checks", () => {
   test("deduplicates loopback proxy targets from uppercase and lowercase env names", () => {
@@ -46,5 +46,16 @@ describe("Codex .env runtime checks", () => {
         ok: false,
       },
     ]);
+  });
+
+  test("reports whether configured local proxy endpoints are reachable", () => {
+    expect(summarizeLocalProxyChecks([])).toEqual({ ok: true, summary: "未配置本地代理。" });
+    expect(summarizeLocalProxyChecks([{ host: "127.0.0.1", port: 7897, envNames: ["HTTP_PROXY"], ok: true }])).toEqual({
+      ok: true,
+      summary: "本地代理可达：127.0.0.1:7897。",
+    });
+    expect(summarizeLocalProxyChecks([{ host: "127.0.0.1", port: 7897, envNames: ["HTTP_PROXY"], ok: false }])).toEqual(
+      { ok: false, summary: "本地代理不可达：127.0.0.1:7897。" },
+    );
   });
 });

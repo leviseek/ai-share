@@ -6,6 +6,7 @@ import { buildCodexCliConfig, formatCodexConfigToml } from "../config-builders.t
 import { loadValidatedConfig } from "../config/load.ts";
 import { argsFromArgv, hasFlag, parseOptionValue } from "./args.ts";
 import { collectConfigDiagnostics } from "./config-diagnostics.ts";
+import { summarizeLocalProxyChecks } from "./env-runtime-check.ts";
 import { checkMemoryPrivacy } from "./memory-privacy-check.ts";
 import { resolveProviderId } from "./options.ts";
 import { buildGeneratorPaths } from "./paths.ts";
@@ -43,8 +44,8 @@ const diagnostics = await collectConfigDiagnostics({
   envConfig: config.env,
   globalConfig: config.global,
   expectedCodexConfig: expectedConfig,
-  probeLocalProxy: online,
 });
+const localProxySummary = summarizeLocalProxyChecks(diagnostics.localProxyChecks.value);
 
 checks.push(
   diagnosticCheck(
@@ -72,13 +73,12 @@ checks.push(
     "Codex 版本不足或不可检测。",
     diagnostics.versionResults.value,
   ),
-  diagnosticCheck(
-    "local_proxy",
-    diagnostics.localProxyChecks.value.every((entry) => entry.ok),
-    online ? "本地代理可达或未配置。" : "离线模式未探测本地代理。",
-    "存在不可达的本地代理。",
-    diagnostics.localProxyChecks.value,
-  ),
+  {
+    name: "local_proxy",
+    status: localProxySummary.ok ? "ok" : "warning",
+    summary: localProxySummary.summary,
+    details: diagnostics.localProxyChecks.value,
+  },
 );
 
 const privacy = checkMemoryPrivacy(paths.projectRoot);

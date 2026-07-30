@@ -11,6 +11,11 @@ export type LocalProxyRuntimeCheck = LocalProxyTarget & {
   ok: boolean;
 };
 
+export type LocalProxyCheckSummary = {
+  ok: boolean;
+  summary: string;
+};
+
 type TcpProbe = (host: string, port: number, timeoutMs: number) => Promise<boolean>;
 
 const PROXY_ENV_NAMES = new Set(["http_proxy", "https_proxy", "all_proxy"]);
@@ -52,6 +57,16 @@ export function collectLocalProxyTargets(envConfig: EnvYaml): LocalProxyTarget[]
   return [...targets.values()];
 }
 
+export function summarizeLocalProxyChecks(checks: readonly LocalProxyRuntimeCheck[]): LocalProxyCheckSummary {
+  if (checks.length === 0) return { ok: true, summary: "未配置本地代理。" };
+
+  const unreachable = checks.filter((check) => !check.ok);
+  if (unreachable.length > 0) {
+    return { ok: false, summary: `本地代理不可达：${formatProxyTargets(unreachable)}。` };
+  }
+  return { ok: true, summary: `本地代理可达：${formatProxyTargets(checks)}。` };
+}
+
 function parseLocalProxyTarget(value: string): Omit<LocalProxyTarget, "envNames"> | undefined {
   let url: URL;
   try {
@@ -72,6 +87,10 @@ function defaultProxyPort(protocol: string): number {
   if (protocol === "https:") return 443;
   if (protocol === "socks:" || protocol === "socks4:" || protocol === "socks5:") return 1080;
   return 80;
+}
+
+function formatProxyTargets(targets: readonly LocalProxyTarget[]): string {
+  return targets.map((target) => `${target.host}:${target.port}`).join("、");
 }
 
 function tcpConnect(host: string, port: number, timeoutMs: number): Promise<boolean> {

@@ -27,7 +27,6 @@ export async function collectConfigDiagnostics(input: {
   envConfig: EnvYaml;
   globalConfig: GlobalYaml;
   expectedCodexConfig: string;
-  probeLocalProxy: boolean;
 }): Promise<ConfigDiagnostics> {
   return {
     missingApiKey: timeSync(() => missingProviderApiKeyEnvName(input.provider)),
@@ -38,9 +37,7 @@ export async function collectConfigDiagnostics(input: {
       codexEnvManagedBlockIsCurrent(input.envConfig, await readOptional(input.paths.targetCodexEnv)),
     ),
     versionResults: timeSync(() => checkVersions(input.globalConfig)),
-    localProxyChecks: input.probeLocalProxy
-      ? await timeAsync(() => checkCodexEnvLocalProxies(input.envConfig))
-      : timeSync(() => []),
+    localProxyChecks: await timeAsync(() => checkCodexEnvLocalProxies(input.envConfig)),
   };
 }
 
