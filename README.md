@@ -99,14 +99,11 @@ ai-share 不再维护仓库内 `bin/` 目录，也不安装独立启动器；`co
 
 ## Native Skills
 
-当前安装到 `~/.codex/skills/` 的 native skills 来自 `src/cli/native-skills.ts` 和 `skills/` 源目录，例如：
+当前安装到 `~/.codex/skills/` 的 native skills 来自 `src/cli/native-skills.ts` 和 `skills/` 源目录。当前保留最小技能集：
 
-- `git-master`：安全 Git 操作、原子提交、历史搜索。
 - `ai-share-generator`：修改 `config/*.yaml`、生成器和安装输出时的工作流。
-- `config-model-tuning`：调整默认模型、provider group、模型 metadata 和 fallback。
-- `context-compiler`：把长 session、issue、日志、PR、网页资料编译成可审计上下文摘要。
-- `prompt-lint`：检查提示词、skill 和 instruction memory 的冲突、冗余与不可验证规则。
-- `release-commit`：整理变更批次、验证证据、风险和提交计划。
+- `failure-distiller`：把重复调试失败和根因模式整理为可审核的 distilled memory 候选。
+- `memory-curator`：治理 `memory/` 分层、去重、迁移和长期记忆候选。
 
 ## 模型
 

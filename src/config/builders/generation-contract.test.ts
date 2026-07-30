@@ -139,7 +139,7 @@ USER_NOTE=keep
       mcpServerIds: ["filesystem"],
       codexEnvVarNames: ["HTTP_PROXY", "NO_PROXY"],
       localConfigOverlays: ["config/local/global.yaml"],
-      skillIds: ["git-master", "ai-share-generator"],
+      skillIds: ["ai-share-generator", "failure-distiller", "memory-curator"],
       instructionFiles: ["/repo/AI_GUIDELINES.md", "/repo/memory/user/profile.md"],
     });
 
@@ -163,7 +163,7 @@ USER_NOTE=keep
         codex_env_vars: ["HTTP_PROXY", "NO_PROXY"],
         local_config_overlays: ["config/local/global.yaml"],
         mcp_servers: ["filesystem"],
-        skills: ["git-master", "ai-share-generator"],
+        skills: ["ai-share-generator", "failure-distiller", "memory-curator"],
         instruction_files: ["/repo/AI_GUIDELINES.md", "/repo/memory/user/profile.md"],
       },
     });

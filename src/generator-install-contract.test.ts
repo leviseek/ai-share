@@ -55,7 +55,9 @@ describe("generator install contract", () => {
       expect(readText(join(codexHome, "AGENTS.md"))).toContain("memory");
       expect(readText(join(codexHome, ".env"))).toContain("HTTP_PROXY=http://127.0.0.1:7897");
       expect(readText(join(codexHome, ".env"))).not.toContain("CODEXAPIS_API_KEY");
-      expect(existsSync(join(codexHome, "skills", "git-master", "SKILL.md"))).toBe(true);
+      expect(existsSync(join(codexHome, "skills", "ai-share-generator", "SKILL.md"))).toBe(true);
+      expect(existsSync(join(codexHome, "skills", "failure-distiller", "SKILL.md"))).toBe(true);
+      expect(existsSync(join(codexHome, "skills", "memory-curator", "SKILL.md"))).toBe(true);
     } finally {
       removeGeneratedWorkspaceLink(join(home, "ai-workspace", "ai-share"));
       rmSync(root, { recursive: true, force: true });
