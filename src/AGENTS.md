@@ -9,6 +9,7 @@ Bun/strict TypeScript 实现的纯配置加载、Codex builder、GenerationPlan�
 ```text
 src/
 ├── generate-user-config.ts # 结构化生成入口
+├── generation-preview.ts   # ai:gen/ai:explain 共享只读预览
 ├── config-builders.ts      # builder re-export facade
 ├── config/                 # async loader、schema、validation、builders
 ├── cli/                    # options、paths、GenerationPlan、staging、doctor/check/clean
@@ -23,6 +24,9 @@ src/
 | Need                           | Location                          | Notes                                     |
 | ------------------------------ | --------------------------------- | ----------------------------------------- |
 | End-to-end generation          | `generate-user-config.ts`         | 返回结构化结果，入口统一设置退出码        |
+| Shared generation preview      | `generation-preview.ts`           | 配置、选择、Memory 与 plan 的无副作用编排 |
+| Explainable generation         | `cli/ai-explain.ts`               | 版本化 JSON 与彩色 human 只读报告         |
+| Explain report projection      | `cli/explain-report.ts`           | 来源、排名和 plan metadata，剥离 content  |
 | Async config pipeline          | `config/load.ts`                  | base + local overlay + validation         |
 | YAML shape source              | `config/schema-spec.ts`           | JSON Schema 与运行时 shape 的单一来源     |
 | Cross-file/security validation | `config/validation.ts`            | 输入 `unknown`，成功返回 `ConfigSet`      |
@@ -38,6 +42,8 @@ src/
 ## CONVENTIONS
 
 - `generate-user-config.ts` 只做 orchestration；shape 逻辑放 builder，IO/ownership 放 `cli/`。
+- `ai:gen` 与 `ai:explain` 必须共享 `buildGenerationPreview`；explain 不得调用事务执行器或网络检查。
+- explain JSON 只输出单一确定性对象，不包含 action content、env 值、真实凭据、ANSI、时间戳或随机 ID。
 - 配置 loader 保持 async；overlay 的 object 深合并、数组/标量替换语义不可漂移。
 - `exactOptionalPropertyTypes`、`noUncheckedIndexedAccess`、`noUnused*`、`isolatedDeclarations` 均启用。
 - 用户可见错误使用中文；标识符、参数、路径、env 名保持英文。

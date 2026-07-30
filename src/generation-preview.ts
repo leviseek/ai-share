@@ -18,6 +18,7 @@ export type GenerationPreviewOptions = {
 };
 
 export type GenerationPreview = {
+  options: GenerationPreviewOptions;
   paths: GeneratorPaths;
   loadedConfig: LoadedValidatedConfig;
   providerDecision: ProviderDecision;
@@ -27,6 +28,16 @@ export type GenerationPreview = {
   instructions: string;
   plan: GenerationPlan;
 };
+
+export class InvalidProviderError extends Error {
+  readonly providerId: string;
+
+  constructor(providerId: string) {
+    super(`提供商未定义：${providerId}`);
+    this.name = "InvalidProviderError";
+    this.providerId = providerId;
+  }
+}
 
 export async function buildGenerationPreview(input: {
   options: GenerationPreviewOptions;
@@ -47,7 +58,7 @@ export async function buildGenerationPreview(input: {
     ...(input.providerSelector ? { providerSelector: input.providerSelector } : {}),
   });
   if (!config.providers.providers[providerDecision.id]) {
-    throw new Error(`提供商未定义：${providerDecision.id}`);
+    throw new InvalidProviderError(providerDecision.id);
   }
   const taskDecision = resolveTaskDecision({
     ...(input.options.task ? { cliTask: input.options.task } : {}),
@@ -67,6 +78,7 @@ export async function buildGenerationPreview(input: {
     force: input.options.force,
   });
   return {
+    options: { ...input.options },
     paths,
     loadedConfig,
     providerDecision,

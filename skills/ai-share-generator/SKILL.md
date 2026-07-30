@@ -1,6 +1,6 @@
 ---
 name: ai-share-generator
-description: Use when changing config/*.yaml, Codex builders, generated Codex config, ai:gen, or ai:check behavior.
+description: Use when changing config/*.yaml, Codex builders, generated Codex config, ai:gen, ai:explain, or ai:check behavior.
 ---
 
 # AI Share Generator
@@ -18,6 +18,8 @@ Use this skill when modifying YAML source files, Codex config builders, generate
 ## Implementation Map
 
 - Orchestration: `src/generate-user-config.ts`.
+- Shared read-only preview: `src/generation-preview.ts`.
+- Explain report and CLI: `src/cli/explain-report.ts`, `src/cli/explain-output.ts`, `src/cli/ai-explain.ts`.
 - Codex config: `src/config/builders/codex.ts`.
 - Codex .env config: `src/config/builders/env.ts`.
 - Instruction paths: `src/config/builders/instructions.ts`.
@@ -32,13 +34,14 @@ Use this skill when modifying YAML source files, Codex config builders, generate
 2. Make the smallest durable source change; do not patch generated user config as the fix.
 3. If schema or behavior changes, update README or project knowledge.
 4. Add or update focused tests near the builder/runtime when possible.
-5. Run `bun run ai:check`, `bun run schema:check`, `bun run ai:gen -- --dry-run`, and `bun run check` for cross-cutting changes.
+5. Run `bun run ai:check`, `bun run schema:check`, `bun run ai:explain -- --json`, `bun run ai:gen -- --dry-run`, and `bun run check` for cross-cutting changes.
 6. Run `bun run memory:check` when touching memory privacy layers or generated instruction sources.
 
 ## Safety
 
 - Keep secrets as env-var names only.
 - Treat `--force` as output adoption only; it never bypasses validation.
+- Keep `ai:explain` read-only and offline; expose env-var names and plan metadata, never values or generated content.
 - Do not add external runtime dependencies unless Bun/Node APIs cannot meet the need.
 - Keep generated config reproducible from repository sources.
 

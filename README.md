@@ -33,6 +33,7 @@ bun install --frozen-lockfile
 
 ```sh
 bun run ai:check
+bun run ai:explain -- --json
 bun run ai:gen -- --dry-run
 bun run ai:gen
 ```
@@ -91,6 +92,26 @@ AI_SHARE_PROVIDER=packyapi bun run ai:gen
 ```sh
 bun run ai:gen -- --task "Windows 事务化文件写入"
 ```
+
+## 可解释生成预览
+
+`ai:explain` 复用 `ai:gen` 的配置加载、Provider/model 解析、Memory 检索和 GenerationPlan 构建流程，解释“为什么会选择这些输入、上下文和文件操作”。它始终只读：不写文件、不创建 staging 目录、不访问 Provider，也不读取真实 API Key。
+
+```sh
+bun run ai:explain
+bun run ai:explain -- --provider codexapis
+bun run ai:explain -- --task "Windows 事务化文件写入"
+bun run ai:explain -- --force
+bun run ai:explain -- --json
+```
+
+人类可读模式按“输入决策 → 配置来源 → Memory 选择 → 文件计划 → 结果”输出，并在交互终端中复用 `ai:gen` 的 Provider 菜单和状态颜色。`--force` 只模拟接管后的计划，不执行接管。报告只显示 API Key 环境变量名和受管 env 名称，不显示 env 值、生成内容、diff 或凭据。
+
+`--json` 禁用交互菜单，按 `--provider > AI_SHARE_PROVIDER > global.provider` 确定性选择 Provider，输出单一、无 ANSI、无时间戳的版本化 JSON。可用于 CI、审计或后续工具消费：
+
+- 配置有效且不存在 collision 时退出码为 `0`。
+- validation、取消、运行错误或未受管 collision 时退出码为 `1`。
+- `--force` 能把 collision 安全转换为 `force-adoption` 计划时退出码为 `0`，但仍然零写入。
 
 ## 生成输出与所有权
 
