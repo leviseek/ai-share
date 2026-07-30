@@ -4,7 +4,7 @@
 
 - 日常编码：GPT-5 系列，默认 `gpt-5.5`
 - 深度推理：GPT-5 系列
-- 轻量任务：`gpt-5.4-mini`
+- 轻量任务：`gpt-5.6-luna`
 - 当前 ai-share 仅支持 Codex + GPT 兼容 provider，不再使用非 GPT 模型组
 
 ## 编辑器与终端

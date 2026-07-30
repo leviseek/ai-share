@@ -12,7 +12,7 @@ describe("provider model availability check", () => {
       },
       fetchImpl: () =>
         Promise.resolve(
-          new Response(JSON.stringify({ data: [{ id: "gpt-5.5" }, { id: "gpt-5.4-mini" }] }), { status: 200 }),
+          new Response(JSON.stringify({ data: [{ id: "gpt-5.5" }, { id: "gpt-5.6-luna" }] }), { status: 200 }),
         ),
     });
 
@@ -21,7 +21,7 @@ describe("provider model availability check", () => {
         provider: "codexapis",
         base_url: "https://example.test/v1",
         status: "ok",
-        checked_model_names: ["gpt-5.4-mini", "gpt-5.5"],
+        checked_model_names: ["gpt-5.5", "gpt-5.6-luna"],
         missing_model_names: [],
       },
     ]);
@@ -38,9 +38,9 @@ describe("provider model availability check", () => {
       },
       models: {
         ...modelsFixture(),
-        "gpt-5.4": {
+        "gpt-5.6-terra": {
           provider: "packyapi",
-          model_name: "gpt-5.4",
+          model_name: "gpt-5.6-terra",
         },
       },
       env: {
@@ -53,15 +53,15 @@ describe("provider model availability check", () => {
       provider: "codexapis",
       base_url: "https://example.test/v1",
       status: "missing-models",
-      checked_model_names: ["gpt-5.4-mini", "gpt-5.5"],
-      missing_model_names: ["gpt-5.4-mini"],
+      checked_model_names: ["gpt-5.5", "gpt-5.6-luna"],
+      missing_model_names: ["gpt-5.6-luna"],
     });
     expect(results).toContainEqual({
       provider: "packyapi",
       base_url: "https://packy.example.test",
       status: "missing-api-key",
-      checked_model_names: ["gpt-5.4"],
-      missing_model_names: ["gpt-5.4"],
+      checked_model_names: ["gpt-5.6-terra"],
+      missing_model_names: ["gpt-5.6-terra"],
       error: "缺少环境变量：PACKYAPI_API_KEY",
     });
   });
@@ -164,9 +164,9 @@ function modelsFixture(): ModelsYaml {
       provider: "codexapis",
       model_name: "gpt-5.5",
     },
-    "gpt-5.4-mini": {
+    "gpt-5.6-luna": {
       provider: "codexapis",
-      model_name: "gpt-5.4-mini",
+      model_name: "gpt-5.6-luna",
     },
   };
 }

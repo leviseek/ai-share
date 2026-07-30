@@ -15,7 +15,7 @@ describe("local config overlay", () => {
               flags: ["base"],
             },
           },
-          model: "gpt-5.4",
+          model: "gpt-5.6-luna",
         },
         {
           providers: {
@@ -43,7 +43,7 @@ describe("local config overlay", () => {
     const root = mkdtempSync(join(tmpdir(), "ai-share-overlay-"));
     try {
       mkdirSync(join(root, "local"), { recursive: true });
-      writeFileSync(join(root, "global.yaml"), "model: gpt-5.4\n", "utf8");
+      writeFileSync(join(root, "global.yaml"), "model: gpt-5.6-luna\n", "utf8");
       writeFileSync(join(root, "local", "global.yaml"), "model: gpt-5.5\n", "utf8");
       writeFileSync(join(root, "local", "notes.txt"), "ignored\n", "utf8");
       writeFileSync(join(root, "local", "provider.yml"), "providers: {}\n", "utf8");

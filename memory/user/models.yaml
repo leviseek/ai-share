@@ -10,14 +10,12 @@ model_catalog:
     use: 日常编码、bug 修复、小功能、通用推理
   gpt-5.5-coding:
     use: 代码实施优先，强调代码生成能力
-  gpt-5.4:
-    use: 轻量日常，上下文预算较高，成本低于 gpt-5.5
-  gpt-5.4-mini:
-    use: 极低成本，简单问答、文件操作、格式化、扫描任务
+  gpt-5.6-luna:
+    use: 低成本，简单问答、文件操作、格式化、扫描任务
 
 selection_rules:
   - condition: 简单问答、文件搜索、格式化
-    model: gpt-5.4-mini
+    model: gpt-5.6-luna
     reason: 不需要强大推理能力，节省 tokens
   - condition: 日常编码、bug 修复、小功能
     model: gpt-5.5
@@ -29,7 +27,7 @@ selection_rules:
     model: gpt-5.5
     reason: 需要深度推理能力和较高上下文预算
   - condition: 资源受限或扫描任务
-    model: gpt-5.4-mini
+    model: gpt-5.6-luna
     reason: 使用 mini 降低成本
   - condition: 上下文太长逼近警戒线
     action: 先 rescue 再新 session，不强制恢复
@@ -37,6 +35,6 @@ selection_rules:
 
 anti_patterns:
   - 不要用最高成本模型做简单文件搜索或问答
-  - 不要用 gpt-5.4-mini 做架构设计或复杂调试
+  - 不要用 gpt-5.6-luna 做架构设计或复杂调试
   - 不要手动修改生成的 config.toml 来更换模型—改 global.yaml 后重新生成
   - 不要在不清楚任务复杂度时默认使用最高级模型

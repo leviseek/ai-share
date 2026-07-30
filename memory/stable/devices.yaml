@@ -34,7 +34,7 @@ devices:
 model_preferences:
   daily_coding: gpt-5 系列
   deep_reasoning: gpt-5 系列
-  light_tasks: gpt-5.4-mini
+  light_tasks: gpt-5.6-luna
   compaction_model: fast
 
 cross_device_rules:
