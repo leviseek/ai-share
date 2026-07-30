@@ -1,5 +1,6 @@
 # 我是谁——开发者画像
 identity:
+  preferred_name: levi
   role: 全栈 TypeScript 开发者
   focus_areas:
     - TypeScript 全栈开发

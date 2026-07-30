@@ -3,6 +3,7 @@
 # 配合 profile.md 一起使用（md 是自然语言描述，yaml 是精确约束）
 
 identity:
+  preferred_name: levi
   role: 全栈开发者
   focus:
     - TypeScript 全栈

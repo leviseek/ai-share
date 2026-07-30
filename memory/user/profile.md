@@ -2,6 +2,7 @@
 
 ## 身份
 
+- 首选称呼：levi
 - 全栈开发者，偏重 TypeScript 全栈、AI Infra 和自动化
 - 深度 AI Coding 用户，日常使用 Codex CLI
 
