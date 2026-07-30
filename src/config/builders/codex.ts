@@ -33,9 +33,11 @@ export function buildCodexCliConfig(config: ConfigSet, providerId: string, instr
 }
 
 export function buildCodexInstructions(projectRoot: string, taskDescription?: string): string {
-  const linkedFiles = buildInstructionsPaths(projectRoot, taskDescription)
-    .map((path) => `- ${path}`)
-    .join("\n");
+  return formatCodexInstructions(buildInstructionsPaths(projectRoot, taskDescription));
+}
+
+export function formatCodexInstructions(instructionPaths: readonly string[]): string {
+  const linkedFiles = instructionPaths.map((path) => `- ${path}`).join("\n");
   return [
     `${CODEX_INSTRUCTIONS_GENERATED_HEADER} Do not edit it directly; change the source files listed below instead.`,
     "",

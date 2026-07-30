@@ -13,20 +13,45 @@ export const SKILL_MANAGED_MARKER = ".ai-share-managed";
 export const SKILL_MANAGED_CONTENT = "ai-share\n";
 export const LEGACY_RUNTIME_MANIFEST = "ai-share.runtime.json";
 
+export type PlanOwnership = "missing" | "managed" | "legacy" | "unmanaged" | "invalid-marker";
+
+export type PlanReason =
+  | "target-missing"
+  | "content-current"
+  | "managed-content-drift"
+  | "env-managed-block-drift"
+  | "legacy-owned-content-drift"
+  | "force-adoption"
+  | "unowned-collision"
+  | "blocking-path-collision"
+  | "force-replace-blocking-path"
+  | "stale-managed-skill"
+  | "unmanaged-skill-preserved"
+  | "invalid-marker-preserved"
+  | "legacy-manifest-cleanup"
+  | "legacy-manifest-invalid-preserved";
+
+export type PlannedPath = {
+  path: string;
+  reason: PlanReason;
+  ownership: PlanOwnership;
+};
+
 export type GenerationAction =
-  | { kind: "create" | "update"; path: string; content: string }
-  | { kind: "delete"; path: string };
+  | (PlannedPath & { kind: "create" | "update"; content: string })
+  | (PlannedPath & { kind: "delete" });
 
 export type GenerationPlan = {
   actions: GenerationAction[];
-  preserved: string[];
-  collisions: string[];
+  preserved: PlannedPath[];
+  collisions: PlannedPath[];
 };
 
 export type LegacyOwnership = {
   configPath?: string;
   skills: Set<string>;
   manifestPath?: string;
+  invalidManifestPath?: string;
 };
 
 export async function buildGenerationPlan(input: {
@@ -64,6 +89,7 @@ export async function buildGenerationPlan(input: {
     input.paths.targetCodexEnv,
     buildCodexEnvFileWithManagedBlock(input.envConfig, existingEnv),
     existingEnv,
+    { changedReason: "env-managed-block-drift", ownership: "managed" },
   );
 
   const currentSkillNames = new Set(NATIVE_SKILLS.map((skill) => skill.name));
@@ -75,31 +101,53 @@ export async function buildGenerationPlan(input: {
     const legacyOwned = legacy.skills.has(skill.name);
     if (directoryExists && !(await lstat(skillDir)).isDirectory()) {
       if (!legacyOwned && !input.force) {
-        plan.collisions.push(skillDir);
+        plan.collisions.push(plannedPath(skillDir, "blocking-path-collision", "unmanaged"));
         continue;
       }
-      plan.actions.push({ kind: "delete", path: skillDir });
-      planWriteIfChanged(plan, skillPath, skill.content, undefined);
-      planWriteIfChanged(plan, markerPath, SKILL_MANAGED_CONTENT, undefined);
+      const ownership = legacyOwned ? "legacy" : "unmanaged";
+      plan.actions.push({
+        kind: "delete",
+        path: skillDir,
+        reason: legacyOwned ? "legacy-owned-content-drift" : "force-replace-blocking-path",
+        ownership,
+      });
+      const context = skillWriteContext(ownership, input.force);
+      planWriteIfChanged(plan, skillPath, skill.content, undefined, context);
+      planWriteIfChanged(plan, markerPath, SKILL_MANAGED_CONTENT, undefined, context);
       continue;
     }
-    const owned = (await hasManagedSkillMarker(skillDir)) || legacyOwned;
+    const markerOwnership = directoryExists ? await skillMarkerOwnership(skillDir) : "unmanaged";
+    const ownership: PlanOwnership = legacyOwned ? "legacy" : markerOwnership;
+    const owned = ownership === "managed" || ownership === "legacy";
     if (directoryExists && !owned && !input.force) {
-      plan.collisions.push(skillDir);
+      plan.collisions.push(plannedPath(skillDir, "unowned-collision", ownership));
       continue;
     }
     const existingSkill = (await pathExists(skillPath)) ? await readFile(skillPath, "utf8") : undefined;
     const existingMarker = (await pathExists(markerPath)) ? await readFile(markerPath, "utf8") : undefined;
-    planWriteIfChanged(plan, skillPath, skill.content, existingSkill);
-    planWriteIfChanged(plan, markerPath, SKILL_MANAGED_CONTENT, existingMarker);
+    const context = directoryExists
+      ? skillWriteContext(ownership, input.force)
+      : { changedReason: "managed-content-drift" as const, ownership: "missing" as const };
+    planWriteIfChanged(plan, skillPath, skill.content, existingSkill, context);
+    planWriteIfChanged(plan, markerPath, SKILL_MANAGED_CONTENT, existingMarker, context);
   }
 
   const staleSkills = await classifyStaleSkillDirs(input.paths, currentSkillNames, legacy.skills);
-  for (const skillDir of staleSkills.deletes) {
-    plan.actions.push({ kind: "delete", path: skillDir });
+  for (const skill of staleSkills.deletes) {
+    plan.actions.push({ kind: "delete", ...skill });
   }
   plan.preserved.push(...staleSkills.preserved);
-  if (legacy.manifestPath) plan.actions.push({ kind: "delete", path: legacy.manifestPath });
+  if (legacy.manifestPath) {
+    plan.actions.push({
+      kind: "delete",
+      path: legacy.manifestPath,
+      reason: "legacy-manifest-cleanup",
+      ownership: "legacy",
+    });
+  }
+  if (legacy.invalidManifestPath) {
+    plan.preserved.push(plannedPath(legacy.invalidManifestPath, "legacy-manifest-invalid-preserved", "unmanaged"));
+  }
 
   return plan;
 }
@@ -107,7 +155,7 @@ export async function buildGenerationPlan(input: {
 export async function executeGenerationPlan(plan: GenerationPlan, stagingRoot: string): Promise<void> {
   if (plan.collisions.length > 0) {
     throw new Error(
-      `检测到未由 ai-share 管理的目标，未写入任何文件：\n${plan.collisions.map((path) => `- ${path}`).join("\n")}\n请先备份现有文件；如确认接管，请使用 --force。`,
+      `检测到未由 ai-share 管理的目标，未写入任何文件：\n${plan.collisions.map((entry) => `- ${entry.path}`).join("\n")}\n请先备份现有文件；如确认接管，请使用 --force。`,
     );
   }
   if (plan.actions.length === 0) return;
@@ -133,29 +181,74 @@ async function planOwnedFile(
   force: boolean,
 ): Promise<void> {
   if (!(await pathExists(path))) {
-    plan.actions.push({ kind: "create", path, content });
+    plan.actions.push({ kind: "create", path, content, reason: "target-missing", ownership: "missing" });
     return;
   }
   const existing = await readFile(path, "utf8");
   if (existing === content) {
-    plan.preserved.push(path);
+    plan.preserved.push(plannedPath(path, "content-current", "managed"));
     return;
   }
-  if (isOwnedContent(existing) || legacyOwned || force) {
-    plan.actions.push({ kind: "update", path, content });
-  } else {
-    plan.collisions.push(path);
+  if (isOwnedContent(existing)) {
+    plan.actions.push({ kind: "update", path, content, reason: "managed-content-drift", ownership: "managed" });
+    return;
   }
+  if (legacyOwned) {
+    plan.actions.push({
+      kind: "update",
+      path,
+      content,
+      reason: "legacy-owned-content-drift",
+      ownership: "legacy",
+    });
+    return;
+  }
+  if (force) {
+    plan.actions.push({ kind: "update", path, content, reason: "force-adoption", ownership: "unmanaged" });
+    return;
+  }
+  plan.collisions.push(plannedPath(path, "unowned-collision", "unmanaged"));
 }
 
-function planWriteIfChanged(plan: GenerationPlan, path: string, content: string, existing: string | undefined): void {
-  if (existing === content) plan.preserved.push(path);
-  else plan.actions.push({ kind: existing === undefined ? "create" : "update", path, content });
+function planWriteIfChanged(
+  plan: GenerationPlan,
+  path: string,
+  content: string,
+  existing: string | undefined,
+  context: {
+    changedReason: PlanReason;
+    ownership: PlanOwnership;
+    missingReason?: PlanReason;
+    missingOwnership?: PlanOwnership;
+  },
+): void {
+  if (existing === content) {
+    plan.preserved.push(plannedPath(path, "content-current", context.ownership));
+    return;
+  }
+  if (existing === undefined) {
+    plan.actions.push({
+      kind: "create",
+      path,
+      content,
+      reason: context.missingReason ?? "target-missing",
+      ownership: context.missingOwnership ?? "missing",
+    });
+    return;
+  }
+  plan.actions.push({
+    kind: "update",
+    path,
+    content,
+    reason: context.changedReason,
+    ownership: context.ownership,
+  });
 }
 
 export async function readLegacyOwnership(paths: GeneratorPaths): Promise<LegacyOwnership> {
   const manifestPath = resolve(paths.targetCodexConfigDir, LEGACY_RUNTIME_MANIFEST);
   if (!(await pathExists(manifestPath))) return { skills: new Set() };
+  const invalidManifest = (): LegacyOwnership => ({ skills: new Set(), invalidManifestPath: manifestPath });
   try {
     const value: unknown = JSON.parse(await readFile(manifestPath, "utf8"));
     if (
@@ -166,7 +259,7 @@ export async function readLegacyOwnership(paths: GeneratorPaths): Promise<Legacy
       !isRecord(value.paths) ||
       !isRecord(value.managed)
     ) {
-      return { skills: new Set() };
+      return invalidManifest();
     }
     const configPath = typeof value.managed.codex_config === "string" ? resolve(value.managed.codex_config) : undefined;
     const codexHome = typeof value.paths.codex_home === "string" ? resolve(value.paths.codex_home) : undefined;
@@ -179,7 +272,7 @@ export async function readLegacyOwnership(paths: GeneratorPaths): Promise<Legacy
       !Array.isArray(skills) ||
       !skills.every((skill): skill is string => typeof skill === "string" && isSafeSkillName(skill))
     ) {
-      return { skills: new Set() };
+      return invalidManifest();
     }
     return {
       configPath,
@@ -187,7 +280,7 @@ export async function readLegacyOwnership(paths: GeneratorPaths): Promise<Legacy
       manifestPath,
     };
   } catch {
-    return { skills: new Set() };
+    return invalidManifest();
   }
 }
 
@@ -195,22 +288,25 @@ async function classifyStaleSkillDirs(
   paths: GeneratorPaths,
   currentSkillNames: ReadonlySet<string>,
   legacySkillNames: ReadonlySet<string>,
-): Promise<{ deletes: string[]; preserved: string[] }> {
+): Promise<{ deletes: PlannedPath[]; preserved: PlannedPath[] }> {
   if (!(await pathExists(paths.targetCodexSkillsDir))) return { deletes: [], preserved: [] };
-  const deletes: string[] = [];
-  const preserved: string[] = [];
+  const deletes: PlannedPath[] = [];
+  const preserved: PlannedPath[] = [];
   for (const entry of await readdir(paths.targetCodexSkillsDir, { withFileTypes: true })) {
     if (!entry.isDirectory() || currentSkillNames.has(entry.name)) continue;
     const skillDir = resolve(paths.targetCodexSkillsDir, entry.name);
-    if ((await hasManagedSkillMarker(skillDir)) || legacySkillNames.has(entry.name)) {
-      deletes.push(skillDir);
+    const ownership = legacySkillNames.has(entry.name) ? "legacy" : await skillMarkerOwnership(skillDir);
+    if (ownership === "managed" || ownership === "legacy") {
+      deletes.push(plannedPath(skillDir, "stale-managed-skill", ownership));
+    } else if (ownership === "invalid-marker") {
+      preserved.push(plannedPath(skillDir, "invalid-marker-preserved", ownership));
     } else {
-      preserved.push(skillDir);
+      preserved.push(plannedPath(skillDir, "unmanaged-skill-preserved", ownership));
     }
   }
-  const byName = (left: string, right: string): number => {
-    const leftName = basename(left);
-    const rightName = basename(right);
+  const byName = (left: PlannedPath, right: PlannedPath): number => {
+    const leftName = basename(left.path);
+    const rightName = basename(right.path);
     return leftName < rightName ? -1 : leftName > rightName ? 1 : 0;
   };
   return { deletes: deletes.sort(byName), preserved: preserved.sort(byName) };
@@ -225,12 +321,45 @@ function isSafeSkillName(value: string): boolean {
 }
 
 export async function hasManagedSkillMarker(skillDir: string): Promise<boolean> {
+  return (await skillMarkerOwnership(skillDir)) === "managed";
+}
+
+async function skillMarkerOwnership(skillDir: string): Promise<"managed" | "unmanaged" | "invalid-marker"> {
   const markerPath = resolve(skillDir, SKILL_MANAGED_MARKER);
-  if (!(await pathExists(markerPath))) return false;
+  if (!(await pathExists(markerPath))) return "unmanaged";
   const markerStat = await lstat(markerPath);
-  return (
-    markerStat.isFile() &&
-    !markerStat.isSymbolicLink() &&
-    (await readFile(markerPath, "utf8")) === SKILL_MANAGED_CONTENT
-  );
+  if (!markerStat.isFile() || markerStat.isSymbolicLink()) return "invalid-marker";
+  return (await readFile(markerPath, "utf8")) === SKILL_MANAGED_CONTENT ? "managed" : "invalid-marker";
+}
+
+function skillWriteContext(
+  ownership: PlanOwnership,
+  force: boolean,
+): {
+  changedReason: PlanReason;
+  ownership: PlanOwnership;
+  missingReason?: PlanReason;
+  missingOwnership?: PlanOwnership;
+} {
+  if (force && (ownership === "unmanaged" || ownership === "invalid-marker")) {
+    return {
+      changedReason: "force-adoption",
+      ownership,
+      missingReason: "force-adoption",
+      missingOwnership: ownership,
+    };
+  }
+  if (ownership === "legacy") {
+    return {
+      changedReason: "legacy-owned-content-drift",
+      ownership,
+      missingReason: "legacy-owned-content-drift",
+      missingOwnership: ownership,
+    };
+  }
+  return { changedReason: "managed-content-drift", ownership };
+}
+
+function plannedPath(path: string, reason: PlanReason, ownership: PlanOwnership): PlannedPath {
+  return { path, reason, ownership };
 }

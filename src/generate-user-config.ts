@@ -1,13 +1,11 @@
 #!/usr/bin/env bun
 
 import { resolve } from "node:path";
-import { buildCodexCliConfig, buildCodexInstructions, formatCodexConfigToml } from "./config-builders.ts";
-import { ConfigValidationError, formatValidationError, loadValidatedConfig } from "./config/load.ts";
-import { listLocalConfigOverlays } from "./config/local-overlay.ts";
-import { buildGenerationPlan, executeGenerationPlan, type GenerationPlan } from "./cli/generation-plan.ts";
-import { parseCliOptions, resolveProviderId, resolveTaskDescription } from "./cli/options.ts";
-import { buildGeneratorPaths } from "./cli/paths.ts";
-import { buildProviderChoices, selectProviderInteractive, type ProviderSelector } from "./cli/provider-select.ts";
+import { ConfigValidationError, formatValidationError } from "./config/load.ts";
+import { executeGenerationPlan, type GenerationPlan } from "./cli/generation-plan.ts";
+import { parseCliOptions } from "./cli/options.ts";
+import type { ProviderSelector } from "./cli/provider-select.ts";
+import { buildGenerationPreview } from "./generation-preview.ts";
 import type { CliOptions } from "./types.ts";
 
 export type GenerationRunResult =
@@ -34,30 +32,13 @@ export async function runGeneration(
   try {
     const env = input.env ?? Bun.env;
     options = parseCliOptions(input.argv ?? Bun.argv);
-    const paths = buildGeneratorPaths(input.projectRoot, env);
-    const config = await loadValidatedConfig(paths.configDir);
-    const providerId =
-      options.provider ??
-      (await selectProviderForGeneration({
-        providers: config.providers.providers,
-        ...(env.AI_SHARE_PROVIDER ? { envProvider: env.AI_SHARE_PROVIDER } : {}),
-        defaultProvider: config.global.provider,
-        ...(input.providerSelector ? { providerSelector: input.providerSelector } : {}),
-      }));
-    if (!config.providers.providers[providerId]) throw new Error(`提供商未定义：${providerId}`);
-    const task = resolveTaskDescription({
-      ...(options.task ? { cliTask: options.task } : {}),
-      ...(env.AI_SHARE_TASK ? { envTask: env.AI_SHARE_TASK } : {}),
+    const preview = await buildGenerationPreview({
+      options,
+      env,
+      ...(input.projectRoot ? { projectRoot: input.projectRoot } : {}),
+      ...(input.providerSelector ? { providerSelector: input.providerSelector } : {}),
     });
-    const codexConfig = buildCodexCliConfig(config, providerId, paths.targetCodexInstructions);
-    plan = await buildGenerationPlan({
-      paths,
-      configToml: formatCodexConfigToml(codexConfig),
-      instructions: buildCodexInstructions(paths.projectRoot, task),
-      envConfig: config.env,
-      force: options.force,
-    });
-    const overlays = await listLocalConfigOverlays(paths.configDir);
+    plan = preview.plan;
 
     if (plan.collisions.length > 0) {
       throw new Error(
@@ -65,15 +46,15 @@ export async function runGeneration(
       );
     }
     if (!options.dryRun) {
-      await executeGenerationPlan(plan, resolve(paths.targetCodexConfigDir, ".ai-share-staging"));
+      await executeGenerationPlan(plan, resolve(preview.paths.targetCodexConfigDir, ".ai-share-staging"));
     }
     return {
       ok: true,
-      modelId: config.global.model,
-      providerId,
+      modelId: preview.loadedConfig.config.global.model,
+      providerId: preview.providerDecision.id,
       options,
       plan,
-      overlays,
+      overlays: preview.loadedConfig.overlays,
     };
   } catch (error) {
     return { ok: false, error, ...(options ? { options } : {}), ...(plan ? { plan } : {}) };
@@ -103,26 +84,6 @@ if (import.meta.main) process.exitCode = printGenerationResult(await runGenerati
 function printPlan(plan: GenerationPlan, dryRun: boolean): void {
   const prefix = dryRun ? "PLAN" : "APPLY";
   for (const action of plan.actions) console.log(`${prefix} ${action.kind.toUpperCase()} ${action.path}`);
-  for (const path of plan.preserved) console.log(`${prefix} PRESERVE ${path}`);
-  for (const path of plan.collisions) console.error(`${prefix} COLLISION ${path}`);
-}
-
-async function selectProviderForGeneration(input: {
-  providers: Parameters<typeof buildProviderChoices>[0];
-  envProvider?: string;
-  defaultProvider: string;
-  providerSelector?: ProviderSelector;
-}): Promise<string> {
-  const initialProviderId = resolveProviderId({
-    ...(input.envProvider ? { envProvider: input.envProvider } : {}),
-    defaultProvider: input.defaultProvider,
-  });
-  const providerSelector =
-    input.providerSelector ?? (process.stdin.isTTY && process.stdout.isTTY ? selectProviderInteractive : undefined);
-  if (providerSelector) {
-    const validInitialProviderId = input.providers[initialProviderId] ? initialProviderId : input.defaultProvider;
-    return await providerSelector(buildProviderChoices(input.providers), validInitialProviderId);
-  }
-  if (!input.providers[initialProviderId]) throw new Error(`提供商未定义：${initialProviderId}`);
-  return initialProviderId;
+  for (const entry of plan.preserved) console.log(`${prefix} PRESERVE ${entry.path}`);
+  for (const entry of plan.collisions) console.error(`${prefix} COLLISION ${entry.path}`);
 }

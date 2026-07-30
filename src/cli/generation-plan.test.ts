@@ -27,7 +27,11 @@ describe("generation plan", () => {
       const second = await buildPlan(paths);
       expect(second.actions).toEqual([]);
       expect(second.collisions).toEqual([]);
-      expect(second.preserved).toContain(paths.targetCodexConfig);
+      expect(second.preserved).toContainEqual({
+        path: paths.targetCodexConfig,
+        reason: "content-current",
+        ownership: "managed",
+      });
       expect(existsSync(join(paths.targetCodexConfigDir, LEGACY_RUNTIME_MANIFEST))).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -40,7 +44,9 @@ describe("generation plan", () => {
       const paths = testPaths(root);
       write(paths.targetCodexConfig, "# user config\n");
       const rejected = await buildPlan(paths);
-      expect(rejected.collisions).toEqual([paths.targetCodexConfig]);
+      expect(rejected.collisions).toEqual([
+        { path: paths.targetCodexConfig, reason: "unowned-collision", ownership: "unmanaged" },
+      ]);
       const error = await captureError(executeGenerationPlan(rejected, join(paths.targetCodexConfigDir, ".staging")));
       expect(String(error)).toContain("未写入任何文件");
       expect(readFileSync(paths.targetCodexConfig, "utf8")).toBe("# user config\n");
@@ -48,6 +54,15 @@ describe("generation plan", () => {
 
       const adopted = await buildPlan(paths, true);
       expect(adopted.collisions).toEqual([]);
+      expect(
+        adopted.actions.some(
+          (action) =>
+            action.kind === "update" &&
+            action.path === paths.targetCodexConfig &&
+            action.reason === "force-adoption" &&
+            action.ownership === "unmanaged",
+        ),
+      ).toBe(true);
       await executeGenerationPlan(adopted, join(paths.targetCodexConfigDir, ".staging"));
       expect(readFileSync(paths.targetCodexConfig, "utf8")).toStartWith(GENERATED_CONFIG_HEADER);
     } finally {
@@ -69,10 +84,23 @@ describe("generation plan", () => {
       write(join(invalidMarker, SKILL_MANAGED_MARKER), "not-ai-share\n");
 
       const plan = await buildPlan(paths);
-      expect(plan.actions).toContainEqual({ kind: "delete", path: managed });
-      expect(plan.actions).not.toContainEqual({ kind: "delete", path: user });
-      expect(plan.preserved).toContain(user);
-      expect(plan.preserved).toContain(invalidMarker);
+      expect(plan.actions).toContainEqual({
+        kind: "delete",
+        path: managed,
+        reason: "stale-managed-skill",
+        ownership: "managed",
+      });
+      expect(plan.actions.some((action) => action.kind === "delete" && action.path === user)).toBe(false);
+      expect(plan.preserved).toContainEqual({
+        path: user,
+        reason: "unmanaged-skill-preserved",
+        ownership: "unmanaged",
+      });
+      expect(plan.preserved).toContainEqual({
+        path: invalidMarker,
+        reason: "invalid-marker-preserved",
+        ownership: "invalid-marker",
+      });
       await executeGenerationPlan(plan, join(paths.targetCodexConfigDir, ".staging"));
       expect(existsSync(managed)).toBe(false);
       expect(readFileSync(join(user, "SKILL.md"), "utf8")).toBe("user\n");
@@ -103,7 +131,12 @@ describe("generation plan", () => {
 
       const migration = await buildPlan(paths);
       expect(migration.collisions).toEqual([]);
-      expect(migration.actions).toContainEqual({ kind: "delete", path: manifest });
+      expect(migration.actions).toContainEqual({
+        kind: "delete",
+        path: manifest,
+        reason: "legacy-manifest-cleanup",
+        ownership: "legacy",
+      });
       await executeGenerationPlan(migration, join(paths.targetCodexConfigDir, ".staging"));
       expect(existsSync(manifest)).toBe(false);
       expect(readFileSync(join(paths.targetCodexSkillsDir, skill.name, SKILL_MANAGED_MARKER), "utf8")).toBe(
@@ -112,7 +145,12 @@ describe("generation plan", () => {
 
       write(manifest, "{ malformed\n");
       const after = await buildPlan(paths);
-      expect(after.actions).not.toContainEqual({ kind: "delete", path: manifest });
+      expect(after.actions.some((action) => action.kind === "delete" && action.path === manifest)).toBe(false);
+      expect(after.preserved).toContainEqual({
+        path: manifest,
+        reason: "legacy-manifest-invalid-preserved",
+        ownership: "unmanaged",
+      });
       expect(readFileSync(manifest, "utf8")).toBe("{ malformed\n");
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -128,13 +166,99 @@ describe("generation plan", () => {
       write(skillDir, "blocking file\n");
 
       const rejected = await buildPlan(paths);
-      expect(rejected.collisions).toContain(skillDir);
+      expect(rejected.collisions).toContainEqual({
+        path: skillDir,
+        reason: "blocking-path-collision",
+        ownership: "unmanaged",
+      });
 
       const adopted = await buildPlan(paths, true);
-      expect(adopted.actions).toContainEqual({ kind: "delete", path: skillDir });
+      expect(adopted.actions).toContainEqual({
+        kind: "delete",
+        path: skillDir,
+        reason: "force-replace-blocking-path",
+        ownership: "unmanaged",
+      });
       await executeGenerationPlan(adopted, join(paths.targetCodexConfigDir, ".staging"));
       expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toBe(skill.content);
       expect(readFileSync(join(skillDir, SKILL_MANAGED_MARKER), "utf8")).toBe(SKILL_MANAGED_CONTENT);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("assigns stable reasons and ownership to initial generated targets", async () => {
+    const root = makeRoot();
+    try {
+      const paths = testPaths(root);
+      const plan = await buildPlan(paths);
+      expect(
+        plan.actions.some(
+          (action) =>
+            action.kind === "create" &&
+            action.path === paths.targetCodexConfig &&
+            action.reason === "target-missing" &&
+            action.ownership === "missing",
+        ),
+      ).toBe(true);
+      expect(
+        plan.actions.some(
+          (action) =>
+            action.kind === "create" &&
+            action.path === paths.targetCodexEnv &&
+            action.reason === "target-missing" &&
+            action.ownership === "missing",
+        ),
+      ).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("explains managed drift, env block drift, and invalid marker adoption", async () => {
+    const root = makeRoot();
+    try {
+      const paths = testPaths(root);
+      const skill = requireFirstNativeSkill();
+      write(paths.targetCodexConfig, `${GENERATED_CONFIG_HEADER}\nmodel = "old"\n`);
+      write(paths.targetCodexEnv, "# user\n");
+      write(join(paths.targetCodexSkillsDir, skill.name, "SKILL.md"), skill.content);
+      write(join(paths.targetCodexSkillsDir, skill.name, SKILL_MANAGED_MARKER), "invalid\n");
+
+      const rejected = await buildPlan(paths);
+      expect(
+        rejected.actions.some(
+          (action) =>
+            action.kind === "update" &&
+            action.path === paths.targetCodexConfig &&
+            action.reason === "managed-content-drift" &&
+            action.ownership === "managed",
+        ),
+      ).toBe(true);
+      expect(
+        rejected.actions.some(
+          (action) =>
+            action.kind === "update" &&
+            action.path === paths.targetCodexEnv &&
+            action.reason === "env-managed-block-drift" &&
+            action.ownership === "managed",
+        ),
+      ).toBe(true);
+      expect(rejected.collisions).toContainEqual({
+        path: join(paths.targetCodexSkillsDir, skill.name),
+        reason: "unowned-collision",
+        ownership: "invalid-marker",
+      });
+
+      const adopted = await buildPlan(paths, true);
+      expect(
+        adopted.actions.some(
+          (action) =>
+            action.path === join(paths.targetCodexSkillsDir, skill.name, SKILL_MANAGED_MARKER) &&
+            action.reason === "force-adoption" &&
+            action.ownership === "invalid-marker",
+        ),
+      ).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
