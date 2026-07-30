@@ -6,21 +6,12 @@ import { buildCodexCliConfig, formatCodexConfigToml } from "../config-builders.t
 import { loadValidatedConfig } from "../config/load.ts";
 import { argsFromArgv, hasFlag, parseOptionValue } from "./args.ts";
 import { collectConfigDiagnostics } from "./config-diagnostics.ts";
+import { renderDoctorReport, type DoctorCheck, type DoctorReport, type DoctorStatus } from "./doctor-output.ts";
 import { summarizeLocalProxyChecks } from "./env-runtime-check.ts";
 import { checkMemoryPrivacy } from "./memory-privacy-check.ts";
 import { resolveProviderId } from "./options.ts";
 import { buildGeneratorPaths } from "./paths.ts";
 import { checkProviderCanaries, checkProviderModels } from "./provider-check.ts";
-
-type DoctorStatus = "ok" | "warning" | "error";
-type DoctorCheck = { name: string; status: DoctorStatus; summary: string; details?: unknown };
-type DoctorReport = {
-  status: DoctorStatus;
-  online: boolean;
-  canary: boolean;
-  elapsed_ms: number;
-  checks: DoctorCheck[];
-};
 
 const startedAt = performance.now();
 const args = argsFromArgv();
@@ -122,7 +113,7 @@ const report: DoctorReport = {
 };
 const jsonOutput = hasFlag(args, "--json");
 if (jsonOutput) console.log(JSON.stringify(report, null, 2));
-else printReport(report, providerId);
+else console.log(renderDoctorReport(report, providerId, process.stdout.isTTY && process.env.NO_COLOR === undefined));
 const outputPath = parseOptionValue(args, "--output", { missingValue: "error" });
 if (outputPath) await writeReport(outputPath, report);
 process.exitCode = report.status === "error" ? 1 : 0;
@@ -140,16 +131,6 @@ function aggregateStatus(checks: readonly DoctorCheck[]): DoctorStatus {
   if (checks.some((check) => check.status === "error")) return "error";
   if (checks.some((check) => check.status === "warning")) return "warning";
   return "ok";
-}
-
-function printReport(report: DoctorReport, providerId: string): void {
-  console.log(
-    `ai:doctor ${report.status.toUpperCase()} provider=${providerId} online=${report.online} (${report.elapsed_ms}ms)`,
-  );
-  for (const check of report.checks)
-    console.log(
-      `${check.status === "ok" ? "✓" : check.status === "warning" ? "!" : "✗"} ${check.name}: ${check.summary}`,
-    );
 }
 
 async function writeReport(path: string, report: DoctorReport): Promise<void> {

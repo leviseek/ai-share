@@ -151,6 +151,7 @@ bun run schema:check     # 只读检查缺失、漂移和额外 schema
 
 `ai:doctor` 默认不访问外部 Provider，但会探测配置的本地代理端口；缺少 API Key、Codex 或生成输出只报告 warning。
 `--online` 才访问 Provider `/models`，`--canary` 才发送最小 completion（并自动启用 online）。
+交互终端按状态显示绿色、黄色或红色；设置 `NO_COLOR` 或将输出重定向到文件时保持纯文本。
 
 ```sh
 bun run ai:doctor
