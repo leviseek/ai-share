@@ -1,28 +1,21 @@
 # Memory Privacy Layers
 
-`memory/` 同时服务个人使用和未来团队化。默认按隐私层处理：
-
-| Layer     | Paths                                                       | Git                        | Use                                |
-| --------- | ----------------------------------------------------------- | -------------------------- | ---------------------------------- |
-| shareable | `memory/architecture/`, `memory/stack/`, `memory/policies/` | committed                  | 团队可共享知识、技术栈、策略说明   |
-| personal  | `memory/user/`, `memory/stable/`                            | committed in personal repo | 个人偏好、设备摘要、长期工作流     |
-| local     | `memory/local/`, `memory/private/`                          | ignored                    | 本机路径、私有上下文、不可共享信息 |
-| project   | `memory/project/`                                           | ignored                    | 当前项目临时或局部记忆             |
+| Layer     | Paths                                                       | Git                        | Use                        |
+| --------- | ----------------------------------------------------------- | -------------------------- | -------------------------- |
+| shareable | `memory/architecture/`, `memory/stack/`, `memory/policies/` | committed                  | 架构、技术栈与治理策略     |
+| personal  | `memory/stable/`, `memory/distilled/`                       | committed in personal repo | 已确认长期事实与可复用模式 |
+| candidate | `memory/inferred/`                                          | committed only when useful | 未确认候选，不自动注入     |
+| local     | `memory/local/`, `memory/private/`                          | ignored                    | 本机或私有上下文           |
+| project   | `memory/project/`                                           | ignored                    | 项目局部记忆               |
 
 ## Rules
 
-- 真实 API key、token、cookie、私有凭据永远不写入任何 memory。
-- 团队导出默认只包含 shareable layer。
-- personal layer 可以保留在个人私有仓库，但不进入模板包。
-- local/project layer 默认由 `.gitignore` 排除。
-- `AI_GUIDELINES.md` 和 generated `AGENTS.md` 不自动加载 ignored privacy layers。
-- `bun run memory:check` 会检查 ignore 规则、共享层本机路径和疑似明文 secret；`bun run check` 会自动运行它。
-- `memory:check` 会输出行号。确认为示例/fixture 等可接受误报时，可在同一行添加带原因的 allow 指令：
-  - `ai-share-privacy-allow: local-path -- <reason>`
-  - `ai-share-privacy-allow: personal-data -- <reason>`
-  - `ai-share-privacy-allow: secret -- <reason>`（仅用于明显假 secret 示例；真实密钥不得 allow）
-- shareable layer 中的个人 email/账号标识会以 warning 报告；应优先改为占位符或迁移到 personal/local layer。
+- 真实 API key、token、cookie、私钥和未脱敏生产数据永远不写入 memory。
+- 团队导出默认只包含 shareable layer；personal/distilled 需要单独审查。
+- local/project layer 必须由 `.gitignore` 排除。
+- `bun run memory:check` 检查 ignore 规则、共享层本机路径和疑似 secret。
+- 确认是示例误报时，可在同一行使用带原因的 allow 指令；真实 secret 不得 allow。
 
-## Current Loader Behavior
+## Loader Behavior
 
-当前 `buildInstructionsPaths` 只加载明确列出的 `memory/user/`、`memory/architecture/`、`memory/stack/` 和 stable memory。`memory/local/`、`memory/private/`、`memory/project/` 不会被自动注入。
+固定注入只有 execution contract、memory lifecycle 与三个 stable 文件。任务检索仅覆盖 architecture、stack、非固定 policies 和 `confirmed_by_user: true` 的 distilled 文件；`TEMPLATE.md`、inferred、local、private、project 和未确认 distilled 不会自动注入。

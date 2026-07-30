@@ -1,20 +1,14 @@
 # config/global.yaml Schema
 
-## Overview
+`global.yaml` 选择唯一默认模型和 Provider。
 
-Global generator settings. `model` selects the single Codex model used by generated `config.toml`.
+| Field                            | Type      | Required | Description                       |
+| -------------------------------- | --------- | -------- | --------------------------------- |
+| `model`                          | string ID | yes      | 必须引用 `models.yaml` 的 key     |
+| `provider`                       | string ID | yes      | 必须引用 `provider.yaml` 的 key   |
+| `codex_min_version`              | semver    | no       | `ai:doctor` 的 Codex 最低版本提示 |
+| `codex_allow_login_shell`        | boolean   | no       | Codex login shell 设置            |
+| `codex_windows.sandbox`          | enum      | no       | `elevated` 或 `unelevated`        |
+| `codex_shell_environment_policy` | object    | no       | Codex shell environment policy    |
 
-## Fields
-
-| Field                            | Type    | Required | Description                                                     |
-| -------------------------------- | ------- | -------- | --------------------------------------------------------------- |
-| `model`                          | string  | yes      | Model ID; must match a key in `models.yaml`                     |
-| `codex_min_version`              | string  | no       | Minimum Codex CLI version checked by `ai:check`                 |
-| `codex_allow_login_shell`        | boolean | no       | Whether generated Codex config allows login shells              |
-| `codex_windows.sandbox`          | enum    | no       | Windows sandbox backend: `elevated` or `unelevated`             |
-| `codex_shell_environment_policy` | object  | no       | Codex shell environment policy passed through to generated TOML |
-
-## Cross-File References
-
-- **models.yaml**: `model` must match a top-level model ID.
-- **Generated Codex config**: `model` resolves to the upstream model name and selected provider.
+固定对象拒绝未知字段。临时 Provider 选择不修改该文件，优先级为 `--provider > AI_SHARE_PROVIDER > global.provider`。

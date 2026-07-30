@@ -1,274 +1,171 @@
 # ai-share
 
-这个仓库用于集中管理多台电脑、多个项目共用的 Codex 配置、MCP、native skills、提示词和用户级记忆。
+`ai-share` 以严格 YAML 为权威源，为多个设备生成一套用户级 Codex 配置、instructions 和 native skills。项目使用 Bun + strict TypeScript，不维护独立启动器、Provider group、fallback 或运行时 manifest。
 
-当前架构已经收敛为 **Codex only**，并且只生成一套默认 Codex 配置；不再生成 profile、agent 或多任务编排角色配置。
-
-主要目标：
-
-- 以 `config/*.yaml` 作为唯一权威配置源，统一维护模型提供商、默认模型和 MCP。
-- 同步用户级 MCP、native skills、prompts 和持久化 memory。
-- API Key 不写入仓库，只通过环境变量引用。
-- 通过 Git 在不同电脑之间同步配置源。
-
-## 使用
-
-新电脑从零同步后，推荐在仓库根目录直接执行 bootstrap。它会安装依赖、检查配置，并生成用户级 Codex 配置：
-
-```sh
-bun run ai:bootstrap
+```text
+config/*.yaml + config/local/*.yaml
+→ Bun.YAML.parse
+→ 严格配置与 secret 校验
+→ 唯一 model/provider 解析
+→ GenerationPlan
+→ 事务化写入、迁移和 prune
 ```
 
-如果只是想跳过 `bun install`：
+## 环境要求
+
+- Bun `1.3.13`
+- Codex CLI 仅在实际使用 Codex 时需要；仓库质量检查不依赖 Codex、API Key、代理或用户配置
+
+使用 mise 时：
 
 ```sh
-bun run ai:bootstrap -- --skip-install
+mise trust
+mise install
 ```
 
-bootstrap 要求本机已安装 Bun 和 Codex CLI，并且已在环境变量中设置所需 API Key。缺失时会在检查阶段输出具体变量名，不会写入真实密钥。
-
-安装依赖：
+不使用 mise 时，直接安装匹配版本的 Bun。安装依赖时使用锁文件：
 
 ```sh
-bun install
+bun install --frozen-lockfile
 ```
 
-检查 YAML 配置和生成逻辑，不写入文件：
+## 快速开始
 
 ```sh
 bun run ai:check
-```
-
-预览将生成的用户级配置内容：
-
-```sh
 bun run ai:gen -- --dry-run
-```
-
-生成用户级 Codex 配置：
-
-```sh
 bun run ai:gen
 ```
 
-如果目标文件已存在并确认要覆盖：
+`ai:check` 是纯仓库配置检查，不读取 API Key，不探测 Provider、代理或 Codex 安装。`ai:bootstrap` 会依次安装依赖、执行纯配置检查并生成 Codex 输出；遇到未标记的已有配置时会拒绝覆盖。
 
 ```sh
-bun run ai:gen -- --force
-```
-
-## Provider 选择
-
-当前项目仅支持 Codex + GPT 兼容模型组，默认 provider 为 `gpt=codexapis`。可选 provider 来自
-`config/provider.yaml`：`codexapis`、`packyapi`、`axasapi`、`lingsuan`。
-
-在交互式终端直接运行 `bun run ai:gen` 且未通过参数或环境变量指定 provider 时，生成器会列出
-`config/provider.yaml` 中所有已配置 provider。选择某个 provider 后会把它应用到 GPT 模型组。可用 ↑/↓、数字键、Enter 或支持 SGR mouse 的终端鼠标点击选择。
-非交互环境、`bun run ai:check`、以及已显式指定 provider 的命令不会进入选择界面。
-
-如果希望指定 GPT provider，可使用以下任一方式：
-
-```sh
-bun run ai:gen -- --provider packyapi --force
-bun run ai:gen -- --gpt-provider packyapi --force
-bun run ai:gen -- --provider-group gpt=packyapi --force
-bun run ai:gen -- --provider lingsuan --force
-```
-
-环境变量也支持同样的 provider 选择：
-
-```sh
-AI_SHARE_PROVIDER=packyapi bun run ai:gen -- --force
-AI_SHARE_GPT_PROVIDER=packyapi bun run ai:gen -- --force
-AI_SHARE_PROVIDER=lingsuan bun run ai:gen -- --force
-```
-
-## 生成输出
-
-Codex 目录优先读取 `CODEX_HOME`，未设置时使用 `~/.codex`。
-
-```text
-~/.codex/config.toml
-~/.codex/.env
-~/.codex/ai-share.runtime.json
-~/.codex/AGENTS.md
-~/.codex/skills/<native-skill>/SKILL.md
-```
-
-ai-share 不再维护仓库内 `bin/` 目录，也不安装独立启动器；`codex` 命令由本机安装的 Codex CLI 提供。
-
-## Native Skills
-
-当前安装到 `~/.codex/skills/` 的 native skills 来自 `src/cli/native-skills.ts` 和 `skills/` 源目录。当前保留最小技能集：
-
-- `ai-share-generator`：修改 `config/*.yaml`、生成器和安装输出时的工作流。
-- `failure-distiller`：把重复调试失败和根因模式整理为可审核的 distilled memory 候选。
-- `memory-curator`：治理 `memory/` 分层、去重、迁移和长期记忆候选。
-
-## 模型
-
-当前只生成一套 Codex 默认配置。默认模型由 `config/global.yaml` 的 `model` 控制，当前是 `gpt-5.5`。
-
-切换模型时修改 YAML 源后重新生成：
-
-```yaml
-model: gpt-5.5-coding
-```
-
-```sh
-bun run ai:gen -- --force
-```
-
-启动命令：
-
-```sh
-codex
-codex exec "请分析当前项目"
+bun run ai:bootstrap
+bun run ai:bootstrap -- --skip-install
 ```
 
 ## 配置源
 
-```text
-config/global.yaml    -> 默认模型和 Codex 最低版本要求
-config/provider.yaml  -> 模型提供商、baseURL、API Key 环境变量名
-config/models.yaml    -> 模型列表、provider/provider_group、上游模型名、参数、fallback
-config/mcp.yaml       -> 用户级 Codex MCP servers
-config/env.yaml       -> 写入 CODEX_HOME/.env 的非密钥 Codex 运行时环境变量
-```
+| 文件                   | 用途                                                          |
+| ---------------------- | ------------------------------------------------------------- |
+| `config/global.yaml`   | 必填默认 `model` 和 `provider`，以及可选 Codex 运行设置       |
+| `config/provider.yaml` | Provider 的 `name`、HTTPS `base_url`、API Key 环境变量引用    |
+| `config/models.yaml`   | `model_name` 与可选 `reasoning_effort: low \| medium \| high` |
+| `config/mcp.yaml`      | stdio 或 HTTP MCP server                                      |
+| `config/env.yaml`      | 可共享的非密钥 Codex `.env` 变量；默认 `variables: {}`        |
 
-`config/mcp.yaml` 不允许写入明文 token/cookie/API key。`bun run ai:check` 会阻止 HTTP MCP URL 中的敏感查询参数，也会阻止 stdio MCP 的敏感 env 写成明文。
+固定对象拒绝未知字段。API Key 只能写成 `${ENV_NAME}` 引用；真实 key、token、cookie 或凭据不得进入仓库。
 
-## 环境变量
+### 本机 overlay
 
-当前配置使用这些环境变量读取 API Key：
+生成器先读取 `config/*.yaml`，再深合并同名 `config/local/*.yaml`：object 深合并，数组和标量替换。所有合并结果都经过同一套严格校验。
 
-```text
-CODEXAPIS_API_KEY
-PACKYAPI_API_KEY
-AXASAPI_API_KEY
-LINGSUAN_API_KEY
-```
-
-Windows PowerShell 示例：
+当前机器的代理等非密钥值应放在被 Git 忽略的 `config/local/env.yaml`。可复制示例：
 
 ```powershell
-[Environment]::SetEnvironmentVariable("CODEXAPIS_API_KEY", "your-key", "User")
-[Environment]::SetEnvironmentVariable("PACKYAPI_API_KEY", "your-key", "User")
-[Environment]::SetEnvironmentVariable("AXASAPI_API_KEY", "your-key", "User")
-[Environment]::SetEnvironmentVariable("LINGSUAN_API_KEY", "your-key", "User")
+New-Item -ItemType Directory -Force config/local | Out-Null
+Copy-Item templates/personal-overlay/env.local.example.yaml config/local/env.yaml
 ```
 
-macOS/Linux 示例：
+禁止把 `HOME`、`USERPROFILE`、`PATH`、`AI_SHARE_*`、`CODEX_*` 或敏感变量写入 `config/env.yaml` 及其 overlay。
+
+## Provider 与任务选择
+
+默认 Provider 的唯一权威源是 `config/global.yaml`。临时选择优先级：
+
+```text
+--provider > AI_SHARE_PROVIDER > global.provider
+```
 
 ```sh
-export CODEXAPIS_API_KEY="your-key"
-export PACKYAPI_API_KEY="your-key"
-export AXASAPI_API_KEY="your-key"
-export LINGSUAN_API_KEY="your-key"
+bun run ai:gen -- --provider packyapi
+AI_SHARE_PROVIDER=packyapi bun run ai:gen
 ```
 
-## Codex .env
-
-Codex CLI 会读取 `CODEX_HOME/.env`。`config/env.yaml` 管理适合写入该文件的非密钥运行时变量，当前默认写入本地代理：
-
-```dotenv
-HTTP_PROXY=http://127.0.0.1:7897
-HTTPS_PROXY=http://127.0.0.1:7897
-ALL_PROXY=socks5://127.0.0.1:7897
-NO_PROXY=localhost,127.0.0.1,::1
-http_proxy=http://127.0.0.1:7897
-https_proxy=http://127.0.0.1:7897
-all_proxy=socks5://127.0.0.1:7897
-no_proxy=localhost,127.0.0.1,::1
-```
-
-`bun run ai:gen` 只更新 `CODEX_HOME/.env` 中的 ai-share managed block，并保留 block 外的用户手写内容：
-
-```dotenv
-# BEGIN ai-share managed env
-# Non-secret Codex runtime environment only. Keep API keys and tokens outside this file.
-...
-# END ai-share managed env
-```
-
-不要把 API key、token、cookie、password、`CODEX_HOME`、`PATH`、`AI_SHARE_*` 或 `CODEX_*` 写入 `config/env.yaml`。
-
-## Schema / Doctor
-
-生成 JSON Schema：
+`ai:gen` 只支持 `--provider`、`--task`、`--force`、`--dry-run`。任务描述优先级为 `--task > AI_SHARE_TASK`；本次生成会把最多 3 个相关 memory 路径编译进 `AGENTS.md`。
 
 ```sh
-bun run schema:gen
+bun run ai:gen -- --task "Windows 事务化文件写入"
 ```
 
-JSON Schema 输出到 `docs/schema/json/`。字段类型、必填项、枚举、pattern 和正数约束的单一规格源是
-`src/config/schema-spec.ts`；`src/config/schema.ts` 从它生成 JSON Schema，
-`src/config/validators/schema-shape.ts` 从同一份规格执行运行时 shape 校验。其他 validator 只保留跨文件引用、
-MCP 条件规则和 secret 策略。
+## 生成输出与所有权
 
-检查 provider 是否真实暴露了当前配置中的上游模型名：
+Codex 目录优先读取 `CODEX_HOME`，否则使用 `HOME`/`USERPROFILE` 下的 `.codex`：
+
+```text
+CODEX_HOME/config.toml
+CODEX_HOME/.env                         # 仅更新 ai-share managed block
+CODEX_HOME/AGENTS.md
+CODEX_HOME/skills/<skill>/SKILL.md
+CODEX_HOME/skills/<skill>/.ai-share-managed
+```
+
+不再生成 `ai-share.runtime.json`，也不会创建 `~/ai-workspace` 或仓库 symlink。
+
+生成规则：
+
+- 缺失目标直接创建；受管目标自动更新；内容相同不写入。
+- 未标记目标发生冲突时整批失败，不产生部分输出。
+- `--force` 只用于显式接管冲突，永远不能绕过配置或 secret 校验。
+- `.env` 只更新 managed block，block 外内容保持不变。
+- 只 prune 带 `.ai-share-managed` 的废弃 skill；用户 skill 保留。
+- 合法旧 manifest 仅用于一次迁移识别，成功后删除且不再生成。
+
+## 安全清理
 
 ```sh
-bun run provider:check
-bun run provider:check -- --canary
-bun run provider:check -- --canary --json
+bun run ai:clean
+bun run ai:clean -- --no-backup
 ```
 
-聚合运行态诊断：
+`ai:clean` 默认备份即将修改的受管目标，只删除带 generated header 的固定输出、`.env` managed block、带 marker 或合法旧 manifest 声明的 skill，以及合法旧 manifest。它不会递归删除整个 `CODEX_HOME`，也不会删除未受管文件。
+
+## Memory 注入
+
+默认 `AGENTS.md` 只注入以下 6 个基础文件，并在第 4 位插入最多 3 个任务检索结果：
+
+1. `AI_GUIDELINES.md`
+2. `memory/policies/ai-execution-contract.md`
+3. `memory/policies/memory-lifecycle.md`
+4. 最多 3 个任务相关文件
+5. `memory/stable/user.yaml`
+6. `memory/stable/workflows.yaml`
+7. `memory/stable/devices.yaml`
+
+检索范围仅包含非固定的 `memory/architecture/`、`memory/stack/`、`memory/policies/` 和 `confirmed_by_user: true` 的 `memory/distilled/`。`TEMPLATE.md`、`memory/inferred/` 和未确认 distilled 内容不会注入。记忆修改由 `memory-curator`、`failure-distiller` 产出普通 patch，并继续要求人工确认。
+
+## Schema 与模板
+
+```sh
+bun run schema:gen       # 写入并删除废弃 schema
+bun run schema:check     # 只读检查缺失、漂移和额外 schema
+```
+
+`src/config/schema-spec.ts` 同时驱动 JSON Schema 与运行时 shape 校验。`templates/shareable/config/` 通过和主配置相同的加载、overlay、校验与 builder pipeline。
+
+## 运行态诊断
+
+`ai:doctor` 默认离线；缺少 API Key、Codex 或生成输出只报告 warning。`--online` 才访问 Provider `/models`，`--canary` 才发送最小 completion（并自动启用 online）。
 
 ```sh
 bun run ai:doctor
-bun run ai:doctor -- --json
-bun run ai:doctor -- --output .sisyphus/evidence/doctor/report.json
+bun run ai:doctor -- --online
+bun run ai:doctor -- --canary --json
 ```
 
-## Templates / Privacy
-
-`templates/shareable/config/` 提供可共享最小配置模板；`templates/personal-overlay/` 描述个人 overlay 边界。生成器会先读取共享
-`config/*.yaml`，再按同名文件合并可选的 `config/local/*.yaml`。`config/local/` 默认被 `.gitignore` 忽略，适合个人 provider
-选择、路径和实验性模型覆盖；最终合并结果仍会走同一套 schema/一致性校验。
-
-memory 隐私分层见 `docs/memory-privacy.md`：shareable、personal、local、project。`memory/local/`、`memory/private/`、`memory/project/` 默认不进入 Git。
-
-自动检查 memory 分层和疑似 secret：
+严格 Provider 检查失败返回非零：
 
 ```sh
-bun run memory:check
+bun run provider:check -- --provider codexapis
+bun run provider:check -- --provider codexapis --canary
 ```
 
-`bun run check` 已包含 `memory:check`。
+Provider 检查只访问选中的 Provider，并检查 `config/models.yaml` 中所有去重后的上游 `model_name`。
 
-## Memory
-
-`memory/` 提供持久化用户级记忆。生成的 Codex `AGENTS.md` 会加载：
-
-- `AI_GUIDELINES.md`
-- `memory/user/*`
-- `memory/architecture/*`
-- `memory/stack/*`
-- `memory/stable/*`
-
-任务相关 memory 可通过 `AI_SHARE_TASK` 触发本地关键词检索，相关度最高的 memory 文件会插入到结构化 memory 前：
-
-```sh
-AI_SHARE_TASK="代理配置" bun run ai:gen -- --dry-run
-```
-
-## 验证
-
-常用验证命令：
-
-```sh
-bun run format:check
-bun run lint
-bun run typecheck
-bun test
-bun run ai:check
-```
-
-跨模块生成器改动后建议运行：
+## 质量门禁
 
 ```sh
 bun run check
-bun run ai:gen -- --dry-run
 ```
+
+完整门禁包含 format、lint、typecheck、test、只读 schema 检查、memory privacy/lint/eval、skill lint 和纯配置检查。Windows 与 Linux CI 均使用 Bun `1.3.13` 和 frozen lockfile。

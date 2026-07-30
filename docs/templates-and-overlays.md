@@ -1,44 +1,43 @@
 # Templates And Overlays
 
-`ai-share` 当前使用 `config/*.yaml` 作为已展开的个人配置源。为了未来团队化和跨设备复用，配置分成两类：
-
-- **shareable base**：可以公开或团队共享的模型目录、默认模型语义、schema、生成逻辑。
-- **personal overlay**：个人 provider 选择、API key 环境变量名、默认模型、私有 memory 和本机路径。
-
-## Current Contract
+`ai-share` 提供两类示例：
 
 ```text
-templates/shareable/config/    # 可复制到新环境的最小模板，不直接参与生成
-templates/personal-overlay/    # 个人 overlay 说明，不提交真实本地密钥
-config/*.yaml                  # 当前实际生成源，等价于 base + personal overlay 的已展开结果
-config/local/                  # 未来本机 overlay，默认 git ignored
+templates/shareable/config/                 # 可复制的完整最小配置
+templates/personal-overlay/env.local.example.yaml
+config/*.yaml                               # 仓库权威源
+config/local/*.yaml                         # ignored 本机 overlay
 ```
 
-## Future Merge Order
+## Merge Contract
 
-后续如接入自动 merge，顺序应为：
+实际生成只读取 `config/`：
 
 ```text
-templates/shareable/config/*.yaml
-  -> config/*.yaml
-  -> config/local/*.yaml
+config/<name>.yaml
+→ deep merge config/local/<name>.yaml（若存在）
+→ 同一套严格解析、schema、跨文件和 secret 校验
 ```
 
-约束：
+object 递归合并，数组与标量由 overlay 整体替换。overlay 不能绕过未知字段、HTTPS Provider、MCP transport 或 secret 规则。
 
-- `models.yaml` 优先保持 shareable。
-- `provider.yaml` 只能存 env-var references，不能存真实 key。
-- `env.yaml` 只能存非密钥运行时变量，例如本地代理默认值；真实 token、cookie、password 不进入模板或 Git。
-- `global.yaml` 的 `model` 可由 personal overlay 覆盖。
-- `memory/user/`、`memory/stable/` 属于个人上下文；团队导出时默认排除。
-- `config/local/` 只允许本机覆盖，不进入 Git。
+## Shareable Template
 
-## Template Usage
+`templates/shareable/config/` 包含 `global.yaml`、`provider.yaml`、`models.yaml`、`mcp.yaml`、`env.yaml`，并在测试中经过与主配置完全相同的 loader、validation 和 Codex builder pipeline。
 
-新环境可以从 `templates/shareable/config/` 复制最小配置，再按个人 provider 和模型偏好补齐 `config/*.yaml`。
-
-```sh
-Copy-Item -Recurse templates\shareable\config config-template
+```powershell
+Copy-Item -Recurse templates/shareable/config config-template
 ```
 
-这些模板是 onboarding 起点，不是当前生成器输入。
+模板不得包含真实 API key、token、cookie、私有 endpoint、客户名称或本机路径。
+
+## Personal Overlay
+
+本机代理示例复制到 ignored 路径：
+
+```powershell
+New-Item -ItemType Directory -Force config/local | Out-Null
+Copy-Item templates/personal-overlay/env.local.example.yaml config/local/env.yaml
+```
+
+`config/local/` 不提交。API Key 仍由系统环境变量提供，不得写进 overlay。临时 Provider 使用 `--provider` 或 `AI_SHARE_PROVIDER`，不需要维护 Provider group。
