@@ -22,6 +22,7 @@ Use this skill when modifying YAML source files, Codex config builders, generate
 - Codex .env config: `src/config/builders/env.ts`.
 - Instruction paths: `src/config/builders/instructions.ts`.
 - Output paths: `src/cli/paths.ts`.
+- Interactive provider selection: `src/cli/provider-select.ts`.
 - Ownership/install behavior: `src/cli/generation-plan.ts`.
 - Transaction and rollback: `src/cli/fs.ts`.
 

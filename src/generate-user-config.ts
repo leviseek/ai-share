@@ -7,6 +7,7 @@ import { listLocalConfigOverlays } from "./config/local-overlay.ts";
 import { buildGenerationPlan, executeGenerationPlan, type GenerationPlan } from "./cli/generation-plan.ts";
 import { parseCliOptions, resolveProviderId, resolveTaskDescription } from "./cli/options.ts";
 import { buildGeneratorPaths } from "./cli/paths.ts";
+import { buildProviderChoices, selectProviderInteractive, type ProviderSelector } from "./cli/provider-select.ts";
 import type { CliOptions } from "./types.ts";
 
 export type GenerationRunResult =
@@ -25,6 +26,7 @@ export async function runGeneration(
     argv?: readonly string[];
     env?: Record<string, string | undefined>;
     projectRoot?: string;
+    providerSelector?: ProviderSelector;
   } = {},
 ): Promise<GenerationRunResult> {
   let plan: GenerationPlan | undefined;
@@ -34,11 +36,14 @@ export async function runGeneration(
     options = parseCliOptions(input.argv ?? Bun.argv);
     const paths = buildGeneratorPaths(input.projectRoot, env);
     const config = await loadValidatedConfig(paths.configDir);
-    const providerId = resolveProviderId({
-      ...(options.provider ? { cliProvider: options.provider } : {}),
-      ...(env.AI_SHARE_PROVIDER ? { envProvider: env.AI_SHARE_PROVIDER } : {}),
-      defaultProvider: config.global.provider,
-    });
+    const providerId =
+      options.provider ??
+      (await selectProviderForGeneration({
+        providers: config.providers.providers,
+        ...(env.AI_SHARE_PROVIDER ? { envProvider: env.AI_SHARE_PROVIDER } : {}),
+        defaultProvider: config.global.provider,
+        ...(input.providerSelector ? { providerSelector: input.providerSelector } : {}),
+      }));
     if (!config.providers.providers[providerId]) throw new Error(`提供商未定义：${providerId}`);
     const task = resolveTaskDescription({
       ...(options.task ? { cliTask: options.task } : {}),
@@ -100,4 +105,24 @@ function printPlan(plan: GenerationPlan, dryRun: boolean): void {
   for (const action of plan.actions) console.log(`${prefix} ${action.kind.toUpperCase()} ${action.path}`);
   for (const path of plan.preserved) console.log(`${prefix} PRESERVE ${path}`);
   for (const path of plan.collisions) console.error(`${prefix} COLLISION ${path}`);
+}
+
+async function selectProviderForGeneration(input: {
+  providers: Parameters<typeof buildProviderChoices>[0];
+  envProvider?: string;
+  defaultProvider: string;
+  providerSelector?: ProviderSelector;
+}): Promise<string> {
+  const initialProviderId = resolveProviderId({
+    ...(input.envProvider ? { envProvider: input.envProvider } : {}),
+    defaultProvider: input.defaultProvider,
+  });
+  const providerSelector =
+    input.providerSelector ?? (process.stdin.isTTY && process.stdout.isTTY ? selectProviderInteractive : undefined);
+  if (providerSelector) {
+    const validInitialProviderId = input.providers[initialProviderId] ? initialProviderId : input.defaultProvider;
+    return await providerSelector(buildProviderChoices(input.providers), validInitialProviderId);
+  }
+  if (!input.providers[initialProviderId]) throw new Error(`提供商未定义：${initialProviderId}`);
+  return initialProviderId;
 }

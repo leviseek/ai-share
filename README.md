@@ -71,7 +71,11 @@ Copy-Item templates/personal-overlay/env.local.example.yaml config/local/env.yam
 
 ## Provider 与任务选择
 
-默认 Provider 的唯一权威源是 `config/global.yaml`。临时选择优先级：
+默认 Provider 的唯一权威源是 `config/global.yaml`。交互终端中未传 `--provider` 时，`ai:gen` 会列出所有
+Provider；可输入数字索引，或使用 `↑`/`↓` 切换，按 Enter 确认。有效的 `AI_SHARE_PROVIDER` 用作菜单初始选中项，
+未设置或无效时使用 `global.provider`。确认后菜单会清除，终端输入状态会恢复。
+
+显式传入 `--provider` 会跳过菜单；非交互环境不会等待输入，选择优先级为：
 
 ```text
 --provider > AI_SHARE_PROVIDER > global.provider

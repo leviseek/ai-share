@@ -35,6 +35,7 @@ YAML + ignored local overlay
 - `config/global.yaml` 选择唯一默认 model 和 provider。
 - `config/models.yaml` 只保存上游 `model_name` 与可选 reasoning effort。
 - `config/provider.yaml` 只保存显示名、HTTPS endpoint 和 API Key 环境变量引用。
+- 交互式 `ai:gen` 未传 `--provider` 时显示数字索引/方向键菜单；非 TTY 环境不等待输入。
 - 生成的 `config.toml` 只包含当前选中的 Provider，不负责成本计算、自动选模或 fallback。
 
 ## Cross-device

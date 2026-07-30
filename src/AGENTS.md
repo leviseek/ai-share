@@ -33,6 +33,7 @@ src/
 | Transaction and rollback       | `cli/fs.ts`                       | staged write/delete promotion             |
 | Surgical clean                 | `cli/clean.ts`                    | 只清理明确受管目标                        |
 | Provider checks                | `cli/provider-check.ts`           | selected Provider `/models` 与最小 canary |
+| Provider selection             | `cli/provider-select.ts`          | 数字索引、方向键与 Enter 的 TTY 菜单      |
 
 ## CONVENTIONS
 
@@ -42,7 +43,8 @@ src/
 - 用户可见错误使用中文；标识符、参数、路径、env 名保持英文。
 - 所有验证和所有权预检完成前不得产生 Codex 输出副作用。
 - staging 必须同时支持 write/delete，并在任一 promote 失败时回滚。
-- 不重新引入 runtime manifest 输出、interactive selector、workspace link 或 memory compiler/proposal。
+- Provider 菜单只在未传 `--provider` 且 stdin/stdout 为 TTY 时启用；非 TTY 必须确定性回退，不能等待输入。
+- 不重新引入 runtime manifest 输出、workspace link 或 memory compiler/proposal。
 - secret 只以 env-var 名引用；不得读取后写入、打印或持久化真实值。
 
 ## VALIDATION

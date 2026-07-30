@@ -47,6 +47,59 @@ describe("generation security boundary", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  test("prompts for a provider when --provider is omitted", async () => {
+    const root = mkdtempSync(join(tmpdir(), "ai-share-provider-prompt-"));
+    try {
+      writeConfigFixture(root, "variables: {}\n");
+      let receivedIds: string[] = [];
+      let initialProvider = "";
+      const result = await runGeneration({
+        argv: ["bun", "script", "--dry-run"],
+        env: {
+          HOME: join(root, "home"),
+          CODEX_HOME: join(root, "codex-home"),
+          AI_SHARE_PROVIDER: "missing-provider",
+        },
+        projectRoot: root,
+        providerSelector: (choices, initialId) => {
+          receivedIds = choices.map((choice) => choice.id);
+          initialProvider = initialId;
+          return Promise.resolve("provider-b");
+        },
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.providerId).toBe("provider-b");
+      expect(receivedIds).toEqual(["provider-a", "provider-b"]);
+      expect(initialProvider).toBe("provider-a");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("uses an explicit --provider without opening the selector", async () => {
+    const root = mkdtempSync(join(tmpdir(), "ai-share-provider-explicit-"));
+    try {
+      writeConfigFixture(root, "variables: {}\n");
+      let selectorCalls = 0;
+      const result = await runGeneration({
+        argv: ["bun", "script", "--dry-run", "--provider", "provider-b"],
+        env: { HOME: join(root, "home"), CODEX_HOME: join(root, "codex-home") },
+        projectRoot: root,
+        providerSelector: () => {
+          selectorCalls += 1;
+          return Promise.resolve("provider-a");
+        },
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.providerId).toBe("provider-b");
+      expect(selectorCalls).toBe(0);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 function writeConfigFixture(root: string, envYaml: string): void {
@@ -55,7 +108,17 @@ function writeConfigFixture(root: string, envYaml: string): void {
   writeFileSync(join(configDir, "global.yaml"), "model: model-a\nprovider: provider-a\n", "utf8");
   writeFileSync(
     join(configDir, "provider.yaml"),
-    "providers:\n  provider-a:\n    base_url: https://example.test/v1\n    api_key: ${EXAMPLE_API_KEY}\n",
+    [
+      "providers:",
+      "  provider-a:",
+      "    base_url: https://example.test/v1",
+      "    api_key: ${EXAMPLE_API_KEY}",
+      "  provider-b:",
+      "    name: Provider B",
+      "    base_url: https://example.test/v1",
+      "    api_key: ${EXAMPLE_B_API_KEY}",
+      "",
+    ].join("\n"),
     "utf8",
   );
   writeFileSync(join(configDir, "models.yaml"), "model-a:\n  model_name: upstream-model\n", "utf8");
