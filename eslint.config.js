@@ -3,7 +3,20 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["node_modules/**", "dist/**", "**/dist/**", ".codegraph/**", ".rie/**", "bun.lock"],
+    ignores: [
+      "node_modules/**",
+      "dist/**",
+      "**/dist/**",
+      "target/**",
+      "**/target/**",
+      ".codex/**",
+      ".codegraph/**",
+      ".rie/**",
+      ".playwright-mcp/**",
+      ".sisyphus/**",
+      "*.tsbuildinfo",
+      "bun.lock",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,

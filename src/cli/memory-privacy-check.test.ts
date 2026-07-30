@@ -81,9 +81,19 @@ function writeRequiredGitignore(root: string): void {
   writeFile(
     root,
     ".gitignore",
-    ["config/local/", "memory/local/", "memory/private/", "memory/project/", "memory/runtime/", "memory/sync/"].join(
-      "\n",
-    ),
+    [
+      "config/local/",
+      "memory/local/",
+      "memory/private/",
+      "memory/project/",
+      "memory/runtime/",
+      "memory/sync/",
+      ".playwright-mcp/",
+      ".codex/",
+      ".codegraph/",
+      ".rie/",
+      ".sisyphus/evidence/",
+    ].join("\n"),
   );
 }
 

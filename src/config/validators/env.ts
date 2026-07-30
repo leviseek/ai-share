@@ -1,5 +1,6 @@
 import type { EnvYaml } from "../../types.ts";
-import { isRecord, isSensitiveName, looksLikeSecretLiteral, type ValidationError } from "./common.ts";
+import { isSensitiveName, looksLikeSecretLiteral } from "../../security/secret-patterns.ts";
+import { isRecord, type ValidationError } from "./common.ts";
 
 const DISALLOWED_CODEX_ENV_KEYS = new Set([
   "CODEX_HOME",

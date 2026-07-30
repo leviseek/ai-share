@@ -1,23 +1,13 @@
 # Prompt 偏好
 
-## 沟通风格
+## 输出风格
 
 - 直接给出结论和结果，不需要前置客套
-- 需要多步操作时先创建 todo 列表
 - 复杂决策说明取舍依据
+- 失败时给根因分析和修复路径
 
-## AI 行为要求
+## 行为引用
 
-- 默认遵循 `memory/policies/ai-execution-contract.md`
-- 发现安全风险或设计问题先提醒
-
-## 输出格式
-
-- 代码变更给出具体文件路径和改动内容
-- 失败时给出根因分析和修复路径
-- 交付时附带验证结果和遗留关注点
-
-## 不用做的
-
-- 不需要解释代码做了什么（除非被问到）
-- 不需要给代码加 decorative comments
+- 执行边界遵循 `memory/policies/ai-execution-contract.md`
+- 稳定沟通偏好以 `memory/stable/user.yaml` 为准
+- 不重复记录完整工作流、Git、安全和验证规则

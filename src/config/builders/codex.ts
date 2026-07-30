@@ -8,6 +8,7 @@ import type {
   ModelsYaml,
   ProviderSource,
 } from "../../types.ts";
+import { requireEnvReferenceName } from "../env-ref.ts";
 import { modelRef } from "../model-refs.ts";
 import { requireString } from "../validation.ts";
 import { buildInstructionsPaths } from "./instructions.ts";
@@ -138,7 +139,7 @@ function buildCodexProviders(providerSources: Record<string, ProviderSource>): R
       {
         ...(provider.name ? { name: provider.name } : {}),
         base_url: requireString(provider.base_url, `providers.${providerId}.base_url`),
-        env_key: envKeyName(requireString(provider.api_key, `providers.${providerId}.api_key`)),
+        env_key: requireEnvReferenceName(provider.api_key, `providers.${providerId}.api_key`),
       },
     ]),
   );
@@ -184,12 +185,6 @@ function reasoningEffort(modelId: string, modelSources: ModelsYaml): "low" | "me
 
 function modelIdFromRef(model: string): string {
   return model.split("/").at(-1) ?? model;
-}
-
-function envKeyName(value: string): string {
-  const match = /^\$\{([A-Z0-9_]+)\}$/.exec(value);
-  if (!match?.[1]) throw new Error(`api_key 必须使用 \${ENV_NAME} 格式：${value}`);
-  return match[1];
 }
 
 function tomlBareKey(value: string): string {

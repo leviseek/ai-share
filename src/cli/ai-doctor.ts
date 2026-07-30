@@ -1,24 +1,21 @@
 #!/usr/bin/env bun
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type { EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProviderYaml } from "../types.ts";
 import {
   applyProviderGroups,
   buildCodexCliConfig,
-  codexEnvManagedBlockIsCurrent,
   formatCodexConfigToml,
   modelProviderGroups,
 } from "../config-builders.ts";
-import { missingProviderApiKeyEnvNames } from "./api-keys.ts";
+import { argsFromArgv, parseOptionValue } from "./args.ts";
 import { color } from "./color.ts";
-import { detectDefaultConfigDrift } from "./default-config-drift.ts";
-import { checkCodexEnvLocalProxies } from "./env-runtime-check.ts";
+import { collectConfigDiagnostics } from "./config-diagnostics.ts";
 import { checkMemoryPrivacy } from "./memory-privacy-check.ts";
 import { parseCliOptions } from "./options.ts";
 import { buildGeneratorPaths } from "./paths.ts";
-import { checkProviderCanaries, checkProviderModels } from "./provider-model-check.ts";
-import { checkVersions } from "./registry-check.ts";
+import { checkProviderCanaries, checkProviderModels } from "./provider-check.ts";
 import { listLocalConfigOverlaysSync, loadConfigYamlSync } from "../config/local-overlay.ts";
 import { validateYamlConsistency } from "../config/validation.ts";
 
@@ -40,10 +37,11 @@ type DoctorReport = {
 };
 
 const doctorStartedAt = performance.now();
-const args = new Set(Bun.argv.slice(2));
+const cliArgs = argsFromArgv(Bun.argv);
+const args = new Set(cliArgs);
 const jsonOutput = args.has("--json");
 const strictProvider = args.has("--strict-provider");
-const outputPath = parseOption(Bun.argv.slice(2), "--output");
+const outputPath = parseOptionValue(cliArgs, "--output");
 const cliOptions = parseCliOptions();
 const paths = buildGeneratorPaths();
 
@@ -69,24 +67,26 @@ checks.push({
 const providers = providersConfig.providers ?? {};
 const models = applyProviderGroups(modelsConfig, providers, cliOptions.providerGroups);
 const codexCliConfig = buildCodexCliConfig(providers, models, globalConfig, mcpConfig, paths.targetCodexInstructions);
+const configDiagnostics = await collectConfigDiagnostics({
+  paths,
+  providers,
+  envConfig,
+  globalConfig,
+  expectedCodexConfig: formatCodexConfigToml(codexCliConfig),
+});
 
-const apiKeyStartedAt = performance.now();
-const missingApiKeys = missingProviderApiKeyEnvNames(providers);
+const missingApiKeys = configDiagnostics.missingApiKeys.value;
 const localConfigOverlays = listLocalConfigOverlaysSync(paths.configDir);
 checks.push({
   name: "api_key_env",
   status: missingApiKeys.length === 0 ? "ok" : "warning",
   summary:
     missingApiKeys.length === 0 ? "API Key 环境变量已设置。" : `缺少 API Key 环境变量：${missingApiKeys.join(" / ")}`,
-  elapsed_ms: elapsedSince(apiKeyStartedAt),
+  elapsed_ms: configDiagnostics.missingApiKeys.elapsed_ms,
   details: missingApiKeys,
 });
 
-const defaultConfigDriftStartedAt = performance.now();
-const defaultConfigDrift = await detectDefaultConfigDrift(
-  paths.targetCodexConfig,
-  formatCodexConfigToml(codexCliConfig),
-);
+const defaultConfigDrift = configDiagnostics.defaultConfigDrift.value;
 checks.push({
   name: "default_config_drift",
   status: defaultConfigDrift.status === "current" ? "ok" : "warning",
@@ -94,38 +94,35 @@ checks.push({
     defaultConfigDrift.status === "current"
       ? "默认 config.toml 与 config/global.yaml 等价。"
       : `默认 config.toml 状态：${defaultConfigDrift.status}。`,
-  elapsed_ms: elapsedSince(defaultConfigDriftStartedAt),
+  elapsed_ms: configDiagnostics.defaultConfigDrift.elapsed_ms,
   details: defaultConfigDrift,
 });
 
-const envManagedBlockStartedAt = performance.now();
-const envManagedBlockCurrent = codexEnvManagedBlockIsCurrent(envConfig, readOptional(paths.targetCodexEnv));
+const envManagedBlockCurrent = configDiagnostics.envManagedBlockCurrent.value;
 checks.push({
   name: "codex_env_managed_block",
   status: envManagedBlockCurrent ? "ok" : "warning",
   summary: envManagedBlockCurrent ? ".env managed block 与 config/env.yaml 等价。" : ".env managed block 缺失或漂移。",
-  elapsed_ms: elapsedSince(envManagedBlockStartedAt),
+  elapsed_ms: configDiagnostics.envManagedBlockCurrent.elapsed_ms,
 });
 
-const runtimeVersionsStartedAt = performance.now();
-const versionResults = checkVersions(globalConfig);
+const versionResults = configDiagnostics.versionResults.value;
 checks.push({
   name: "runtime_versions",
   status: versionResults.every((result) => result.ok) ? "ok" : "warning",
   summary: versionResults.every((result) => result.ok)
     ? "Codex 版本满足最低要求。"
     : "Codex 版本低于最低要求或不可检测。",
-  elapsed_ms: elapsedSince(runtimeVersionsStartedAt),
+  elapsed_ms: configDiagnostics.versionResults.elapsed_ms,
   details: versionResults,
 });
 
-const localProxyStartedAt = performance.now();
-const localProxyChecks = await checkCodexEnvLocalProxies(envConfig);
+const localProxyChecks = configDiagnostics.localProxyChecks.value;
 checks.push({
   name: "local_proxy",
   status: localProxyChecks.every((result) => result.ok) ? "ok" : "warning",
   summary: localProxyChecks.every((result) => result.ok) ? "本地代理可达。" : "存在不可达的本地代理。",
-  elapsed_ms: elapsedSince(localProxyStartedAt),
+  elapsed_ms: configDiagnostics.localProxyChecks.elapsed_ms,
   details: localProxyChecks,
 });
 
@@ -218,24 +215,6 @@ process.exit(report.status === "error" ? 1 : 0);
 
 function loadYaml(fileName: string): object {
   return loadConfigYamlSync(paths.configDir, fileName);
-}
-
-function readOptional(path: string): string | undefined {
-  try {
-    return readFileSync(path, "utf8");
-  } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") return undefined;
-    throw error;
-  }
-}
-
-function parseOption(values: readonly string[], name: string): string | undefined {
-  for (let index = 0; index < values.length; index += 1) {
-    const value = values[index];
-    if (value === name) return values[index + 1];
-    if (value?.startsWith(`${name}=`)) return value.slice(name.length + 1);
-  }
-  return undefined;
 }
 
 function writeJsonReport(path: string, report: DoctorReport): void {

@@ -1,6 +1,7 @@
 import { cp, mkdir, rm } from "node:fs/promises";
 import { basename, dirname, parse, resolve, sep } from "node:path";
 import type { GeneratorPaths } from "./paths.ts";
+import { argsFromArgv, parseBooleanOption, parseOptionValue } from "./args.ts";
 import { color } from "./color.ts";
 import { pathExists } from "./fs.ts";
 import { buildGeneratorPaths } from "./paths.ts";
@@ -26,8 +27,9 @@ if (import.meta.main) {
 }
 
 export function parseCleanOptions(argv: readonly string[] = Bun.argv): CleanOptions {
-  const backupValue = parseOption(argv, "--backup");
-  const noBackup = argv.slice(2).includes("--no-backup");
+  const args = argsFromArgv(argv);
+  const backupValue = parseOptionValue(args, "--backup", { missingValue: "true" });
+  const noBackup = args.includes("--no-backup");
   if (backupValue !== undefined && noBackup) throw new Error("--backup 与 --no-backup 不能同时使用。");
   if (noBackup) return { backup: false };
   if (backupValue === undefined) return { backup: undefined };
@@ -69,22 +71,6 @@ function printCleanResult(result: CleanResult): void {
     console.log(`${color.green("已备份")} Codex 配置：${color.bold(result.backupPath)}`);
   }
   console.log(`${color.green("已清理")} Codex 配置目录：${color.bold(result.targetPath)}`);
-}
-
-function parseOption(argv: readonly string[], name: string): string | undefined {
-  const values = argv.slice(2);
-  for (let index = 0; index < values.length; index += 1) {
-    const value = values[index];
-    if (value === name) return values[index + 1] ?? "true";
-    if (value?.startsWith(`${name}=`)) return value.slice(name.length + 1);
-  }
-  return undefined;
-}
-
-function parseBooleanOption(name: string, value: string): boolean {
-  if (["1", "true", "yes", "y"].includes(value.toLowerCase())) return true;
-  if (["0", "false", "no", "n"].includes(value.toLowerCase())) return false;
-  throw new Error(`${name} 只支持 true/false：${value}`);
 }
 
 async function askYesNo(question: string, defaultValue: boolean): Promise<boolean> {

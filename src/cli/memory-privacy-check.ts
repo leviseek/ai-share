@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
+import { looksLikeSecretLiteral } from "../security/secret-patterns.ts";
 
 export type MemoryPrivacyFinding = {
   severity: "error" | "warning";
@@ -20,14 +21,27 @@ type PrivacyAllowKind = "secret" | "local-path" | "personal-data";
 
 const projectRoot = resolve(import.meta.dirname, "..", "..");
 
-const REQUIRED_GITIGNORE_PATTERNS = [
+const REQUIRED_MEMORY_GITIGNORE_PATTERNS = [
   "config/local/",
   "memory/local/",
   "memory/private/",
   "memory/project/",
   "memory/runtime/",
   "memory/sync/",
-];
+] as const;
+
+const REQUIRED_RUNTIME_GITIGNORE_PATTERNS = [
+  ".playwright-mcp/",
+  ".codex/",
+  ".codegraph/",
+  ".rie/",
+  ".sisyphus/evidence/",
+] as const;
+
+const REQUIRED_GITIGNORE_PATTERNS = [
+  ...REQUIRED_MEMORY_GITIGNORE_PATTERNS,
+  ...REQUIRED_RUNTIME_GITIGNORE_PATTERNS,
+] as const;
 
 const SHAREABLE_PREFIXES = ["memory/architecture/", "memory/stack/", "memory/policies/"];
 const PERSONAL_PREFIXES = ["memory/user/", "memory/stable/"];
@@ -94,7 +108,7 @@ function scanMemoryContent(path: string, layer: PrivacyLayer, content: string): 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? "";
     const lineNumber = index + 1;
-    if (containsSecretLiteral(line) && !hasPrivacyAllow(line, "secret")) {
+    if (looksLikeSecretLiteral(line) && !hasPrivacyAllow(line, "secret")) {
       findings.push({
         severity: "error",
         path,
@@ -185,12 +199,6 @@ function privacyLayer(path: string): PrivacyLayer | undefined {
   if (REVIEW_PREFIXES.some((prefix) => path.startsWith(prefix))) return "review";
   if (IGNORED_PREFIXES.some((prefix) => path.startsWith(prefix))) return "ignored";
   return undefined;
-}
-
-function containsSecretLiteral(content: string): boolean {
-  return /(?:^|[\s"'=:])(sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]+|xox[baprs]-[A-Za-z0-9-]{20,}|SEC[A-Za-z0-9]{16,}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)(?:$|[\s"',;])/m.test(
-    content,
-  );
 }
 
 function containsConcreteLocalPath(content: string): boolean {

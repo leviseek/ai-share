@@ -1,5 +1,6 @@
 node_modules/
 dist/
+**/dist/**
 target/
 .git/
 .bun/
@@ -11,3 +12,5 @@ bun.lock
 .codex/
 .codegraph/
 .rie/
+.playwright-mcp/
+.sisyphus/evidence/

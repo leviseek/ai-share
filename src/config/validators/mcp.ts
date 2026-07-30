@@ -1,6 +1,8 @@
 import type { McpYaml } from "../../types.ts";
+import { isEnvReference } from "../env-ref.ts";
 import type { ValidationError } from "./common.ts";
-import { isEnvReference, isRecord, isSensitiveName, looksLikeSecretLiteral } from "./common.ts";
+import { isSensitiveName, looksLikeSecretLiteral } from "../../security/secret-patterns.ts";
+import { isRecord } from "./common.ts";
 
 export function validateMcpServers(errors: ValidationError[], mcpConfig: McpYaml): void {
   const mcpServers = isRecord(mcpConfig.servers) ? mcpConfig.servers : {};

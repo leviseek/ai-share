@@ -118,17 +118,22 @@ function collectMemoryFiles(memoryDir: string): string[] {
   for (const dir of SEARCH_DIRS) {
     const dirPath = resolve(memoryDir, dir);
     if (!existsSync(dirPath)) continue;
-
-    const entries = readdirSync(dirPath, { recursive: true, withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isFile()) continue;
-      const name = entry.name;
-      if (name.endsWith(".md") || name.endsWith(".yaml")) {
-        files.push(resolve(dirPath, entry.name));
-      }
-    }
+    files.push(...collectMemoryFilesRecursive(dirPath));
   }
 
+  return files;
+}
+
+function collectMemoryFilesRecursive(dirPath: string): string[] {
+  const files: string[] = [];
+  for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
+    const entryPath = resolve(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectMemoryFilesRecursive(entryPath));
+    } else if (entry.isFile() && (entry.name.endsWith(".md") || entry.name.endsWith(".yaml"))) {
+      files.push(entryPath);
+    }
+  }
   return files;
 }
 

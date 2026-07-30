@@ -29,6 +29,7 @@ omo-agent-monitor-state.json
 
 ### Local AI planning artifacts
 docs/superpowers/
+.sisyphus/evidence/
 
 ### Local AI runtime state
 .playwright-mcp/

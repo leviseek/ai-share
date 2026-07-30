@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { parseYamlObject } from "../yaml.ts";
 
 /**
  * Options for compiling YAML memory files into natural language context.
@@ -16,14 +17,6 @@ export type MemoryCompileOptions = {
  * circular type alias under isolatedDeclarations).
  */
 export type MemNode = string | string[] | Record<string, unknown>;
-
-/**
- * Stack frame for parsing YAML indentation-based nesting.
- */
-type StackFrame = {
-  indent: number;
-  node: Record<string, MemNode>;
-};
 
 /**
  * Compiles YAML memory files into concise, LLM-friendly natural language context.
@@ -61,171 +54,30 @@ export function compileMemory(options: MemoryCompileOptions): string {
   return result;
 }
 
-// ---------------------------------------------------------------------------
-// YAML Parser
-// ---------------------------------------------------------------------------
-
 /**
  * Parses a YAML text into a tree of MemNode values.
- * Handles: nested objects, lists (with `- ` prefix), scalars, comments (#),
- * and YAML anchors (&). Does NOT handle inline arrays, flow mappings, or
- * multi-line strings (not needed for the memory files).
+ * Reuses the repository YAML subset parser and normalizes scalar values to
+ * strings because memory compilation only needs textual context.
  */
 export function parseMemYaml(text: string): Record<string, MemNode> {
-  const lines = text.replaceAll("\r\n", "\n").split("\n");
-  const root: Record<string, MemNode> = {};
-  const stack: StackFrame[] = [{ indent: -1, node: root }];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = stripYamlComment(lines[i] ?? "");
-    if (!line.trim()) {
-      i++;
-      continue;
-    }
-
-    const indent = countIndent(line);
-
-    // Pop stack to correct indentation level
-    while (stack.length > 1 && indent <= (stack[stack.length - 1]?.indent ?? -1)) {
-      stack.pop();
-    }
-
-    const parent = stack[stack.length - 1];
-    if (parent === undefined) {
-      throw new Error("YAML 解析错误：stack 为空");
-    }
-    const parentNode = parent.node;
-    const trimmed = line.trim();
-
-    // Skip orphan list items (no parent key)
-    if (trimmed.startsWith("- ")) {
-      i++;
-      continue;
-    }
-
-    const colonIdx = trimmed.indexOf(":");
-    if (colonIdx < 0) {
-      i++;
-      continue;
-    }
-
-    const key = trimmed.slice(0, colonIdx).trim();
-    const rest = trimmed.slice(colonIdx + 1).trim();
-
-    if (!key) {
-      i++;
-      continue;
-    }
-
-    // Empty value or YAML anchor (&) → try list or nested object
-    if (rest === "" || rest.startsWith("&")) {
-      const collected = collectListItems(lines, i + 1, indent);
-      if (collected !== null) {
-        parentNode[key] = collected.items;
-        i = collected.endIdx + 1;
-        continue;
-      }
-
-      // Nested object
-      const child: Record<string, MemNode> = {};
-      parentNode[key] = child;
-      stack.push({ indent, node: child });
-      i++;
-      continue;
-    }
-
-    // Scalar value
-    parentNode[key] = trimQuotes(rest);
-    i++;
-  }
-
-  return root;
+  return normalizeMemRecord(parseYamlObject(text));
 }
 
-/**
- * Strips YAML comments (# ...) from a line, handling quoted strings.
- */
-function stripYamlComment(line: string): string {
-  let inSingle = false;
-  let inDouble = false;
-
-  for (let idx = 0; idx < line.length; idx++) {
-    const ch = line[idx];
-
-    if (ch === "'" && !inDouble) {
-      inSingle = !inSingle;
-      continue;
-    }
-
-    if (ch === '"' && !inSingle) {
-      inDouble = !inDouble;
-      continue;
-    }
-
-    if (ch === "#" && !inSingle && !inDouble) {
-      return line.slice(0, idx).trimEnd();
-    }
-  }
-
-  return line.trimEnd();
+function normalizeMemRecord(value: Record<string, unknown>): Record<string, MemNode> {
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, normalizeMemNode(child)]));
 }
 
-/**
- * Counts leading whitespace (indentation) of a line.
- */
-function countIndent(line: string): number {
-  return line.length - line.trimStart().length;
+function normalizeMemNode(value: unknown): MemNode {
+  if (Array.isArray(value)) return value.map((item) => formatMemScalar(item));
+  if (typeof value === "object" && value !== null) return normalizeMemRecord(value as Record<string, unknown>);
+  return formatMemScalar(value);
 }
 
-/**
- * Attempts to collect `- item` list items starting at startIdx.
- * Returns null if no list items are found.
- */
-function collectListItems(
-  lines: string[],
-  startIdx: number,
-  parentIndent: number,
-): { items: string[]; endIdx: number } | null {
-  const items: string[] = [];
-  let endIdx = startIdx - 1;
-
-  for (let j = startIdx; j < lines.length; j++) {
-    const raw = lines[j] ?? "";
-    const line = stripYamlComment(raw);
-
-    if (!line.trim()) {
-      continue;
-    }
-
-    const indent = countIndent(line);
-
-    if (indent <= parentIndent) {
-      break;
-    }
-
-    const trimmed = line.trim();
-
-    if (!trimmed.startsWith("- ")) {
-      break;
-    }
-
-    items.push(trimQuotes(trimmed.slice(2).trim()));
-    endIdx = j;
-  }
-
-  return items.length > 0 ? { items, endIdx } : null;
-}
-
-/**
- * Removes surrounding quotes (single or double) from a string.
- */
-function trimQuotes(value: string): string {
-  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-    return value.slice(1, -1);
-  }
-
-  return value;
+function formatMemScalar(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") return value.toString();
+  return JSON.stringify(value);
 }
 
 // ---------------------------------------------------------------------------

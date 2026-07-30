@@ -1,25 +1,16 @@
 # 工具与模型偏好
 
-## 模型偏好
+## 模型摘要
 
-- 日常编码：GPT-5 系列，默认 `gpt-5.5`
-- 深度推理：GPT-5 系列
-- 轻量任务：`gpt-5.6-luna`
-- 当前 ai-share 仅支持 Codex + GPT 兼容 provider，不再使用非 GPT 模型组
+- 默认模型与选择规则见 `memory/user/models.yaml`
+- 当前 ai-share 仅支持 Codex + GPT 兼容 provider
 
-## 编辑器与终端
+## 环境摘要
 
-- VS Code 作为主力编辑器
-- PowerShell 7+ 作为 Windows 主力 shell
-- 保持项目原有的格式化/lint 配置，不使用个人偏好覆盖
+- 编辑器与终端偏好以 `memory/stable/user.yaml` 和 `memory/stable/devices.yaml` 为准
+- ai-share 的配置源、密钥边界和生成规则以项目 `AGENTS.md` / `config/AGENTS.md` 为准
 
-## 项目管理
-
-- ai-share 作为所有 AI 配置的单一权威来源
-- YAML 作为配置源，不手动编辑生成的 TOML/JSON
-- API Key 只通过环境变量引用，不写入仓库
-
-## 通讯语言
+## 通讯摘要
 
 - 默认使用简体中文沟通和文档
 - 代码标识符、命令、错误信息、API 名称保持英文

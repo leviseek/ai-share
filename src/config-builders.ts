@@ -7,4 +7,3 @@ export {
   formatCodexEnvFile,
 } from "./config/builders/env.ts";
 export { buildRuntimeManifest } from "./config/builders/runtime-manifest.ts";
-export { requireRecord, requireValue } from "./config/validation.ts";

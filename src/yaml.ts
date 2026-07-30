@@ -33,7 +33,7 @@ export function parseYamlObject(text: string): YamlObject {
     const rawValue = trimmed.slice(separatorIndex + 1).trim();
     if (!key) throw new Error(`YAML 键名为空：第 ${index + 1} 行`);
 
-    if (rawValue === "") {
+    if (rawValue === "" || rawValue.startsWith("&")) {
       const list = collectList(lines, index + 1, indent);
       if (list) {
         parent[key] = list.values;

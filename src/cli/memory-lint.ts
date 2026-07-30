@@ -2,6 +2,7 @@
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
+import { looksLikeSecretLiteral } from "../security/secret-patterns.ts";
 
 export type MemoryLintSeverity = "error" | "warning";
 
@@ -52,7 +53,7 @@ export function lintMemory(root: string = projectRoot, options: MemoryLintOption
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index] ?? "";
       const lineNumber = index + 1;
-      if (containsSecretLiteral(line)) {
+      if (looksLikeSecretLiteral(line)) {
         findings.push({
           severity: "error",
           path: relPath,
@@ -227,12 +228,6 @@ function startOfUtcDay(value: Date): Date {
 
 function hasReviewMetadata(content: string): boolean {
   return /(?:review_after|expires_at|stale_after)\s*[:=]/i.test(content);
-}
-
-function containsSecretLiteral(content: string): boolean {
-  return /(?:^|[\s"'=:])(sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]+|xox[baprs]-[A-Za-z0-9-]{20,}|SEC[A-Za-z0-9]{16,}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)(?:$|[\s"',;])/m.test(
-    content,
-  );
 }
 
 function sortFindings(findings: readonly MemoryLintFinding[]): MemoryLintFinding[] {

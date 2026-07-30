@@ -28,17 +28,6 @@ export function modelRef(modelId: string, modelSources: ModelsYaml): string {
   return `${provider}/${modelId}`;
 }
 
-export function modelFallbackRefs(model: string, modelSources: ModelsYaml): string[] {
-  const modelId = model.split("/").at(-1) ?? model;
-  const fallback = modelSources[modelId]?.fallback ?? [];
-  return fallback.map((fallbackModel) => modelRef(fallbackModel, modelSources));
-}
-
-export function resolveProviderId(providerId: string, modelSources: ModelsYaml): string {
-  const groupProvider = Object.values(modelSources).find((model) => model.provider_group === providerId)?.provider;
-  return groupProvider ?? providerId;
-}
-
 function requireProviderGroup(groupId: string, providerGroups: ProviderGroupMap): string {
   return requireString(providerGroups[groupId], `provider_group.${groupId}`);
 }
