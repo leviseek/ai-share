@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { parseCliOptions, resolveProviderId, resolveTaskDescription } from "./options.ts";
+import {
+  parseCliOptions,
+  resolveProviderDecision,
+  resolveProviderId,
+  resolveTaskDecision,
+  resolveTaskDescription,
+} from "./options.ts";
 
 describe("generation CLI options", () => {
   test("parses the supported generation interface", () => {
@@ -15,12 +21,30 @@ describe("generation CLI options", () => {
     expect(resolveProviderId({ cliProvider: "cli", envProvider: "env", defaultProvider: "default" })).toBe("cli");
     expect(resolveProviderId({ envProvider: "env", defaultProvider: "default" })).toBe("env");
     expect(resolveProviderId({ defaultProvider: "default" })).toBe("default");
+    expect(resolveProviderDecision({ cliProvider: "cli", envProvider: "env", defaultProvider: "default" })).toEqual({
+      id: "cli",
+      source: "cli",
+    });
+    expect(resolveProviderDecision({ envProvider: "env", defaultProvider: "default" })).toEqual({
+      id: "env",
+      source: "environment",
+    });
+    expect(resolveProviderDecision({ defaultProvider: "default" })).toEqual({
+      id: "default",
+      source: "global-config",
+    });
   });
 
   test("resolves task precedence", () => {
     expect(resolveTaskDescription({ cliTask: "cli task", envTask: "env task" })).toBe("cli task");
     expect(resolveTaskDescription({ envTask: "env task" })).toBe("env task");
     expect(resolveTaskDescription({})).toBeUndefined();
+    expect(resolveTaskDecision({ cliTask: "cli task", envTask: "env task" })).toEqual({
+      value: "cli task",
+      source: "cli",
+    });
+    expect(resolveTaskDecision({ envTask: "env task" })).toEqual({ value: "env task", source: "environment" });
+    expect(resolveTaskDecision({})).toEqual({ source: "none" });
   });
 
   test("rejects removed and unknown options", () => {

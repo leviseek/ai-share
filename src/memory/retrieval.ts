@@ -3,36 +3,131 @@ import { relative, resolve, sep } from "node:path";
 
 export type SearchResult = { path: string; score: number; snippet: string };
 
+export type MemoryScoreBreakdown = {
+  title: number;
+  path: number;
+  content: number;
+};
+
+export type MemoryMatchedTokens = {
+  title: string[];
+  path: string[];
+  content: string[];
+};
+
+export type MemoryDecision = {
+  path: string;
+  rank: number;
+  selected: boolean;
+  total_score: number;
+  score_breakdown: MemoryScoreBreakdown;
+  matched_tokens: MemoryMatchedTokens;
+};
+
+export type MemoryExclusionReason = "template" | "unconfirmed-distilled" | "malformed-distilled";
+
+export type MemoryExclusion = {
+  path: string;
+  reason: MemoryExclusionReason;
+};
+
+export type MemorySearchDetails = {
+  query_tokens: string[];
+  ranked_candidates: MemoryDecision[];
+  selected: MemoryDecision[];
+  policy_exclusions: MemoryExclusion[];
+};
+
+type ScoredMemoryCandidate = MemoryDecision & { snippet: string };
+
+type SearchCorpus = {
+  files: string[];
+  policyExclusions: MemoryExclusion[];
+};
+
 const SEARCH_DIRS = ["architecture", "stack", "policies", "distilled"] as const;
 const STATIC_PATHS = new Set(["memory/policies/ai-execution-contract.md", "memory/policies/memory-lifecycle.md"]);
+const MAX_RANKED_RESULTS = 5;
+const MAX_SELECTED_RESULTS = 3;
 
 export function searchMemory(query: string, projectRoot?: string): SearchResult[] {
   const root = projectRoot ?? resolve(import.meta.dirname, "..", "..");
   const queryTokens = uniqueTokens(query);
   if (queryTokens.length === 0) return [];
-
-  return collectSearchFiles(root)
-    .flatMap((filePath) => scoreFile(root, filePath, queryTokens))
-    .filter((result) => result.score > 0)
-    .sort((left, right) => right.score - left.score || compareText(left.path, right.path))
-    .slice(0, 5);
+  return scoredCandidates(root, queryTokens).map((result) => ({
+    path: result.path,
+    score: result.total_score,
+    snippet: result.snippet,
+  }));
 }
 
-function collectSearchFiles(root: string): string[] {
-  const output: string[] = [];
+export function searchMemoryDetailed(query: string, projectRoot?: string): MemorySearchDetails {
+  const root = projectRoot ?? resolve(import.meta.dirname, "..", "..");
+  const queryTokens = uniqueTokens(query);
+  if (queryTokens.length === 0) {
+    return { query_tokens: [], ranked_candidates: [], selected: [], policy_exclusions: [] };
+  }
+
+  const corpus = collectSearchCorpus(root);
+  const rankedCandidates = scoreCandidates(root, corpus.files, queryTokens).map(stripSnippet);
+  return {
+    query_tokens: queryTokens,
+    ranked_candidates: rankedCandidates,
+    selected: rankedCandidates.filter((candidate) => candidate.selected),
+    policy_exclusions: corpus.policyExclusions,
+  };
+}
+
+function scoredCandidates(root: string, queryTokens: readonly string[]): ScoredMemoryCandidate[] {
+  return scoreCandidates(root, collectSearchCorpus(root).files, queryTokens);
+}
+
+function scoreCandidates(
+  root: string,
+  files: readonly string[],
+  queryTokens: readonly string[],
+): ScoredMemoryCandidate[] {
+  return files
+    .flatMap((filePath) => scoreFile(root, filePath, queryTokens))
+    .filter((result) => result.total_score > 0)
+    .sort((left, right) => right.total_score - left.total_score || compareText(left.path, right.path))
+    .slice(0, MAX_RANKED_RESULTS)
+    .map((result, index) => ({
+      ...result,
+      rank: index + 1,
+      selected: index < MAX_SELECTED_RESULTS,
+    }));
+}
+
+function collectSearchCorpus(root: string): SearchCorpus {
+  const files: string[] = [];
   for (const directory of SEARCH_DIRS) {
     const base = resolve(root, "memory", directory);
-    if (existsSync(base)) output.push(...walk(base));
+    if (existsSync(base)) files.push(...walk(base));
   }
-  return output
-    .filter((path) => /\.(?:md|ya?ml)$/i.test(path))
-    .filter((path) => {
-      const rel = normalizePath(relative(root, path));
-      if (STATIC_PATHS.has(rel) || rel.endsWith("/TEMPLATE.md")) return false;
-      if (!rel.startsWith("memory/distilled/")) return true;
-      return isConfirmedDistilled(path, readFileSync(path, "utf8"));
-    })
-    .sort();
+
+  const searchable: string[] = [];
+  const policyExclusions: MemoryExclusion[] = [];
+  for (const path of files.filter((entry) => /\.(?:md|ya?ml)$/i.test(entry)).sort()) {
+    const rel = normalizePath(relative(root, path));
+    if (STATIC_PATHS.has(rel)) continue;
+    if (rel.endsWith("/TEMPLATE.md")) {
+      policyExclusions.push({ path: rel, reason: "template" });
+      continue;
+    }
+    if (rel.startsWith("memory/distilled/")) {
+      const status = distilledStatus(path, readFileSync(path, "utf8"));
+      if (status !== "confirmed") {
+        policyExclusions.push({
+          path: rel,
+          reason: status === "unconfirmed" ? "unconfirmed-distilled" : "malformed-distilled",
+        });
+        continue;
+      }
+    }
+    searchable.push(path);
+  }
+  return { files: searchable, policyExclusions };
 }
 
 function walk(directory: string): string[] {
@@ -42,19 +137,47 @@ function walk(directory: string): string[] {
   });
 }
 
-function scoreFile(root: string, filePath: string, queryTokens: readonly string[]): SearchResult[] {
+function scoreFile(root: string, filePath: string, queryTokens: readonly string[]): ScoredMemoryCandidate[] {
   const content = readFileSync(filePath, "utf8");
   const path = normalizePath(relative(root, filePath));
   const contentTokens = new Set(uniqueTokens(content));
   const pathTokens = new Set(uniqueTokens(path));
   const titleTokens = new Set(uniqueTokens(firstHeading(content)));
-  let score = 0;
-  for (const token of queryTokens) {
-    if (contentTokens.has(token)) score += 1;
-    if (pathTokens.has(token)) score += 2;
-    if (titleTokens.has(token)) score += 3;
-  }
-  return score > 0 ? [{ path, score, snippet: matchingSnippet(content, queryTokens) }] : [];
+  const matchedTokens = {
+    title: queryTokens.filter((token) => titleTokens.has(token)),
+    path: queryTokens.filter((token) => pathTokens.has(token)),
+    content: queryTokens.filter((token) => contentTokens.has(token)),
+  };
+  const scoreBreakdown = {
+    title: matchedTokens.title.length * 3,
+    path: matchedTokens.path.length * 2,
+    content: matchedTokens.content.length,
+  };
+  const totalScore = scoreBreakdown.title + scoreBreakdown.path + scoreBreakdown.content;
+  return totalScore > 0
+    ? [
+        {
+          path,
+          rank: 0,
+          selected: false,
+          total_score: totalScore,
+          score_breakdown: scoreBreakdown,
+          matched_tokens: matchedTokens,
+          snippet: matchingSnippet(content, queryTokens),
+        },
+      ]
+    : [];
+}
+
+function stripSnippet(candidate: ScoredMemoryCandidate): MemoryDecision {
+  return {
+    path: candidate.path,
+    rank: candidate.rank,
+    selected: candidate.selected,
+    total_score: candidate.total_score,
+    score_breakdown: candidate.score_breakdown,
+    matched_tokens: candidate.matched_tokens,
+  };
 }
 
 function uniqueTokens(text: string): string[] {
@@ -91,16 +214,17 @@ function normalizePath(path: string): string {
   return path.split(sep).join("/");
 }
 
-function isConfirmedDistilled(path: string, content: string): boolean {
+function distilledStatus(path: string, content: string): "confirmed" | "unconfirmed" | "malformed" {
   const metadata = /\.md$/i.test(path)
     ? /^---\s*\n([\s\S]*?)\n---(?:\s*\n|$)/.exec(content.replaceAll("\r\n", "\n"))?.[1]
     : content;
-  if (metadata === undefined) return false;
+  if (metadata === undefined) return "malformed";
   try {
     const value: unknown = Bun.YAML.parse(metadata);
-    return isRecord(value) && value.confirmed_by_user === true;
+    if (!isRecord(value)) return "malformed";
+    return value.confirmed_by_user === true ? "confirmed" : "unconfirmed";
   } catch {
-    return false;
+    return "malformed";
   }
 }
 

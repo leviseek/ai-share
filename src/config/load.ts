@@ -1,15 +1,56 @@
-import { loadConfigYaml } from "./local-overlay.ts";
+import { loadConfigYamlWithTrace } from "./local-overlay.ts";
 import { validateConfigSet, type ConfigSet, type ValidationError } from "./validation.ts";
 
 const CONFIG_FILES = ["global.yaml", "provider.yaml", "models.yaml", "mcp.yaml", "env.yaml"] as const;
 
 export async function loadValidatedConfig(configDir: string): Promise<ConfigSet> {
-  const [global, providers, models, mcp, env] = await Promise.all(
-    CONFIG_FILES.map((fileName) => loadConfigYaml(configDir, fileName)),
-  );
-  const result = validateConfigSet({ global, providers, models, mcp, env });
+  return (await loadValidatedConfigWithTrace(configDir)).config;
+}
+
+export type ConfigProvenance = {
+  global: Record<string, string>;
+  providers: Record<string, string>;
+  models: Record<string, string>;
+  mcp: Record<string, string>;
+  env: Record<string, string>;
+};
+
+export type LoadedValidatedConfig = {
+  config: ConfigSet;
+  provenance: ConfigProvenance;
+  baseFiles: string[];
+  overlays: string[];
+};
+
+export async function loadValidatedConfigWithTrace(configDir: string): Promise<LoadedValidatedConfig> {
+  const [global, providers, models, mcp, env] = await Promise.all([
+    loadConfigYamlWithTrace(configDir, CONFIG_FILES[0]),
+    loadConfigYamlWithTrace(configDir, CONFIG_FILES[1]),
+    loadConfigYamlWithTrace(configDir, CONFIG_FILES[2]),
+    loadConfigYamlWithTrace(configDir, CONFIG_FILES[3]),
+    loadConfigYamlWithTrace(configDir, CONFIG_FILES[4]),
+  ]);
+  const result = validateConfigSet({
+    global: global.value,
+    providers: providers.value,
+    models: models.value,
+    mcp: mcp.value,
+    env: env.value,
+  });
   if (!result.ok) throw new ConfigValidationError(result.errors);
-  return result.config;
+  const loaded = [global, providers, models, mcp, env];
+  return {
+    config: result.config,
+    provenance: {
+      global: global.sources,
+      providers: providers.sources,
+      models: models.sources,
+      mcp: mcp.sources,
+      env: env.sources,
+    },
+    baseFiles: loaded.map((entry) => entry.base),
+    overlays: loaded.flatMap((entry) => (entry.overlay ? [entry.overlay] : [])),
+  };
 }
 
 export class ConfigValidationError extends Error {

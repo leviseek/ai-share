@@ -3,7 +3,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { buildInstructionsPaths as facadeBuildInstructionsPaths } from "../../config-builders.ts";
-import { buildInstructionsPaths } from "./instructions.ts";
+import { buildInstructionsPaths, buildInstructionsSelection } from "./instructions.ts";
+import { searchMemoryDetailed } from "../../memory/retrieval.ts";
 
 const tempRoots: string[] = [];
 const basePaths = [
@@ -67,6 +68,46 @@ describe("buildInstructionsPaths", () => {
     expect(paths).not.toContain(resolve(root, "memory/distilled/malformed.yaml"));
     expect(paths).not.toContain(resolve(root, "memory/distilled/malformed.md"));
     expect(paths).not.toContain(resolve(root, "memory/distilled/TEMPLATE.md"));
+  });
+
+  test("explains deterministic scores, selection, and policy exclusions", () => {
+    const root = makeProjectRoot();
+    write(root, "memory/architecture/windows.md", "# Windows Transaction\ntransaction rollback content.\n");
+    write(root, "memory/stack/transaction.md", "# Other\ntransaction supporting content.\n");
+    write(
+      root,
+      "memory/distilled/unconfirmed.md",
+      "---\nconfirmed_by_user: false\n---\n# Draft\ntransaction rollback\n",
+    );
+    write(root, "memory/distilled/malformed.md", "# Missing metadata\ntransaction rollback\n");
+    write(
+      root,
+      "memory/distilled/TEMPLATE.md",
+      "---\nconfirmed_by_user: true\n---\n# Template\ntransaction rollback\n",
+    );
+
+    const detailed = searchMemoryDetailed("windows transaction rollback", root);
+    const first = detailed.ranked_candidates[0];
+    expect(first?.path).toBe("memory/architecture/windows.md");
+    expect(first?.rank).toBe(1);
+    expect(first?.selected).toBe(true);
+    expect(first?.total_score).toBe(
+      (first?.score_breakdown.title ?? 0) + (first?.score_breakdown.path ?? 0) + (first?.score_breakdown.content ?? 0),
+    );
+    expect(first?.matched_tokens.title).toContain("windows");
+    expect(first?.matched_tokens.path).toContain("windows");
+    expect(first?.matched_tokens.content).toContain("rollback");
+    expect(detailed.policy_exclusions).toEqual([
+      { path: "memory/distilled/TEMPLATE.md", reason: "template" },
+      { path: "memory/distilled/malformed.md", reason: "malformed-distilled" },
+      { path: "memory/distilled/unconfirmed.md", reason: "unconfirmed-distilled" },
+    ]);
+
+    const selection = buildInstructionsSelection(root, "windows transaction rollback");
+    expect(selection.memory).toEqual(detailed);
+    expect(selection.paths.slice(3, 3 + selection.memory.selected.length)).toEqual(
+      selection.memory.selected.map((result) => resolve(root, result.path)),
+    );
   });
 });
 
