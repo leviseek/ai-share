@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import type { ModelsYaml, ProviderYaml } from "../types.ts";
-import { applyProviderGroups } from "../config-builders.ts";
-import { loadConfigYamlSync } from "../config/local-overlay.ts";
+import { loadValidatedConfig } from "../config/load.ts";
 import { argsFromArgv, hasFlag, parseOptionValue } from "./args.ts";
+import { resolveProviderId } from "./options.ts";
+import { buildGeneratorPaths } from "./paths.ts";
 import {
   checkProviderCanaries,
   checkProviderModels,
@@ -13,100 +13,69 @@ import {
   type ProviderCheckReport,
   type ProviderModelCheckResult,
 } from "./provider-check.ts";
-import { parseCliOptions } from "./options.ts";
 
 export { checkProviderCanaries, checkProviderModels } from "./provider-check.ts";
 export type { ProviderCanaryCheckResult, ProviderCheckReport, ProviderModelCheckResult } from "./provider-check.ts";
 
-const projectRoot = resolve(import.meta.dirname, "..", "..");
+if (import.meta.main) await main();
 
-if (import.meta.main) {
-  const args = argsFromArgv(Bun.argv);
+async function main(): Promise<void> {
+  const args = argsFromArgv();
   const startedAt = performance.now();
-  const providerConfig = loadYaml("provider.yaml") as ProviderYaml;
-  const modelConfig = loadYaml("models.yaml") as ModelsYaml;
-  const providerGroups = parseCliOptions().providerGroups;
+  const paths = buildGeneratorPaths();
+  const config = await loadValidatedConfig(paths.configDir);
+  const cliProvider = parseOptionValue(args, "--provider", { missingValue: "error" });
+  const providerId = resolveProviderId({
+    ...(cliProvider ? { cliProvider } : {}),
+    ...(Bun.env.AI_SHARE_PROVIDER ? { envProvider: Bun.env.AI_SHARE_PROVIDER } : {}),
+    defaultProvider: config.global.provider,
+  });
+  const provider = config.providers.providers[providerId];
+  if (!provider) throw new Error(`提供商未定义：${providerId}`);
   const canary = hasFlag(args, "--canary");
   const jsonOutput = hasFlag(args, "--json");
-  const outputPath = parseOptionValue(args, "--output");
-  const models = applyProviderGroups(modelConfig, providerConfig.providers ?? {}, providerGroups);
-  const results = await checkProviderModels({
-    providers: providerConfig.providers ?? {},
-    models,
-    env: Bun.env,
-  });
-  const canaryResults = canary
-    ? await checkProviderCanaries({
-        providers: providerConfig.providers ?? {},
-        models,
-        env: Bun.env,
-      })
-    : [];
+  const outputPath = parseOptionValue(args, "--output", { missingValue: "error" });
+  const common = { providerId, provider, models: config.models, env: Bun.env };
+  const modelResults = await checkProviderModels(common);
+  const canaryResults = canary ? await checkProviderCanaries(common) : [];
   const report: ProviderCheckReport = {
     status:
-      results.every((result) => result.status === "ok") && canaryResults.every((result) => result.status === "ok")
+      modelResults.every((result) => result.status === "ok") && canaryResults.every((result) => result.status === "ok")
         ? "ok"
         : "error",
+    provider: providerId,
     canary,
-    elapsed_ms: elapsedSince(startedAt),
-    provider_groups: providerGroups,
-    model_results: results,
+    elapsed_ms: Math.max(0, Math.round(performance.now() - startedAt)),
+    model_results: modelResults,
     canary_results: canaryResults,
   };
-  if (jsonOutput) {
-    console.log(JSON.stringify(report, null, 2));
-  } else {
-    printProviderModelResults(results);
-    if (canary) printProviderCanaryResults(canaryResults);
-    console.log(`provider check elapsed: ${report.elapsed_ms}ms`);
+  if (jsonOutput) console.log(JSON.stringify(report, null, 2));
+  else printResults(modelResults, canaryResults, report.elapsed_ms);
+  if (outputPath) await writeReport(outputPath, report);
+  process.exitCode = report.status === "ok" ? 0 : 1;
+}
+
+function printResults(
+  modelResults: readonly ProviderModelCheckResult[],
+  canaryResults: readonly ProviderCanaryCheckResult[],
+  elapsedMs: number,
+): void {
+  for (const result of modelResults) {
+    const detail = result.error ?? result.missing_model_names.join(",");
+    console.log(
+      `${result.status === "ok" ? "✓" : "✗"} ${result.provider}: ${result.status}${detail ? ` ${detail}` : ""}`,
+    );
   }
-  if (outputPath) {
-    writeJsonReport(outputPath, report);
-    if (!jsonOutput) console.log(`provider check report: ${outputPath}`);
+  for (const result of canaryResults) {
+    console.log(
+      `${result.status === "ok" ? "✓" : "✗"} ${result.provider}/${result.model_id}: ${result.status} fingerprint=${result.request_fingerprint.slice(0, 12)}`,
+    );
   }
-  process.exit(report.status === "ok" ? 0 : 1);
+  console.log(`provider check elapsed: ${elapsedMs}ms`);
 }
 
-function loadYaml(fileName: string): object {
-  return loadConfigYamlSync(resolve(projectRoot, "config"), fileName);
-}
-
-function writeJsonReport(path: string, report: ProviderCheckReport): void {
-  const resolvedPath = resolve(path);
-  mkdirSync(dirname(resolvedPath), { recursive: true });
-  writeFileSync(resolvedPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-}
-
-function printProviderModelResults(results: readonly ProviderModelCheckResult[]): void {
-  for (const result of results) {
-    if (result.status === "ok") {
-      console.log(`✓ ${result.provider}: ${result.checked_model_names.length} models available`);
-      continue;
-    }
-
-    const missing = result.missing_model_names.length > 0 ? ` missing=${result.missing_model_names.join(",")}` : "";
-    const error = result.error ? ` ${result.error}` : "";
-    console.log(`✗ ${result.provider}: ${result.status}${missing}${error}`);
-  }
-}
-
-function printProviderCanaryResults(results: readonly ProviderCanaryCheckResult[]): void {
-  for (const result of results) {
-    const fingerprint = ` fingerprint=${shortRequestFingerprint(result.request_fingerprint)}`;
-    if (result.status === "ok") {
-      console.log(`✓ ${result.provider}/${result.model_id}: canary ok${fingerprint}`);
-      continue;
-    }
-
-    const error = result.error ? ` ${result.error}` : "";
-    console.log(`✗ ${result.provider}/${result.model_id}: ${result.status}${fingerprint}${error}`);
-  }
-}
-
-function shortRequestFingerprint(fingerprint: string): string {
-  return fingerprint.slice(0, 12);
-}
-
-function elapsedSince(startedAt: number): number {
-  return Math.max(0, Math.round(performance.now() - startedAt));
+async function writeReport(path: string, report: ProviderCheckReport): Promise<void> {
+  const target = resolve(path);
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 }

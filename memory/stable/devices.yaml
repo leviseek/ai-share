@@ -34,12 +34,10 @@ devices:
 model_preferences:
   daily_coding: gpt-5 系列
   deep_reasoning: gpt-5 系列
-  light_tasks: gpt-5.6-luna
-  compaction_model: fast
 
 cross_device_rules:
   - ai-share 配置源通过 Git 同步，每个设备独立生成配置
-  - 生成的 JSON 配置不提交到仓库，每个设备独立生成
-  - API Key 按设备单独设置，永不写入仓库；非密钥代理默认值可通过 config/env.yaml 生成到 CODEX_HOME/.env
+  - 生成的 Codex TOML、AGENTS 和 skills 不提交到仓库，每个设备独立生成
+  - API Key 按设备单独设置，永不写入仓库；非密钥代理使用 ignored config/local/env.yaml
   - memory/ 目录随 ai-share 仓库同步，不再使用独立记忆仓库
   - ai-share 不安装独立启动器；codex 命令由本机安装的 Codex CLI 提供

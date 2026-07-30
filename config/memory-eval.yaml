@@ -1,9 +1,0 @@
-tasks:
-  base_instructions:
-    description: Ensure base execution and memory policies are injected.
-  task_retrieval:
-    description: Ensure task-based retrieval finds relevant memory.
-    query: memory governance lifecycle stable distilled candidate review
-    expected_path: memory/policies/memory-lifecycle.md
-  managed_skills:
-    description: Ensure runtime manifest includes native managed skills.

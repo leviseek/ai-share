@@ -9,11 +9,11 @@ Use this skill when modifying YAML source files, Codex config builders, generate
 
 ## Source Of Truth
 
-- `config/global.yaml`: default Codex model and version requirements.
+- `config/global.yaml`: default Codex model, provider, and version requirements.
 - `config/provider.yaml`: provider definitions and API key env references.
-- `config/models.yaml`: model catalog and provider groups.
+- `config/models.yaml`: upstream model names and optional reasoning effort.
 - `config/mcp.yaml`: Codex MCP server definitions.
-- `config/env.yaml`: non-secret Codex .env runtime variables such as local proxy settings.
+- `config/env.yaml`: shared non-secret Codex `.env` variables; machine-local values use `config/local/env.yaml`.
 
 ## Implementation Map
 
@@ -22,7 +22,8 @@ Use this skill when modifying YAML source files, Codex config builders, generate
 - Codex .env config: `src/config/builders/env.ts`.
 - Instruction paths: `src/config/builders/instructions.ts`.
 - Output paths: `src/cli/paths.ts`.
-- Install behavior: `src/cli/install.ts`.
+- Ownership/install behavior: `src/cli/generation-plan.ts`.
+- Transaction and rollback: `src/cli/fs.ts`.
 
 ## Workflow
 
@@ -30,12 +31,13 @@ Use this skill when modifying YAML source files, Codex config builders, generate
 2. Make the smallest durable source change; do not patch generated user config as the fix.
 3. If schema or behavior changes, update README or project knowledge.
 4. Add or update focused tests near the builder/runtime when possible.
-5. Run `bun run ai:check`, `bun run ai:gen -- --dry-run`, and `bun run check` for cross-cutting changes.
+5. Run `bun run ai:check`, `bun run schema:check`, `bun run ai:gen -- --dry-run`, and `bun run check` for cross-cutting changes.
 6. Run `bun run memory:check` when touching memory privacy layers or generated instruction sources.
 
 ## Safety
 
 - Keep secrets as env-var names only.
+- Treat `--force` as output adoption only; it never bypasses validation.
 - Do not add external runtime dependencies unless Bun/Node APIs cannot meet the need.
 - Keep generated config reproducible from repository sources.
 

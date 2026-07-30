@@ -1,178 +1,187 @@
 import { describe, expect, test } from "bun:test";
-import type { EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProviderYaml } from "../types.ts";
-import { validateYamlConsistency } from "./validation.ts";
+import { validateConfigSet, validateYamlConsistency } from "./validation.ts";
 
-describe("validateYamlConsistency", () => {
-  test("reports undefined global model and fallback references", () => {
-    const models: ModelsYaml = {
-      "known-model": {
-        ...model("known-model"),
-        fallback: ["missing-fallback"],
-      },
-    };
-    const errors = validateYamlConsistency(models, providers(), { model: "missing-model" }, mcp()).map(formatError);
-
-    expect(errors).toContain("global.yaml:model:global.model 引用未定义模型 'missing-model'");
-    expect(errors).toContain(
-      "models.yaml:models.known-model.fallback:模型 'known-model' 的 fallback 引用未定义模型 'missing-fallback'",
-    );
+describe("strict config validation", () => {
+  test("accepts the minimal normalized config", () => {
+    const fixture = validConfig();
+    const result = validateConfigSet(fixture);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.config.global).toEqual({ model: "model-a", provider: "provider-a" });
   });
 
-  test("reports invalid model catalog schema fields", () => {
-    const models = {
-      "valid-model": model("valid-model"),
-      "invalid-model": {
-        provider_group: "",
-        cost: {
-          input: 0,
-        },
-        limits: {
-          context_window: "wide",
-          max_output: 0,
-        },
-        capabilities: ["tools", 1],
-        temperature: "warm",
-        fallback: ["valid-model", 1],
-      },
-      "unknown-group": {
-        ...model("unknown-group"),
-        provider_group: "unknown",
-      },
-      "not-object": null,
-    } as unknown as ModelsYaml;
-
-    const errors = validateYamlConsistency(models, providers(), { model: "valid-model" }, mcp(), {}).map(formatError);
-
-    const expectedErrors = [
-      "models.yaml:models.invalid-model.provider_group:models.invalid-model.provider_group 必须是非空字符串",
-      "models.yaml:models.invalid-model.model_name:缺少 models.invalid-model.model_name 字段",
-      "models.yaml:models.invalid-model.cost.input:models.invalid-model.cost.input 必须大于 0",
-      "models.yaml:models.invalid-model.cost.output:缺少 models.invalid-model.cost.output 字段",
-      "models.yaml:models.invalid-model.limits.context_window:models.invalid-model.limits.context_window 必须是数字",
-      "models.yaml:models.invalid-model.limits.max_output:models.invalid-model.limits.max_output 必须大于 0",
-      "models.yaml:models.invalid-model.capabilities[1]:models.invalid-model.capabilities[1] 必须是非空字符串",
-      "models.yaml:models.invalid-model.temperature:models.invalid-model.temperature 必须是数字",
-      "models.yaml:models.invalid-model.fallback[1]:models.invalid-model.fallback[1] 必须是非空字符串",
-      "models.yaml:models.unknown-group.provider_group:模型 'unknown-group' 使用了未知 provider_group 'unknown'",
-      "models.yaml:models.not-object:models.not-object 必须是对象",
-    ];
-    for (const expectedError of expectedErrors) {
-      expect(errors).toContain(expectedError);
-    }
+  test("reports cross-file model and provider references", () => {
+    const fixture = validConfig();
+    fixture.global = { model: "missing-model", provider: "missing-provider" };
+    const messages = errors(fixture);
+    expect(messages).toContain("global.model 引用未定义模型 'missing-model'");
+    expect(messages).toContain("global.provider 引用未定义提供商 'missing-provider'");
   });
 
-  test("reports invalid provider, global, and MCP schema fields", () => {
-    const models: ModelsYaml = {
-      "valid-model": model("valid-model"),
+  test("rejects unknown and removed model/provider fields", () => {
+    const fixture = validConfig();
+    fixture.models = {
+      "model-a": { model_name: "upstream", provider_group: "gpt", cost: { input: 1, output: 2 } },
     };
-    const providersConfig = {
+    fixture.providers = {
       providers: {
-        codexapis: {
-          name: 1,
-          base_url: 1,
-          api_key: "sk-not-an-env-reference",
-          timeout: "slow",
-        },
-        packyapi: null,
-      },
-    } as unknown as ProviderYaml;
-    const mcpConfig = {
-      servers: {
-        "not-object": null,
-        malformed: {
-          command: 1,
-          args: ["ok", 1],
-          env: {
-            TOKEN: "plain-token",
-            BAD_VALUE: 1,
-            "bad-name": "${OK}",
-          },
+        "provider-a": {
+          base_url: "https://example.test/v1",
+          api_key: "${EXAMPLE_API_KEY}",
+          timeout: 600000,
         },
       },
-    } as unknown as McpYaml;
-
-    const errors = validateYamlConsistency(
-      models,
-      providersConfig,
-      { model: 1 } as unknown as GlobalYaml,
-      mcpConfig,
-    ).map(formatError);
-
-    for (const expectedError of [
-      "global.yaml:model:model 必须是非空字符串",
-      "provider.yaml:providers.codexapis.base_url:providers.codexapis.base_url 必须是非空字符串",
-      "provider.yaml:providers.codexapis.api_key:providers.codexapis.api_key 格式不符合要求",
-      "provider.yaml:providers.packyapi:providers.packyapi 必须是对象",
-      "mcp.yaml:servers.not-object:servers.not-object 必须是对象",
-      "mcp.yaml:servers.malformed.command:servers.malformed.command 必须是非空字符串",
-      "mcp.yaml:servers.malformed.args[1]:servers.malformed.args[1] 必须是非空字符串",
-      "mcp.yaml:servers.malformed.env.TOKEN:stdio MCP server 'malformed' 的敏感 env 'TOKEN' 必须使用 ${ENV_NAME} 占位，不允许写入明文",
-      "mcp.yaml:servers.malformed.env.BAD_VALUE:servers.malformed.env.BAD_VALUE 必须是非空字符串",
-      "mcp.yaml:servers.malformed.env.bad-name:servers.malformed.env key 'bad-name' 格式不符合要求",
-    ]) {
-      expect(errors).toContain(expectedError);
-    }
+    };
+    const paths = validateYamlConsistency(
+      fixture.models,
+      fixture.providers,
+      fixture.global,
+      fixture.mcp,
+      fixture.env,
+    ).map((error) => error.path);
+    expect(paths).toContain("models.model-a.provider_group");
+    expect(paths).toContain("models.model-a.cost");
+    expect(paths).toContain("providers.provider-a.timeout");
   });
 
-  test("rejects sensitive or generator-managed Codex .env variables", () => {
-    const models: ModelsYaml = {
-      "valid-model": model("valid-model"),
-    };
-    const envConfig = {
+  test("rejects generator-managed env prefixes and secret literals", () => {
+    const fixture = validConfig();
+    fixture.env = {
       variables: {
-        HTTP_PROXY: "http://127.0.0.1:7897",
-        CODEX_HOME: "/tmp/codex",
-        AI_SHARE_TASK: "local-task",
-        CODEXAPIS_API_KEY: "sk-not-allowed-here",
-        LITERAL_VALUE: "sk-1234567890abcdef",
+        AI_SHARE_PROVIDER: "provider-a",
+        CODEX_FOO: "value",
+        HOME: "/tmp/home",
+        JAVA_HOME: "/tmp/java",
+        TOKEN_VALUE: "plain",
+        LITERAL: "sk-1234567890abcdef",
       },
-    } as EnvYaml;
+    };
+    const messages = errors(fixture);
+    expect(messages.filter((message) => message.includes("不应写入 Codex .env"))).toHaveLength(4);
+    expect(messages.some((message) => message.includes("敏感变量"))).toBe(true);
+    expect(messages.some((message) => message.includes("明文 secret"))).toBe(true);
+  });
 
-    const errors = validateYamlConsistency(models, providers(), { model: "valid-model" }, mcp(), envConfig).map(
-      formatError,
+  test("rejects secrets in shell environment policy values", () => {
+    const fixture = validConfig();
+    fixture.global = {
+      model: "model-a",
+      provider: "provider-a",
+      codex_shell_environment_policy: {
+        set: {
+          SERVICE_API_KEY: "plain-text",
+          BENIGN_VALUE: "sk-1234567890abcdef",
+        },
+      },
+    };
+    const findings = validateYamlConsistency(
+      fixture.models,
+      fixture.providers,
+      fixture.global,
+      fixture.mcp,
+      fixture.env,
     );
+    expect(findings.map((finding) => finding.path)).toContain("codex_shell_environment_policy.set.SERVICE_API_KEY");
+    expect(findings.map((finding) => finding.path)).toContain("codex_shell_environment_policy.set.BENIGN_VALUE");
+  });
 
-    for (const expectedError of [
-      "env.yaml:variables.CODEX_HOME:env 'CODEX_HOME' 不应写入 Codex .env；请保留给系统环境或生成器参数管理",
-      "env.yaml:variables.AI_SHARE_TASK:env 'AI_SHARE_TASK' 不应写入 Codex .env；请保留给系统环境或生成器参数管理",
-      "env.yaml:variables.CODEXAPIS_API_KEY:env 'CODEXAPIS_API_KEY' 看起来是敏感变量，不允许通过 config/env.yaml 写入 Codex .env",
-      "env.yaml:variables.LITERAL_VALUE:env 'LITERAL_VALUE' 疑似包含明文 secret，不允许写入 config/env.yaml",
-    ]) {
-      expect(errors).toContain(expectedError);
-    }
+  test("enforces MCP transport-specific fields", () => {
+    const fixture = validConfig();
+    fixture.mcp = {
+      servers: {
+        http: { transport: "http", url: "https://example.test/mcp", command: "node", env: { VALUE: "x" } },
+        stdio: { transport: "stdio", command: "node", bearer_token_env_var: "TOKEN" },
+      },
+    };
+    const messages = errors(fixture);
+    expect(messages).toContain("HTTP MCP server 'http' 不应配置 command 字段");
+    expect(messages).toContain("HTTP MCP server 'http' 不应配置 env 字段");
+    expect(messages).toContain("stdio MCP server 'stdio' 不应配置 bearer_token_env_var 字段");
+  });
+
+  test("validates ids, semver, HTTPS providers, enum values and MCP env keys", () => {
+    const fixture = validConfig();
+    fixture.global = { model: "Bad Model", provider: "provider-a", codex_min_version: "1.2" };
+    fixture.models = { "Bad Model": { model_name: "upstream", reasoning_effort: "ultra" } };
+    fixture.providers = {
+      providers: {
+        "provider-a": { base_url: "http://example.test/v1", api_key: "${EXAMPLE_API_KEY}" },
+      },
+    };
+    fixture.mcp = {
+      servers: {
+        "Bad Server": { transport: "stdio", command: "node", env: { "bad-key": "value" } },
+      },
+    };
+    const findings = validateYamlConsistency(
+      fixture.models,
+      fixture.providers,
+      fixture.global,
+      fixture.mcp,
+      fixture.env,
+    );
+    const paths = findings.map((finding) => finding.path);
+    expect(paths).toContain("model");
+    expect(paths).toContain("codex_min_version");
+    expect(paths).toContain("models.Bad Model");
+    expect(paths).toContain("models.Bad Model.reasoning_effort");
+    expect(paths).toContain("providers.provider-a.base_url");
+    expect(paths).toContain("servers.Bad Server");
+    expect(paths).toContain("servers.Bad Server.env.bad-key");
+    expect(findings.some((finding) => finding.message.includes("有效 HTTPS URL"))).toBe(true);
+  });
+
+  test("treats explicit stdio transport with an URL as a transport conflict", () => {
+    const fixture = validConfig();
+    fixture.mcp = {
+      servers: {
+        mixed: { transport: "stdio", command: "node", url: "https://example.test/mcp" },
+      },
+    };
+    expect(errors(fixture)).toContain("stdio MCP server 'mixed' 不应配置 url 字段");
+  });
+
+  test("rejects Provider URL credentials and sensitive query parameters", () => {
+    const fixture = validConfig();
+    fixture.providers = {
+      providers: {
+        "provider-a": {
+          base_url: "https://user:password@example.test/v1?api_key=placeholder",
+          api_key: "${EXAMPLE_API_KEY}",
+        },
+      },
+    };
+    const messages = errors(fixture);
+    expect(messages).toContain("provider 'provider-a' 的 base_url 必须是有效 HTTPS URL");
+
+    const queryFixture = validConfig();
+    queryFixture.providers = {
+      providers: {
+        "provider-a": {
+          base_url: "https://example.test/v1?api_key=placeholder",
+          api_key: "${EXAMPLE_API_KEY}",
+        },
+      },
+    };
+    expect(errors(queryFixture)).toContain("provider 'provider-a' 的 base_url 不得包含敏感查询参数 'api_key'");
   });
 });
 
-function model(modelName: string): ModelsYaml[string] {
+function validConfig(): Record<"global" | "providers" | "models" | "mcp" | "env", unknown> {
   return {
-    provider_group: "gpt",
-    model_name: modelName,
-    cost: {
-      input: 1,
-      output: 2,
-    },
-    limits: {
-      context_window: 1000,
-      max_output: 100,
-    },
-  };
-}
-
-function providers(): ProviderYaml {
-  return {
+    global: { model: "model-a", provider: "provider-a" },
     providers: {
-      codexapis: {
-        base_url: "https://example.test/v1",
-        api_key: "${CODEXAPIS_API_KEY}",
+      providers: {
+        "provider-a": { base_url: "https://example.test/v1", api_key: "${EXAMPLE_API_KEY}" },
       },
     },
+    models: { "model-a": { model_name: "upstream", reasoning_effort: "medium" } },
+    mcp: { servers: {} },
+    env: { variables: {} },
   };
 }
 
-function mcp(): McpYaml {
-  return {};
-}
-
-function formatError(error: { file: string; path: string; message: string }): string {
-  return `${error.file}:${error.path}:${error.message}`;
+function errors(fixture: Record<"global" | "providers" | "models" | "mcp" | "env", unknown>): string[] {
+  return validateYamlConsistency(fixture.models, fixture.providers, fixture.global, fixture.mcp, fixture.env).map(
+    (error) => error.message,
+  );
 }

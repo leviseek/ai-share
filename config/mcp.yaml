@@ -17,4 +17,4 @@
 #     # 生成器只同步占位，不写入真实密钥。
 #     env:
 #       LOCAL_TOOL_API_KEY: ${LOCAL_TOOL_API_KEY}
-servers:
+servers: {}

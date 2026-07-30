@@ -9,7 +9,7 @@ describe("memory lint", () => {
     const root = makeRoot();
     try {
       writeFile(root, "AI_GUIDELINES.md", "# Guidelines\n- 阅读上下文后再修改代码。\n");
-      writeFile(root, "memory/user/profile.md", "# Profile\n- 偏好简体中文沟通。\n");
+      writeFile(root, "memory/stable/user.yaml", "rules:\n  - 偏好简体中文沟通。\n");
 
       expect(lintMemory(root)).toEqual([]);
     } finally {
@@ -21,13 +21,13 @@ describe("memory lint", () => {
     const root = makeRoot();
     try {
       const secret = "sk-1234567890abcdefghijkl";
-      writeFile(root, "memory/user/profile.md", `token: ${secret}\n`);
+      writeFile(root, "memory/stable/user.yaml", `token: ${secret}\n`);
 
       const findings = lintMemory(root);
 
       expect(findings).toContainEqual({
         severity: "error",
-        path: "memory/user/profile.md",
+        path: "memory/stable/user.yaml",
         line: 1,
         message: "memory lint 检测到疑似明文 secret；请删除真实值或改为环境变量名。",
       });
@@ -40,26 +40,14 @@ describe("memory lint", () => {
   test("reports duplicate rules across memory files as warnings", () => {
     const root = makeRoot();
     try {
-      writeFile(root, "memory/user/profile.md", "- 先理解项目上下文再修改目标文件\n");
-      writeFile(root, "memory/user/prompts.md", "- 先理解项目上下文再修改目标文件\n");
+      writeFile(root, "memory/stable/user.yaml", "- 先理解项目上下文再修改目标文件\n");
+      writeFile(root, "memory/stable/workflows.yaml", "- 先理解项目上下文再修改目标文件\n");
 
       const findings = lintMemory(root);
 
       expect(findings.some((finding) => finding.severity === "warning" && finding.message.includes("重复规则"))).toBe(
         true,
       );
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
-
-  test("ignores intentional markdown and yaml duplicate pairs", () => {
-    const root = makeRoot();
-    try {
-      writeFile(root, "memory/user/profile.md", "- 先理解项目上下文再修改目标文件\n");
-      writeFile(root, "memory/user/profile.yaml", "rules:\n  - 先理解项目上下文再修改目标文件\n");
-
-      expect(lintMemory(root)).toEqual([]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

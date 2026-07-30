@@ -20,23 +20,15 @@ export function parseOptionValue(
       if (options.missingValue === "error") throw new Error(`缺少参数值：${name}`);
       return undefined;
     }
-    if (value?.startsWith(`${name}=`)) return value.slice(name.length + 1);
+    if (value?.startsWith(`${name}=`)) {
+      const inlineValue = value.slice(name.length + 1);
+      if (inlineValue) return inlineValue;
+      if (options.missingValue === "true") return "true";
+      if (options.missingValue === "error") throw new Error(`缺少参数值：${name}`);
+      return undefined;
+    }
   }
   return undefined;
-}
-
-export function parseOptionValues(args: readonly string[], name: string): string[] {
-  const output: string[] = [];
-  for (let index = 0; index < args.length; index += 1) {
-    const value = args[index];
-    if (value === name) {
-      const nextValue = nextOptionValue(args, index);
-      if (nextValue === undefined) throw new Error(`缺少参数值：${name}`);
-      output.push(nextValue);
-    }
-    if (value?.startsWith(`${name}=`)) output.push(value.slice(name.length + 1));
-  }
-  return output;
 }
 
 export function parseBooleanOption(name: string, value: string): boolean {

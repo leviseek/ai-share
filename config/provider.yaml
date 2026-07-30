@@ -1,39 +1,20 @@
-## 提供商名
-### name
-### short_name   模型显示名后缀
-### base_url
-### api_key
-### timeout       请求超时（秒）
-### chunkTimeout  流式响应块超时（秒）
 providers:
   codexapis:
     name: Codex APIs
-    short_name: CodexAPI
     base_url: https://www.codexapis.com/v1
     api_key: ${CODEXAPIS_API_KEY}
-    timeout: 600000
-    chunkTimeout: 30000
 
   packyapi:
     name: Packy API
-    short_name: PackyAPI
     base_url: https://www.packyapi.com/v1
     api_key: ${PACKYAPI_API_KEY}
-    timeout: 600000
-    chunkTimeout: 30000
 
   axasapi:
     name: Axas API
-    short_name: AxasAPI
     base_url: https://api.asxs.top/v1
     api_key: ${AXASAPI_API_KEY}
-    timeout: 600000
-    chunkTimeout: 30000
 
   lingsuan:
     name: Lingsuan API
-    short_name: Lingsuan
     base_url: https://lingsuan.top
     api_key: ${LINGSUAN_API_KEY}
-    timeout: 600000
-    chunkTimeout: 30000

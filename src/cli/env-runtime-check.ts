@@ -31,7 +31,7 @@ export async function checkCodexEnvLocalProxies(
 }
 
 export function collectLocalProxyTargets(envConfig: EnvYaml): LocalProxyTarget[] {
-  const variables = envConfig.variables ?? {};
+  const variables = envConfig.variables;
   const targets = new Map<string, LocalProxyTarget>();
 
   for (const [envName, envValue] of Object.entries(variables)) {

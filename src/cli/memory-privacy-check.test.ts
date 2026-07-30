@@ -10,7 +10,7 @@ describe("memory privacy check", () => {
     try {
       writeRequiredGitignore(root);
       writeFile(root, "memory/architecture/ai.md", "repo root: <repo>\n");
-      writeFile(root, "memory/user/profile.md", "偏好：简体中文。\n");
+      writeFile(root, "memory/stable/user.yaml", "language: 简体中文\n");
 
       expect(checkMemoryPrivacy(root, { checkGitTracking: false })).toEqual([]);
     } finally {
@@ -23,7 +23,7 @@ describe("memory privacy check", () => {
     try {
       writeFile(root, ".gitignore", "memory/local/\n");
       writeFile(root, "memory/architecture/ai.md", "repo: D:\\ai-share\\memory\n");
-      writeFile(root, "memory/user/profile.md", "secret: sk-1234567890abcdefghijkl\n");
+      writeFile(root, "memory/stable/user.yaml", "secret: sk-1234567890abcdefghijkl\n");
       writeFile(root, "memory/misc/note.md", "uncategorized\n");
 
       const findings = checkMemoryPrivacy(root, { checkGitTracking: false }).map((finding) => finding.message);

@@ -1,23 +1,14 @@
-import type { EnvYaml } from "../../types.ts";
 import { isSensitiveName, looksLikeSecretLiteral } from "../../security/secret-patterns.ts";
 import { isRecord, type ValidationError } from "./common.ts";
 
-const DISALLOWED_CODEX_ENV_KEYS = new Set([
-  "CODEX_HOME",
-  "HOME",
-  "USERPROFILE",
-  "PATH",
-  "Path",
-  "AI_SHARE_TASK",
-  "AI_SHARE_GPT_PROVIDER",
-]);
+const DISALLOWED_CODEX_ENV_KEYS = new Set(["HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "PATH", "PATHEXT"]);
 
-export function validateCodexEnv(errors: ValidationError[], envConfig: EnvYaml): void {
-  const variables = envConfig.variables;
+export function validateCodexEnv(errors: ValidationError[], envConfig: unknown): void {
+  const variables = isRecord(envConfig) ? envConfig.variables : undefined;
   if (!isRecord(variables)) return;
 
   for (const [envName, envValue] of Object.entries(variables)) {
-    if (DISALLOWED_CODEX_ENV_KEYS.has(envName)) {
+    if (isGeneratorManagedEnvName(envName)) {
       errors.push({
         file: "env.yaml",
         path: `variables.${envName}`,
@@ -41,4 +32,15 @@ export function validateCodexEnv(errors: ValidationError[], envConfig: EnvYaml):
       });
     }
   }
+}
+
+function isGeneratorManagedEnvName(envName: string): boolean {
+  const normalized = envName.toUpperCase();
+  return (
+    DISALLOWED_CODEX_ENV_KEYS.has(normalized) ||
+    normalized.endsWith("_HOME") ||
+    normalized.endsWith("_PATH") ||
+    normalized.startsWith("AI_SHARE_") ||
+    normalized.startsWith("CODEX_")
+  );
 }

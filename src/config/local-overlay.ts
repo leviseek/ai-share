@@ -1,21 +1,14 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseYamlObject } from "../yaml.ts";
+import { pathExists } from "../cli/fs.ts";
 
 export async function loadConfigYaml(configDir: string, fileName: string): Promise<object> {
-  const base = parseYamlObject(await readFile(resolve(configDir, fileName), "utf8"));
+  const basePath = resolve(configDir, fileName);
+  const base = parseYamlObject(await readFile(basePath, "utf8"), basePath);
   const overlayPath = resolve(configDir, "local", fileName);
-  if (!existsSync(overlayPath)) return base;
-  const overlay = parseYamlObject(await readFile(overlayPath, "utf8"));
-  return mergeLocalOverlay(base, overlay) as object;
-}
-
-export function loadConfigYamlSync(configDir: string, fileName: string): object {
-  const base = parseYamlObject(readFileSync(resolve(configDir, fileName), "utf8"));
-  const overlayPath = resolve(configDir, "local", fileName);
-  if (!existsSync(overlayPath)) return base;
-  const overlay = parseYamlObject(readFileSync(overlayPath, "utf8"));
+  if (!(await pathExists(overlayPath))) return base;
+  const overlay = parseYamlObject(await readFile(overlayPath, "utf8"), overlayPath);
   return mergeLocalOverlay(base, overlay) as object;
 }
 
@@ -35,18 +28,9 @@ export function mergeLocalOverlay(base: unknown, overlay: unknown): unknown {
 
 export async function listLocalConfigOverlays(configDir: string): Promise<string[]> {
   const localDir = resolve(configDir, "local");
-  if (!existsSync(localDir)) return [];
+  if (!(await pathExists(localDir))) return [];
   const entries = await readdir(localDir, { withFileTypes: true });
   return entries
-    .filter((entry) => entry.isFile() && /\.(?:ya?ml)$/i.test(entry.name))
-    .map((entry) => `config/local/${entry.name}`)
-    .sort();
-}
-
-export function listLocalConfigOverlaysSync(configDir: string): string[] {
-  const localDir = resolve(configDir, "local");
-  if (!existsSync(localDir)) return [];
-  return readdirSync(localDir, { withFileTypes: true })
     .filter((entry) => entry.isFile() && /\.(?:ya?ml)$/i.test(entry.name))
     .map((entry) => `config/local/${entry.name}`)
     .sort();

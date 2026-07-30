@@ -1,155 +1,84 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
-import { afterEach, describe, expect, test } from "bun:test";
 import { buildInstructionsPaths as facadeBuildInstructionsPaths } from "../../config-builders.ts";
 import { buildInstructionsPaths } from "./instructions.ts";
 
-type BuildInstructionsPaths = typeof buildInstructionsPaths;
-
-const structuredMemoryRelativePaths = [
+const tempRoots: string[] = [];
+const basePaths = [
+  "AI_GUIDELINES.md",
   "memory/policies/ai-execution-contract.md",
   "memory/policies/memory-lifecycle.md",
-  "memory/user/profile.md",
-  "memory/user/profile.yaml",
-  "memory/user/workflow.md",
-  "memory/user/workflows.yaml",
-  "memory/user/preferences.md",
-  "memory/user/devices.md",
-  "memory/user/devices.yaml",
-  "memory/user/toolchain.md",
-  "memory/user/prompts.md",
-  "memory/user/models.yaml",
-  "memory/architecture/coding-philosophy.md",
-  "memory/architecture/ai-desktop.md",
-  "memory/stack/wsl.md",
-  "memory/stack/models.md",
   "memory/stable/user.yaml",
   "memory/stable/workflows.yaml",
   "memory/stable/devices.yaml",
 ] as const;
 
-const tempRoots: string[] = [];
-
 afterEach(() => {
-  for (const root of tempRoots.splice(0)) {
-    rmSync(root, { recursive: true, force: true });
-  }
+  for (const root of tempRoots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
 describe("buildInstructionsPaths", () => {
-  test("keeps AI_GUIDELINES.md first and preserves shared structured memory order", () => {
+  test("injects exactly six unique base files in stable order", () => {
     const root = makeProjectRoot();
-
-    const paths = withoutTask(() => buildInstructionsPaths(root));
-
-    expect(paths).toEqual([
-      resolve(root, "AI_GUIDELINES.md"),
-      ...structuredMemoryRelativePaths.map((path) => resolve(root, path)),
-    ]);
+    const paths = buildInstructionsPaths(root, "");
+    expect(paths).toEqual(basePaths.map((path) => resolve(root, path)));
+    expect(new Set(paths).size).toBe(paths.length);
+    expect(facadeBuildInstructionsPaths(root, "")).toEqual(paths);
   });
 
-  test("inserts task-specific memory after AI_GUIDELINES.md and before structured memory", () => {
+  test("inserts at most three unique task memories before stable facts", () => {
     const root = makeProjectRoot();
-    writeMemory(root, "memory/stable/task-priority.yaml", 'topic: "codexboundary uniquepriority regression"');
-    writeMemory(root, "memory/stable/distractor-a.yaml", 'topic: "ordinary baseline context"');
-    writeMemory(root, "memory/stable/distractor-b.yaml", 'topic: "unrelated generated config note"');
-
-    const paths = withoutTask(() => buildInstructionsPaths(root, "uniquepriority"));
-
-    expect(paths[0]).toBe(resolve(root, "AI_GUIDELINES.md"));
-    expect(paths[1]).toBe(resolve(root, "memory/stable/task-priority.yaml"));
-    expect(paths.indexOf(resolve(root, "memory/user/profile.md"))).toBeGreaterThan(1);
+    write(root, "memory/architecture/context.md", "# Context Compiler\nTask retrieval unique-sentinel.\n");
+    write(root, "memory/stack/other.md", "# Other\nunique-sentinel supporting context.\n");
+    const paths = buildInstructionsPaths(root, "unique-sentinel");
+    expect(paths[3]).toBe(resolve(root, "memory/architecture/context.md"));
+    expect(paths.indexOf(resolve(root, "memory/stable/user.yaml"))).toBeGreaterThan(3);
+    expect(new Set(paths).size).toBe(paths.length);
   });
 
-  test("uses AI_SHARE_TASK as the task memory fallback and restores caller environment", () => {
+  test("loads only confirmed distilled entries and excludes the template", () => {
     const root = makeProjectRoot();
-    writeMemory(root, "memory/stable/fallback-task.yaml", 'task: "taskfallback sentinel-memory"');
-    writeMemory(root, "memory/stable/distractor-a.yaml", 'task: "ordinary context"');
-    writeMemory(root, "memory/stable/distractor-b.yaml", 'task: "unrelated note"');
-
-    const previousTask = process.env.AI_SHARE_TASK;
-    process.env.AI_SHARE_TASK = "sentinel-memory";
-
-    try {
-      const paths = buildInstructionsPaths(root);
-
-      expect(paths[0]).toBe(resolve(root, "AI_GUIDELINES.md"));
-      expect(paths[1]).toBe(resolve(root, "memory/stable/fallback-task.yaml"));
-    } finally {
-      restoreTask(previousTask);
-    }
-
-    if (previousTask === undefined) {
-      expect(process.env.AI_SHARE_TASK).toBeUndefined();
-    } else {
-      expect(process.env.AI_SHARE_TASK).toBe(previousTask);
-    }
-  });
-
-  test("keeps public compatibility exports aligned with the active instruction builder", async () => {
-    const root = makeProjectRoot();
-
-    expect(facadeBuildInstructionsPaths).toBe(buildInstructionsPaths);
-    expect(facadeBuildInstructionsPaths(root)).toEqual(buildInstructionsPaths(root));
-
-    const neutralBuildInstructionsPaths = await loadNeutralBuilderIfPresent();
-    if (neutralBuildInstructionsPaths !== undefined) {
-      expect(facadeBuildInstructionsPaths).toBe(neutralBuildInstructionsPaths);
-      expect(buildInstructionsPaths).toBe(neutralBuildInstructionsPaths);
-      expect(neutralBuildInstructionsPaths(root)).toEqual(buildInstructionsPaths(root));
-    }
+    write(
+      root,
+      "memory/distilled/confirmed.md",
+      "---\nconfirmed_by_user: true\n---\n# Confirmed\ndistilled-sentinel\n",
+    );
+    write(root, "memory/distilled/unconfirmed.md", "---\nconfirmed_by_user: false\n---\n# Draft\ndistilled-sentinel\n");
+    write(
+      root,
+      "memory/distilled/spoofed.md",
+      "---\nconfirmed_by_user: false\n---\n# Spoofed\ndistilled-sentinel\nconfirmed_by_user: true\n",
+    );
+    write(root, "memory/distilled/TEMPLATE.md", "---\nconfirmed_by_user: true\n---\n# Template\ndistilled-sentinel\n");
+    write(root, "memory/distilled/confirmed.yaml", "confirmed_by_user: true\nsummary: distilled-sentinel\n");
+    write(root, "memory/distilled/malformed.yaml", "summary: |\nconfirmed_by_user: true\ndistilled-sentinel\n");
+    write(
+      root,
+      "memory/distilled/malformed.md",
+      "---\nsummary: |\nconfirmed_by_user: true\n---\n# Malformed\ndistilled-sentinel\n",
+    );
+    const paths = buildInstructionsPaths(root, "distilled-sentinel");
+    expect(paths).toContain(resolve(root, "memory/distilled/confirmed.md"));
+    expect(paths).toContain(resolve(root, "memory/distilled/confirmed.yaml"));
+    expect(paths).not.toContain(resolve(root, "memory/distilled/unconfirmed.md"));
+    expect(paths).not.toContain(resolve(root, "memory/distilled/spoofed.md"));
+    expect(paths).not.toContain(resolve(root, "memory/distilled/malformed.yaml"));
+    expect(paths).not.toContain(resolve(root, "memory/distilled/malformed.md"));
+    expect(paths).not.toContain(resolve(root, "memory/distilled/TEMPLATE.md"));
   });
 });
 
 function makeProjectRoot(): string {
   const root = mkdtempSync(resolve(tmpdir(), "ai-share-instructions-"));
   tempRoots.push(root);
-  writeFileSync(resolve(root, "AI_GUIDELINES.md"), "# Guidelines\n");
-  mkdirSync(resolve(root, "memory"), { recursive: true });
+  for (const path of basePaths) write(root, path, `# ${path}\n`);
   return root;
 }
 
-function writeMemory(projectRoot: string, relativePath: string, content: string): void {
-  const filePath = resolve(projectRoot, relativePath);
-  mkdirSync(dirname(filePath), { recursive: true });
-  writeFileSync(filePath, `${content}\n`);
-}
-
-function withoutTask<T>(callback: () => T): T {
-  const previousTask = process.env.AI_SHARE_TASK;
-  delete process.env.AI_SHARE_TASK;
-  try {
-    return callback();
-  } finally {
-    restoreTask(previousTask);
-  }
-}
-
-function restoreTask(previousTask: string | undefined): void {
-  if (previousTask === undefined) {
-    delete process.env.AI_SHARE_TASK;
-    return;
-  }
-
-  process.env.AI_SHARE_TASK = previousTask;
-}
-
-async function loadNeutralBuilderIfPresent(): Promise<BuildInstructionsPaths | undefined> {
-  const neutralModuleUrl = new URL("./instructions.ts", import.meta.url);
-  if (!existsSync(neutralModuleUrl)) {
-    return undefined;
-  }
-
-  const moduleValue: unknown = await import(neutralModuleUrl.href);
-  if (typeof moduleValue !== "object" || moduleValue === null || !("buildInstructionsPaths" in moduleValue)) {
-    throw new Error("src/config/builders/instructions.ts does not export buildInstructionsPaths");
-  }
-
-  const buildInstructionsPaths = moduleValue.buildInstructionsPaths;
-  if (typeof buildInstructionsPaths !== "function") {
-    throw new TypeError("buildInstructionsPaths export is not a function");
-  }
-
-  return buildInstructionsPaths as BuildInstructionsPaths;
+function write(root: string, path: string, content: string): void {
+  const target = resolve(root, path);
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, content);
 }

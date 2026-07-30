@@ -1,204 +1,103 @@
 #!/usr/bin/env bun
 
-import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProviderYaml } from "./types.ts";
-import {
-  applyProviderGroups,
-  buildCodexCliConfig,
-  buildCodexInstructions,
-  buildCodexEnvFileWithManagedBlock,
-  buildInstructionsPaths,
-  buildRuntimeManifest,
-  formatCodexConfigToml,
-  modelProviderGroups,
-} from "./config-builders.ts";
-import { collectConfigDiagnostics } from "./cli/config-diagnostics.ts";
-import { atomicWriteFile, pathExists, StagedFileWriter, writeJson, writeText } from "./cli/fs.ts";
-import { installNativeSkills } from "./cli/install.ts";
-import { ensureAiWorkspaceLinks } from "./cli/memory-link.ts";
-import { parseCliOptions } from "./cli/options.ts";
-import { selectProviderGroupsIfInteractive } from "./cli/provider-select.ts";
-import { NATIVE_SKILLS } from "./cli/native-skills.ts";
-import { color } from "./cli/color.ts";
-import { printCheckSummary, printGenerationSummary } from "./cli/output.ts";
+import { buildCodexCliConfig, buildCodexInstructions, formatCodexConfigToml } from "./config-builders.ts";
+import { ConfigValidationError, formatValidationError, loadValidatedConfig } from "./config/load.ts";
+import { listLocalConfigOverlays } from "./config/local-overlay.ts";
+import { buildGenerationPlan, executeGenerationPlan, type GenerationPlan } from "./cli/generation-plan.ts";
+import { parseCliOptions, resolveProviderId, resolveTaskDescription } from "./cli/options.ts";
 import { buildGeneratorPaths } from "./cli/paths.ts";
-import { listLocalConfigOverlays, loadConfigYaml } from "./config/local-overlay.ts";
-import { validateYamlConsistency } from "./config/validation.ts";
+import type { CliOptions } from "./types.ts";
 
-const cliOptions = parseCliOptions();
-const { force, dryRun, checkOnly } = cliOptions;
-let { providerGroups } = cliOptions;
-const paths = buildGeneratorPaths();
-
-if (!checkOnly) {
-  await ensureAiWorkspaceLinks(paths, dryRun);
-}
-
-const [globalConfig, providersConfig, modelsConfig, mcpConfig, envConfig] = await Promise.all([
-  loadYaml<GlobalYaml>("global.yaml"),
-  loadYaml<ProviderYaml>("provider.yaml"),
-  loadYaml<ModelsYaml>("models.yaml"),
-  loadYaml<McpYaml>("mcp.yaml"),
-  loadYaml<EnvYaml>("env.yaml"),
-]);
-
-const validationErrors = validateYamlConsistency(modelsConfig, providersConfig, globalConfig, mcpConfig, envConfig);
-if (validationErrors.length > 0) {
-  printValidationErrors(validationErrors);
-  if (!force) {
-    if (checkOnly) {
-      console.error("校验失败。使用 --force 可忽略校验继续生成。");
-      process.exit(1);
+export type GenerationRunResult =
+  | {
+      ok: true;
+      modelId: string;
+      providerId: string;
+      options: CliOptions;
+      plan: GenerationPlan;
+      overlays: string[];
     }
-    throw new Error("YAML 配置校验失败。使用 --force 可忽略。");
-  }
-}
+  | { ok: false; error: unknown; options?: CliOptions; plan?: GenerationPlan };
 
-const providers = providersConfig.providers ?? {};
-if (!checkOnly && !cliOptions.providerGroupsSpecified) {
-  providerGroups = await selectProviderGroupsIfInteractive(providerGroups, providers, modelsConfig);
-}
-const models = applyProviderGroups(modelsConfig, providers, providerGroups);
-const codexCliConfig = buildCodexCliConfig(providers, models, globalConfig, mcpConfig, paths.targetCodexInstructions);
-const instructionFiles = buildInstructionsPaths(paths.projectRoot, "");
-const localConfigOverlays = await listLocalConfigOverlays(paths.configDir);
-
-if (checkOnly) {
-  const diagnostics = await collectConfigDiagnostics({
-    paths,
-    providers,
-    envConfig,
-    globalConfig,
-    expectedCodexConfig: formatCodexConfigToml(codexCliConfig),
-  });
-
-  printCheckSummary({
-    configuredProviderCount: Object.keys(providers).length,
-    modelGroups: modelProviderGroups(modelsConfig),
-    modelId: globalConfig.model ?? "",
-    mcpServerIds: Object.keys(mcpConfig.servers ?? {}),
-    codexEnvVarNames: Object.keys(envConfig.variables ?? {}),
-    localConfigOverlays,
-    codexHome: paths.targetCodexConfigDir,
-    providerGroups,
-    missingApiKeys: diagnostics.missingApiKeys.value,
-    defaultConfigDrift: diagnostics.defaultConfigDrift.value,
-    localProxyChecks: diagnostics.localProxyChecks.value,
-    envManagedBlockCurrent: diagnostics.envManagedBlockCurrent.value,
-  });
-
-  const versionResults = diagnostics.versionResults.value;
-  if (versionResults.length > 0) {
-    console.log("");
-    for (const vr of versionResults) {
-      if (!vr.ok) {
-        console.warn(`${color.yellow(vr.name)} 版本 ${vr.current} 低于最低要求 ${vr.minimum}。建议升级。`);
-      } else {
-        console.log(`${color.green("✓")} ${vr.name} 版本 ${vr.current}（最低要求 ${vr.minimum}，通过）`);
-      }
-    }
-  }
-
-  process.exit(0);
-}
-
-if (!dryRun) {
-  await Promise.all([mkdir(paths.targetCodexConfigDir, { recursive: true })]);
-}
-
-const stagedWriter =
-  !dryRun && force
-    ? await StagedFileWriter.create(resolve(paths.targetCodexConfigDir, ".ai-share-staging"))
-    : undefined;
-
-try {
-  if (dryRun || force || !(await pathExists(paths.targetCodexConfig))) {
-    await writeGeneratedText(paths.targetCodexConfig, formatCodexConfigToml(codexCliConfig));
-  } else {
-    console.log(
-      `${color.yellow("保留")} ${color.cyan("Codex CLI 现有默认配置")}：${color.bold(paths.targetCodexConfig)}（如需覆盖请运行 bun run ai:gen -- --force）`,
-    );
-  }
-
-  await writeGeneratedText(paths.targetCodexInstructions, buildCodexInstructions(paths.projectRoot));
-  await writeGeneratedJson(
-    paths.targetRuntimeManifest,
-    buildRuntimeManifest({
+export async function runGeneration(
+  input: {
+    argv?: readonly string[];
+    env?: Record<string, string | undefined>;
+    projectRoot?: string;
+  } = {},
+): Promise<GenerationRunResult> {
+  let plan: GenerationPlan | undefined;
+  let options: CliOptions | undefined;
+  try {
+    const env = input.env ?? Bun.env;
+    options = parseCliOptions(input.argv ?? Bun.argv);
+    const paths = buildGeneratorPaths(input.projectRoot, env);
+    const config = await loadValidatedConfig(paths.configDir);
+    const providerId = resolveProviderId({
+      ...(options.provider ? { cliProvider: options.provider } : {}),
+      ...(env.AI_SHARE_PROVIDER ? { envProvider: env.AI_SHARE_PROVIDER } : {}),
+      defaultProvider: config.global.provider,
+    });
+    if (!config.providers.providers[providerId]) throw new Error(`提供商未定义：${providerId}`);
+    const task = resolveTaskDescription({
+      ...(options.task ? { cliTask: options.task } : {}),
+      ...(env.AI_SHARE_TASK ? { envTask: env.AI_SHARE_TASK } : {}),
+    });
+    const codexConfig = buildCodexCliConfig(config, providerId, paths.targetCodexInstructions);
+    plan = await buildGenerationPlan({
       paths,
-      model: globalConfig.model ?? "",
-      mcpServerIds: Object.keys(mcpConfig.servers ?? {}),
-      codexEnvVarNames: Object.keys(envConfig.variables ?? {}),
-      localConfigOverlays,
-      skillIds: NATIVE_SKILLS.map((skill) => skill.name),
-      instructionFiles,
-    }),
+      configToml: formatCodexConfigToml(codexConfig),
+      instructions: buildCodexInstructions(paths.projectRoot, task),
+      envConfig: config.env,
+      force: options.force,
+    });
+    const overlays = await listLocalConfigOverlays(paths.configDir);
+
+    if (plan.collisions.length > 0) {
+      throw new Error(
+        `存在 ${plan.collisions.length} 个未受管目标；未写入任何文件。请先备份，确认后使用 --force 显式接管。`,
+      );
+    }
+    if (!options.dryRun) {
+      await executeGenerationPlan(plan, resolve(paths.targetCodexConfigDir, ".ai-share-staging"));
+    }
+    return {
+      ok: true,
+      modelId: config.global.model,
+      providerId,
+      options,
+      plan,
+      overlays,
+    };
+  } catch (error) {
+    return { ok: false, error, ...(options ? { options } : {}), ...(plan ? { plan } : {}) };
+  }
+}
+
+export function printGenerationResult(result: GenerationRunResult): number {
+  if (!result.ok) {
+    if (result.plan) printPlan(result.plan, result.options?.dryRun ?? false);
+    if (result.error instanceof ConfigValidationError) {
+      for (const finding of result.error.errors) console.error(formatValidationError(finding));
+    } else {
+      console.error(result.error instanceof Error ? result.error.message : String(result.error));
+    }
+    return 1;
+  }
+
+  printPlan(result.plan, result.options.dryRun);
+  console.log(
+    `${result.options.dryRun ? "dry-run" : "完成"}：model=${result.modelId} provider=${result.providerId} actions=${result.plan.actions.length} preserved=${result.plan.preserved.length} overlays=${result.overlays.join(",") || "none"}`,
   );
-
-  if (dryRun) {
-    await writeText(paths.targetCodexEnv, buildCodexEnvFileWithManagedBlock(envConfig), { dryRun, force: true });
-  } else if (stagedWriter) {
-    const existingEnv = (await pathExists(paths.targetCodexEnv))
-      ? await readFile(paths.targetCodexEnv, "utf8")
-      : undefined;
-    await stagedWriter.writeText(paths.targetCodexEnv, buildCodexEnvFileWithManagedBlock(envConfig, existingEnv));
-  } else {
-    const existingEnv = (await pathExists(paths.targetCodexEnv))
-      ? await readFile(paths.targetCodexEnv, "utf8")
-      : undefined;
-    await atomicWriteFile(paths.targetCodexEnv, buildCodexEnvFileWithManagedBlock(envConfig, existingEnv));
-    console.log(
-      `${color.green("已更新")} ${color.cyan("Codex CLI .env managed block")}：${color.bold(paths.targetCodexEnv)}（保留 block 外用户内容）`,
-    );
-  }
-
-  await installNativeSkills(
-    paths,
-    dryRun,
-    force,
-    stagedWriter ? (path, content) => stagedWriter.writeText(path, content) : undefined,
-  );
-  if (stagedWriter) {
-    await stagedWriter.promote();
-    console.log(
-      `${color.green("已提交")} ${color.cyan("Codex 配置 staging")}：${color.bold(paths.targetCodexConfigDir)}`,
-    );
-  }
-} catch (error) {
-  await stagedWriter?.cleanup();
-  throw error;
+  return 0;
 }
 
-printGenerationSummary({
-  dryRun,
-  force,
-  paths,
-  modelId: globalConfig.model ?? "",
-  providerGroups,
-});
+if (import.meta.main) process.exitCode = printGenerationResult(await runGeneration());
 
-async function loadYaml<T extends object>(fileName: string): Promise<T> {
-  return (await loadConfigYaml(paths.configDir, fileName)) as T;
-}
-
-function printValidationErrors(errors: readonly { file: string; path: string; message: string }[]): void {
-  for (const err of errors) {
-    console.error(`${color.yellow(`[${err.file}]`)} ${err.message}（${err.path}）`);
-  }
-}
-
-async function writeGeneratedText(path: string, content: string): Promise<void> {
-  if (stagedWriter) {
-    await stagedWriter.writeText(path, content);
-    return;
-  }
-  await writeText(path, content, { dryRun, force });
-}
-
-async function writeGeneratedJson(path: string, value: unknown): Promise<void> {
-  if (stagedWriter) {
-    await stagedWriter.writeJson(path, value);
-    return;
-  }
-  await writeJson(path, value, { dryRun, force });
+function printPlan(plan: GenerationPlan, dryRun: boolean): void {
+  const prefix = dryRun ? "PLAN" : "APPLY";
+  for (const action of plan.actions) console.log(`${prefix} ${action.kind.toUpperCase()} ${action.path}`);
+  for (const path of plan.preserved) console.log(`${prefix} PRESERVE ${path}`);
+  for (const path of plan.collisions) console.error(`${prefix} COLLISION ${path}`);
 }

@@ -1,146 +1,27 @@
-# ==================== GPT 兼容模型组 ====================
-# 成本字段沿用仓库约定：USD / 1K tokens；由 OpenAI 官方 USD / 1M tokens 价格换算。
-# `model_name` 保持为上游 API 模型名；`gpt-*-coding` 是本仓库面向 Codex 的本地预设别名。
 gpt-5.6-sol:
-  provider_group: gpt
   model_name: gpt-5.6-sol
-  capabilities:
-    - flagship
-    - coding
-    - reasoning
-    - planning
-    - long_context
-  cost:
-    input: 0.005
-    output: 0.03
-  limits:
-    context_window: 1000000
-    max_output: 128000
-  temperature: 0.2
-  parameters:
-    reasoningEffort: high
-  fallback:
-    - gpt-5.6-terra
-    - gpt-5.6-luna
+  reasoning_effort: high
 
 gpt-5.6-terra:
-  provider_group: gpt
   model_name: gpt-5.6-terra
-  capabilities:
-    - reasoning
-    - planning
-    - long_context
-    - balanced
-  cost:
-    input: 0.0025
-    output: 0.015
-  limits:
-    context_window: 1000000
-    max_output: 128000
-  temperature: 0.2
-  parameters:
-    reasoningEffort: medium
-  fallback:
-    - gpt-5.6-luna
-    - gpt-5.5
+  reasoning_effort: medium
 
 gpt-5.6-luna:
-  provider_group: gpt
   model_name: gpt-5.6-luna
-  capabilities:
-    - cheap
-    - fast
-    - general
-    - reasoning
-    - long_context
-  cost:
-    input: 0.001
-    output: 0.006
-  limits:
-    context_window: 1000000
-    max_output: 128000
-  temperature: 0.2
-  parameters:
-    reasoningEffort: low
-  fallback:
-    - gpt-5.5
+  reasoning_effort: low
 
 gpt-5.5-pro:
-  provider_group: gpt
   model_name: gpt-5.5-pro
-  capabilities:
-    - reasoning
-    - planning
-    - long_context
-    - premium
-  cost:
-    input: 0.03
-    output: 0.18
-  limits:
-    context_window: 200000
-    max_output: 128000
-  temperature: 0.2
-  parameters:
-    reasoningEffort: high
-  fallback:
-    - gpt-5.6-sol
-    - gpt-5.5
+  reasoning_effort: high
 
 gpt-5.5:
-  provider_group: gpt
   model_name: gpt-5.5
-  capabilities:
-    - coding
-    - reasoning
-    - planning
-    - long_context
-  cost:
-    input: 0.005
-    output: 0.03
-  limits:
-    context_window: 400000
-    max_output: 128000
-  temperature: 0.2
-  parameters:
-    reasoningEffort: medium
+  reasoning_effort: medium
 
 gpt-5.6-coding:
-  provider_group: gpt
   model_name: gpt-5.6-sol
-  capabilities:
-    - coding
-    - reasoning
-    - planning
-    - long_context
-  cost:
-    input: 0.005
-    output: 0.03
-  limits:
-    context_window: 1000000
-    max_output: 128000
-  temperature: 0.1
-  parameters:
-    reasoningEffort: high
-  fallback:
-    - gpt-5.6-sol
-    - gpt-5.5
+  reasoning_effort: high
 
 gpt-5.5-coding:
-  provider_group: gpt
   model_name: gpt-5.5
-  capabilities:
-    - coding
-    - reasoning
-    - planning
-    - long_context
-  cost:
-    input: 0.005
-    output: 0.03
-  limits:
-    context_window: 400000
-    max_output: 128000
-  temperature: 0.1
-  parameters:
-    reasoningEffort: high
-  fallback:
-    - gpt-5.5
+  reasoning_effort: high

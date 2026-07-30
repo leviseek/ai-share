@@ -24,7 +24,7 @@ const unnecessaryDocNames = new Set(["README.MD", "CHANGELOG.MD", "INSTALLATION_
 if (import.meta.main) {
   const findings = lintSkills(projectRoot);
   printSkillLintFindings(findings);
-  process.exit(findings.some((finding) => finding.severity === "error") ? 1 : 0);
+  process.exitCode = findings.some((finding) => finding.severity === "error") ? 1 : 0;
 }
 
 export function lintSkills(root: string = projectRoot): SkillLintFinding[] {

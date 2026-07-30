@@ -1,25 +1,7 @@
 example-frontier:
-  provider_group: gpt
   model_name: example-frontier
-  capabilities:
-    - reasoning
-    - coding
-  cost:
-    input: 0.01
-    output: 0.03
-  limits:
-    context_window: 128000
-    max_output: 8192
+  reasoning_effort: high
 
 example-fast:
-  provider_group: gpt
   model_name: example-fast
-  capabilities:
-    - fast
-    - cheap
-  cost:
-    input: 0.001
-    output: 0.002
-  limits:
-    context_window: 64000
-    max_output: 4096
+  reasoning_effort: low

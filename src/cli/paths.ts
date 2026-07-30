@@ -1,41 +1,39 @@
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 
 export type GeneratorPaths = {
   projectRoot: string;
   configDir: string;
-  aiWorkspaceDir: string;
-  workspaceAiShareDir: string;
   homeDir: string;
   targetCodexConfigDir: string;
   targetCodexConfig: string;
   targetCodexEnv: string;
   targetCodexInstructions: string;
-  targetRuntimeManifest: string;
   targetCodexSkillsDir: string;
 };
 
-export function buildGeneratorPaths(projectRoot: string = resolve(import.meta.dir, "..", "..")): GeneratorPaths {
+export function buildGeneratorPaths(
+  projectRoot: string = resolve(import.meta.dir, "..", ".."),
+  env: Record<string, string | undefined> = Bun.env,
+): GeneratorPaths {
   const configDir = resolve(projectRoot, "config");
-  const homeDir = resolve(Bun.env.HOME ?? Bun.env.USERPROFILE ?? "");
-  const aiWorkspaceDir = resolve(homeDir, "ai-workspace");
-  const workspaceAiShareDir = resolve(aiWorkspaceDir, "ai-share");
-  const targetCodexConfigDir = resolve(Bun.env.CODEX_HOME ?? resolve(homeDir, ".codex"));
-
-  if (!targetCodexConfigDir.startsWith(homeDir) && !Bun.env.CODEX_HOME) {
-    throw new Error("无法解析用户级 Codex 配置目录。请检查 HOME 或 USERPROFILE 环境变量。");
+  const homeValue = env.HOME ?? env.USERPROFILE;
+  if (!homeValue?.trim()) throw new Error("无法解析用户目录。请设置 HOME 或 USERPROFILE 环境变量。");
+  if (!isAbsolute(homeValue)) throw new Error("HOME 或 USERPROFILE 必须是绝对路径。");
+  const homeDir = resolve(homeValue);
+  const codexHomeValue = env.CODEX_HOME;
+  if (codexHomeValue !== undefined && (!codexHomeValue.trim() || !isAbsolute(codexHomeValue))) {
+    throw new Error("CODEX_HOME 必须是非空绝对路径。");
   }
+  const targetCodexConfigDir = resolve(codexHomeValue ?? resolve(homeDir, ".codex"));
 
   return {
     projectRoot,
     configDir,
-    aiWorkspaceDir,
-    workspaceAiShareDir,
     homeDir,
     targetCodexConfigDir,
     targetCodexConfig: resolve(targetCodexConfigDir, "config.toml"),
     targetCodexEnv: resolve(targetCodexConfigDir, ".env"),
     targetCodexInstructions: resolve(targetCodexConfigDir, "AGENTS.md"),
-    targetRuntimeManifest: resolve(targetCodexConfigDir, "ai-share.runtime.json"),
     targetCodexSkillsDir: resolve(targetCodexConfigDir, "skills"),
   };
 }

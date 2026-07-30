@@ -1,37 +1,55 @@
 import type { EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProviderYaml } from "../types.ts";
+import { isSensitiveName, looksLikeSecretLiteral } from "../security/secret-patterns.ts";
 import type { ValidationError } from "./validators/common.ts";
+import { isRecord } from "./validators/common.ts";
 import { validateCodexEnv } from "./validators/env.ts";
 import { validateMcpServers } from "./validators/mcp.ts";
-import { validateModelCatalog } from "./validators/models.ts";
-import { validateProviderCatalog } from "./validators/providers.ts";
 import { validateYamlSchemaShapes } from "./validators/schema-shape.ts";
 
 export type { ValidationError } from "./validators/common.ts";
 
-export function requireString(value: string | undefined, label: string): string {
-  if (!value) throw new Error(`缺少必要配置字段：${label}`);
-  return value;
+export type ConfigSet = {
+  global: GlobalYaml;
+  providers: ProviderYaml;
+  models: ModelsYaml;
+  mcp: McpYaml;
+  env: EnvYaml;
+};
+
+export type RawConfigSet = {
+  global: unknown;
+  providers: unknown;
+  models: unknown;
+  mcp: unknown;
+  env: unknown;
+};
+
+export type ConfigValidationResult =
+  | { ok: true; config: ConfigSet; errors: [] }
+  | { ok: false; errors: ValidationError[] };
+
+export function validateConfigSet(input: RawConfigSet): ConfigValidationResult {
+  const errors = validateYamlConsistency(input.models, input.providers, input.global, input.mcp, input.env);
+  if (errors.length > 0) return { ok: false, errors };
+  return {
+    ok: true,
+    config: {
+      global: input.global as GlobalYaml,
+      providers: input.providers as ProviderYaml,
+      models: input.models as ModelsYaml,
+      mcp: input.mcp as McpYaml,
+      env: input.env as EnvYaml,
+    },
+    errors: [],
+  };
 }
 
-export function unique<T>(values: T[]): T[] {
-  return [...new Set(values)];
-}
-
-/**
- * Validate business rules for YAML config files.
- *
- * Checks:
- * 1. global.model exists in models.yaml
- * 2. models.yaml entries have required schema fields and valid provider groups
- * 3. fallback model references exist
- * 4. MCP and Codex .env security rules hold
- */
 export function validateYamlConsistency(
-  modelsConfig: ModelsYaml,
-  providersConfig: ProviderYaml,
-  globalConfig: GlobalYaml,
-  mcpConfig: McpYaml = {},
-  envConfig: EnvYaml = {},
+  modelsConfig: unknown,
+  providersConfig: unknown,
+  globalConfig: unknown,
+  mcpConfig: unknown = { servers: {} },
+  envConfig: unknown = { variables: {} },
 ): ValidationError[] {
   const errors = validateYamlSchemaShapes({
     "global.yaml": globalConfig,
@@ -41,39 +59,94 @@ export function validateYamlConsistency(
     "env.yaml": envConfig,
   });
 
-  const modelIds = new Set(Object.keys(modelsConfig));
-  const providerInstances = validateProviderCatalog(errors, providersConfig);
-
-  validateGlobalModel(errors, globalConfig, modelIds, modelsConfig);
-  validateModelCatalog(errors, modelsConfig, modelIds, providerInstances);
+  validateCrossFileReferences(errors, modelsConfig, providersConfig, globalConfig);
+  validateProviderUrls(errors, providersConfig);
+  validateGlobalShellEnvironment(errors, globalConfig);
   validateMcpServers(errors, mcpConfig);
   validateCodexEnv(errors, envConfig);
-
   return errors;
 }
 
-function validateGlobalModel(
+function validateGlobalShellEnvironment(errors: ValidationError[], globalConfig: unknown): void {
+  if (!isRecord(globalConfig) || !isRecord(globalConfig.codex_shell_environment_policy)) return;
+  const values = globalConfig.codex_shell_environment_policy.set;
+  if (!isRecord(values)) return;
+  for (const [envName, envValue] of Object.entries(values)) {
+    const path = `codex_shell_environment_policy.set.${envName}`;
+    if (isSensitiveName(envName)) {
+      errors.push({
+        file: "global.yaml",
+        path,
+        message: `shell environment policy 不得持久化敏感变量 '${envName}'；请改用系统环境变量`,
+      });
+    }
+    if (typeof envValue === "string" && looksLikeSecretLiteral(envValue)) {
+      errors.push({
+        file: "global.yaml",
+        path,
+        message: `shell environment policy 的 '${envName}' 疑似包含明文 secret；请改用系统环境变量`,
+      });
+    }
+  }
+}
+
+function validateProviderUrls(errors: ValidationError[], providersConfig: unknown): void {
+  if (!isRecord(providersConfig) || !isRecord(providersConfig.providers)) return;
+  for (const [providerId, value] of Object.entries(providersConfig.providers)) {
+    if (!isRecord(value) || typeof value.base_url !== "string") continue;
+    try {
+      const url = new URL(value.base_url);
+      if (url.protocol === "https:" && url.hostname && !url.username && !url.password) {
+        const sensitiveQueryKey = [...url.searchParams.keys()].find(isSensitiveName);
+        if (!sensitiveQueryKey) continue;
+        errors.push({
+          file: "provider.yaml",
+          path: `providers.${providerId}.base_url`,
+          message: `provider '${providerId}' 的 base_url 不得包含敏感查询参数 '${sensitiveQueryKey}'`,
+        });
+        continue;
+      }
+    } catch {
+      // The shared error below keeps provider URL failures consistent.
+    }
+    errors.push({
+      file: "provider.yaml",
+      path: `providers.${providerId}.base_url`,
+      message: `provider '${providerId}' 的 base_url 必须是有效 HTTPS URL`,
+    });
+  }
+}
+
+function validateCrossFileReferences(
   errors: ValidationError[],
-  globalConfig: GlobalYaml,
-  modelIds: ReadonlySet<string>,
-  modelsConfig: ModelsYaml,
+  modelsConfig: unknown,
+  providersConfig: unknown,
+  globalConfig: unknown,
 ): void {
+  if (!isRecord(globalConfig)) return;
+  const models = isRecord(modelsConfig) ? modelsConfig : {};
+  const providers = isRecord(providersConfig) && isRecord(providersConfig.providers) ? providersConfig.providers : {};
+
   const modelId = globalConfig.model;
-  if (typeof modelId !== "string") return;
-  if (!modelIds.has(modelId)) {
+  if (typeof modelId === "string" && modelId && !models[modelId]) {
     errors.push({
       file: "global.yaml",
       path: "model",
       message: `global.model 引用未定义模型 '${modelId}'`,
     });
-    return;
   }
 
-  const groupId = modelsConfig[modelId]?.provider_group;
-  if (typeof groupId === "string" && groupId) return;
-  errors.push({
-    file: "global.yaml",
-    path: "model",
-    message: `global.model '${modelId}' 缺少 provider_group`,
-  });
+  const providerId = globalConfig.provider;
+  if (typeof providerId === "string" && providerId && !providers[providerId]) {
+    errors.push({
+      file: "global.yaml",
+      path: "provider",
+      message: `global.provider 引用未定义提供商 '${providerId}'`,
+    });
+  }
+}
+
+export function requireString(value: string | undefined, label: string): string {
+  if (!value) throw new Error(`缺少必要配置字段：${label}`);
+  return value;
 }

@@ -5,7 +5,6 @@
 ## Layers
 
 - `memory/stable/`：用户确认过的长期事实和稳定偏好。写入或修改前需要人工确认。
-- `memory/user/`：用户画像、沟通偏好、设备和工具链摘要。保持人类可读，避免堆砌执行细节。
 - `memory/architecture/`：AI Desktop、编码哲学等可共享架构知识。
 - `memory/policies/`：记忆治理、安全和执行契约。
 - `memory/inferred/`：AI 推断但尚未确认的候选事实，默认不作为稳定事实。
@@ -19,6 +18,7 @@
 - 不保存完整聊天记录；只保存会改变未来 AI 行为的事实、偏好、流程或模式。
 - 写入前检查是否已有等价规则；重复内容应合并或改为引用。
 - 不写真实密钥、token、cookie、私钥或未脱敏生产数据。
+- 记忆修改由 `memory-curator` 或 `failure-distiller` 产出普通 patch；不存在自动 proposal/compiler 写回链路。
 
 ## Suggested Metadata
 

@@ -1,20 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import type { ProviderYaml } from "../types.ts";
-import { missingProviderApiKeyEnvNames } from "./api-keys.ts";
+import { missingProviderApiKeyEnvName } from "./api-keys.ts";
 
-describe("missingProviderApiKeyEnvNames", () => {
-  test("reports missing referenced env vars without throwing on malformed provider keys", () => {
-    const providers = {
-      valid: {
-        base_url: "https://example.test/v1",
-        api_key: "${AI_SHARE_TEST_MISSING_KEY}",
-      },
-      malformed: {
-        base_url: "https://example.test/v1",
-        api_key: "plain-secret",
-      },
-    } satisfies ProviderYaml["providers"];
-
-    expect(missingProviderApiKeyEnvNames(providers)).toEqual(["AI_SHARE_TEST_MISSING_KEY"]);
+describe("selected provider API key", () => {
+  test("checks only the selected provider environment reference", () => {
+    const provider = { base_url: "https://example.test/v1", api_key: "${EXAMPLE_API_KEY}" };
+    expect(missingProviderApiKeyEnvName(provider, {})).toBe("EXAMPLE_API_KEY");
+    expect(missingProviderApiKeyEnvName(provider, { EXAMPLE_API_KEY: "configured" })).toBeUndefined();
   });
 });

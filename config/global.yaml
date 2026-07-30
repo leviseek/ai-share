@@ -1,4 +1,5 @@
 model: gpt-5.5
+provider: codexapis
 
 # Version compatibility requirements
 codex_min_version: 0.134.0

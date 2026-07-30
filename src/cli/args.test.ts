@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { argsFromArgv, hasFlag, parseBooleanOption, parseOptionValue, parseOptionValues } from "./args.ts";
+import { argsFromArgv, hasFlag, parseBooleanOption, parseOptionValue } from "./args.ts";
 
 describe("cli args helpers", () => {
   test("normalizes argv and detects flags", () => {
@@ -22,24 +22,15 @@ describe("cli args helpers", () => {
     expect(parseOptionValue(["--backup"], "--backup", { missingValue: "true" })).toBe("true");
     expect(parseOptionValue(["--backup"], "--backup")).toBeUndefined();
     expect(parseOptionValue(["--provider", "--dry-run"], "--provider")).toBeUndefined();
-    expect(() => parseOptionValue(["--provider-group"], "--provider-group", { missingValue: "error" })).toThrow(
-      "缺少参数值：--provider-group",
+    expect(() => parseOptionValue(["--tag"], "--tag", { missingValue: "error" })).toThrow("缺少参数值：--tag");
+    expect(() => parseOptionValue(["--tag", "--dry-run"], "--tag", { missingValue: "error" })).toThrow(
+      "缺少参数值：--tag",
     );
-    expect(() =>
-      parseOptionValue(["--provider-group", "--dry-run"], "--provider-group", { missingValue: "error" }),
-    ).toThrow("缺少参数值：--provider-group");
   });
 
-  test("parses repeated options and boolean values", () => {
-    expect(parseOptionValues(["--provider-group", "gpt=a", "--provider-group=gpt=b"], "--provider-group")).toEqual([
-      "gpt=a",
-      "gpt=b",
-    ]);
+  test("parses boolean values", () => {
     expect(parseBooleanOption("--backup", "yes")).toBe(true);
     expect(parseBooleanOption("--backup", "0")).toBe(false);
     expect(() => parseBooleanOption("--backup", "maybe")).toThrow("--backup 只支持 true/false：maybe");
-    expect(() => parseOptionValues(["--provider-group", "--dry-run"], "--provider-group")).toThrow(
-      "缺少参数值：--provider-group",
-    );
   });
 });

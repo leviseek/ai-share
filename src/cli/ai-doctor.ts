@@ -1,249 +1,159 @@
 #!/usr/bin/env bun
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import type { EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProviderYaml } from "../types.ts";
-import {
-  applyProviderGroups,
-  buildCodexCliConfig,
-  formatCodexConfigToml,
-  modelProviderGroups,
-} from "../config-builders.ts";
-import { argsFromArgv, parseOptionValue } from "./args.ts";
-import { color } from "./color.ts";
+import { buildCodexCliConfig, formatCodexConfigToml } from "../config-builders.ts";
+import { loadValidatedConfig } from "../config/load.ts";
+import { argsFromArgv, hasFlag, parseOptionValue } from "./args.ts";
 import { collectConfigDiagnostics } from "./config-diagnostics.ts";
 import { checkMemoryPrivacy } from "./memory-privacy-check.ts";
-import { parseCliOptions } from "./options.ts";
+import { resolveProviderId } from "./options.ts";
 import { buildGeneratorPaths } from "./paths.ts";
 import { checkProviderCanaries, checkProviderModels } from "./provider-check.ts";
-import { listLocalConfigOverlaysSync, loadConfigYamlSync } from "../config/local-overlay.ts";
-import { validateYamlConsistency } from "../config/validation.ts";
 
 type DoctorStatus = "ok" | "warning" | "error";
-
-type DoctorCheck = {
-  name: string;
-  status: DoctorStatus;
-  summary: string;
-  elapsed_ms: number;
-  details?: unknown;
-};
-
+type DoctorCheck = { name: string; status: DoctorStatus; summary: string; details?: unknown };
 type DoctorReport = {
   status: DoctorStatus;
-  strict_provider: boolean;
+  online: boolean;
+  canary: boolean;
   elapsed_ms: number;
   checks: DoctorCheck[];
 };
 
-const doctorStartedAt = performance.now();
-const cliArgs = argsFromArgv(Bun.argv);
-const args = new Set(cliArgs);
-const jsonOutput = args.has("--json");
-const strictProvider = args.has("--strict-provider");
-const outputPath = parseOptionValue(cliArgs, "--output");
-const cliOptions = parseCliOptions();
+const startedAt = performance.now();
+const args = argsFromArgv();
 const paths = buildGeneratorPaths();
-
-const globalConfig = loadYaml("global.yaml") as GlobalYaml;
-const providersConfig = loadYaml("provider.yaml") as ProviderYaml;
-const modelsConfig = loadYaml("models.yaml") as ModelsYaml;
-const mcpConfig = loadYaml("mcp.yaml") as McpYaml;
-const envConfig = loadYaml("env.yaml") as EnvYaml;
-
+const config = await loadValidatedConfig(paths.configDir);
+const cliProvider = parseOptionValue(args, "--provider", { missingValue: "error" });
+const providerId = resolveProviderId({
+  ...(cliProvider ? { cliProvider } : {}),
+  ...(Bun.env.AI_SHARE_PROVIDER ? { envProvider: Bun.env.AI_SHARE_PROVIDER } : {}),
+  defaultProvider: config.global.provider,
+});
+const provider = config.providers.providers[providerId];
+if (!provider) throw new Error(`提供商未定义：${providerId}`);
+const canary = hasFlag(args, "--canary");
+const online = hasFlag(args, "--online") || canary;
 const checks: DoctorCheck[] = [];
-
-const validationStartedAt = performance.now();
-const validationErrors = validateYamlConsistency(modelsConfig, providersConfig, globalConfig, mcpConfig, envConfig);
-checks.push({
-  name: "yaml_consistency",
-  status: validationErrors.length === 0 ? "ok" : "error",
-  summary:
-    validationErrors.length === 0 ? "YAML 配置一致性通过。" : `YAML 配置存在 ${validationErrors.length} 个错误。`,
-  elapsed_ms: elapsedSince(validationStartedAt),
-  details: validationErrors,
-});
-
-const providers = providersConfig.providers ?? {};
-const models = applyProviderGroups(modelsConfig, providers, cliOptions.providerGroups);
-const codexCliConfig = buildCodexCliConfig(providers, models, globalConfig, mcpConfig, paths.targetCodexInstructions);
-const configDiagnostics = await collectConfigDiagnostics({
+const expectedConfig = formatCodexConfigToml(buildCodexCliConfig(config, providerId, paths.targetCodexInstructions));
+const diagnostics = await collectConfigDiagnostics({
   paths,
-  providers,
-  envConfig,
-  globalConfig,
-  expectedCodexConfig: formatCodexConfigToml(codexCliConfig),
+  provider,
+  envConfig: config.env,
+  globalConfig: config.global,
+  expectedCodexConfig: expectedConfig,
+  probeLocalProxy: online,
 });
 
-const missingApiKeys = configDiagnostics.missingApiKeys.value;
-const localConfigOverlays = listLocalConfigOverlaysSync(paths.configDir);
-checks.push({
-  name: "api_key_env",
-  status: missingApiKeys.length === 0 ? "ok" : "warning",
-  summary:
-    missingApiKeys.length === 0 ? "API Key 环境变量已设置。" : `缺少 API Key 环境变量：${missingApiKeys.join(" / ")}`,
-  elapsed_ms: configDiagnostics.missingApiKeys.elapsed_ms,
-  details: missingApiKeys,
-});
+checks.push(
+  diagnosticCheck(
+    "api_key_env",
+    diagnostics.missingApiKey.value === undefined,
+    "API Key 环境变量已设置。",
+    `缺少 API Key 环境变量：${diagnostics.missingApiKey.value ?? "unknown"}`,
+  ),
+  diagnosticCheck(
+    "default_config",
+    diagnostics.defaultConfigDrift.value.status === "current",
+    "默认配置与生成源一致。",
+    `默认配置状态：${diagnostics.defaultConfigDrift.value.status}`,
+  ),
+  diagnosticCheck(
+    "codex_env",
+    diagnostics.envManagedBlockCurrent.value,
+    ".env managed block 当前有效。",
+    ".env managed block 缺失或漂移。",
+  ),
+  diagnosticCheck(
+    "runtime_versions",
+    diagnostics.versionResults.value.every((entry) => entry.ok),
+    "Codex 版本满足要求。",
+    "Codex 版本不足或不可检测。",
+    diagnostics.versionResults.value,
+  ),
+  diagnosticCheck(
+    "local_proxy",
+    diagnostics.localProxyChecks.value.every((entry) => entry.ok),
+    online ? "本地代理可达或未配置。" : "离线模式未探测本地代理。",
+    "存在不可达的本地代理。",
+    diagnostics.localProxyChecks.value,
+  ),
+);
 
-const defaultConfigDrift = configDiagnostics.defaultConfigDrift.value;
-checks.push({
-  name: "default_config_drift",
-  status: defaultConfigDrift.status === "current" ? "ok" : "warning",
-  summary:
-    defaultConfigDrift.status === "current"
-      ? "默认 config.toml 与 config/global.yaml 等价。"
-      : `默认 config.toml 状态：${defaultConfigDrift.status}。`,
-  elapsed_ms: configDiagnostics.defaultConfigDrift.elapsed_ms,
-  details: defaultConfigDrift,
-});
-
-const envManagedBlockCurrent = configDiagnostics.envManagedBlockCurrent.value;
-checks.push({
-  name: "codex_env_managed_block",
-  status: envManagedBlockCurrent ? "ok" : "warning",
-  summary: envManagedBlockCurrent ? ".env managed block 与 config/env.yaml 等价。" : ".env managed block 缺失或漂移。",
-  elapsed_ms: configDiagnostics.envManagedBlockCurrent.elapsed_ms,
-});
-
-const versionResults = configDiagnostics.versionResults.value;
-checks.push({
-  name: "runtime_versions",
-  status: versionResults.every((result) => result.ok) ? "ok" : "warning",
-  summary: versionResults.every((result) => result.ok)
-    ? "Codex 版本满足最低要求。"
-    : "Codex 版本低于最低要求或不可检测。",
-  elapsed_ms: configDiagnostics.versionResults.elapsed_ms,
-  details: versionResults,
-});
-
-const localProxyChecks = configDiagnostics.localProxyChecks.value;
-checks.push({
-  name: "local_proxy",
-  status: localProxyChecks.every((result) => result.ok) ? "ok" : "warning",
-  summary: localProxyChecks.every((result) => result.ok) ? "本地代理可达。" : "存在不可达的本地代理。",
-  elapsed_ms: configDiagnostics.localProxyChecks.elapsed_ms,
-  details: localProxyChecks,
-});
-
-const memoryPrivacyStartedAt = performance.now();
-const memoryFindings = checkMemoryPrivacy(paths.projectRoot);
+const privacy = checkMemoryPrivacy(paths.projectRoot);
 checks.push({
   name: "memory_privacy",
-  status: memoryFindings.some((finding) => finding.severity === "error")
-    ? "error"
-    : memoryFindings.length > 0
-      ? "warning"
-      : "ok",
-  summary:
-    memoryFindings.length === 0
-      ? "memory privacy check 通过。"
-      : `memory privacy 发现 ${memoryFindings.length} 个问题。`,
-  elapsed_ms: elapsedSince(memoryPrivacyStartedAt),
-  details: memoryFindings,
+  status: privacy.some((finding) => finding.severity === "error") ? "error" : privacy.length > 0 ? "warning" : "ok",
+  summary: privacy.length === 0 ? "Memory privacy 检查通过。" : `Memory privacy 发现 ${privacy.length} 个问题。`,
+  details: privacy,
 });
 
-const providerModelsStartedAt = performance.now();
-const providerResults = await checkProviderModels({
-  providers,
-  models,
-  env: Bun.env,
-});
-const providerOk = providerResults.every((result) => result.status === "ok");
-checks.push({
-  name: "provider_models",
-  status: providerOk ? "ok" : strictProvider ? "error" : "warning",
-  summary: providerOk
-    ? "provider model 检查通过。"
-    : strictProvider
-      ? "provider model 检查失败。"
-      : "provider model 检查存在 warning。",
-  elapsed_ms: elapsedSince(providerModelsStartedAt),
-  details: providerResults,
-});
-
-if (strictProvider) {
-  const providerCanaryStartedAt = performance.now();
-  const providerCanaryResults = await checkProviderCanaries({
-    providers,
-    models,
-    env: Bun.env,
-  });
+if (online) {
+  const common = { providerId, provider, models: config.models, env: Bun.env };
+  const results = await checkProviderModels(common);
   checks.push({
-    name: "provider_canary",
-    status: providerCanaryResults.every((result) => result.status === "ok") ? "ok" : "error",
-    summary: providerCanaryResults.every((result) => result.status === "ok")
-      ? "provider canary completion 检查通过。"
-      : "provider canary completion 检查失败。",
-    elapsed_ms: elapsedSince(providerCanaryStartedAt),
-    details: providerCanaryResults,
+    name: "provider_models",
+    status: results.every((entry) => entry.status === "ok") ? "ok" : "warning",
+    summary: results.every((entry) => entry.status === "ok")
+      ? "Provider models 检查通过。"
+      : "Provider models 检查存在问题。",
+    details: results,
   });
+  if (canary) {
+    const results = await checkProviderCanaries(common);
+    checks.push({
+      name: "provider_canary",
+      status: results.every((entry) => entry.status === "ok") ? "ok" : "warning",
+      summary: results.every((entry) => entry.status === "ok")
+        ? "Provider canary 检查通过。"
+        : "Provider canary 检查存在问题。",
+      details: results,
+    });
+  }
 }
-
-const generationScopeStartedAt = performance.now();
-checks.push({
-  name: "generation_scope",
-  status: "ok",
-  summary: `配置范围：${Object.keys(providers).length} providers，${modelProviderGroups(modelsConfig).join(" / ")} groups，Codex model ${globalConfig.model ?? "unknown"}。`,
-  elapsed_ms: elapsedSince(generationScopeStartedAt),
-  details: {
-    codex_home: paths.targetCodexConfigDir,
-    model: globalConfig.model,
-    provider_groups: cliOptions.providerGroups,
-    local_config_overlays: localConfigOverlays,
-  },
-});
 
 const report: DoctorReport = {
   status: aggregateStatus(checks),
-  strict_provider: strictProvider,
-  elapsed_ms: elapsedSince(doctorStartedAt),
+  online,
+  canary,
+  elapsed_ms: Math.max(0, Math.round(performance.now() - startedAt)),
   checks,
 };
+const jsonOutput = hasFlag(args, "--json");
+if (jsonOutput) console.log(JSON.stringify(report, null, 2));
+else printReport(report, providerId);
+const outputPath = parseOptionValue(args, "--output", { missingValue: "error" });
+if (outputPath) await writeReport(outputPath, report);
+process.exitCode = report.status === "error" ? 1 : 0;
 
-if (jsonOutput) {
-  console.log(JSON.stringify(report, null, 2));
-} else {
-  printDoctorReport(report);
-}
-if (outputPath) {
-  writeJsonReport(outputPath, report);
-  if (!jsonOutput) console.log(`${color.cyan("ai:doctor report")}：${outputPath}`);
-}
-
-process.exit(report.status === "error" ? 1 : 0);
-
-function loadYaml(fileName: string): object {
-  return loadConfigYamlSync(paths.configDir, fileName);
-}
-
-function writeJsonReport(path: string, report: DoctorReport): void {
-  const resolvedPath = resolve(path);
-  mkdirSync(dirname(resolvedPath), { recursive: true });
-  writeFileSync(
-    resolvedPath,
-    `${JSON.stringify(report, null, 2)}
-`,
-    "utf8",
-  );
+function diagnosticCheck(name: string, ok: boolean, success: string, warning: string, details?: unknown): DoctorCheck {
+  return {
+    name,
+    status: ok ? "ok" : "warning",
+    summary: ok ? success : warning,
+    ...(details === undefined ? {} : { details }),
+  };
 }
 
-function aggregateStatus(input: readonly DoctorCheck[]): DoctorStatus {
-  if (input.some((check) => check.status === "error")) return "error";
-  if (input.some((check) => check.status === "warning")) return "warning";
+function aggregateStatus(checks: readonly DoctorCheck[]): DoctorStatus {
+  if (checks.some((check) => check.status === "error")) return "error";
+  if (checks.some((check) => check.status === "warning")) return "warning";
   return "ok";
 }
 
-function elapsedSince(startedAt: number): number {
-  return Math.max(0, Math.round(performance.now() - startedAt));
+function printReport(report: DoctorReport, providerId: string): void {
+  console.log(
+    `ai:doctor ${report.status.toUpperCase()} provider=${providerId} online=${report.online} (${report.elapsed_ms}ms)`,
+  );
+  for (const check of report.checks)
+    console.log(
+      `${check.status === "ok" ? "✓" : check.status === "warning" ? "!" : "✗"} ${check.name}: ${check.summary}`,
+    );
 }
 
-function printDoctorReport(report: DoctorReport): void {
-  const statusText =
-    report.status === "ok" ? color.green("OK") : report.status === "warning" ? color.yellow("WARNING") : "ERROR";
-  console.log(`${color.cyan("ai:doctor")}：${statusText} (${report.elapsed_ms}ms total)`);
-  for (const check of report.checks) {
-    const mark = check.status === "ok" ? color.green("✓") : check.status === "warning" ? color.yellow("!") : "✗";
-    console.log(`${mark} ${check.name}: ${check.summary} (${check.elapsed_ms}ms)`);
-  }
+async function writeReport(path: string, report: DoctorReport): Promise<void> {
+  const target = resolve(path);
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 }

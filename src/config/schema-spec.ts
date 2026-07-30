@@ -1,6 +1,10 @@
 export const ENV_REFERENCE_PATTERN = "^\\$\\{[A-Z_][A-Z0-9_]*\\}$";
 export const ENV_NAME_PATTERN = "^[A-Z_][A-Z0-9_]*$";
 export const ENV_FILE_NAME_PATTERN = "^[A-Za-z_][A-Za-z0-9_]*$";
+export const CONFIG_ID_PATTERN = "^[a-z0-9]+(?:[.-][a-z0-9]+)*$";
+export const SEMVER_PATTERN = "^\\d+\\.\\d+\\.\\d+$";
+export const HTTPS_URL_PATTERN = "^https://[^\\s]+$";
+export const HTTP_URL_PATTERN = "^https?://[^\\s]+$";
 
 export type SchemaNode =
   | StringSchemaNode
@@ -68,10 +72,11 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
     schemaFileName: "global.schema.json",
     title: "ai-share global.yaml",
     root: objectSchema({
-      required: ["model"],
+      required: ["model", "provider"],
       properties: {
-        model: stringSchema("Default Codex model id from models.yaml."),
-        codex_min_version: stringSchema("Minimum Codex CLI version checked by ai:check."),
+        model: patternStringSchema(CONFIG_ID_PATTERN, "Default Codex model id from models.yaml."),
+        provider: patternStringSchema(CONFIG_ID_PATTERN, "Default provider id from provider.yaml."),
+        codex_min_version: patternStringSchema(SEMVER_PATTERN, "Minimum Codex CLI version checked by ai:doctor."),
         codex_allow_login_shell: booleanSchema("Whether Codex shell commands may use login shells."),
         codex_windows: objectSchema({
           properties: {
@@ -102,15 +107,13 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
       required: ["providers"],
       properties: {
         providers: objectSchema({
+          propertyNames: { pattern: CONFIG_ID_PATTERN },
           additionalProperties: objectSchema({
             required: ["base_url", "api_key"],
             properties: {
               name: stringSchema("Human-readable provider name."),
-              short_name: stringSchema("Short provider label."),
-              base_url: stringSchema("OpenAI-compatible base URL."),
+              base_url: patternStringSchema(HTTPS_URL_PATTERN, "OpenAI-compatible HTTPS base URL."),
               api_key: envReferenceSchema("Environment variable reference."),
-              timeout: numberSchema("Request timeout metadata."),
-              chunkTimeout: numberSchema("Chunk timeout metadata."),
             },
           }),
         }),
@@ -123,32 +126,12 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
     title: "ai-share models.yaml",
     rootDisplayPath: "models",
     root: objectSchema({
+      propertyNames: { pattern: CONFIG_ID_PATTERN },
       additionalProperties: objectSchema({
-        required: ["provider_group", "model_name", "cost", "limits"],
+        required: ["model_name"],
         properties: {
-          provider: stringSchema("Resolved provider id generated from provider_group."),
-          provider_group: stringSchema("Logical provider group such as gpt."),
           model_name: stringSchema("Upstream model name sent to provider."),
-          capabilities: stringArraySchema("Model capability labels."),
-          cost: objectSchema({
-            required: ["input", "output"],
-            properties: {
-              input: positiveNumberSchema("Input cost metadata."),
-              output: positiveNumberSchema("Output cost metadata."),
-            },
-          }),
-          limits: objectSchema({
-            required: ["context_window", "max_output"],
-            properties: {
-              context_window: positiveNumberSchema("Context window tokens."),
-              max_output: positiveNumberSchema("Max output tokens."),
-            },
-          }),
-          temperature: numberSchema("Default model temperature."),
-          parameters: objectSchema({
-            description: "Provider-specific model parameters.",
-          }),
-          fallback: stringArraySchema("Fallback model ids."),
+          reasoning_effort: enumStringSchema(["low", "medium", "high"], "Codex reasoning effort."),
         },
       }),
     }),
@@ -158,8 +141,10 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
     schemaFileName: "mcp.schema.json",
     title: "ai-share mcp.yaml",
     root: objectSchema({
+      required: ["servers"],
       properties: {
         servers: objectSchema({
+          propertyNames: { pattern: CONFIG_ID_PATTERN },
           additionalProperties: objectSchema({
             properties: {
               transport: enumStringSchema(["stdio", "http"], "MCP transport."),
@@ -169,7 +154,7 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
                 propertyNames: { pattern: ENV_NAME_PATTERN },
                 additionalProperties: stringSchema("Environment variable value or env reference."),
               }),
-              url: stringSchema("HTTP MCP URL."),
+              url: patternStringSchema(HTTP_URL_PATTERN, "HTTP MCP URL."),
               bearer_token_env_var: envNameSchema("Bearer token env var name."),
               oauth_client_id: stringSchema("OAuth client id."),
               oauth_resource: stringSchema("OAuth resource."),
@@ -184,6 +169,7 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
     schemaFileName: "env.schema.json",
     title: "ai-share env.yaml",
     root: objectSchema({
+      required: ["variables"],
       properties: {
         variables: objectSchema({
           propertyNames: { pattern: ENV_FILE_NAME_PATTERN },
@@ -196,6 +182,10 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
 
 function stringSchema(description: string): Extract<SchemaNode, { type: "string" }> {
   return { type: "string", minLength: 1, description };
+}
+
+function patternStringSchema(pattern: string, description: string): Extract<SchemaNode, { type: "string" }> {
+  return { ...stringSchema(description), pattern };
 }
 
 function envReferenceSchema(description: string): Extract<SchemaNode, { type: "string" }> {
@@ -214,20 +204,12 @@ function stringArraySchema(description: string): Extract<SchemaNode, { type: "ar
   };
 }
 
-function numberSchema(description: string): Extract<SchemaNode, { type: "number" }> {
-  return { type: "number", description };
-}
-
 function booleanSchema(description: string): Extract<SchemaNode, { type: "boolean" }> {
   return { type: "boolean", description };
 }
 
-function positiveNumberSchema(description: string): Extract<SchemaNode, { type: "number" }> {
-  return { ...numberSchema(description), exclusiveMinimum: 0 };
-}
-
 function objectSchema(input: Omit<ObjectSchemaNode, "type"> = {}): Extract<SchemaNode, { type: "object" }> {
-  return { type: "object", ...input };
+  return { type: "object", additionalProperties: false, ...input };
 }
 
 function enumStringSchema(values: readonly string[], description: string): Extract<SchemaNode, { type: "string" }> {

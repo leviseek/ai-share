@@ -1,3 +1,4 @@
 model: example-frontier
+provider: example-openai-compatible
 
 codex_min_version: 0.134.0

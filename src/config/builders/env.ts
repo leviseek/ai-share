@@ -8,7 +8,7 @@ export function formatCodexEnvFile(envConfig: EnvYaml): string {
 }
 
 export function formatCodexEnvManagedBlock(envConfig: EnvYaml): string {
-  const variables = envConfig.variables ?? {};
+  const variables = envConfig.variables;
   const lines = [
     CODEX_ENV_MANAGED_BEGIN,
     "# Non-secret Codex runtime environment only. Keep API keys and tokens outside this file.",
@@ -23,12 +23,14 @@ export function buildCodexEnvFileWithManagedBlock(envConfig: EnvYaml, existingCo
   const normalizedExisting = existingContent?.replaceAll("\r\n", "\n");
   if (!normalizedExisting || isLegacyGeneratedEnvFile(normalizedExisting)) return `${managedBlock}\n`;
 
-  const beginIndex = normalizedExisting.indexOf(CODEX_ENV_MANAGED_BEGIN);
-  const endIndex = normalizedExisting.indexOf(CODEX_ENV_MANAGED_END);
-  if (beginIndex >= 0 && endIndex >= beginIndex) {
-    const afterEndIndex = endIndex + CODEX_ENV_MANAGED_END.length;
+  const block = managedBlockLocation(normalizedExisting);
+  if (block.status === "malformed") {
+    throw new Error("Codex .env 中的 ai-share managed block marker 不完整或重复；请先手动修复 marker。");
+  }
+  if (block.status === "complete") {
+    const afterEndIndex = block.endIndex + CODEX_ENV_MANAGED_END.length;
     return normalizeEnvFile(
-      `${normalizedExisting.slice(0, beginIndex)}${managedBlock}${normalizedExisting.slice(afterEndIndex)}`,
+      `${normalizedExisting.slice(0, block.beginIndex)}${managedBlock}${normalizedExisting.slice(afterEndIndex)}`,
     );
   }
 
@@ -43,6 +45,19 @@ export function codexEnvManagedBlockIsCurrent(envConfig: EnvYaml, existingConten
   );
 }
 
+export function removeCodexEnvManagedBlock(existingContent: string): string {
+  const normalized = existingContent.replaceAll("\r\n", "\n");
+  const block = managedBlockLocation(normalized);
+  if (block.status !== "complete") return normalizeEnvFile(normalized);
+  return normalizeEnvFile(
+    `${normalized.slice(0, block.beginIndex)}${normalized.slice(block.endIndex + CODEX_ENV_MANAGED_END.length)}`,
+  );
+}
+
+export function codexEnvHasCompleteManagedBlock(existingContent: string): boolean {
+  return managedBlockLocation(existingContent.replaceAll("\r\n", "\n")).status === "complete";
+}
+
 function formatEnvValue(value: string): string {
   if (/^[A-Za-z0-9_./:,@+\-=]+$/.test(value)) return value;
   return JSON.stringify(value);
@@ -53,10 +68,38 @@ function isLegacyGeneratedEnvFile(content: string): boolean {
 }
 
 function extractManagedBlock(content: string): string | undefined {
-  const beginIndex = content.indexOf(CODEX_ENV_MANAGED_BEGIN);
-  const endIndex = content.indexOf(CODEX_ENV_MANAGED_END);
-  if (beginIndex < 0 || endIndex < beginIndex) return undefined;
-  return content.slice(beginIndex, endIndex + CODEX_ENV_MANAGED_END.length);
+  const block = managedBlockLocation(content);
+  return block.status === "complete"
+    ? content.slice(block.beginIndex, block.endIndex + CODEX_ENV_MANAGED_END.length)
+    : undefined;
+}
+
+function managedBlockLocation(
+  content: string,
+): { status: "none" | "malformed" } | { status: "complete"; beginIndex: number; endIndex: number } {
+  const beginIndexes = exactLineIndexes(content, CODEX_ENV_MANAGED_BEGIN);
+  const endIndexes = exactLineIndexes(content, CODEX_ENV_MANAGED_END);
+  if (beginIndexes.length === 0 && endIndexes.length === 0) return { status: "none" };
+  const beginIndex = beginIndexes[0];
+  const endIndex = endIndexes[0];
+  if (beginIndexes.length !== 1 || endIndexes.length !== 1 || beginIndex === undefined || endIndex === undefined) {
+    return { status: "malformed" };
+  }
+  if (endIndex < beginIndex) return { status: "malformed" };
+  return { status: "complete", beginIndex, endIndex };
+}
+
+function exactLineIndexes(content: string, marker: string): number[] {
+  const indexes: number[] = [];
+  let lineStart = 0;
+  while (lineStart <= content.length) {
+    const newlineIndex = content.indexOf("\n", lineStart);
+    const lineEnd = newlineIndex < 0 ? content.length : newlineIndex;
+    if (content.slice(lineStart, lineEnd) === marker) indexes.push(lineStart);
+    if (newlineIndex < 0) break;
+    lineStart = newlineIndex + 1;
+  }
+  return indexes;
 }
 
 function normalizeEnvFile(content: string): string {

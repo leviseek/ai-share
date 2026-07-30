@@ -26,17 +26,16 @@ type TextLine = {
 const projectRoot = resolve(import.meta.dirname, "..", "..");
 const duplicateTargetPrefixes = [
   "AI_GUIDELINES.md",
-  "memory/user/profile.md",
-  "memory/user/prompts.md",
-  "memory/user/workflow.md",
   "memory/architecture/",
   "memory/policies/",
+  "memory/stable/",
+  "memory/distilled/",
 ];
 
 if (import.meta.main) {
   const findings = lintMemory(projectRoot);
   printMemoryLintFindings(findings);
-  process.exit(findings.some((finding) => finding.severity === "error") ? 1 : 0);
+  process.exitCode = findings.some((finding) => finding.severity === "error") ? 1 : 0;
 }
 
 export function lintMemory(root: string = projectRoot, options: MemoryLintOptions = {}): MemoryLintFinding[] {

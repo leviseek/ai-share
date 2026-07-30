@@ -1,13 +1,10 @@
-import type { ProviderYaml } from "../types.ts";
+import type { ProviderSource } from "../types.ts";
 import { envReferenceName } from "../config/env-ref.ts";
 
-export function missingProviderApiKeyEnvNames(providersConfig: ProviderYaml["providers"] = {}): string[] {
-  return Object.values(providersConfig)
-    .map((provider) => apiKeyEnvName(provider.api_key))
-    .filter((envName): envName is string => Boolean(envName))
-    .filter((envName) => !Bun.env[envName]);
-}
-
-function apiKeyEnvName(value: string | undefined): string | undefined {
-  return envReferenceName(value);
+export function missingProviderApiKeyEnvName(
+  provider: ProviderSource,
+  env: Record<string, string | undefined> = Bun.env,
+): string | undefined {
+  const envName = envReferenceName(provider.api_key);
+  return envName && !env[envName] ? envName : undefined;
 }

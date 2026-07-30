@@ -1,75 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { atomicWriteFile, StagedFileWriter, writeJson, writeText } from "./fs.ts";
+import { StagedFileWriter } from "./fs.ts";
 
-describe("writeText/writeJson", () => {
-  test("preserves existing files when force is false", async () => {
-    const root = mkdtempSync(join(tmpdir(), "ai-share-fs-"));
-    try {
-      const path = join(root, "config.toml");
-      writeFileSync(path, "old\n");
-
-      let error: unknown;
-      try {
-        await writeText(path, "new\n", { dryRun: false, force: false });
-      } catch (caught) {
-        error = caught;
-      }
-
-      expect(error).toBeInstanceOf(Error);
-      expect(String(error)).toContain("目标已存在");
-      expect(readFileSync(path, "utf8")).toBe("old\n");
-      expect(readdirSync(root)).toEqual(["config.toml"]);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
-
-  test("replaces files atomically when force is true", async () => {
-    const root = mkdtempSync(join(tmpdir(), "ai-share-fs-"));
-    try {
-      const path = join(root, "config.toml");
-      writeFileSync(path, "old\n");
-
-      await writeText(path, "new\n", { dryRun: false, force: true });
-
-      expect(readFileSync(path, "utf8")).toBe("new\n");
-      expect(readdirSync(root)).toEqual(["config.toml"]);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
-
-  test("writes formatted JSON through the same file path", async () => {
-    const root = mkdtempSync(join(tmpdir(), "ai-share-fs-"));
-    try {
-      const path = join(root, "manifest.json");
-
-      await writeJson(path, { stack: "codex" }, { dryRun: false, force: false });
-
-      expect(readFileSync(path, "utf8")).toBe(`{\n  "stack": "codex"\n}\n`);
-      expect(readdirSync(root)).toEqual(["manifest.json"]);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
-
-  test("writes binary content through the same atomic path", async () => {
-    const root = mkdtempSync(join(tmpdir(), "ai-share-fs-"));
-    try {
-      const path = join(root, "payload.bin");
-
-      await atomicWriteFile(path, new Uint8Array([0, 1, 2, 255]));
-
-      expect(Array.from(readFileSync(path))).toEqual([0, 1, 2, 255]);
-      expect(readdirSync(root)).toEqual(["payload.bin"]);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
-
+describe("StagedFileWriter", () => {
   test("rolls back staged promote failures and cleans staging files", async () => {
     const root = mkdtempSync(join(tmpdir(), "ai-share-fs-"));
     try {
@@ -83,17 +18,57 @@ describe("writeText/writeJson", () => {
       await writer.writeText(existingPath, "new\n");
       await writer.writeText(join(blockingPath, "nested.toml"), "cannot promote\n");
 
-      let error: unknown;
-      try {
-        await writer.promote();
-      } catch (caught) {
-        error = caught;
-      }
-
+      const error = await captureError(writer.promote());
       expect(error).toBeInstanceOf(Error);
       expect(readFileSync(existingPath, "utf8")).toBe("old\n");
       expect(readFileSync(blockingPath, "utf8")).toBe("file\n");
       expect(existsSync(writer.stagingDir)).toBe(false);
+      expect(existsSync(stagingRoot)).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("restores staged deletions when a later promote fails", async () => {
+    const root = mkdtempSync(join(tmpdir(), "ai-share-fs-delete-"));
+    try {
+      const deletedPath = join(root, "stale-skill");
+      const blockingPath = join(root, "not-dir");
+      const stagingRoot = join(root, ".staging");
+      writeFileSync(deletedPath, "keep on rollback\n");
+      writeFileSync(blockingPath, "file\n");
+
+      const writer = await StagedFileWriter.create(stagingRoot);
+      writer.delete(deletedPath);
+      await writer.writeText(join(blockingPath, "nested.toml"), "cannot promote\n");
+
+      const error = await captureError(writer.promote());
+      expect(error).toBeInstanceOf(Error);
+      expect(readFileSync(deletedPath, "utf8")).toBe("keep on rollback\n");
+      expect(readFileSync(blockingPath, "utf8")).toBe("file\n");
+      expect(existsSync(stagingRoot)).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("restores a deleted parent after staged descendant writes roll back", async () => {
+    const root = mkdtempSync(join(tmpdir(), "ai-share-fs-parent-delete-"));
+    try {
+      const replacedPath = join(root, "managed-skill");
+      const blockingPath = join(root, "not-dir");
+      const stagingRoot = join(root, ".staging");
+      writeFileSync(replacedPath, "original non-directory target\n");
+      writeFileSync(blockingPath, "file\n");
+
+      const writer = await StagedFileWriter.create(stagingRoot);
+      writer.delete(replacedPath);
+      await writer.writeText(join(replacedPath, "SKILL.md"), "replacement\n");
+      await writer.writeText(join(blockingPath, "nested.toml"), "cannot promote\n");
+
+      const error = await captureError(writer.promote());
+      expect(error).toBeInstanceOf(Error);
+      expect(readFileSync(replacedPath, "utf8")).toBe("original non-directory target\n");
       expect(existsSync(stagingRoot)).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -107,14 +82,7 @@ describe("writeText/writeJson", () => {
       const targetPath = join(root, "config.toml");
       await writer.writeText(targetPath, "first\n");
 
-      let error: unknown;
-      try {
-        await writer.writeText(targetPath, "second\n");
-      } catch (caught) {
-        error = caught;
-      }
-
-      expect(error).toBeInstanceOf(Error);
+      const error = await captureError(writer.writeText(targetPath, "second\n"));
       expect(String(error)).toContain("重复目标路径");
       await writer.cleanup();
     } finally {
@@ -122,3 +90,12 @@ describe("writeText/writeJson", () => {
     }
   });
 });
+
+async function captureError(promise: Promise<unknown>): Promise<unknown> {
+  try {
+    await promise;
+    return undefined;
+  } catch (error) {
+    return error;
+  }
+}

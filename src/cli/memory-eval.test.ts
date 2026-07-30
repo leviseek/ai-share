@@ -7,20 +7,24 @@ import { evaluateMemoryRuntime } from "./memory-eval.ts";
 const projectRoot = resolve(import.meta.dir, "..", "..");
 
 describe("memory eval", () => {
-  test("passes the repository memory runtime checks offline", () => {
-    const results = evaluateMemoryRuntime(projectRoot);
+  test("passes the repository memory runtime checks offline", async () => {
+    const results = await evaluateMemoryRuntime(projectRoot);
 
-    expect(results.map((result) => result.task)).toEqual(["base_instructions", "task_retrieval", "managed_skills"]);
+    expect(results.map((result) => result.task)).toEqual([
+      "base_instructions",
+      "task_retrieval",
+      "retrieval_policy",
+      "skill_install_plan",
+    ]);
     expect(results.every((result) => result.status === "pass")).toBe(true);
   });
 
-  test("returns task names and failure reasons without throwing", () => {
+  test("returns task names and failure reasons without throwing", async () => {
     const root = makeRoot();
     try {
       writeFile(root, "AI_GUIDELINES.md", "# Guidelines\n");
-      writeFile(root, "config/memory-eval.yaml", "tasks:\n  task_retrieval:\n    query: missing\n");
 
-      const results = evaluateMemoryRuntime(root);
+      const results = await evaluateMemoryRuntime(root);
 
       expect(results.some((result) => result.status === "fail")).toBe(true);
       expect(results.every((result) => result.task.length > 0 && result.reason.length > 0)).toBe(true);

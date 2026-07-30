@@ -44,14 +44,14 @@ const REQUIRED_GITIGNORE_PATTERNS = [
 ] as const;
 
 const SHAREABLE_PREFIXES = ["memory/architecture/", "memory/stack/", "memory/policies/"];
-const PERSONAL_PREFIXES = ["memory/user/", "memory/stable/"];
-const REVIEW_PREFIXES = ["memory/inferred/", "memory/distilled/"];
+const PERSONAL_PREFIXES = ["memory/stable/", "memory/distilled/"];
+const REVIEW_PREFIXES = ["memory/inferred/"];
 const IGNORED_PREFIXES = ["memory/local/", "memory/private/", "memory/project/", "memory/runtime/", "memory/sync/"];
 
 if (import.meta.main) {
   const findings = checkMemoryPrivacy(projectRoot);
   printFindings(findings);
-  process.exit(findings.some((finding) => finding.severity === "error") ? 1 : 0);
+  process.exitCode = findings.some((finding) => finding.severity === "error") ? 1 : 0;
 }
 
 export function checkMemoryPrivacy(

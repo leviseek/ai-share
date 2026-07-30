@@ -1,333 +1,113 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { resolve, relative, sep } from "node:path";
-import { parseMemYaml, type MemNode } from "../loaders/memory-compiler.ts";
+import { relative, resolve, sep } from "node:path";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+export type SearchResult = { path: string; score: number; snippet: string };
 
-export type SearchResult = {
-  path: string;
-  score: number;
-  snippet: string;
-};
+const SEARCH_DIRS = ["architecture", "stack", "policies", "distilled"] as const;
+const STATIC_PATHS = new Set(["memory/policies/ai-execution-contract.md", "memory/policies/memory-lifecycle.md"]);
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-/** Memory subdirectories to search (excludes runtime/ and sync/). */
-const SEARCH_DIRS = ["stable", "policies", "user", "architecture", "stack"];
-
-/** Max results returned by searchMemory. */
-const MAX_RESULTS = 5;
-
-/** Min paragraph line length (chars) for Markdown extraction. */
-const MIN_PARAGRAPH_LEN = 10;
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
-/**
- * Searches local memory files using TF-IDF keyword matching.
- *
- * Reads all `.md` and `.yaml` files from memory subdirectories (stable/, policies/, user/, architecture/, stack/), tokenizes content,
- * builds an in-memory TF-IDF index, and returns the top 5 matching file
- * paths sorted by relevance.
- *
- * YAML files are parsed via `parseMemYaml` then value-flattened; Markdown
- * files are preprocessed by extracting headings and paragraph text.
- *
- * @param query       - Natural-language search query (Chinese and/or English).
- * @param projectRoot - Optional project root directory (defaults to ai-share root).
- * @returns Up to 5 results ranked by TF-IDF score, each with a short snippet.
- */
 export function searchMemory(query: string, projectRoot?: string): SearchResult[] {
   const root = projectRoot ?? resolve(import.meta.dirname, "..", "..");
-  const memoryDir = resolve(root, "memory");
+  const queryTokens = uniqueTokens(query);
+  if (queryTokens.length === 0) return [];
 
-  // 1. Collect files --------------------------------------------------------
-  const files = collectMemoryFiles(memoryDir);
-  if (files.length === 0) return [];
-
-  // 2. Read & tokenize documents --------------------------------------------
-  const docTokens: Map<string, number>[] = [];
-  const validFiles: string[] = [];
-
-  for (const file of files) {
-    const tokens = extractTextTokens(file);
-    if (tokens.length === 0) continue;
-    docTokens.push(freqMap(tokens));
-    validFiles.push(file);
-  }
-
-  if (docTokens.length === 0) return [];
-
-  // 3. Compute IDF ----------------------------------------------------------
-  const totalDocs = docTokens.length;
-  const docFreq = new Map<string, number>();
-  for (const tf of docTokens) {
-    for (const term of tf.keys()) {
-      docFreq.set(term, (docFreq.get(term) ?? 0) + 1);
-    }
-  }
-  const idf = computeIDF(docFreq, totalDocs);
-
-  // 4. Tokenize query -------------------------------------------------------
-  const queryTerms = tokenize(query);
-  const queryVec = freqMap(queryTerms);
-
-  // 5. Score & rank ---------------------------------------------------------
-  const scored: SearchResult[] = [];
-
-  for (let i = 0; i < validFiles.length; i++) {
-    const file = validFiles[i];
-    if (file === undefined) continue;
-    const tf = docTokens[i];
-    if (tf === undefined) continue;
-    let score = 0;
-
-    for (const [term, queryFreq] of queryVec) {
-      const docF = tf.get(term);
-      if (docF === undefined) continue;
-      const termIdf = idf.get(term) ?? 0;
-      score += docF * termIdf * queryFreq;
-    }
-
-    if (score > 0) {
-      scored.push({
-        path: relative(root, file).replaceAll(sep, "/"),
-        score,
-        snippet: buildSnippet(file, queryTerms),
-      });
-    }
-  }
-
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, MAX_RESULTS);
+  return collectSearchFiles(root)
+    .flatMap((filePath) => scoreFile(root, filePath, queryTokens))
+    .filter((result) => result.score > 0)
+    .sort((left, right) => right.score - left.score || compareText(left.path, right.path))
+    .slice(0, 5);
 }
 
-// ---------------------------------------------------------------------------
-// File collection
-// ---------------------------------------------------------------------------
-
-function collectMemoryFiles(memoryDir: string): string[] {
-  const files: string[] = [];
-
-  for (const dir of SEARCH_DIRS) {
-    const dirPath = resolve(memoryDir, dir);
-    if (!existsSync(dirPath)) continue;
-    files.push(...collectMemoryFilesRecursive(dirPath));
+function collectSearchFiles(root: string): string[] {
+  const output: string[] = [];
+  for (const directory of SEARCH_DIRS) {
+    const base = resolve(root, "memory", directory);
+    if (existsSync(base)) output.push(...walk(base));
   }
-
-  return files;
+  return output
+    .filter((path) => /\.(?:md|ya?ml)$/i.test(path))
+    .filter((path) => {
+      const rel = normalizePath(relative(root, path));
+      if (STATIC_PATHS.has(rel) || rel.endsWith("/TEMPLATE.md")) return false;
+      if (!rel.startsWith("memory/distilled/")) return true;
+      return isConfirmedDistilled(path, readFileSync(path, "utf8"));
+    })
+    .sort();
 }
 
-function collectMemoryFilesRecursive(dirPath: string): string[] {
-  const files: string[] = [];
-  for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
-    const entryPath = resolve(dirPath, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...collectMemoryFilesRecursive(entryPath));
-    } else if (entry.isFile() && (entry.name.endsWith(".md") || entry.name.endsWith(".yaml"))) {
-      files.push(entryPath);
+function walk(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    return entry.isDirectory() ? walk(path) : entry.isFile() ? [path] : [];
+  });
+}
+
+function scoreFile(root: string, filePath: string, queryTokens: readonly string[]): SearchResult[] {
+  const content = readFileSync(filePath, "utf8");
+  const path = normalizePath(relative(root, filePath));
+  const contentTokens = new Set(uniqueTokens(content));
+  const pathTokens = new Set(uniqueTokens(path));
+  const titleTokens = new Set(uniqueTokens(firstHeading(content)));
+  let score = 0;
+  for (const token of queryTokens) {
+    if (contentTokens.has(token)) score += 1;
+    if (pathTokens.has(token)) score += 2;
+    if (titleTokens.has(token)) score += 3;
+  }
+  return score > 0 ? [{ path, score, snippet: matchingSnippet(content, queryTokens) }] : [];
+}
+
+function uniqueTokens(text: string): string[] {
+  const tokens = new Set<string>();
+  for (const rawWord of text.toLowerCase().match(/[a-z0-9][a-z0-9._-]*/g) ?? []) {
+    const word = rawWord.replace(/[._-]+$/, "");
+    if (word.length >= 2) tokens.add(word);
+    for (const part of word.split(/[._-]+/)) {
+      if (part.length >= 2) tokens.add(part);
     }
   }
-  return files;
-}
-
-// ---------------------------------------------------------------------------
-// Text extraction
-// ---------------------------------------------------------------------------
-
-function extractTextTokens(filePath: string): string[] {
-  const raw = readFileSync(filePath, "utf-8");
-
-  if (filePath.endsWith(".yaml")) {
-    return extractYamlTokens(raw);
+  for (const run of text.match(/[\u3400-\u4dbf\u4e00-\u9fff]+/g) ?? []) {
+    for (const character of run) tokens.add(character);
+    for (let index = 0; index < run.length - 1; index += 1) tokens.add(run.slice(index, index + 2));
   }
-
-  return extractMarkdownTokens(raw);
+  return [...tokens];
 }
 
-/** Parses YAML via parseMemYaml and recursively collects all string values. */
-function extractYamlTokens(raw: string): string[] {
+function firstHeading(content: string): string {
+  return /^#+\s+(.+)$/m.exec(content)?.[1] ?? "";
+}
+
+function matchingSnippet(content: string, queryTokens: readonly string[]): string {
+  const line = content
+    .replaceAll("\r\n", "\n")
+    .split("\n")
+    .map((entry) => entry.trim())
+    .find((entry) => entry && queryTokens.some((token) => entry.toLowerCase().includes(token)));
+  if (!line) return "";
+  return line.length > 120 ? `${line.slice(0, 117)}...` : line;
+}
+
+function normalizePath(path: string): string {
+  return path.split(sep).join("/");
+}
+
+function isConfirmedDistilled(path: string, content: string): boolean {
+  const metadata = /\.md$/i.test(path)
+    ? /^---\s*\n([\s\S]*?)\n---(?:\s*\n|$)/.exec(content.replaceAll("\r\n", "\n"))?.[1]
+    : content;
+  if (metadata === undefined) return false;
   try {
-    const root = parseMemYaml(raw);
-    return tokenize(collectYamlStrings(root));
+    const value: unknown = Bun.YAML.parse(metadata);
+    return isRecord(value) && value.confirmed_by_user === true;
   } catch {
-    // Graceful fallback: tokenize raw text if YAML parsing fails
-    return tokenize(raw);
+    return false;
   }
 }
 
-function collectYamlStrings(node: MemNode): string {
-  if (typeof node === "string") return node;
-  if (Array.isArray(node)) return node.join(" ");
-  const obj = node as Record<string, MemNode>;
-  return Object.values(obj)
-    .map((v) => collectYamlStrings(v))
-    .join(" ");
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Extracts headings and paragraph text from Markdown. */
-function extractMarkdownTokens(raw: string): string[] {
-  const lines = raw.replaceAll("\r\n", "\n").split("\n");
-  const parts: string[] = [];
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.length === 0) continue;
-
-    // Heading lines (## Compaction, ## 配置机制, etc.)
-    if (trimmed.startsWith("#")) {
-      parts.push(trimmed.replace(/^#+\s*/, ""));
-      continue;
-    }
-
-    // Skip YAML frontmatter fences, code fences, horizontal rules, list markers
-    if (trimmed.startsWith("```") || trimmed.startsWith("---") || /^[-*]\s/.test(trimmed)) {
-      continue;
-    }
-
-    // Paragraph text: long enough, not a markup line
-    if (trimmed.length >= MIN_PARAGRAPH_LEN && !/^[>\]]/.test(trimmed)) {
-      parts.push(trimmed);
-    }
-  }
-
-  return tokenize(parts.join(" "));
-}
-
-// ---------------------------------------------------------------------------
-// Tokenizer
-// ---------------------------------------------------------------------------
-
-/**
- * Tokenizes mixed Chinese/English text.
- *
- * - Chinese (CJK Unified Ideographs): produces single-char and bigram tokens
- *   for better recall on short queries.
- * - English / ASCII words: split on non-alphanumeric, lowercased, filtered
- *   for short tokens (length >= 2).
- */
-function tokenize(text: string): string[] {
-  const tokens: string[] = [];
-  let i = 0;
-
-  while (i < text.length) {
-    const ch = text[i];
-    if (ch === undefined) break;
-
-    if (isCJK(ch)) {
-      // Collect consecutive CJK run
-      const start = i;
-      while (i < text.length) {
-        const nc = text[i];
-        if (nc === undefined || !isCJK(nc)) break;
-        i++;
-      }
-      const run = text.slice(start, i);
-
-      // Single chars
-      for (const c of run) {
-        tokens.push(c);
-      }
-      // Bigrams (for better matching)
-      for (let j = 0; j < run.length - 1; j++) {
-        tokens.push(run.slice(j, j + 2));
-      }
-    } else if (isAlphaNum(ch)) {
-      // Collect consecutive word characters
-      const start = i;
-      while (i < text.length) {
-        const nc = text[i];
-        if (nc === undefined || !isAlphaNum(nc)) break;
-        i++;
-      }
-      const word = text.slice(start, i).toLowerCase();
-      if (word.length >= 2) tokens.push(word);
-    } else {
-      i++;
-    }
-  }
-
-  return tokens;
-}
-
-function isCJK(ch: string): boolean {
-  const cp = ch.codePointAt(0);
-  if (cp === undefined) return false;
-  // CJK Unified Ideographs + Extensions
-  return (cp >= 0x4e00 && cp <= 0x9fff) || (cp >= 0x3400 && cp <= 0x4dbf);
-}
-
-function isAlphaNum(ch: string): boolean {
-  const cp = ch.codePointAt(0);
-  if (cp === undefined) return false;
-  return (
-    (cp >= 0x30 && cp <= 0x39) || // 0-9
-    (cp >= 0x41 && cp <= 0x5a) || // A-Z
-    (cp >= 0x61 && cp <= 0x7a) // a-z
-  );
-}
-
-// ---------------------------------------------------------------------------
-// TF-IDF helpers
-// ---------------------------------------------------------------------------
-
-/** Converts a token list into a frequency map normalized by document length. */
-function freqMap(tokens: string[]): Map<string, number> {
-  const map = new Map<string, number>();
-  for (const t of tokens) {
-    map.set(t, (map.get(t) ?? 0) + 1);
-  }
-  // Normalize by doc length (TF = count / total)
-  const len = tokens.length;
-  for (const [t, c] of map) {
-    map.set(t, c / len);
-  }
-  return map;
-}
-
-/** Computes inverse document frequency: log(totalDocs / (1 + docFreq)). */
-function computeIDF(docFreq: Map<string, number>, totalDocs: number): Map<string, number> {
-  const idf = new Map<string, number>();
-  for (const [term, df] of docFreq) {
-    idf.set(term, Math.log(totalDocs / (1 + df)));
-  }
-  return idf;
-}
-
-// ---------------------------------------------------------------------------
-// Snippet
-// ---------------------------------------------------------------------------
-
-/** Builds a short snippet around the first matching term. */
-function buildSnippet(filePath: string, queryTerms: string[]): string {
-  const raw = readFileSync(filePath, "utf-8");
-  const lines = raw.replaceAll("\r\n", "\n").split("\n");
-
-  // Search for the first line containing any query term
-  const lowerTerms = queryTerms.map((t) => t.toLowerCase());
-  for (const line of lines) {
-    const lower = line.toLowerCase();
-    if (lowerTerms.some((t) => lower.includes(t))) {
-      const trimmed = line.trim();
-      if (trimmed.length > 120) return trimmed.slice(0, 117) + "...";
-      return trimmed;
-    }
-  }
-
-  // Fallback: first non-empty, non-heading line
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.length > 0 && !trimmed.startsWith("#")) {
-      if (trimmed.length > 120) return trimmed.slice(0, 117) + "...";
-      return trimmed;
-    }
-  }
-
-  return "";
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }

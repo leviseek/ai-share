@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import type { EnvYaml, GlobalYaml, ProviderSource } from "../types.ts";
 import { codexEnvManagedBlockIsCurrent } from "../config-builders.ts";
-import { missingProviderApiKeyEnvNames } from "./api-keys.ts";
+import { missingProviderApiKeyEnvName } from "./api-keys.ts";
 import { detectDefaultConfigDrift, type DefaultConfigDrift } from "./default-config-drift.ts";
 import { checkCodexEnvLocalProxies, type LocalProxyRuntimeCheck } from "./env-runtime-check.ts";
 import { pathExists } from "./fs.ts";
@@ -14,7 +14,7 @@ export type TimedDiagnostic<T> = {
 };
 
 export type ConfigDiagnostics = {
-  missingApiKeys: TimedDiagnostic<string[]>;
+  missingApiKey: TimedDiagnostic<string | undefined>;
   defaultConfigDrift: TimedDiagnostic<DefaultConfigDrift>;
   envManagedBlockCurrent: TimedDiagnostic<boolean>;
   versionResults: TimedDiagnostic<VersionCheckResult[]>;
@@ -23,13 +23,14 @@ export type ConfigDiagnostics = {
 
 export async function collectConfigDiagnostics(input: {
   paths: GeneratorPaths;
-  providers: Record<string, ProviderSource>;
+  provider: ProviderSource;
   envConfig: EnvYaml;
   globalConfig: GlobalYaml;
   expectedCodexConfig: string;
+  probeLocalProxy: boolean;
 }): Promise<ConfigDiagnostics> {
   return {
-    missingApiKeys: timeSync(() => missingProviderApiKeyEnvNames(input.providers)),
+    missingApiKey: timeSync(() => missingProviderApiKeyEnvName(input.provider)),
     defaultConfigDrift: await timeAsync(() =>
       detectDefaultConfigDrift(input.paths.targetCodexConfig, input.expectedCodexConfig),
     ),
@@ -37,7 +38,9 @@ export async function collectConfigDiagnostics(input: {
       codexEnvManagedBlockIsCurrent(input.envConfig, await readOptional(input.paths.targetCodexEnv)),
     ),
     versionResults: timeSync(() => checkVersions(input.globalConfig)),
-    localProxyChecks: await timeAsync(() => checkCodexEnvLocalProxies(input.envConfig)),
+    localProxyChecks: input.probeLocalProxy
+      ? await timeAsync(() => checkCodexEnvLocalProxies(input.envConfig))
+      : timeSync(() => []),
   };
 }
 

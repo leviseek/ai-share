@@ -1,6 +1,6 @@
 ---
 name: memory-curator
-description: Use when organizing, reviewing, deduplicating, proposing updates to, or migrating ai-share memory files under memory/; use for memory governance, long-term knowledge capture, and deciding whether facts belong in stable, user, architecture, policies, inferred, or distilled layers.
+description: Use when organizing, reviewing, deduplicating, proposing updates to, or migrating ai-share memory files under memory/; use for memory governance, long-term knowledge capture, and deciding whether facts belong in stable, architecture, stack, policies, inferred, or distilled layers.
 ---
 
 # Memory Curator
@@ -27,7 +27,7 @@ Use this skill to classify, review, deduplicate, and propose updates for ai-shar
 
 - "把这段会话沉淀成长期 memory。"
 - "检查 memory 里有没有重复、冲突或过时规则。"
-- "这条偏好应该放到 stable、user、inferred 还是 distilled？"
+- "这条偏好应该放到 stable、inferred 还是 distilled？"
 
 ## Anti Examples
 

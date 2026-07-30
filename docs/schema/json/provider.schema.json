@@ -20,32 +20,25 @@
             "description": "Human-readable provider name.",
             "minLength": 1
           },
-          "short_name": {
-            "type": "string",
-            "description": "Short provider label.",
-            "minLength": 1
-          },
           "base_url": {
             "type": "string",
-            "description": "OpenAI-compatible base URL.",
-            "minLength": 1
+            "description": "OpenAI-compatible HTTPS base URL.",
+            "minLength": 1,
+            "pattern": "^https://[^\\s]+$"
           },
           "api_key": {
             "type": "string",
             "description": "Environment variable reference.",
             "minLength": 1,
             "pattern": "^\\$\\{[A-Z_][A-Z0-9_]*\\}$"
-          },
-          "timeout": {
-            "type": "number",
-            "description": "Request timeout metadata."
-          },
-          "chunkTimeout": {
-            "type": "number",
-            "description": "Chunk timeout metadata."
           }
-        }
+        },
+        "additionalProperties": false
+      },
+      "propertyNames": {
+        "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

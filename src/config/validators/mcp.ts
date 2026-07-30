@@ -1,15 +1,14 @@
-import type { McpYaml } from "../../types.ts";
 import { isEnvReference } from "../env-ref.ts";
 import type { ValidationError } from "./common.ts";
 import { isSensitiveName, looksLikeSecretLiteral } from "../../security/secret-patterns.ts";
 import { isRecord } from "./common.ts";
 
-export function validateMcpServers(errors: ValidationError[], mcpConfig: McpYaml): void {
-  const mcpServers = isRecord(mcpConfig.servers) ? mcpConfig.servers : {};
+export function validateMcpServers(errors: ValidationError[], mcpConfig: unknown): void {
+  const mcpServers = isRecord(mcpConfig) && isRecord(mcpConfig.servers) ? mcpConfig.servers : {};
   for (const [serverId, server] of Object.entries(mcpServers)) {
     if (!isRecord(server)) continue;
     const source = server;
-    const isHttp = source.transport === "http" || source.url !== undefined;
+    const isHttp = source.transport === "http" || (source.transport === undefined && source.url !== undefined);
     if (isHttp) {
       validateHttpMcpServer(errors, serverId, source);
       continue;
@@ -32,6 +31,13 @@ function validateHttpMcpServer(
       message: `HTTP MCP server '${serverId}' 缺少 url 字段`,
     });
   } else {
+    if (!isValidHttpUrl(url)) {
+      errors.push({
+        file: "mcp.yaml",
+        path: `servers.${serverId}.url`,
+        message: `HTTP MCP server '${serverId}' 的 url 必须是无内嵌凭据的有效 HTTP(S) URL`,
+      });
+    }
     for (const queryKey of sensitiveUrlQueryKeys(url)) {
       errors.push({
         file: "mcp.yaml",
@@ -47,6 +53,25 @@ function validateHttpMcpServer(
       path: `servers.${serverId}.command`,
       message: `HTTP MCP server '${serverId}' 不应配置 command 字段`,
     });
+  }
+
+  for (const field of ["args", "env"] as const) {
+    if (server[field] !== undefined) {
+      errors.push({
+        file: "mcp.yaml",
+        path: `servers.${serverId}.${field}`,
+        message: `HTTP MCP server '${serverId}' 不应配置 ${field} 字段`,
+      });
+    }
+  }
+}
+
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) && Boolean(url.hostname) && !url.username && !url.password;
+  } catch {
+    return false;
   }
 }
 
@@ -69,6 +94,16 @@ function validateStdioMcpServer(
       path: `servers.${serverId}.url`,
       message: `stdio MCP server '${serverId}' 不应配置 url 字段`,
     });
+  }
+
+  for (const field of ["bearer_token_env_var", "oauth_client_id", "oauth_resource"] as const) {
+    if (server[field] !== undefined) {
+      errors.push({
+        file: "mcp.yaml",
+        path: `servers.${serverId}.${field}`,
+        message: `stdio MCP server '${serverId}' 不应配置 ${field} 字段`,
+      });
+    }
   }
 
   validateMcpEnv(errors, serverId, server.env);

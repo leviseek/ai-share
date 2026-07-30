@@ -1,13 +1,13 @@
 export type ProviderYaml = {
-  providers?: Record<string, ProviderSource>;
+  providers: Record<string, ProviderSource>;
 };
 
 export type McpYaml = {
-  servers?: Record<string, McpServerSource>;
+  servers: Record<string, McpServerSource>;
 };
 
 export type EnvYaml = {
-  variables?: Record<string, string>;
+  variables: Record<string, string>;
 };
 
 export type McpServerSource = {
@@ -23,39 +23,20 @@ export type McpServerSource = {
 
 export type ProviderSource = {
   name?: string;
-  short_name?: string;
-  base_url?: string;
-  api_key?: string;
-  timeout?: number;
-  chunkTimeout?: number;
+  base_url: string;
+  api_key: string;
 };
 
 export type ModelsYaml = Record<string, ModelSource>;
 
-export type ModelCost = {
-  input?: number;
-  output?: number;
-};
-
-export type ModelLimits = {
-  context_window?: number;
-  max_output?: number;
-};
-
 export type ModelSource = {
-  provider?: string;
-  provider_group?: string;
-  model_name?: string;
-  capabilities?: string[];
-  cost?: ModelCost;
-  limits?: ModelLimits;
-  temperature?: number;
-  parameters?: Record<string, unknown>;
-  fallback?: string[];
+  model_name: string;
+  reasoning_effort?: "low" | "medium" | "high";
 };
 
 export type GlobalYaml = {
-  model?: string;
+  model: string;
+  provider: string;
   codex_min_version?: string;
   codex_allow_login_shell?: boolean;
   codex_windows?: CodexWindowsSource;

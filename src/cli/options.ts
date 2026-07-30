@@ -1,55 +1,44 @@
-import type { CliOptions, ProviderGroupMap } from "../types.ts";
-import { DEFAULT_PROVIDER_GROUPS } from "../config/provider-groups.ts";
-import { argsFromArgv, parseOptionValue, parseOptionValues } from "./args.ts";
+import type { CliOptions } from "../types.ts";
+import { argsFromArgv, parseOptionValue } from "./args.ts";
 
-type EnvSource = Record<string, string | undefined>;
+const VALUE_OPTIONS = new Set(["--provider", "--task"]);
+const FLAG_OPTIONS = new Set(["--force", "--dry-run"]);
 
-export function parseCliOptions(argv: readonly string[] = Bun.argv, env: EnvSource = Bun.env): CliOptions {
-  const values = argsFromArgv(argv);
-  const args = new Set(values);
+export function parseCliOptions(argv: readonly string[] = Bun.argv): CliOptions {
+  const args = argsFromArgv(argv);
+  validateGenerationArgs(args);
+  const provider = parseOptionValue(args, "--provider", { missingValue: "error" });
+  const task = parseOptionValue(args, "--task", { missingValue: "error" });
   return {
-    force: args.has("--force"),
-    dryRun: args.has("--dry-run"),
-    checkOnly: args.has("--check"),
-    providerGroups: parseProviderGroups(values, env),
-    providerGroupsSpecified: providerGroupsSpecified(values, env),
+    force: args.includes("--force"),
+    dryRun: args.includes("--dry-run"),
+    ...(provider ? { provider } : {}),
+    ...(task ? { task } : {}),
   };
 }
 
-function parseProviderGroups(args: readonly string[], env: EnvSource): ProviderGroupMap {
-  const sharedProvider = parseOptionValue(args, "--provider") ?? env.AI_SHARE_PROVIDER;
-  return {
-    ...DEFAULT_PROVIDER_GROUPS,
-    ...(sharedProvider
-      ? Object.fromEntries(Object.keys(DEFAULT_PROVIDER_GROUPS).map((groupId) => [groupId, sharedProvider]))
-      : {}),
-    gpt:
-      parseOptionValue(args, "--gpt-provider") ??
-      env.AI_SHARE_GPT_PROVIDER ??
-      sharedProvider ??
-      DEFAULT_PROVIDER_GROUPS.gpt,
-    ...parseProviderGroupOptions(args),
-  };
+export function resolveProviderId(input: {
+  cliProvider?: string;
+  envProvider?: string;
+  defaultProvider: string;
+}): string {
+  return input.cliProvider ?? input.envProvider ?? input.defaultProvider;
 }
 
-function providerGroupsSpecified(args: readonly string[], env: EnvSource): boolean {
-  return (
-    parseOptionValue(args, "--provider") !== undefined ||
-    parseOptionValue(args, "--gpt-provider") !== undefined ||
-    parseOptionValues(args, "--provider-group").length > 0 ||
-    env.AI_SHARE_PROVIDER !== undefined ||
-    env.AI_SHARE_GPT_PROVIDER !== undefined
-  );
+export function resolveTaskDescription(input: { cliTask?: string; envTask?: string }): string | undefined {
+  return input.cliTask ?? input.envTask;
 }
 
-function parseProviderGroupOptions(args: readonly string[]): ProviderGroupMap {
-  const output: ProviderGroupMap = {};
-  for (const value of parseOptionValues(args, "--provider-group")) {
-    const separatorIndex = value.indexOf("=");
-    if (separatorIndex <= 0 || separatorIndex === value.length - 1) {
-      throw new Error(`--provider-group 必须使用 group=provider 格式：${value}`);
+function validateGenerationArgs(args: readonly string[]): void {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (!arg) continue;
+    if (FLAG_OPTIONS.has(arg)) continue;
+    if ([...VALUE_OPTIONS].some((name) => arg.startsWith(`${name}=`))) continue;
+    if (VALUE_OPTIONS.has(arg)) {
+      index += 1;
+      continue;
     }
-    output[value.slice(0, separatorIndex)] = value.slice(separatorIndex + 1);
+    throw new Error(`未知参数：${arg}`);
   }
-  return output;
 }

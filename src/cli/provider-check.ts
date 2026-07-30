@@ -23,9 +23,9 @@ export type ProviderCanaryCheckResult = {
 
 export type ProviderCheckReport = {
   status: "ok" | "error";
+  provider: string;
   canary: boolean;
   elapsed_ms: number;
-  provider_groups: Record<string, string>;
   model_results: ProviderModelCheckResult[];
   canary_results: ProviderCanaryCheckResult[];
 };
@@ -36,25 +36,28 @@ type FetchLike = (
 ) => Promise<Response>;
 
 export async function checkProviderModels(input: {
-  providers: Record<string, ProviderSource>;
+  providerId: string;
+  provider: ProviderSource | undefined;
   models: ModelsYaml;
   env: Record<string, string | undefined>;
   fetchImpl?: FetchLike;
   timeoutMs?: number;
 }): Promise<ProviderModelCheckResult[]> {
-  const fetchImpl = input.fetchImpl ?? fetch;
-  const timeoutMs = input.timeoutMs ?? 10_000;
-  const providerModelNames = configuredModelNamesByProvider(input.models);
-
-  return Promise.all(
-    Object.entries(providerModelNames).map(([providerId, modelNames]) =>
-      checkProviderModelNames(providerId, input.providers[providerId], modelNames, input.env, fetchImpl, timeoutMs),
+  return [
+    await checkProviderModelNames(
+      input.providerId,
+      input.provider,
+      configuredModelNames(input.models),
+      input.env,
+      input.fetchImpl ?? fetch,
+      input.timeoutMs ?? 10_000,
     ),
-  );
+  ];
 }
 
 export async function checkProviderCanaries(input: {
-  providers: Record<string, ProviderSource>;
+  providerId: string;
+  provider: ProviderSource | undefined;
   models: ModelsYaml;
   env: Record<string, string | undefined>;
   fetchImpl?: FetchLike;
@@ -63,12 +66,12 @@ export async function checkProviderCanaries(input: {
   const fetchImpl = input.fetchImpl ?? fetch;
   const timeoutMs = input.timeoutMs ?? 15_000;
   return Promise.all(
-    configuredCanaryModelsByProvider(input.models).map((entry) =>
+    configuredCanaryModels(input.models).map((entry) =>
       checkProviderCanary(
-        entry.providerId,
-        input.providers[entry.providerId],
+        input.providerId,
+        input.provider,
         entry.modelId,
-        entry.model,
+        entry.modelName,
         input.env,
         fetchImpl,
         timeoutMs,
@@ -77,46 +80,33 @@ export async function checkProviderCanaries(input: {
   );
 }
 
-function configuredModelNamesByProvider(models: ModelsYaml): Record<string, string[]> {
-  const output: Record<string, Set<string>> = {};
-  for (const model of Object.values(models)) {
-    if (!model.provider || !model.model_name) continue;
-    output[model.provider] ??= new Set();
-    output[model.provider]?.add(model.model_name);
-  }
-  return Object.fromEntries(Object.entries(output).map(([providerId, names]) => [providerId, [...names].sort()]));
+function configuredModelNames(models: ModelsYaml): string[] {
+  return [...new Set(Object.values(models).map((model) => model.model_name))].sort();
 }
 
-function configuredCanaryModelsByProvider(
-  models: ModelsYaml,
-): { providerId: string; modelId: string; model: ModelsYaml[string] }[] {
-  const output = new Map<string, { providerId: string; modelId: string; model: ModelsYaml[string] }>();
+function configuredCanaryModels(models: ModelsYaml): { modelId: string; modelName: string }[] {
+  const output = new Map<string, { modelId: string; modelName: string }>();
   for (const [modelId, model] of Object.entries(models)) {
-    if (!model.provider || !model.model_name) continue;
-    const key = `${model.provider}:${canaryFingerprint(model)}`;
-    if (!output.has(key)) output.set(key, { providerId: model.provider, modelId, model });
+    if (!output.has(model.model_name)) output.set(model.model_name, { modelId, modelName: model.model_name });
   }
-  return [...output.values()].sort((left, right) =>
-    `${left.providerId}:${left.modelId}`.localeCompare(`${right.providerId}:${right.modelId}`),
-  );
+  return [...output.values()].sort((left, right) => left.modelName.localeCompare(right.modelName));
 }
 
 async function checkProviderCanary(
   providerId: string,
   provider: ProviderSource | undefined,
   modelId: string,
-  model: ModelsYaml[string],
+  modelName: string,
   env: Record<string, string | undefined>,
   fetchImpl: FetchLike,
   timeoutMs: number,
 ): Promise<ProviderCanaryCheckResult> {
   const baseUrl = provider?.base_url ?? "";
-  const modelName = model.model_name ?? modelId;
-  const requestFingerprint = canaryRequestFingerprint(modelName, model);
-  const apiKeyName = envReferenceName(provider?.api_key);
-  const apiKey = apiKeyName ? env[apiKeyName] : undefined;
-
-  if (!provider?.base_url || !apiKeyName || !apiKey) {
+  const requestFingerprint = createHash("sha256")
+    .update(JSON.stringify(canaryRequestBody(modelName)))
+    .digest("hex");
+  const credentials = providerCredentials(provider, env);
+  if (!credentials.ok) {
     return {
       provider: providerId,
       model_id: modelId,
@@ -124,20 +114,17 @@ async function checkProviderCanary(
       request_fingerprint: requestFingerprint,
       base_url: baseUrl,
       status: "missing-api-key",
-      error: apiKeyName ? `缺少环境变量：${apiKeyName}` : "provider.api_key 必须是 ${ENV_NAME} 引用",
+      error: credentials.error,
     };
   }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetchImpl(completionsUrl(provider.base_url), {
+    const response = await fetchImpl(endpoint(credentials.baseUrl, "chat/completions"), {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(canaryRequestBody(modelName, model)),
+      headers: { Authorization: `Bearer ${credentials.apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(canaryRequestBody(modelName)),
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -146,30 +133,28 @@ async function checkProviderCanary(
         model_id: modelId,
         model_name: modelName,
         request_fingerprint: requestFingerprint,
-        base_url: provider.base_url,
+        base_url: credentials.baseUrl,
         status: "rejected",
-        error: `HTTP ${response.status}: ${await safeResponseText(response)}`,
+        error: `HTTP ${response.status}`,
       };
     }
-
-    const payload = await response.json();
+    const payload: unknown = await response.json();
     if (!isRecord(payload) || !Array.isArray(payload.choices)) {
       return {
         provider: providerId,
         model_id: modelId,
         model_name: modelName,
         request_fingerprint: requestFingerprint,
-        base_url: provider.base_url,
+        base_url: credentials.baseUrl,
         status: "unsupported-response",
       };
     }
-
     return {
       provider: providerId,
       model_id: modelId,
       model_name: modelName,
       request_fingerprint: requestFingerprint,
-      base_url: provider.base_url,
+      base_url: credentials.baseUrl,
       status: "ok",
     };
   } catch (error) {
@@ -178,9 +163,9 @@ async function checkProviderCanary(
       model_id: modelId,
       model_name: modelName,
       request_fingerprint: requestFingerprint,
-      base_url: provider.base_url,
+      base_url: credentials.baseUrl,
       status: "unreachable",
-      error: error instanceof Error ? error.message : String(error),
+      error: formatError(error),
     };
   } finally {
     clearTimeout(timer);
@@ -195,133 +180,95 @@ async function checkProviderModelNames(
   fetchImpl: FetchLike,
   timeoutMs: number,
 ): Promise<ProviderModelCheckResult> {
-  const baseUrl = provider?.base_url ?? "";
-  const apiKeyName = envReferenceName(provider?.api_key);
-  const apiKey = apiKeyName ? env[apiKeyName] : undefined;
-
-  if (!provider?.base_url || !apiKeyName || !apiKey) {
+  const credentials = providerCredentials(provider, env);
+  if (!credentials.ok) {
     return {
       provider: providerId,
-      base_url: baseUrl,
+      base_url: provider?.base_url ?? "",
       status: "missing-api-key",
       checked_model_names: modelNames,
       missing_model_names: modelNames,
-      error: apiKeyName ? `缺少环境变量：${apiKeyName}` : "provider.api_key 必须是 ${ENV_NAME} 引用",
+      error: credentials.error,
     };
   }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetchImpl(modelsUrl(provider.base_url), {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
+    const response = await fetchImpl(endpoint(credentials.baseUrl, "models"), {
+      headers: { Authorization: `Bearer ${credentials.apiKey}` },
       signal: controller.signal,
     });
     if (!response.ok) {
-      return {
-        provider: providerId,
-        base_url: provider.base_url,
-        status: "unreachable",
-        checked_model_names: modelNames,
-        missing_model_names: modelNames,
-        error: `HTTP ${response.status}`,
-      };
+      return failureModelResult(providerId, credentials.baseUrl, modelNames, "unreachable", `HTTP ${response.status}`);
     }
-
     const ids = providerModelIds(await response.json());
-    if (!ids) {
-      return {
-        provider: providerId,
-        base_url: provider.base_url,
-        status: "unsupported-response",
-        checked_model_names: modelNames,
-        missing_model_names: modelNames,
-      };
-    }
-
+    if (!ids) return failureModelResult(providerId, credentials.baseUrl, modelNames, "unsupported-response");
     const available = new Set(ids);
     const missing = modelNames.filter((modelName) => !available.has(modelName));
     return {
       provider: providerId,
-      base_url: provider.base_url,
+      base_url: credentials.baseUrl,
       status: missing.length > 0 ? "missing-models" : "ok",
       checked_model_names: modelNames,
       missing_model_names: missing,
     };
   } catch (error) {
-    return {
-      provider: providerId,
-      base_url: provider.base_url,
-      status: "unreachable",
-      checked_model_names: modelNames,
-      missing_model_names: modelNames,
-      error: error instanceof Error ? error.message : String(error),
-    };
+    return failureModelResult(providerId, credentials.baseUrl, modelNames, "unreachable", formatError(error));
   } finally {
     clearTimeout(timer);
   }
 }
 
+function providerCredentials(
+  provider: ProviderSource | undefined,
+  env: Record<string, string | undefined>,
+): { ok: true; baseUrl: string; apiKey: string } | { ok: false; error: string } {
+  const apiKeyName = envReferenceName(provider?.api_key);
+  if (!provider?.base_url || !apiKeyName) return { ok: false, error: "provider.api_key 必须是 ${ENV_NAME} 引用" };
+  const apiKey = env[apiKeyName];
+  return apiKey
+    ? { ok: true, baseUrl: provider.base_url, apiKey }
+    : { ok: false, error: `缺少环境变量：${apiKeyName}` };
+}
+
+function failureModelResult(
+  provider: string,
+  baseUrl: string,
+  modelNames: string[],
+  status: "unreachable" | "unsupported-response",
+  error?: string,
+): ProviderModelCheckResult {
+  return {
+    provider,
+    base_url: baseUrl,
+    status,
+    checked_model_names: modelNames,
+    missing_model_names: modelNames,
+    ...(error ? { error } : {}),
+  };
+}
+
 function providerModelIds(payload: unknown): string[] | undefined {
   if (!isRecord(payload) || !Array.isArray(payload.data)) return undefined;
-
-  const ids = payload.data.flatMap((entry) => {
-    if (!isRecord(entry) || typeof entry.id !== "string" || entry.id.length === 0) return [];
-    return [entry.id];
-  });
+  const ids = payload.data.flatMap((entry) =>
+    isRecord(entry) && typeof entry.id === "string" && entry.id ? [entry.id] : [],
+  );
   return ids.length > 0 ? ids : undefined;
+}
+
+function canaryRequestBody(model: string): Record<string, unknown> {
+  return { model, messages: [{ role: "user", content: "Reply with ok." }], max_tokens: 1 };
+}
+
+function endpoint(baseUrl: string, path: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/${path}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function modelsUrl(baseUrl: string): string {
-  return `${baseUrl.replace(/\/+$/, "")}/models`;
-}
-
-function completionsUrl(baseUrl: string): string {
-  return `${baseUrl.replace(/\/+$/, "")}/chat/completions`;
-}
-
-function canaryRequestBody(modelName: string, model: ModelsYaml[string]): Record<string, unknown> {
-  return {
-    model: modelName,
-    messages: [{ role: "user", content: "Reply with ok." }],
-    max_tokens: 1,
-    ...(typeof model.temperature === "number" ? { temperature: model.temperature } : {}),
-    ...canaryParameters(model.parameters ?? {}),
-  };
-}
-
-function canaryFingerprint(model: ModelsYaml[string]): string {
-  return JSON.stringify(canaryRequestBody(model.model_name ?? "", model));
-}
-
-function canaryRequestFingerprint(modelName: string, model: ModelsYaml[string]): string {
-  return createHash("sha256")
-    .update(JSON.stringify(canaryRequestBody(modelName, model)))
-    .digest("hex");
-}
-
-function canaryParameters(parameters: Record<string, unknown>): Record<string, unknown> {
-  const output: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(parameters)) {
-    if (key === "reasoningEffort") {
-      output.reasoning_effort = value;
-    } else {
-      output[key] = value;
-    }
-  }
-  return output;
-}
-
-async function safeResponseText(response: Response): Promise<string> {
-  try {
-    return (await response.text()).slice(0, 300);
-  } catch {
-    return "";
-  }
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

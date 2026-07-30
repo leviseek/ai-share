@@ -1,149 +1,161 @@
 #!/usr/bin/env bun
 
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { relative, resolve, sep } from "node:path";
-import type { GeneratorPaths } from "./paths.ts";
-import { nativeSkillNames } from "./native-skills.ts";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { buildInstructionsPaths } from "../config/builders/instructions.ts";
-import { buildRuntimeManifest } from "../config/builders/runtime-manifest.ts";
 import { searchMemory } from "../memory/retrieval.ts";
-import { parseYamlObject } from "../yaml.ts";
+import {
+  buildGenerationPlan,
+  GENERATED_CONFIG_HEADER,
+  GENERATED_INSTRUCTIONS_MARKER,
+  LEGACY_RUNTIME_MANIFEST,
+  SKILL_MANAGED_MARKER,
+} from "./generation-plan.ts";
+import { nativeSkillNames } from "./native-skills.ts";
+import type { GeneratorPaths } from "./paths.ts";
 
 export type MemoryEvalStatus = "pass" | "fail";
-
-export type MemoryEvalResult = {
-  task: string;
-  status: MemoryEvalStatus;
-  reason: string;
-};
-
-type MemoryEvalConfig = {
-  taskRetrievalQuery: string;
-  taskRetrievalExpectedPath: string;
-};
+export type MemoryEvalResult = { task: string; status: MemoryEvalStatus; reason: string };
 
 const projectRoot = resolve(import.meta.dirname, "..", "..");
 
 if (import.meta.main) {
-  const results = evaluateMemoryRuntime(projectRoot);
-  printMemoryEvalResults(results);
-  process.exit(results.some((result) => result.status === "fail") ? 1 : 0);
+  const results = await evaluateMemoryRuntime(projectRoot);
+  for (const result of results) console.log(`${result.status.toUpperCase()} ${result.task}: ${result.reason}`);
+  process.exitCode = results.some((result) => result.status === "fail") ? 1 : 0;
 }
 
-export function evaluateMemoryRuntime(root: string = projectRoot): MemoryEvalResult[] {
-  const config = loadMemoryEvalConfig(root);
-  return [evaluateBaseInstructions(root), evaluateTaskRetrieval(root, config), evaluateManagedSkills(root)];
+export async function evaluateMemoryRuntime(root: string = projectRoot): Promise<MemoryEvalResult[]> {
+  return [
+    evaluateBaseInstructions(root),
+    evaluateTaskRetrieval(root),
+    evaluateRetrievalPolicy(),
+    await evaluateManagedSkills(root),
+  ];
 }
 
 function evaluateBaseInstructions(root: string): MemoryEvalResult {
-  const paths = normalizePaths(root, buildInstructionsPaths(root));
+  const paths = normalizePaths(root, buildInstructionsPaths(root, ""));
   const required = [
     "AI_GUIDELINES.md",
     "memory/policies/ai-execution-contract.md",
     "memory/policies/memory-lifecycle.md",
     "memory/stable/user.yaml",
+    "memory/stable/workflows.yaml",
+    "memory/stable/devices.yaml",
   ];
-  const missing = required.filter((path) => !paths.includes(path));
-
-  return missing.length === 0
-    ? pass("base_instructions", `injected ${required.join(", ")}`)
-    : fail("base_instructions", `missing ${missing.join(", ")}`);
+  const unique = new Set(paths);
+  if (paths.length !== unique.size) return fail("base_instructions", "instruction paths contain duplicates");
+  if (paths.length !== required.length || paths.some((path, index) => path !== required[index])) {
+    return fail("base_instructions", `expected ${required.join(", ")}; got ${paths.join(",")}`);
+  }
+  const missing = required.filter((path) => !existsSync(resolve(root, path)));
+  if (missing.length > 0) return fail("base_instructions", `missing files: ${missing.join(",")}`);
+  return pass("base_instructions", `injected ${required.length} unique base files`);
 }
 
-function evaluateTaskRetrieval(root: string, config: MemoryEvalConfig): MemoryEvalResult {
-  const results = searchMemory(config.taskRetrievalQuery, root);
-  const paths = results.map((result) => result.path);
-  const found = paths.includes(config.taskRetrievalExpectedPath);
-
-  return found
-    ? pass("task_retrieval", `query matched ${config.taskRetrievalExpectedPath}`)
-    : fail(
-        "task_retrieval",
-        `query did not match ${config.taskRetrievalExpectedPath}; got ${paths.join(", ") || "none"}`,
-      );
+function evaluateTaskRetrieval(root: string): MemoryEvalResult {
+  const expected = "memory/architecture/ai-desktop.md";
+  const paths = searchMemory("AI Desktop Context Compiler 按需检索", root).map((result) => result.path);
+  return paths.includes(expected)
+    ? pass("task_retrieval", `query matched ${expected}`)
+    : fail("task_retrieval", `query did not match ${expected}; got ${paths.join(", ") || "none"}`);
 }
 
-function evaluateManagedSkills(root: string): MemoryEvalResult {
-  const skills = nativeSkillNames();
-  const sourceSkills = listSkillSourceNames(root);
-  const unregistered = sourceSkills.filter((skill) => !skills.includes(skill));
-  const missingSource = skills.filter((skill) => !sourceSkills.includes(skill));
-
-  if (unregistered.length > 0 || missingSource.length > 0) {
-    return fail(
-      "managed_skills",
-      `native skill registry/source mismatch; unregistered ${unregistered.join(", ") || "none"}; missing source ${
-        missingSource.join(", ") || "none"
-      }`,
+function evaluateRetrievalPolicy(): MemoryEvalResult {
+  const root = mkdtempSync(join(tmpdir(), "ai-share-memory-eval-"));
+  try {
+    writeFixture(
+      root,
+      "memory/distilled/confirmed.md",
+      "---\nconfirmed_by_user: true\n---\n# Confirmed\nretrieval-policy-sentinel\n",
     );
+    writeFixture(
+      root,
+      "memory/distilled/unconfirmed.md",
+      "---\nconfirmed_by_user: false\n---\n# Draft\nretrieval-policy-sentinel\n",
+    );
+    writeFixture(
+      root,
+      "memory/distilled/TEMPLATE.md",
+      "---\nconfirmed_by_user: true\n---\n# Template\nretrieval-policy-sentinel\n",
+    );
+    writeFixture(root, "memory/inferred/candidate.md", "# Candidate\nretrieval-policy-sentinel\n");
+    const paths = searchMemory("retrieval-policy-sentinel", root).map((result) => result.path);
+    return paths.length === 1 && paths[0] === "memory/distilled/confirmed.md"
+      ? pass("retrieval_policy", "confirmed distilled included; template, inferred and unconfirmed excluded")
+      : fail("retrieval_policy", `unexpected paths: ${paths.join(",") || "none"}`);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+async function evaluateManagedSkills(root: string): Promise<MemoryEvalResult> {
+  const registered = nativeSkillNames();
+  const source = listSkillSourceNames(root);
+  if (registered.length !== source.length || !registered.every((skill, index) => skill === source[index])) {
+    return fail("skill_install_plan", `registry=${registered.join(",")} source=${source.join(",")}`);
   }
 
-  const manifest = buildRuntimeManifest({
-    paths: evalPaths(root),
-    model: "gpt-5.5",
-    mcpServerIds: [],
-    codexEnvVarNames: [],
-    skillIds: skills,
-    instructionFiles: buildInstructionsPaths(root),
-  });
-  const managedSkills = manifest.managed.skills;
-  const missing = skills.filter((skill) => !managedSkills.includes(skill));
-  const unexpected = managedSkills.filter((skill) => !skills.includes(skill));
-
-  return missing.length === 0 && unexpected.length === 0
-    ? pass("managed_skills", `runtime manifest matches ${sourceSkills.length} source-managed skills`)
-    : fail(
-        "managed_skills",
-        `runtime manifest mismatch; missing ${missing.join(", ") || "none"}; unexpected ${
-          unexpected.join(", ") || "none"
-        }`,
-      );
+  const tempRoot = mkdtempSync(join(tmpdir(), "ai-share-skill-plan-"));
+  try {
+    const paths = temporaryPaths(tempRoot, root);
+    const plan = await buildGenerationPlan({
+      paths,
+      configToml: `${GENERATED_CONFIG_HEADER}\n`,
+      instructions: `${GENERATED_INSTRUCTIONS_MARKER}\n`,
+      envConfig: { variables: {} },
+      force: false,
+    });
+    const writes = new Set(
+      plan.actions
+        .filter((action) => action.kind === "create" || action.kind === "update")
+        .map((action) => relative(paths.targetCodexConfigDir, action.path).split(sep).join("/")),
+    );
+    const complete = registered.every(
+      (skill) => writes.has(`skills/${skill}/SKILL.md`) && writes.has(`skills/${skill}/${SKILL_MANAGED_MARKER}`),
+    );
+    const hasManifest = [...writes].some((path) => path.endsWith(LEGACY_RUNTIME_MANIFEST));
+    return complete && !hasManifest
+      ? pass("skill_install_plan", `planned ${registered.length} marked skills without a runtime manifest`)
+      : fail("skill_install_plan", `incomplete plan or runtime manifest present: ${[...writes].join(",")}`);
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
+  }
 }
 
-function loadMemoryEvalConfig(root: string): MemoryEvalConfig {
-  const configPath = resolve(root, "config", "memory-eval.yaml");
-  const rawConfig = existsSync(configPath) ? parseYamlObject(readFileSync(configPath, "utf8")) : {};
-  const tasks = isRecord(rawConfig.tasks) ? rawConfig.tasks : {};
-  const taskRetrieval = isRecord(tasks.task_retrieval) ? tasks.task_retrieval : {};
-
-  return {
-    taskRetrievalQuery: stringField(
-      taskRetrieval.query,
-      "memory governance lifecycle stable distilled candidate review",
-    ),
-    taskRetrievalExpectedPath: stringField(taskRetrieval.expected_path, "memory/policies/memory-lifecycle.md"),
-  };
-}
-
-function evalPaths(root: string): GeneratorPaths {
-  const codexHome = resolve(root, ".memory-eval", "codex-home");
-  return {
-    projectRoot: root,
-    configDir: resolve(root, "config"),
-    aiWorkspaceDir: resolve(root, ".memory-eval", "ai-workspace"),
-    workspaceAiShareDir: resolve(root, ".memory-eval", "ai-workspace", "ai-share"),
-    homeDir: resolve(root, ".memory-eval", "home"),
-    targetCodexConfigDir: codexHome,
-    targetCodexConfig: resolve(codexHome, "config.toml"),
-    targetCodexEnv: resolve(codexHome, ".env"),
-    targetCodexInstructions: resolve(codexHome, "AGENTS.md"),
-    targetRuntimeManifest: resolve(codexHome, "ai-share.runtime.json"),
-    targetCodexSkillsDir: resolve(codexHome, "skills"),
-  };
+function listSkillSourceNames(root: string): string[] {
+  const skillsRoot = resolve(root, "skills");
+  if (!existsSync(skillsRoot)) return [];
+  return readdirSync(skillsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
 }
 
 function normalizePaths(root: string, paths: readonly string[]): string[] {
   return paths.map((path) => relative(root, path).split(sep).join("/"));
 }
 
-function listSkillSourceNames(root: string): string[] {
-  const skillsRoot = resolve(root, "skills");
-  if (!existsSync(skillsRoot)) return [];
+function writeFixture(root: string, path: string, content: string): void {
+  const target = resolve(root, path);
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, content, "utf8");
+}
 
-  return readdirSync(skillsRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort();
+function temporaryPaths(tempRoot: string, projectRoot: string): GeneratorPaths {
+  const codexHome = resolve(tempRoot, "codex-home");
+  return {
+    projectRoot,
+    configDir: resolve(projectRoot, "config"),
+    homeDir: resolve(tempRoot, "home"),
+    targetCodexConfigDir: codexHome,
+    targetCodexConfig: resolve(codexHome, "config.toml"),
+    targetCodexEnv: resolve(codexHome, ".env"),
+    targetCodexInstructions: resolve(codexHome, "AGENTS.md"),
+    targetCodexSkillsDir: resolve(codexHome, "skills"),
+  };
 }
 
 function pass(task: string, reason: string): MemoryEvalResult {
@@ -152,18 +164,4 @@ function pass(task: string, reason: string): MemoryEvalResult {
 
 function fail(task: string, reason: string): MemoryEvalResult {
   return { task, status: "fail", reason };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function stringField(value: unknown, fallback: string): string {
-  return typeof value === "string" && value.trim() ? value : fallback;
-}
-
-function printMemoryEvalResults(results: readonly MemoryEvalResult[]): void {
-  for (const result of results) {
-    console.log(`${result.status.toUpperCase()} ${result.task}: ${result.reason}`);
-  }
 }

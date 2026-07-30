@@ -5,91 +5,28 @@
   "additionalProperties": {
     "type": "object",
     "required": [
-      "provider_group",
-      "model_name",
-      "cost",
-      "limits"
+      "model_name"
     ],
     "properties": {
-      "provider": {
-        "type": "string",
-        "description": "Resolved provider id generated from provider_group.",
-        "minLength": 1
-      },
-      "provider_group": {
-        "type": "string",
-        "description": "Logical provider group such as gpt.",
-        "minLength": 1
-      },
       "model_name": {
         "type": "string",
         "description": "Upstream model name sent to provider.",
         "minLength": 1
       },
-      "capabilities": {
-        "type": "array",
-        "description": "Model capability labels.",
-        "items": {
-          "type": "string",
-          "description": "Model capability labels.",
-          "minLength": 1
-        }
-      },
-      "cost": {
-        "type": "object",
-        "required": [
-          "input",
-          "output"
-        ],
-        "properties": {
-          "input": {
-            "type": "number",
-            "description": "Input cost metadata.",
-            "exclusiveMinimum": 0
-          },
-          "output": {
-            "type": "number",
-            "description": "Output cost metadata.",
-            "exclusiveMinimum": 0
-          }
-        }
-      },
-      "limits": {
-        "type": "object",
-        "required": [
-          "context_window",
-          "max_output"
-        ],
-        "properties": {
-          "context_window": {
-            "type": "number",
-            "description": "Context window tokens.",
-            "exclusiveMinimum": 0
-          },
-          "max_output": {
-            "type": "number",
-            "description": "Max output tokens.",
-            "exclusiveMinimum": 0
-          }
-        }
-      },
-      "temperature": {
-        "type": "number",
-        "description": "Default model temperature."
-      },
-      "parameters": {
-        "type": "object",
-        "description": "Provider-specific model parameters."
-      },
-      "fallback": {
-        "type": "array",
-        "description": "Fallback model ids.",
-        "items": {
-          "type": "string",
-          "description": "Fallback model ids.",
-          "minLength": 1
-        }
+      "reasoning_effort": {
+        "type": "string",
+        "description": "Codex reasoning effort.",
+        "minLength": 1,
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ]
       }
-    }
+    },
+    "additionalProperties": false
+  },
+  "propertyNames": {
+    "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
   }
 }
