@@ -116,9 +116,9 @@ bun run ai:explain -- --json
 
 ## Commit custom agent
 
-`config/agents.yaml` 声明用户级 custom agents。默认 `commit` agent 固定使用 `gpt-5.5` 和 `low` reasoning；主会话的模型与 reasoning 不受影响。运行 `bun run ai:gen` 后，用户明确要求提交、推送或提交并推送时，当前会话会把对应 Git 操作委派给该 agent。未明确要求时不会执行 Git 写操作。
+`config/agents.yaml` 声明用户级 custom agents。默认 `ai-share-commit-operator` agent（“ai-share 的提交执行官”）固定使用 `gpt-5.5` 和 `low` reasoning；主会话的模型与 reasoning 不受影响。运行 `bun run ai:gen` 后，用户明确要求提交、推送或提交并推送时，当前会话会把对应 Git 操作委派给该 agent。未明确要求时不会执行 Git 写操作。
 
-`commit` agent 只暂存任务相关路径并运行相关检查。检查或 hook 失败时停止并回报；不使用 `--no-verify`、amend、rebase 或 force push。仅推送请求不会顺带提交工作区改动。
+`ai-share-commit-operator` agent 只暂存任务相关路径并运行相关检查。检查或 hook 失败时停止并回报；不使用 `--no-verify`、amend、rebase 或 force push。仅推送请求不会顺带提交工作区改动。
 
 ## 生成输出与所有权
 

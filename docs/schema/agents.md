@@ -13,8 +13,8 @@ agent id 同时生成官方 `name` 字段和 `<agent_id>.toml` 文件名。未�
 
 ```yaml
 agents:
-  commit:
-    description: Git commit specialist
+  ai-share-commit-operator:
+    description: ai-share 的提交执行官
     model: gpt-5.5
     reasoning_effort: low
     developer_instructions: Create only the explicitly requested commit.

@@ -1,6 +1,6 @@
 agents:
-  commit:
-    description: Git commit and push specialist used only after an explicit user request.
+  ai-share-commit-operator:
+    description: ai-share 的提交执行官
     model: gpt-5.5
     reasoning_effort: low
     developer_instructions: |-
