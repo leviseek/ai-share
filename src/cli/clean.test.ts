@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { CODEX_ENV_MANAGED_BEGIN, CODEX_ENV_MANAGED_END } from "../config/builders/env.ts";
@@ -7,6 +7,7 @@ import { cleanCodexConfig } from "./clean.ts";
 import {
   GENERATED_CONFIG_HEADER,
   GENERATED_INSTRUCTIONS_MARKER,
+  AGENT_GENERATED_HEADER,
   LEGACY_RUNTIME_MANIFEST,
   SKILL_MANAGED_CONTENT,
   SKILL_MANAGED_MARKER,
@@ -22,6 +23,8 @@ describe("surgical clean", () => {
       const userSkill = join(paths.targetCodexSkillsDir, "user-skill");
       const invalidMarkerSkill = join(paths.targetCodexSkillsDir, "invalid-marker");
       const malformedManifest = join(paths.targetCodexConfigDir, LEGACY_RUNTIME_MANIFEST);
+      const managedAgent = join(paths.targetCodexAgentsDir, "managed.toml");
+      const userAgent = join(paths.targetCodexAgentsDir, "user.toml");
       write(paths.targetCodexConfig, `${GENERATED_CONFIG_HEADER}\nmodel = "test"\n`);
       write(paths.targetCodexInstructions, `${GENERATED_INSTRUCTIONS_MARKER}\n`);
       write(
@@ -35,6 +38,8 @@ describe("surgical clean", () => {
       write(join(invalidMarkerSkill, SKILL_MANAGED_MARKER), "not-ai-share\n");
       write(join(paths.targetCodexConfigDir, "user.toml"), "user\n");
       write(malformedManifest, "{ malformed\n");
+      write(managedAgent, `${AGENT_GENERATED_HEADER}\nname = "managed"\n`);
+      write(userAgent, 'name = "user"\n');
 
       const result = await cleanCodexConfig(paths, { backup: false });
 
@@ -43,6 +48,8 @@ describe("surgical clean", () => {
       expect(existsSync(paths.targetCodexInstructions)).toBe(false);
       expect(readFileSync(paths.targetCodexEnv, "utf8")).toBe("PRIVATE_FLAG=1\n");
       expect(existsSync(managedSkill)).toBe(false);
+      expect(existsSync(managedAgent)).toBe(false);
+      expect(readFileSync(userAgent, "utf8")).toBe('name = "user"\n');
       expect(readFileSync(join(userSkill, "SKILL.md"), "utf8")).toBe("user\n");
       expect(readFileSync(join(invalidMarkerSkill, "SKILL.md"), "utf8")).toBe("user\n");
       expect(readFileSync(join(paths.targetCodexConfigDir, "user.toml"), "utf8")).toBe("user\n");
@@ -101,6 +108,36 @@ describe("surgical clean", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  test("preserves an unmanaged file blocking the agents directory", async () => {
+    const root = makeRoot();
+    try {
+      const paths = testPaths(root);
+      write(paths.targetCodexAgentsDir, "user blocking file\n");
+
+      expect(await cleanCodexConfig(paths, { backup: false })).toEqual({ changed: [] });
+      expect(readFileSync(paths.targetCodexAgentsDir, "utf8")).toBe("user blocking file\n");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("does not follow an agents junction outside CODEX_HOME", async () => {
+    const root = makeRoot();
+    try {
+      const paths = testPaths(root);
+      const external = join(root, "external-agents");
+      const externalAgent = join(external, "managed.toml");
+      write(externalAgent, `${AGENT_GENERATED_HEADER}\nname = "external"\n`);
+      mkdirSync(paths.targetCodexConfigDir, { recursive: true });
+      symlinkSync(external, paths.targetCodexAgentsDir, "junction");
+
+      expect(await cleanCodexConfig(paths, { backup: false })).toEqual({ changed: [] });
+      expect(readFileSync(externalAgent, "utf8")).toContain('name = "external"');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 function makeRoot(): string {
@@ -118,6 +155,7 @@ function testPaths(root: string): GeneratorPaths {
     targetCodexEnv: join(codexHome, ".env"),
     targetCodexInstructions: join(codexHome, "AGENTS.md"),
     targetCodexSkillsDir: join(codexHome, "skills"),
+    targetCodexAgentsDir: join(codexHome, "agents"),
   };
 }
 

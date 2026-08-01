@@ -13,6 +13,7 @@
 | Upstream model names                        | `models.yaml`   | 仅 `model_name`、可选 `reasoning_effort` |
 | Codex MCP servers                           | `mcp.yaml`      | stdio/HTTP 条件字段严格互斥              |
 | Shared Codex `.env` values                  | `env.yaml`      | 非密钥；默认 `variables: {}`             |
+| Custom agents and model overrides           | `agents.yaml`   | 生成用户级 `agents/*.toml`               |
 | Machine-local overrides                     | `local/`        | Git ignored，合并后仍严格校验            |
 
 ## CONVENTIONS

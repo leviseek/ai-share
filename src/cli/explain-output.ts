@@ -10,10 +10,12 @@ const REASON_TEXT: Readonly<Record<PlanReason, string>> = {
   "legacy-owned-content-drift": "旧 manifest 证明所有权，将迁移更新",
   "force-adoption": "--force 模拟接管未受管目标",
   "unowned-collision": "未受管目标阻止生成",
-  "blocking-path-collision": "文件路径阻挡 skill 目录",
+  "blocking-path-collision": "目标路径类型阻挡受管输出",
   "force-replace-blocking-path": "--force 模拟替换阻挡路径",
   "stale-managed-skill": "已不再声明的受管 skill，将删除",
+  "stale-managed-agent": "已不再声明的受管 agent，将删除",
   "unmanaged-skill-preserved": "用户 skill 不属于 ai-share，保留",
+  "unmanaged-agent-preserved": "用户 agent 不属于 ai-share，保留",
   "invalid-marker-preserved": "skill marker 无效，保留并提示风险",
   "legacy-manifest-cleanup": "完成迁移后删除旧 manifest",
   "legacy-manifest-invalid-preserved": "旧 manifest 无效，无法证明所有权，保留",
@@ -47,6 +49,7 @@ export function renderExplainReport(report: ExplainReport, useColor: boolean): s
   appendList(lines, "生效 overlay", report.config.active_overlays);
   appendList(lines, "MCP server ID", report.config.mcp_server_ids);
   appendList(lines, "受管 env 名称", report.config.managed_env_names);
+  appendList(lines, "Agent ID", report.config.agent_ids);
 
   lines.push("", sectionTitle("3. Memory 选择", palette));
   appendList(lines, "固定路径", report.memory.fixed_paths);

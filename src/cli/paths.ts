@@ -9,6 +9,7 @@ export type GeneratorPaths = {
   targetCodexEnv: string;
   targetCodexInstructions: string;
   targetCodexSkillsDir: string;
+  targetCodexAgentsDir: string;
 };
 
 export function buildGeneratorPaths(
@@ -35,5 +36,6 @@ export function buildGeneratorPaths(
     targetCodexEnv: resolve(targetCodexConfigDir, ".env"),
     targetCodexInstructions: resolve(targetCodexConfigDir, "AGENTS.md"),
     targetCodexSkillsDir: resolve(targetCodexConfigDir, "skills"),
+    targetCodexAgentsDir: resolve(targetCodexConfigDir, "agents"),
   };
 }

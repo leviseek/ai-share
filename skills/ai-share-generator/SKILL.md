@@ -14,6 +14,7 @@ Use this skill when modifying YAML source files, Codex config builders, generate
 - `config/models.yaml`: upstream model names and optional reasoning effort.
 - `config/mcp.yaml`: Codex MCP server definitions.
 - `config/env.yaml`: shared non-secret Codex `.env` variables; machine-local values use `config/local/env.yaml`.
+- `config/agents.yaml`: user-level Codex custom agents with optional model and reasoning overrides.
 
 ## Implementation Map
 
@@ -22,6 +23,7 @@ Use this skill when modifying YAML source files, Codex config builders, generate
 - Explain report and CLI: `src/cli/explain-report.ts`, `src/cli/explain-output.ts`, `src/cli/ai-explain.ts`.
 - Codex config: `src/config/builders/codex.ts`.
 - Codex .env config: `src/config/builders/env.ts`.
+- Codex custom agents: `src/config/builders/agents.ts`.
 - Instruction paths: `src/config/builders/instructions.ts`.
 - Output paths: `src/cli/paths.ts`.
 - Interactive provider selection: `src/cli/provider-select.ts`.

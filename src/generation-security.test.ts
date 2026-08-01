@@ -124,6 +124,7 @@ function writeConfigFixture(root: string, envYaml: string): void {
   writeFileSync(join(configDir, "models.yaml"), "model-a:\n  model_name: upstream-model\n", "utf8");
   writeFileSync(join(configDir, "mcp.yaml"), "servers: {}\n", "utf8");
   writeFileSync(join(configDir, "env.yaml"), envYaml, "utf8");
+  writeFileSync(join(configDir, "agents.yaml"), "agents: {}\n", "utf8");
 }
 
 function writeMemoryFixture(root: string): void {

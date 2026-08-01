@@ -41,6 +41,7 @@ export type ExplainReport = {
     active_overlays: string[];
     mcp_server_ids: string[];
     managed_env_names: string[];
+    agent_ids: string[];
   };
   memory: {
     fixed_paths: string[];
@@ -94,6 +95,7 @@ export function buildExplainReport(preview: GenerationPreview): ExplainReport {
       active_overlays: [...preview.loadedConfig.overlays],
       mcp_server_ids: Object.keys(config.mcp.servers).sort(compareText),
       managed_env_names: Object.keys(config.env.variables).sort(compareText),
+      agent_ids: Object.keys(config.agents.agents).sort(compareText),
     },
     memory: {
       fixed_paths: preview.instructionsSelection.fixedPaths.map((path) =>
@@ -143,6 +145,7 @@ export function buildExplainErrorReport(input: {
       active_overlays: [],
       mcp_server_ids: [],
       managed_env_names: [],
+      agent_ids: [],
     },
     memory: {
       fixed_paths: [],

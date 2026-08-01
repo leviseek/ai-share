@@ -6,7 +6,35 @@ describe("strict config validation", () => {
     const fixture = validConfig();
     const result = validateConfigSet(fixture);
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.config.global).toEqual({ model: "model-a", provider: "provider-a" });
+    if (result.ok) {
+      expect(result.config.global).toEqual({ model: "model-a", provider: "provider-a" });
+      expect(result.config.agents).toEqual({ agents: {} });
+    }
+  });
+
+  test("validates custom agent shape and model references", () => {
+    const fixture = validConfig();
+    fixture.agents = {
+      agents: {
+        "Bad Agent": {
+          description: "Commit changes",
+          model: "missing-model",
+          reasoning_effort: "ultra",
+          developer_instructions: "Create a commit.",
+          unknown: true,
+        },
+      },
+    };
+
+    const result = validateConfigSet(fixture);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("invalid agent fixture unexpectedly passed validation");
+    const findings = result.errors;
+    const paths = findings.map((finding) => finding.path);
+    expect(paths).toContain("agents.Bad Agent");
+    expect(paths).toContain("agents.Bad Agent.reasoning_effort");
+    expect(paths).toContain("agents.Bad Agent.unknown");
+    expect(findings.map((finding) => finding.message)).toContain("agent 'Bad Agent' 引用未定义模型 'missing-model'");
   });
 
   test("reports cross-file model and provider references", () => {
@@ -166,7 +194,7 @@ describe("strict config validation", () => {
   });
 });
 
-function validConfig(): Record<"global" | "providers" | "models" | "mcp" | "env", unknown> {
+function validConfig(): Record<"global" | "providers" | "models" | "mcp" | "env" | "agents", unknown> {
   return {
     global: { model: "model-a", provider: "provider-a" },
     providers: {
@@ -177,11 +205,17 @@ function validConfig(): Record<"global" | "providers" | "models" | "mcp" | "env"
     models: { "model-a": { model_name: "upstream", reasoning_effort: "medium" } },
     mcp: { servers: {} },
     env: { variables: {} },
+    agents: { agents: {} },
   };
 }
 
-function errors(fixture: Record<"global" | "providers" | "models" | "mcp" | "env", unknown>): string[] {
-  return validateYamlConsistency(fixture.models, fixture.providers, fixture.global, fixture.mcp, fixture.env).map(
-    (error) => error.message,
-  );
+function errors(fixture: Record<"global" | "providers" | "models" | "mcp" | "env" | "agents", unknown>): string[] {
+  return validateYamlConsistency(
+    fixture.models,
+    fixture.providers,
+    fixture.global,
+    fixture.mcp,
+    fixture.env,
+    fixture.agents,
+  ).map((error) => error.message);
 }

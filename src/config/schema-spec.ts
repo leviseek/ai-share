@@ -2,6 +2,7 @@ export const ENV_REFERENCE_PATTERN = "^\\$\\{[A-Z_][A-Z0-9_]*\\}$";
 export const ENV_NAME_PATTERN = "^[A-Z_][A-Z0-9_]*$";
 export const ENV_FILE_NAME_PATTERN = "^[A-Za-z_][A-Za-z0-9_]*$";
 export const CONFIG_ID_PATTERN = "^[a-z0-9]+(?:[.-][a-z0-9]+)*$";
+export const AGENT_ID_PATTERN = "^[a-z][a-z0-9_-]*$";
 export const SEMVER_PATTERN = "^\\d+\\.\\d+\\.\\d+$";
 export const HTTPS_URL_PATTERN = "^https://[^\\s]+$";
 export const HTTP_URL_PATTERN = "^https?://[^\\s]+$";
@@ -22,7 +23,13 @@ export type YamlSchemaSpec = {
   root: SchemaNode;
 };
 
-export type YamlSchemaSourceFile = "global.yaml" | "provider.yaml" | "models.yaml" | "mcp.yaml" | "env.yaml";
+export type YamlSchemaSourceFile =
+  | "global.yaml"
+  | "provider.yaml"
+  | "models.yaml"
+  | "mcp.yaml"
+  | "env.yaml"
+  | "agents.yaml";
 
 type BaseSchemaNode = {
   description?: string;
@@ -174,6 +181,28 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
         variables: objectSchema({
           propertyNames: { pattern: ENV_FILE_NAME_PATTERN },
           additionalProperties: stringSchema("Codex .env variable value."),
+        }),
+      },
+    }),
+  },
+  {
+    sourceFile: "agents.yaml",
+    schemaFileName: "agents.schema.json",
+    title: "ai-share agents.yaml",
+    root: objectSchema({
+      required: ["agents"],
+      properties: {
+        agents: objectSchema({
+          propertyNames: { pattern: AGENT_ID_PATTERN },
+          additionalProperties: objectSchema({
+            required: ["description", "developer_instructions"],
+            properties: {
+              description: stringSchema("Human-facing guidance for when Codex should use the agent."),
+              model: patternStringSchema(CONFIG_ID_PATTERN, "Model id from models.yaml."),
+              reasoning_effort: enumStringSchema(["low", "medium", "high"], "Codex reasoning effort override."),
+              developer_instructions: stringSchema("Core instructions that define the agent behavior."),
+            },
+          }),
         }),
       },
     }),

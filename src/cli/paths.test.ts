@@ -24,6 +24,7 @@ describe("generator paths", () => {
       "configDir",
       "homeDir",
       "projectRoot",
+      "targetCodexAgentsDir",
       "targetCodexConfig",
       "targetCodexConfigDir",
       "targetCodexEnv",

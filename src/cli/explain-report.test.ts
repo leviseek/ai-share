@@ -37,10 +37,12 @@ describe("explain report", () => {
         "config/models.yaml",
         "config/mcp.yaml",
         "config/env.yaml",
+        "config/agents.yaml",
       ]);
       expect(report.config.active_overlays).toEqual(["config/local/provider.yaml", "config/local/env.yaml"]);
       expect(report.config.mcp_server_ids).toEqual(["filesystem"]);
       expect(report.config.managed_env_names).toEqual(["HTTP_PROXY"]);
+      expect(report.config.agent_ids).toEqual(["commit"]);
       expect(report.memory.fixed_paths).toEqual([
         "AI_GUIDELINES.md",
         "memory/policies/ai-execution-contract.md",

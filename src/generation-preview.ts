@@ -1,4 +1,10 @@
-import { buildCodexCliConfig, formatCodexConfigToml, formatCodexInstructions } from "./config-builders.ts";
+import {
+  buildCodexAgentConfigs,
+  buildCodexCliConfig,
+  formatCodexAgentToml,
+  formatCodexConfigToml,
+  formatCodexInstructions,
+} from "./config-builders.ts";
 import { loadValidatedConfigWithTrace, type LoadedValidatedConfig } from "./config/load.ts";
 import { buildInstructionsSelection, type InstructionsSelection } from "./config/builders/instructions.ts";
 import { buildGenerationPlan, type GenerationPlan } from "./cli/generation-plan.ts";
@@ -26,6 +32,7 @@ export type GenerationPreview = {
   instructionsSelection: InstructionsSelection;
   configToml: string;
   instructions: string;
+  agentTomls: Record<string, string>;
   plan: GenerationPlan;
 };
 
@@ -70,11 +77,15 @@ export async function buildGenerationPreview(input: {
     buildCodexCliConfig(config, providerDecision.id, paths.targetCodexInstructions),
   );
   const instructions = formatCodexInstructions(instructionsSelection.paths);
+  const agentTomls = Object.fromEntries(
+    Object.entries(buildCodexAgentConfigs(config)).map(([agentId, agent]) => [agentId, formatCodexAgentToml(agent)]),
+  );
   const plan = await buildGenerationPlan({
     paths,
     configToml,
     instructions,
     envConfig: config.env,
+    agentTomls,
     force: input.options.force,
   });
   return {
@@ -86,6 +97,7 @@ export async function buildGenerationPreview(input: {
     instructionsSelection,
     configToml,
     instructions,
+    agentTomls,
     plan,
   };
 }

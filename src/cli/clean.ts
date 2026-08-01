@@ -1,12 +1,13 @@
 #!/usr/bin/env bun
 
-import { cp, mkdir, readFile, readdir } from "node:fs/promises";
+import { cp, lstat, mkdir, readFile, readdir } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { codexEnvHasCompleteManagedBlock, removeCodexEnvManagedBlock } from "../config/builders/env.ts";
 import { argsFromArgv, parseBooleanOption, parseOptionValue } from "./args.ts";
 import {
   GENERATED_CONFIG_HEADER,
   GENERATED_INSTRUCTIONS_MARKER,
+  AGENT_GENERATED_HEADER,
   hasManagedSkillMarker,
   readLegacyOwnership,
 } from "./generation-plan.ts";
@@ -61,6 +62,7 @@ export async function cleanCodexConfig(paths: GeneratorPaths, options: { backup:
     }
   }
   deletes.push(...(await managedSkillDirs(paths, legacy.skills)));
+  deletes.push(...(await managedAgentFiles(paths)));
   if (legacy.manifestPath) deletes.push(legacy.manifestPath);
 
   const changed = [...writes.map((entry) => entry.path), ...deletes];
@@ -76,6 +78,19 @@ export async function cleanCodexConfig(paths: GeneratorPaths, options: { backup:
     throw error;
   }
   return backupPath ? { changed, backupPath } : { changed };
+}
+
+async function managedAgentFiles(paths: GeneratorPaths): Promise<string[]> {
+  if (!(await pathExists(paths.targetCodexAgentsDir))) return [];
+  const agentsDirStat = await lstat(paths.targetCodexAgentsDir);
+  if (agentsDirStat.isSymbolicLink() || !agentsDirStat.isDirectory()) return [];
+  const output: string[] = [];
+  for (const entry of await readdir(paths.targetCodexAgentsDir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".toml")) continue;
+    const path = resolve(paths.targetCodexAgentsDir, entry.name);
+    if ((await readFile(path, "utf8")).startsWith(AGENT_GENERATED_HEADER)) output.push(path);
+  }
+  return output.sort();
 }
 
 async function ownedTextFile(path: string, marker: string, legacyPath?: string): Promise<boolean> {

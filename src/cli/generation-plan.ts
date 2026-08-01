@@ -1,17 +1,20 @@
 import { lstat, readFile, readdir } from "node:fs/promises";
-import { basename, resolve } from "node:path";
+import type { Stats } from "node:fs";
+import { basename, isAbsolute, relative, resolve } from "node:path";
 import type { EnvYaml } from "../types.ts";
 import { CODEX_CONFIG_GENERATED_HEADER, CODEX_INSTRUCTIONS_GENERATED_HEADER } from "../config/builders/codex.ts";
 import { buildCodexEnvFileWithManagedBlock } from "../config/builders/env.ts";
 import { NATIVE_SKILLS } from "./native-skills.ts";
 import { pathExists, StagedFileWriter } from "./fs.ts";
 import type { GeneratorPaths } from "./paths.ts";
+import { CODEX_AGENT_GENERATED_HEADER } from "../config/builders/agents.ts";
 
 export const GENERATED_CONFIG_HEADER: string = CODEX_CONFIG_GENERATED_HEADER;
 export const GENERATED_INSTRUCTIONS_MARKER: string = CODEX_INSTRUCTIONS_GENERATED_HEADER;
 export const SKILL_MANAGED_MARKER = ".ai-share-managed";
 export const SKILL_MANAGED_CONTENT = "ai-share\n";
 export const LEGACY_RUNTIME_MANIFEST = "ai-share.runtime.json";
+export const AGENT_GENERATED_HEADER: string = CODEX_AGENT_GENERATED_HEADER;
 
 export type PlanOwnership = "missing" | "managed" | "legacy" | "unmanaged" | "invalid-marker";
 
@@ -26,7 +29,9 @@ export type PlanReason =
   | "blocking-path-collision"
   | "force-replace-blocking-path"
   | "stale-managed-skill"
+  | "stale-managed-agent"
   | "unmanaged-skill-preserved"
+  | "unmanaged-agent-preserved"
   | "invalid-marker-preserved"
   | "legacy-manifest-cleanup"
   | "legacy-manifest-invalid-preserved";
@@ -59,6 +64,7 @@ export async function buildGenerationPlan(input: {
   configToml: string;
   instructions: string;
   envConfig: EnvYaml;
+  agentTomls: Readonly<Record<string, string>>;
   force: boolean;
 }): Promise<GenerationPlan> {
   const plan: GenerationPlan = { actions: [], preserved: [], collisions: [] };
@@ -91,6 +97,8 @@ export async function buildGenerationPlan(input: {
     existingEnv,
     { changedReason: "env-managed-block-drift", ownership: "managed" },
   );
+
+  await planAgentFiles(plan, input.paths, input.agentTomls, input.force);
 
   const currentSkillNames = new Set(NATIVE_SKILLS.map((skill) => skill.name));
   for (const skill of NATIVE_SKILLS) {
@@ -150,6 +158,121 @@ export async function buildGenerationPlan(input: {
   }
 
   return plan;
+}
+
+async function planAgentFiles(
+  plan: GenerationPlan,
+  paths: GeneratorPaths,
+  agentTomls: Readonly<Record<string, string>>,
+  force: boolean,
+): Promise<void> {
+  const desiredAgents = Object.entries(agentTomls).map(([agentId, content]) => ({
+    agentId,
+    content,
+    path: resolveAgentPath(paths.targetCodexAgentsDir, agentId),
+  }));
+  const desiredFileNames = new Set(desiredAgents.map((agent) => `${agent.agentId}.toml`));
+  const directoryStat = await lstatIfExists(paths.targetCodexAgentsDir);
+  const directoryExists = directoryStat !== undefined;
+  if (directoryStat && (directoryStat.isSymbolicLink() || !directoryStat.isDirectory())) {
+    if (desiredAgents.length === 0) {
+      plan.preserved.push(plannedPath(paths.targetCodexAgentsDir, "unmanaged-agent-preserved", "unmanaged"));
+      return;
+    }
+    if (!force) {
+      plan.collisions.push(plannedPath(paths.targetCodexAgentsDir, "blocking-path-collision", "unmanaged"));
+      return;
+    }
+    plan.actions.push({
+      kind: "delete",
+      path: paths.targetCodexAgentsDir,
+      reason: "force-replace-blocking-path",
+      ownership: "unmanaged",
+    });
+    for (const agent of desiredAgents) {
+      plan.actions.push({
+        kind: "create",
+        path: agent.path,
+        content: agent.content,
+        reason: "force-adoption",
+        ownership: "unmanaged",
+      });
+    }
+    return;
+  }
+
+  for (const agent of desiredAgents) {
+    await planAgentFile(plan, agent.path, agent.content, force);
+  }
+
+  if (!directoryExists) return;
+  const existingEntries = await readdir(paths.targetCodexAgentsDir, { withFileTypes: true });
+  existingEntries.sort((left, right) => compareText(left.name, right.name));
+  for (const entry of existingEntries) {
+    if (!entry.isFile() || !entry.name.endsWith(".toml") || desiredFileNames.has(entry.name)) continue;
+    const path = resolve(paths.targetCodexAgentsDir, entry.name);
+    const content = await readFile(path, "utf8");
+    if (content.startsWith(AGENT_GENERATED_HEADER)) {
+      plan.actions.push({ kind: "delete", path, reason: "stale-managed-agent", ownership: "managed" });
+    } else {
+      plan.preserved.push(plannedPath(path, "unmanaged-agent-preserved", "unmanaged"));
+    }
+  }
+}
+
+function resolveAgentPath(agentsDir: string, agentId: string): string {
+  if (!/^[a-z][a-z0-9_-]*$/.test(agentId)) throw new Error(`agent id 格式不符合要求：${agentId}`);
+  const path = resolve(agentsDir, `${agentId}.toml`);
+  const rel = relative(resolve(agentsDir), path);
+  if (!rel || isAbsolute(rel) || rel.split(/[\\/]/)[0] === "..") {
+    throw new Error(`agent 输出路径超出 CODEX_HOME：${agentId}`);
+  }
+  return path;
+}
+
+async function lstatIfExists(path: string): Promise<Stats | undefined> {
+  try {
+    return await lstat(path);
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+async function planAgentFile(plan: GenerationPlan, path: string, content: string, force: boolean): Promise<void> {
+  const pathStat = await lstatIfExists(path);
+  if (!pathStat) {
+    plan.actions.push({ kind: "create", path, content, reason: "target-missing", ownership: "missing" });
+    return;
+  }
+  if (!pathStat.isFile() || pathStat.isSymbolicLink()) {
+    if (!force) {
+      plan.collisions.push(plannedPath(path, "blocking-path-collision", "unmanaged"));
+      return;
+    }
+    plan.actions.push({
+      kind: "update",
+      path,
+      content,
+      reason: "force-replace-blocking-path",
+      ownership: "unmanaged",
+    });
+    return;
+  }
+  const existing = await readFile(path, "utf8");
+  if (existing === content) {
+    plan.preserved.push(plannedPath(path, "content-current", "managed"));
+  } else if (existing.startsWith(AGENT_GENERATED_HEADER)) {
+    plan.actions.push({ kind: "update", path, content, reason: "managed-content-drift", ownership: "managed" });
+  } else if (force) {
+    plan.actions.push({ kind: "update", path, content, reason: "force-adoption", ownership: "unmanaged" });
+  } else {
+    plan.collisions.push(plannedPath(path, "unowned-collision", "unmanaged"));
+  }
 }
 
 export async function executeGenerationPlan(plan: GenerationPlan, stagingRoot: string): Promise<void> {

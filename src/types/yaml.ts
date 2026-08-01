@@ -10,6 +10,17 @@ export type EnvYaml = {
   variables: Record<string, string>;
 };
 
+export type AgentsYaml = {
+  agents: Record<string, AgentSource>;
+};
+
+export type AgentSource = {
+  description: string;
+  model?: string;
+  reasoning_effort?: "low" | "medium" | "high";
+  developer_instructions: string;
+};
+
 export type McpServerSource = {
   transport?: "stdio" | "http";
   command?: string;

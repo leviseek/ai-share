@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ai-share agents.yaml",
+  "type": "object",
+  "required": [
+    "agents"
+  ],
+  "properties": {
+    "agents": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "description",
+          "developer_instructions"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Human-facing guidance for when Codex should use the agent.",
+            "minLength": 1
+          },
+          "model": {
+            "type": "string",
+            "description": "Model id from models.yaml.",
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "description": "Codex reasoning effort override.",
+            "minLength": 1,
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "developer_instructions": {
+            "type": "string",
+            "description": "Core instructions that define the agent behavior.",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_-]*$"
+      }
+    }
+  },
+  "additionalProperties": false
+}

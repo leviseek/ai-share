@@ -10,6 +10,14 @@ export type CodexCliConfig = {
   mcp_servers?: Record<string, CodexMcpServer>;
 };
 
+export type CodexAgentConfig = {
+  name: string;
+  description: string;
+  model?: string;
+  model_reasoning_effort?: "low" | "medium" | "high";
+  developer_instructions: string;
+};
+
 export type CodexWindowsConfig = {
   sandbox?: "elevated" | "unelevated";
 };

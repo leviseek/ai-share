@@ -1,4 +1,4 @@
-import type { EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProviderYaml } from "../types.ts";
+import type { AgentsYaml, EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProviderYaml } from "../types.ts";
 import { isSensitiveName, looksLikeSecretLiteral } from "../security/secret-patterns.ts";
 import type { ValidationError } from "./validators/common.ts";
 import { isRecord } from "./validators/common.ts";
@@ -14,6 +14,7 @@ export type ConfigSet = {
   models: ModelsYaml;
   mcp: McpYaml;
   env: EnvYaml;
+  agents: AgentsYaml;
 };
 
 export type RawConfigSet = {
@@ -22,6 +23,7 @@ export type RawConfigSet = {
   models: unknown;
   mcp: unknown;
   env: unknown;
+  agents: unknown;
 };
 
 export type ConfigValidationResult =
@@ -29,7 +31,14 @@ export type ConfigValidationResult =
   | { ok: false; errors: ValidationError[] };
 
 export function validateConfigSet(input: RawConfigSet): ConfigValidationResult {
-  const errors = validateYamlConsistency(input.models, input.providers, input.global, input.mcp, input.env);
+  const errors = validateYamlConsistency(
+    input.models,
+    input.providers,
+    input.global,
+    input.mcp,
+    input.env,
+    input.agents,
+  );
   if (errors.length > 0) return { ok: false, errors };
   return {
     ok: true,
@@ -39,6 +48,7 @@ export function validateConfigSet(input: RawConfigSet): ConfigValidationResult {
       models: input.models as ModelsYaml,
       mcp: input.mcp as McpYaml,
       env: input.env as EnvYaml,
+      agents: input.agents as AgentsYaml,
     },
     errors: [],
   };
@@ -50,6 +60,7 @@ export function validateYamlConsistency(
   globalConfig: unknown,
   mcpConfig: unknown = { servers: {} },
   envConfig: unknown = { variables: {} },
+  agentsConfig: unknown = { agents: {} },
 ): ValidationError[] {
   const errors = validateYamlSchemaShapes({
     "global.yaml": globalConfig,
@@ -57,9 +68,10 @@ export function validateYamlConsistency(
     "models.yaml": modelsConfig,
     "mcp.yaml": mcpConfig,
     "env.yaml": envConfig,
+    "agents.yaml": agentsConfig,
   });
 
-  validateCrossFileReferences(errors, modelsConfig, providersConfig, globalConfig);
+  validateCrossFileReferences(errors, modelsConfig, providersConfig, globalConfig, agentsConfig);
   validateProviderUrls(errors, providersConfig);
   validateGlobalShellEnvironment(errors, globalConfig);
   validateMcpServers(errors, mcpConfig);
@@ -122,6 +134,7 @@ function validateCrossFileReferences(
   modelsConfig: unknown,
   providersConfig: unknown,
   globalConfig: unknown,
+  agentsConfig: unknown,
 ): void {
   if (!isRecord(globalConfig)) return;
   const models = isRecord(modelsConfig) ? modelsConfig : {};
@@ -142,6 +155,16 @@ function validateCrossFileReferences(
       file: "global.yaml",
       path: "provider",
       message: `global.provider 引用未定义提供商 '${providerId}'`,
+    });
+  }
+
+  if (!isRecord(agentsConfig) || !isRecord(agentsConfig.agents)) return;
+  for (const [agentId, agent] of Object.entries(agentsConfig.agents)) {
+    if (!isRecord(agent) || typeof agent.model !== "string" || !agent.model || models[agent.model]) continue;
+    errors.push({
+      file: "agents.yaml",
+      path: `agents.${agentId}.model`,
+      message: `agent '${agentId}' 引用未定义模型 '${agent.model}'`,
     });
   }
 }

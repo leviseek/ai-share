@@ -106,6 +106,7 @@ async function evaluateManagedSkills(root: string): Promise<MemoryEvalResult> {
       configToml: `${GENERATED_CONFIG_HEADER}\n`,
       instructions: `${GENERATED_INSTRUCTIONS_MARKER}\n`,
       envConfig: { variables: {} },
+      agentTomls: {},
       force: false,
     });
     const writes = new Set(
@@ -155,6 +156,7 @@ function temporaryPaths(tempRoot: string, projectRoot: string): GeneratorPaths {
     targetCodexEnv: resolve(codexHome, ".env"),
     targetCodexInstructions: resolve(codexHome, "AGENTS.md"),
     targetCodexSkillsDir: resolve(codexHome, "skills"),
+    targetCodexAgentsDir: resolve(codexHome, "agents"),
   };
 }
 

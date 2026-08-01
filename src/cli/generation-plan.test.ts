@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { GeneratorPaths } from "./paths.ts";
@@ -8,6 +8,7 @@ import {
   executeGenerationPlan,
   GENERATED_CONFIG_HEADER,
   GENERATED_INSTRUCTIONS_MARKER,
+  AGENT_GENERATED_HEADER,
   LEGACY_RUNTIME_MANIFEST,
   SKILL_MANAGED_CONTENT,
   SKILL_MANAGED_MARKER,
@@ -33,6 +34,141 @@ describe("generation plan", () => {
         ownership: "managed",
       });
       expect(existsSync(join(paths.targetCodexConfigDir, LEGACY_RUNTIME_MANIFEST))).toBe(false);
+      expect(readFileSync(join(paths.targetCodexAgentsDir, "commit.toml"), "utf8")).toStartWith(AGENT_GENERATED_HEADER);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("protects unmanaged agents and prunes only stale managed agent files", async () => {
+    const root = makeRoot();
+    try {
+      const paths = testPaths(root);
+      const commitPath = join(paths.targetCodexAgentsDir, "commit.toml");
+      const stalePath = join(paths.targetCodexAgentsDir, "stale.toml");
+      const userPath = join(paths.targetCodexAgentsDir, "user.toml");
+      write(commitPath, "# user commit agent\n");
+      write(stalePath, `${AGENT_GENERATED_HEADER}\nname = "stale"\n`);
+      write(userPath, 'name = "user"\n');
+
+      const rejected = await buildPlan(paths);
+      expect(rejected.collisions).toContainEqual({
+        path: commitPath,
+        reason: "unowned-collision",
+        ownership: "unmanaged",
+      });
+      expect(rejected.actions).toContainEqual({
+        kind: "delete",
+        path: stalePath,
+        reason: "stale-managed-agent",
+        ownership: "managed",
+      });
+      expect(rejected.preserved).toContainEqual({
+        path: userPath,
+        reason: "unmanaged-agent-preserved",
+        ownership: "unmanaged",
+      });
+
+      const adopted = await buildPlan(paths, true);
+      expect(adopted.collisions).toEqual([]);
+      expect(adopted.actions).toContainEqual({
+        kind: "update",
+        path: commitPath,
+        content: `${AGENT_GENERATED_HEADER}\nname = "commit"\n`,
+        reason: "force-adoption",
+        ownership: "unmanaged",
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("treats a non-file custom agent target as a collision and force replaces it atomically", async () => {
+    const root = makeRoot();
+    try {
+      const paths = testPaths(root);
+      const commitPath = join(paths.targetCodexAgentsDir, "commit.toml");
+      write(join(commitPath, "user.txt"), "user\n");
+
+      const rejected = await buildPlan(paths);
+      expect(rejected.collisions).toContainEqual({
+        path: commitPath,
+        reason: "blocking-path-collision",
+        ownership: "unmanaged",
+      });
+
+      const adopted = await buildPlan(paths, true);
+      expect(adopted.actions).toContainEqual({
+        kind: "update",
+        path: commitPath,
+        content: `${AGENT_GENERATED_HEADER}\nname = "commit"\n`,
+        reason: "force-replace-blocking-path",
+        ownership: "unmanaged",
+      });
+      await executeGenerationPlan(adopted, join(paths.targetCodexConfigDir, ".staging"));
+      expect(readFileSync(commitPath, "utf8")).toStartWith(AGENT_GENERATED_HEADER);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects unsafe custom agent ids before resolving output paths", async () => {
+    const root = makeRoot();
+    try {
+      const paths = testPaths(root);
+      const error = await captureError(
+        buildGenerationPlan({
+          paths,
+          configToml: `${GENERATED_CONFIG_HEADER}\nmodel = "test"\n`,
+          instructions: `${GENERATED_INSTRUCTIONS_MARKER}\n`,
+          envConfig: { variables: {} },
+          agentTomls: { "../../escape": `${AGENT_GENERATED_HEADER}\n` },
+          force: false,
+        }),
+      );
+      expect(String(error)).toContain("agent id 格式不符合要求");
+      expect(existsSync(join(root, "escape.toml"))).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("preserves a blocking agents path when no custom agents are configured", async () => {
+    const root = makeRoot();
+    try {
+      const paths = testPaths(root);
+      write(paths.targetCodexAgentsDir, "user blocking file\n");
+
+      const plan = await buildPlan(paths, false, {});
+      expect(plan.collisions).toEqual([]);
+      expect(plan.actions.some((action) => action.path === paths.targetCodexAgentsDir)).toBe(false);
+      expect(plan.preserved).toContainEqual({
+        path: paths.targetCodexAgentsDir,
+        reason: "unmanaged-agent-preserved",
+        ownership: "unmanaged",
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("treats a dangling custom agent symlink as an unmanaged collision", async () => {
+    const root = makeRoot();
+    try {
+      const paths = testPaths(root);
+      const commitPath = join(paths.targetCodexAgentsDir, "commit.toml");
+      const missingTarget = join(root, "missing-agent-dir");
+      mkdirSync(paths.targetCodexAgentsDir, { recursive: true });
+      mkdirSync(missingTarget, { recursive: true });
+      symlinkSync(missingTarget, commitPath, "junction");
+      rmSync(missingTarget, { recursive: true, force: true });
+
+      const plan = await buildPlan(paths);
+      expect(plan.collisions).toContainEqual({
+        path: commitPath,
+        reason: "blocking-path-collision",
+        ownership: "unmanaged",
+      });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -265,12 +401,19 @@ describe("generation plan", () => {
   });
 });
 
-async function buildPlan(paths: GeneratorPaths, force = false) {
+async function buildPlan(
+  paths: GeneratorPaths,
+  force = false,
+  agentTomls: Readonly<Record<string, string>> = {
+    commit: `${AGENT_GENERATED_HEADER}\nname = "commit"\n`,
+  },
+) {
   return await buildGenerationPlan({
     paths,
     configToml: `${GENERATED_CONFIG_HEADER}\nmodel = "test"\n`,
     instructions: `${GENERATED_INSTRUCTIONS_MARKER}\n`,
     envConfig: { variables: {} },
+    agentTomls,
     force,
   });
 }
@@ -290,6 +433,7 @@ function testPaths(root: string): GeneratorPaths {
     targetCodexEnv: join(codexHome, ".env"),
     targetCodexInstructions: join(codexHome, "AGENTS.md"),
     targetCodexSkillsDir: join(codexHome, "skills"),
+    targetCodexAgentsDir: join(codexHome, "agents"),
   };
 }
 

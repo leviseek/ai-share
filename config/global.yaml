@@ -2,7 +2,7 @@ model: gpt-5.5
 provider: codexapis
 
 # Version compatibility requirements
-codex_min_version: 0.134.0
+codex_min_version: 0.146.0
 
 # Windows Codex runtime hardening.
 # - Disable login shells so PowerShell profile hooks (for example Conda activation) cannot break sandboxed commands.

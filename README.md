@@ -54,6 +54,7 @@ bun run ai:bootstrap -- --skip-install
 | `config/models.yaml`   | `model_name` 与可选 `reasoning_effort: low \| medium \| high` |
 | `config/mcp.yaml`      | stdio 或 HTTP MCP server                                      |
 | `config/env.yaml`      | 可共享的非密钥 Codex `.env` 变量；默认 `variables: {}`        |
+| `config/agents.yaml`   | 用户级 custom agent、模型覆盖与 developer instructions        |
 
 固定对象拒绝未知字段。API Key 只能写成 `${ENV_NAME}` 引用；真实 key、token、cookie 或凭据不得进入仓库。
 
@@ -113,6 +114,12 @@ bun run ai:explain -- --json
 - validation、取消、运行错误或未受管 collision 时退出码为 `1`。
 - `--force` 能把 collision 安全转换为 `force-adoption` 计划时退出码为 `0`，但仍然零写入。
 
+## Commit custom agent
+
+`config/agents.yaml` 声明用户级 custom agents。默认 `commit` agent 固定使用 `gpt-5.5` 和 `low` reasoning；主会话的模型与 reasoning 不受影响。运行 `bun run ai:gen` 后，用户明确要求提交、推送或提交并推送时，当前会话会把对应 Git 操作委派给该 agent。未明确要求时不会执行 Git 写操作。
+
+`commit` agent 只暂存任务相关路径并运行相关检查。检查或 hook 失败时停止并回报；不使用 `--no-verify`、amend、rebase 或 force push。仅推送请求不会顺带提交工作区改动。
+
 ## 生成输出与所有权
 
 Codex 目录优先读取 `CODEX_HOME`，否则使用 `HOME`/`USERPROFILE` 下的 `.codex`：
@@ -121,6 +128,7 @@ Codex 目录优先读取 `CODEX_HOME`，否则使用 `HOME`/`USERPROFILE` 下的
 CODEX_HOME/config.toml
 CODEX_HOME/.env                         # 仅更新 ai-share managed block
 CODEX_HOME/AGENTS.md
+CODEX_HOME/agents/<agent>.toml
 CODEX_HOME/skills/<skill>/SKILL.md
 CODEX_HOME/skills/<skill>/.ai-share-managed
 ```
@@ -135,6 +143,7 @@ CODEX_HOME/skills/<skill>/.ai-share-managed
 - `.env` 只更新 managed block，block 外内容保持不变。
 - 只 prune 带 `.ai-share-managed` 的废弃 skill；用户 skill 保留。
 - 合法旧 manifest 仅用于一次迁移识别，成功后删除且不再生成。
+- `agents/*.toml` 只管理带 ai-share generated header 的文件；同名用户 agent 默认保留并报告冲突。
 
 ## 安全清理
 

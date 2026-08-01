@@ -84,6 +84,10 @@ describe("local config overlay", () => {
       );
       writeFileSync(join(root, "mcp.yaml"), "servers: {}\n");
       writeFileSync(join(root, "env.yaml"), "variables: {}\n");
+      writeFileSync(
+        join(root, "agents.yaml"),
+        "agents:\n  commit:\n    description: Commit changes\n    model: model-a\n    reasoning_effort: low\n    developer_instructions: Create a commit.\n",
+      );
       writeFileSync(join(root, "local", "global.yaml"), "model: model-b\n");
 
       const loaded = await loadValidatedConfigWithTrace(root);
@@ -92,12 +96,14 @@ describe("local config overlay", () => {
         model: "config/local/global.yaml",
         provider: "config/global.yaml",
       });
+      expect(loaded.config.agents.agents.commit?.model).toBe("model-a");
       expect(loaded.baseFiles).toEqual([
         "config/global.yaml",
         "config/provider.yaml",
         "config/models.yaml",
         "config/mcp.yaml",
         "config/env.yaml",
+        "config/agents.yaml",
       ]);
       expect(loaded.overlays).toEqual(["config/local/global.yaml"]);
     } finally {
