@@ -281,7 +281,8 @@ function runProbeResult(
 }
 
 function isMissingExecutable(result: InstallCommandResult): boolean {
-  return result.error?.message.includes("Executable not found") === true;
+  const message = result.error?.message ?? "";
+  return /Executable not found|ENOENT|uv_spawn/i.test(message);
 }
 
 async function hasOpenSpecSuperpowersConfig(projectRoot: string): Promise<boolean> {
