@@ -6,6 +6,12 @@ export const AGENT_ID_PATTERN = "^[a-z][a-z0-9_-]*$";
 export const SEMVER_PATTERN = "^\\d+\\.\\d+\\.\\d+$";
 export const HTTPS_URL_PATTERN = "^https://[^\\s]+$";
 export const HTTP_URL_PATTERN = "^https?://[^\\s]+$";
+const NPM_PACKAGE_ID_PATTERN = "(?:@[a-z0-9][a-z0-9._~-]*/[a-z0-9][a-z0-9._~-]*|[a-z0-9][a-z0-9._~-]*)";
+const DIST_TAG_PATTERN = "[A-Za-z][A-Za-z0-9._-]*";
+const SEMVER_IDENTIFIER_PATTERN = "(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][A-Za-z0-9-]*)";
+const EXACT_SEMVER_PATTERN = `(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-${SEMVER_IDENTIFIER_PATTERN}(?:\\.${SEMVER_IDENTIFIER_PATTERN})*)?`;
+const NPM_VERSION_PATTERN = `(?:${DIST_TAG_PATTERN}|[~^]?${EXACT_SEMVER_PATTERN})`;
+const NAMED_GIT_HTTPS_PATTERN = "git\\+https://[A-Za-z0-9.-]+(?::[0-9]+)?/[^\\s@?#]+";
 
 export type SchemaNode =
   | StringSchemaNode
@@ -29,7 +35,8 @@ export type YamlSchemaSourceFile =
   | "models.yaml"
   | "mcp.yaml"
   | "env.yaml"
-  | "agents.yaml";
+  | "agents.yaml"
+  | "plugins.yaml";
 
 type BaseSchemaNode = {
   description?: string;
@@ -188,6 +195,17 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
       },
     }),
   },
+  {
+    sourceFile: "plugins.yaml",
+    schemaFileName: "plugins.schema.json",
+    title: "ai-share plugins.yaml",
+    root: objectSchema({
+      required: ["plugins"],
+      properties: {
+        plugins: stringArraySchema("Safe npm package spec or named git+https plugin spec.", pluginSpecPattern()),
+      },
+    }),
+  },
 ];
 
 function stringSchema(description: string): Extract<SchemaNode, { type: "string" }> {
@@ -206,10 +224,10 @@ function envNameSchema(description: string): Extract<SchemaNode, { type: "string
   return { ...stringSchema(description), pattern: ENV_NAME_PATTERN };
 }
 
-function stringArraySchema(description: string): Extract<SchemaNode, { type: "array" }> {
+function stringArraySchema(description: string, pattern?: string): Extract<SchemaNode, { type: "array" }> {
   return {
     type: "array",
-    items: stringSchema(description),
+    items: pattern ? patternStringSchema(pattern, description) : stringSchema(description),
     description,
   };
 }
@@ -220,4 +238,8 @@ function objectSchema(input: Omit<ObjectSchemaNode, "type"> = {}): Extract<Schem
 
 function enumStringSchema(values: readonly string[], description: string): Extract<SchemaNode, { type: "string" }> {
   return { ...stringSchema(description), enum: values };
+}
+
+export function pluginSpecPattern(): string {
+  return `^${NPM_PACKAGE_ID_PATTERN}(?:@(?:${NPM_VERSION_PATTERN}|${NAMED_GIT_HTTPS_PATTERN}))?$`;
 }

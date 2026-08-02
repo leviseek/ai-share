@@ -88,7 +88,9 @@ describe("local config overlay", () => {
         join(root, "agents.yaml"),
         "agents:\n  commit:\n    description: Commit changes\n    model: model-a\n    reasoning_effort: low\n    mode: subagent\n    prompt: Create a commit.\n",
       );
+      writeFileSync(join(root, "plugins.yaml"), "plugins: []\n");
       writeFileSync(join(root, "local", "global.yaml"), "model: model-b\n");
+      writeFileSync(join(root, "local", "plugins.yaml"), "plugins:\n  - example-plugin\n");
 
       const loaded = await loadValidatedConfigWithTrace(root);
       expect(loaded.config.global).toEqual({ model: "model-b", provider: "provider-a" });
@@ -97,6 +99,8 @@ describe("local config overlay", () => {
         provider: "config/global.yaml",
       });
       expect(loaded.config.agents.agents.commit?.model).toBe("model-a");
+      expect(loaded.config.plugins).toEqual({ plugins: ["example-plugin"] });
+      expect(loaded.provenance.plugins).toEqual({ plugins: "config/local/plugins.yaml" });
       expect(loaded.baseFiles).toEqual([
         "config/global.yaml",
         "config/provider.yaml",
@@ -104,8 +108,9 @@ describe("local config overlay", () => {
         "config/mcp.yaml",
         "config/env.yaml",
         "config/agents.yaml",
+        "config/plugins.yaml",
       ]);
-      expect(loaded.overlays).toEqual(["config/local/global.yaml"]);
+      expect(loaded.overlays).toEqual(["config/local/global.yaml", "config/local/plugins.yaml"]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

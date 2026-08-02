@@ -1,5 +1,6 @@
 import { relative, sep } from "node:path";
 import { requireEnvReferenceName } from "../config/env-ref.ts";
+import { parsePluginSpec } from "../config/validators/plugins.ts";
 import type { GenerationPreview } from "../generation-preview.ts";
 import type { MemoryDecision, MemoryExclusion } from "../memory/retrieval.ts";
 import type { ProviderDecision, TaskDecision } from "./options.ts";
@@ -17,7 +18,7 @@ export type ExplainPlanEntry = {
 };
 
 export type ExplainReport = {
-  schema_version: 2;
+  schema_version: 3;
   status: ExplainStatus;
   inputs: {
     force: boolean;
@@ -42,6 +43,7 @@ export type ExplainReport = {
     mcp_server_ids: string[];
     managed_env_names: string[];
     agent_ids: string[];
+    plugin_ids: string[];
   };
   memory: {
     fixed_paths: string[];
@@ -71,7 +73,7 @@ export function buildExplainReport(preview: GenerationPreview): ExplainReport {
   const task = preview.taskDecision;
 
   return {
-    schema_version: 2,
+    schema_version: 3,
     status: preview.plan.collisions.length > 0 ? "collision" : "ok",
     inputs: {
       force: preview.options.force,
@@ -96,6 +98,7 @@ export function buildExplainReport(preview: GenerationPreview): ExplainReport {
       mcp_server_ids: Object.keys(config.mcp.servers).sort(compareText),
       managed_env_names: Object.keys(config.env.variables).sort(compareText),
       agent_ids: Object.keys(config.agents.agents).sort(compareText),
+      plugin_ids: config.plugins.plugins.map(pluginPackageId),
     },
     memory: {
       fixed_paths: preview.instructionsSelection.fixedPaths.map((path) =>
@@ -119,7 +122,7 @@ export function buildExplainErrorReport(input: {
   const providerDecision = input.providerDecision ?? { id: "", source: "global-config" };
   const taskDecision = input.taskDecision ?? { source: "none" };
   return {
-    schema_version: 2,
+    schema_version: 3,
     status: "error",
     inputs: {
       force: input.force,
@@ -146,6 +149,7 @@ export function buildExplainErrorReport(input: {
       mcp_server_ids: [],
       managed_env_names: [],
       agent_ids: [],
+      plugin_ids: [],
     },
     memory: {
       fixed_paths: [],
@@ -198,4 +202,10 @@ function cloneMemoryDecision(decision: MemoryDecision): MemoryDecision {
 
 function compareText(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function pluginPackageId(spec: string): string {
+  const parsed = parsePluginSpec(spec);
+  if (!parsed) throw new Error("插件配置未通过安全校验。");
+  return parsed.packageId;
 }

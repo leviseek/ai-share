@@ -14,6 +14,10 @@ export type AgentsYaml = {
   agents: Record<string, AgentSource>;
 };
 
+export type PluginsYaml = {
+  plugins: string[];
+};
+
 export type AgentSource = {
   description: string;
   model?: string;

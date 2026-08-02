@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { buildGenerationPreview } from "../generation-preview.ts";
-import { buildExplainReport } from "./explain-report.ts";
-import { createExplainTestFixture } from "./explain-test-fixture.ts";
+import { buildExplainErrorReport, buildExplainReport } from "./explain-report.ts";
+import { createExplainTestFixture, write } from "./explain-test-fixture.ts";
 
 describe("explain report", () => {
   test("projects traced decisions without generated content or environment values", async () => {
@@ -15,7 +15,7 @@ describe("explain report", () => {
       });
       const report = buildExplainReport(preview);
 
-      expect(report.schema_version).toBe(2);
+      expect(report.schema_version).toBe(3);
       expect(report.status).toBe("ok");
       expect(report.inputs.provider).toEqual({
         id: "provider-a",
@@ -38,11 +38,13 @@ describe("explain report", () => {
         "config/mcp.yaml",
         "config/env.yaml",
         "config/agents.yaml",
+        "config/plugins.yaml",
       ]);
       expect(report.config.active_overlays).toEqual(["config/local/provider.yaml", "config/local/env.yaml"]);
       expect(report.config.mcp_server_ids).toEqual(["filesystem"]);
       expect(report.config.managed_env_names).toEqual(["HTTP_PROXY"]);
       expect(report.config.agent_ids).toEqual(["commit"]);
+      expect(report.config.plugin_ids).toEqual([]);
       expect(report.memory.fixed_paths).toEqual([
         "AI_GUIDELINES.md",
         "memory/policies/ai-execution-contract.md",
@@ -68,5 +70,36 @@ describe("explain report", () => {
     } finally {
       fixture.cleanup();
     }
+  });
+
+  test("projects only safe plugin package IDs in configured order", async () => {
+    const fixture = createExplainTestFixture();
+    try {
+      write(
+        `${fixture.root}/config/plugins.yaml`,
+        "plugins:\n  - opencode-zeta@1.2.3\n  - '@scope/opencode-alpha@next'\n  - superpowers@git+https://github.com/obra/superpowers.git\n",
+      );
+      const preview = await buildGenerationPreview({
+        options: { force: false, provider: "provider-a" },
+        env: fixture.env,
+        projectRoot: fixture.root,
+        interactiveProviderSelection: false,
+      });
+
+      expect(buildExplainReport(preview).config.plugin_ids).toEqual([
+        "opencode-zeta",
+        "@scope/opencode-alpha",
+        "superpowers",
+      ]);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test("uses the current schema and an empty plugin list for error reports", () => {
+    const report = buildExplainErrorReport({ code: "runtime", messages: ["failed"], force: false });
+
+    expect(report.schema_version).toBe(3);
+    expect(report.config.plugin_ids).toEqual([]);
   });
 });

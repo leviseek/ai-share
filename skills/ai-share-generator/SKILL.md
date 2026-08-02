@@ -15,6 +15,7 @@ Use this skill when modifying YAML sources, OpenCode config builders, native ski
 - `config/mcp.yaml`: OpenCode local/remote MCP sources.
 - `config/env.yaml`: shared non-secret `aioc` environment; machine-local values use `config/local/env.yaml`.
 - `config/agents.yaml`: OpenCode custom agents, mode, prompt, model, and reasoning overrides.
+- `config/plugins.yaml`: ordered safe npm package specs or named `git+https` plugin specs.
 
 ## Implementation Map
 
@@ -40,6 +41,7 @@ Use this skill when modifying YAML sources, OpenCode config builders, native ski
 ## Safety
 
 - Keep secrets as env-var references only; generated providers use `{env:NAME}`.
+- Reject plugin URL credentials, query/hash, local paths, `file://`, and secret literals; explain output exposes package IDs only.
 - `config/env.yaml` is non-secret and only fills missing process variables through `aioc`.
 - `--force` adopts outputs only and never bypasses validation.
 - `ai:explain` stays read-only and offline; never expose generated content or env values.

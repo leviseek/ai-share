@@ -46,6 +46,7 @@ export function renderExplainReport(report: ExplainReport, useColor: boolean): s
   appendList(lines, "MCP server ID", report.config.mcp_server_ids);
   appendList(lines, "受管 env 名称", report.config.managed_env_names);
   appendList(lines, "Agent ID", report.config.agent_ids);
+  appendList(lines, "Plugin ID", report.config.plugin_ids);
 
   lines.push("", sectionTitle("3. Memory 选择", palette));
   appendList(lines, "固定路径", report.memory.fixed_paths);

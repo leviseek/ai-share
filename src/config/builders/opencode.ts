@@ -33,6 +33,7 @@ export function buildOpenCodeConfig(
     skills: { paths: [skillsDir] },
     provider: { [providerId]: buildOpenCodeProvider(config, providerId) },
     agent: buildOpenCodeAgents(config, providerId),
+    ...(config.plugins.plugins.length > 0 ? { plugin: [...config.plugins.plugins] } : {}),
     ...(Object.keys(mcp).length > 0 ? { mcp } : {}),
   };
 }

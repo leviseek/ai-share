@@ -1,9 +1,10 @@
-import type { AgentsYaml, EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProviderYaml } from "../types.ts";
+import type { AgentsYaml, EnvYaml, GlobalYaml, McpYaml, ModelsYaml, PluginsYaml, ProviderYaml } from "../types.ts";
 import { isSensitiveName } from "../security/secret-patterns.ts";
 import type { ValidationError } from "./validators/common.ts";
 import { isRecord } from "./validators/common.ts";
 import { validateOpenCodeEnv } from "./validators/env.ts";
 import { validateMcpServers } from "./validators/mcp.ts";
+import { validatePlugins } from "./validators/plugins.ts";
 import { validateYamlSchemaShapes } from "./validators/schema-shape.ts";
 
 export type { ValidationError } from "./validators/common.ts";
@@ -15,6 +16,7 @@ export type ConfigSet = {
   mcp: McpYaml;
   env: EnvYaml;
   agents: AgentsYaml;
+  plugins: PluginsYaml;
 };
 
 export type RawConfigSet = {
@@ -24,6 +26,7 @@ export type RawConfigSet = {
   mcp: unknown;
   env: unknown;
   agents: unknown;
+  plugins: unknown;
 };
 
 export type ConfigValidationResult =
@@ -38,6 +41,7 @@ export function validateConfigSet(input: RawConfigSet): ConfigValidationResult {
     input.mcp,
     input.env,
     input.agents,
+    input.plugins,
   );
   if (errors.length > 0) return { ok: false, errors };
   return {
@@ -49,6 +53,7 @@ export function validateConfigSet(input: RawConfigSet): ConfigValidationResult {
       mcp: input.mcp as McpYaml,
       env: input.env as EnvYaml,
       agents: input.agents as AgentsYaml,
+      plugins: input.plugins as PluginsYaml,
     },
     errors: [],
   };
@@ -61,6 +66,7 @@ export function validateYamlConsistency(
   mcpConfig: unknown = { servers: {} },
   envConfig: unknown = { variables: {} },
   agentsConfig: unknown = { agents: {} },
+  pluginsConfig: unknown = { plugins: [] },
 ): ValidationError[] {
   const errors = validateYamlSchemaShapes({
     "global.yaml": globalConfig,
@@ -69,12 +75,14 @@ export function validateYamlConsistency(
     "mcp.yaml": mcpConfig,
     "env.yaml": envConfig,
     "agents.yaml": agentsConfig,
+    "plugins.yaml": pluginsConfig,
   });
 
   validateCrossFileReferences(errors, modelsConfig, providersConfig, globalConfig, agentsConfig);
   validateProviderUrls(errors, providersConfig);
   validateMcpServers(errors, mcpConfig);
   validateOpenCodeEnv(errors, envConfig);
+  validatePlugins(errors, pluginsConfig);
   return errors;
 }
 

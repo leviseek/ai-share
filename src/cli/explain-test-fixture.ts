@@ -42,6 +42,7 @@ export function createExplainTestFixture(): ExplainTestFixture {
     join(root, "config", "agents.yaml"),
     "agents:\n  commit:\n    description: Commit changes\n    model: model-a\n    reasoning_effort: low\n    mode: subagent\n    prompt: Create a commit.\n",
   );
+  write(join(root, "config", "plugins.yaml"), "plugins: []\n");
   write(join(root, "config", "local", "env.yaml"), "variables:\n  HTTP_PROXY: http://127.0.0.1:7897\n");
   write(
     join(root, "memory", "architecture", "windows-transactions.md"),

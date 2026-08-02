@@ -64,6 +64,7 @@ function writeConfig(root: string): void {
     join(root, "config", "agents.yaml"),
     "agents:\n  commit:\n    description: Commit changes\n    model: model-a\n    reasoning_effort: low\n    mode: subagent\n    prompt: Create a commit.\n",
   );
+  write(join(root, "config", "plugins.yaml"), "plugins: []\n");
 }
 
 function write(path: string, content: string): void {

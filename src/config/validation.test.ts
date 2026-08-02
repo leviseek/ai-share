@@ -9,6 +9,83 @@ describe("strict config validation", () => {
     if (result.ok) {
       expect(result.config.global).toEqual({ model: "model-a", provider: "provider-a" });
       expect(result.config.agents).toEqual({ agents: {} });
+      expect(result.config.plugins).toEqual({ plugins: [] });
+    }
+  });
+
+  test("rejects empty plugin names and unknown fields", () => {
+    const fixture = validConfig();
+    fixture.plugins = { plugins: ["valid-plugin", ""], unknown: true };
+
+    const result = validateConfigSet(fixture);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("invalid plugin fixture unexpectedly passed validation");
+    const paths = result.errors.map((finding) => finding.path);
+    expect(paths).toContain("plugins[1]");
+    expect(paths).toContain("unknown");
+    expect(result.errors.every((finding) => finding.file === "plugins.yaml")).toBe(true);
+  });
+
+  test("accepts npm package specs and named git+https plugin specs", () => {
+    const fixture = validConfig();
+    fixture.plugins = {
+      plugins: [
+        "opencode-example",
+        "opencode-example@latest",
+        "opencode-example@^1.2.3",
+        "opencode-example@~1.2.3",
+        "@scope/opencode-example@1.2.3-beta.1",
+        "superpowers@git+https://github.com/obra/superpowers.git",
+      ],
+    };
+
+    expect(validateConfigSet(fixture).ok).toBe(true);
+  });
+
+  test("rejects npm sources outside the supported safe subset", () => {
+    for (const plugin of [
+      "pkg@ ",
+      "pkg@|",
+      "pkg@+",
+      "pkg@latest ",
+      "pkg@1.2.3 || ",
+      "pkg@>=1.2.3",
+      "pkg@^1.2",
+      "pkg@1.2.3 trailing",
+    ]) {
+      const fixture = validConfig();
+      fixture.plugins = { plugins: [plugin] };
+      expect(validateConfigSet(fixture).ok).toBe(false);
+    }
+  });
+
+  test("rejects unsafe plugin URLs, paths and secret literals", () => {
+    const rejectedSpecs = [
+      "superpowers@git+https://user:password@github.com/obra/superpowers.git",
+      "superpowers@git+https://github.com/obra/superpowers.git?ref=main",
+      "superpowers@git+https://github.com/obra/superpowers.git#main",
+      "file:///opt/opencode/plugin.js",
+      "https://user:password@example.test/plugin.js",
+      "/opt/opencode/plugin.js",
+      "C:\\Users\\example\\plugin.js",
+      "\\\\server\\share\\plugin.js",
+      "./plugin.js",
+      "../plugin.js",
+      "~/plugin.js",
+      "sk-1234567890abcdef",
+      "opencode-example@sk-1234567890abcdef",
+      "@scope/sk-1234567890abcdef",
+      "opencode-sk-1234567890abcdef-plugin",
+      "pkg@git+https://github.com/org/sk-1234567890abcdef/repo.git",
+    ];
+
+    for (const plugin of rejectedSpecs) {
+      const fixture = validConfig();
+      fixture.plugins = { plugins: [plugin] };
+      const result = validateConfigSet(fixture);
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error(`unsafe plugin fixture unexpectedly passed validation: ${plugin}`);
+      expect(result.errors.map((finding) => finding.path)).toContain("plugins[0]");
     }
   });
 
@@ -192,7 +269,7 @@ describe("strict config validation", () => {
   });
 });
 
-function validConfig(): Record<"global" | "providers" | "models" | "mcp" | "env" | "agents", unknown> {
+function validConfig(): Record<"global" | "providers" | "models" | "mcp" | "env" | "agents" | "plugins", unknown> {
   return {
     global: { model: "model-a", provider: "provider-a" },
     providers: {
@@ -204,10 +281,13 @@ function validConfig(): Record<"global" | "providers" | "models" | "mcp" | "env"
     mcp: { servers: {} },
     env: { variables: {} },
     agents: { agents: {} },
+    plugins: { plugins: [] },
   };
 }
 
-function errors(fixture: Record<"global" | "providers" | "models" | "mcp" | "env" | "agents", unknown>): string[] {
+function errors(
+  fixture: Record<"global" | "providers" | "models" | "mcp" | "env" | "agents" | "plugins", unknown>,
+): string[] {
   return validateYamlConsistency(
     fixture.models,
     fixture.providers,
@@ -215,5 +295,6 @@ function errors(fixture: Record<"global" | "providers" | "models" | "mcp" | "env
     fixture.mcp,
     fixture.env,
     fixture.agents,
+    fixture.plugins,
   ).map((error) => error.message);
 }

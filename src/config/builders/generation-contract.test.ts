@@ -26,6 +26,7 @@ describe("OpenCode generation contract", () => {
     expect(parsed.enabled_providers).toEqual(["packyapi"]);
     expect(parsed.instructions).toEqual(["/memory/policy.md", "/memory/user.yaml"]);
     expect(parsed.skills).toEqual({ paths: ["/opencode/skills"] });
+    expect(parsed.plugin).toBeUndefined();
     const provider = parsed.provider.packyapi;
     expect(provider).toBeDefined();
     if (!provider) throw new Error("packyapi provider is missing");
@@ -55,6 +56,21 @@ describe("OpenCode generation contract", () => {
     expect(agent.model).toBe("packyapi/gpt-5.5");
     expect(agent.options).toEqual({ reasoningEffort: "low" });
     expect(agent.prompt).toContain("git status --short");
+  });
+
+  test("emits enabled plugins using the OpenCode plugin field", () => {
+    const config = loadFixture();
+    config.plugins = {
+      plugins: ["opencode-example@1.2.3", "superpowers@git+https://github.com/obra/superpowers.git"],
+    };
+
+    const output = formatOpenCodeConfigJsonc(buildOpenCodeConfig(config, "packyapi", [], "/opencode/skills"));
+    const parsed = JSON.parse(output.slice(output.indexOf("{"))) as OpenCodeConfig;
+
+    expect(parsed.plugin).toEqual([
+      "opencode-example@1.2.3",
+      "superpowers@git+https://github.com/obra/superpowers.git",
+    ]);
   });
 
   test("formats and updates the managed env block", () => {
@@ -132,6 +148,7 @@ function loadFixture(): ConfigSet {
     mcp: loadYaml("mcp.yaml") as ConfigSet["mcp"],
     env: loadYaml("env.yaml") as ConfigSet["env"],
     agents: loadYaml("agents.yaml") as ConfigSet["agents"],
+    plugins: loadYaml("plugins.yaml") as ConfigSet["plugins"],
   };
 }
 

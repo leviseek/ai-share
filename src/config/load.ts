@@ -1,7 +1,15 @@
 import { loadConfigYamlWithTrace } from "./local-overlay.ts";
 import { validateConfigSet, type ConfigSet, type ValidationError } from "./validation.ts";
 
-const CONFIG_FILES = ["global.yaml", "provider.yaml", "models.yaml", "mcp.yaml", "env.yaml", "agents.yaml"] as const;
+const CONFIG_FILES = [
+  "global.yaml",
+  "provider.yaml",
+  "models.yaml",
+  "mcp.yaml",
+  "env.yaml",
+  "agents.yaml",
+  "plugins.yaml",
+] as const;
 
 export async function loadValidatedConfig(configDir: string): Promise<ConfigSet> {
   return (await loadValidatedConfigWithTrace(configDir)).config;
@@ -14,6 +22,7 @@ export type ConfigProvenance = {
   mcp: Record<string, string>;
   env: Record<string, string>;
   agents: Record<string, string>;
+  plugins: Record<string, string>;
 };
 
 export type LoadedValidatedConfig = {
@@ -24,13 +33,14 @@ export type LoadedValidatedConfig = {
 };
 
 export async function loadValidatedConfigWithTrace(configDir: string): Promise<LoadedValidatedConfig> {
-  const [global, providers, models, mcp, env, agents] = await Promise.all([
+  const [global, providers, models, mcp, env, agents, plugins] = await Promise.all([
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[0]),
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[1]),
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[2]),
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[3]),
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[4]),
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[5]),
+    loadConfigYamlWithTrace(configDir, CONFIG_FILES[6]),
   ]);
   const result = validateConfigSet({
     global: global.value,
@@ -39,9 +49,10 @@ export async function loadValidatedConfigWithTrace(configDir: string): Promise<L
     mcp: mcp.value,
     env: env.value,
     agents: agents.value,
+    plugins: plugins.value,
   });
   if (!result.ok) throw new ConfigValidationError(result.errors);
-  const loaded = [global, providers, models, mcp, env, agents];
+  const loaded = [global, providers, models, mcp, env, agents, plugins];
   return {
     config: result.config,
     provenance: {
@@ -51,6 +62,7 @@ export async function loadValidatedConfigWithTrace(configDir: string): Promise<L
       mcp: mcp.sources,
       env: env.sources,
       agents: agents.sources,
+      plugins: plugins.sources,
     },
     baseFiles: loaded.map((entry) => entry.base),
     overlays: loaded.flatMap((entry) => (entry.overlay ? [entry.overlay] : [])),

@@ -29,6 +29,7 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.sisyphus/evidence/`, `
 | ------------------------------------- | ----------------------------------------------- | -------------------------------------------------- |
 | Change providers/models/default model | `config/*.yaml`                                 | Canonical inputs; generated files are outputs      |
 | `aioc` runtime variables              | `config/env.yaml`                               | Non-secret runtime env only                        |
+| OpenCode plugins                      | `config/plugins.yaml`                           | Safe npm or named `git+https` specs                |
 | Generator orchestration               | `src/generate-user-config.ts`                   | Loads YAML, builds configs, writes/install outputs |
 | OpenCode config shape                 | `src/config/builders/opencode.ts`               | JSONC config, model providers, agents, MCP         |
 | YAML schema and runtime shape checks  | `src/config/schema-spec.ts`                     | Single source for JSON Schema and shape validation |
@@ -59,6 +60,7 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.sisyphus/evidence/`, `
 - YAML field shape rules live in `src/config/schema-spec.ts`; JSON Schema output and runtime shape validation must derive from it.
 - Secrets policy is env-only: API keys are env-var references; never write real keys/tokens/cookies into repo files.
 - `config/env.yaml` may manage local proxy variables for the OpenCode config `.env`, but must not contain API keys, tokens, `PATH`, `AI_SHARE_*`, or `OPENCODE_*`.
+- `config/plugins.yaml` accepts npm package specs and named `git+https` specs only; explain output exposes package IDs, not versions or URLs.
 - TypeScript is strict: `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `noUnused*`, `isolatedDeclarations`, `erasableSyntaxOnly`.
 - User-facing thrown errors in generator code are Chinese.
 - Prettier: 2 spaces, double quotes, semicolons, trailing commas, LF, print width 120.

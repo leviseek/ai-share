@@ -6,6 +6,7 @@ export type OpenCodeConfig = {
   skills: { paths: string[] };
   provider: Record<string, OpenCodeProvider>;
   agent: Record<string, OpenCodeAgent>;
+  plugin?: string[];
   mcp?: Record<string, OpenCodeMcpServer>;
 };
 

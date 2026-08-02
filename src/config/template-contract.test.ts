@@ -12,9 +12,9 @@ describe("shareable config template", () => {
       buildOpenCodeConfig(config, config.global.provider, ["/example/AI_GUIDELINES.md"], "/example/skills"),
     );
     expect(config.global.provider).toBe("example-openai-compatible");
+    expect(config.plugins).toEqual({ plugins: [] });
     expect(output).toContain('"example-openai-compatible"');
-    expect((): void => {
-      JSON.parse(output.slice(output.indexOf("{")));
-    }).not.toThrow();
+    const parsed = JSON.parse(output.slice(output.indexOf("{"))) as Record<string, unknown>;
+    expect(parsed.plugin).toBeUndefined();
   });
 });

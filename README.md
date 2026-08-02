@@ -31,6 +31,16 @@ bun run ai:bootstrap
 bun run ai:bootstrap -- --skip-install
 ```
 
+在 Windows 或 macOS 上，可使用安装器交互式检查并安装 AI 开发环境：
+
+```sh
+bun run ai:install
+```
+
+OpenCode CLI、OpenCode Desktop 和 WezTerm 为必装项；OpenSpec、Superpowers 和 CodeGraph 可选。安装器会在执行前显示确定的命令参数，只执行这些 `pnpm`、Scoop 或 Homebrew 命令，不会自动安装包管理器，也不会在 Linux 上运行。已检测到的工具会在第二个菜单中提供可选升级，默认不升级。
+
+Superpowers 使用官方 canonical Git plugin spec，并写入被 Git 忽略的 `config/local/plugins.yaml`；安装完成后调用 `bun run ai:gen`。该配置写入和生成步骤失败时会回滚 overlay，但包管理器已完成的外部安装无法事务化撤销。Superpowers 目前不提供独立升级动作，因此不会出现在升级菜单中。
+
 生成完成后使用 `aioc` 启动；直接运行 `opencode` 也可使用相同配置，但不会加载 ai-share managed `.env` 中的代理变量。
 
 ## 配置源
@@ -43,8 +53,11 @@ bun run ai:bootstrap -- --skip-install
 | `config/mcp.yaml`      | stdio 或 HTTP MCP server                                           |
 | `config/env.yaml`      | `aioc` 注入的共享非密钥环境变量                                    |
 | `config/agents.yaml`   | OpenCode custom agent、模型、mode、prompt 与 reasoning 覆盖        |
+| `config/plugins.yaml`  | OpenCode plugins；基础配置为空数组，可由本机 overlay 整体替换      |
 
 固定对象拒绝未知字段。API Key 只能写成 `${ENV_NAME}` 引用；生成的 OpenCode 配置会转换为 `{env:ENV_NAME}`，不会读取或持久化真实值。
+
+插件仅接受 npm package spec 或 `package-name@git+https://...`；拒绝 URL 凭据、query/hash、`file://`、本机路径和明文 secret。`ai:explain` 只展示 package ID，生成配置保留完整且已验证的 spec。
 
 生成器先读取 `config/*.yaml`，再深合并同名 `config/local/*.yaml`：object 深合并，数组和标量替换。当前机器的代理等非密钥值放在被 Git 忽略的 `config/local/env.yaml`：
 
@@ -84,7 +97,7 @@ bun run ai:explain -- --force
 bun run ai:explain -- --json
 ```
 
-JSON 接口当前为 `schema_version: 2`。报告只包含来源、env 名称、memory 决策和 plan metadata，不包含 env 值、生成内容或凭据。未受管 collision 返回 `1`；`--force` 仅模拟显式接管。
+JSON 接口当前为 `schema_version: 3`。报告只包含来源、env 名称、启用的插件 ID、memory 决策和 plan metadata，不包含 env 值、生成内容或凭据。未受管 collision 返回 `1`；`--force` 仅模拟显式接管。
 
 ## Custom agent
 
