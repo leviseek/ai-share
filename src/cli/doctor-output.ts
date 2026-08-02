@@ -24,7 +24,8 @@ export function renderDoctorReport(report: DoctorReport, providerId: string, use
     `Provider: ${providerId}  在线检查: ${report.online ? "已启用" : "未启用"}  耗时: ${report.elapsed_ms}ms`,
   );
   const lines = [
-    palette.bold(palette.cyan("AI Doctor")) + `  ${paintStatus(report.status, `${statusIcon} ${report.status.toUpperCase()}`, palette)}`,
+    palette.bold(palette.cyan("AI Doctor")) +
+      `  ${paintStatus(report.status, `${statusIcon} ${report.status.toUpperCase()}`, palette)}`,
     metadata,
   ];
   const toolCheck = report.checks.find((check) => check.name === "tools");
@@ -54,14 +55,20 @@ export function renderDoctorReport(report: DoctorReport, providerId: string, use
 
 function appendTableCheck(lines: string[], check: DoctorCheck, palette: ColorPalette): void {
   const symbol = check.status === "ok" ? "✓" : check.status === "warning" ? "!" : "✗";
-  lines.push(`${paintStatus(check.status, symbol, palette)} ${palette.bold(check.name)}${palette.white(":")} ${check.summary}`);
-  if (typeof check.details === "string") lines.push(...check.details.split(/\r?\n/).map((line) => palette.white(`  ${line}`)));
+  lines.push(
+    `${paintStatus(check.status, symbol, palette)} ${palette.bold(check.name)}${palette.white(":")} ${check.summary}`,
+  );
+  if (typeof check.details === "string")
+    lines.push(...check.details.split(/\r?\n/).map((line) => palette.white(`  ${line}`)));
 }
 
 function appendCheck(lines: string[], check: DoctorCheck, palette: ColorPalette): void {
   const symbol = check.status === "ok" ? "✓" : check.status === "warning" ? "!" : "✗";
-  lines.push(`${paintStatus(check.status, symbol, palette)} ${palette.bold(check.name)}${palette.white(":")} ${check.summary}`);
-  if (typeof check.details === "string") lines.push(...check.details.split(/\r?\n/).map((line) => palette.white(`  ${line}`)));
+  lines.push(
+    `${paintStatus(check.status, symbol, palette)} ${palette.bold(check.name)}${palette.white(":")} ${check.summary}`,
+  );
+  if (typeof check.details === "string")
+    lines.push(...check.details.split(/\r?\n/).map((line) => palette.white(`  ${line}`)));
 }
 
 function formatToolLine(line: string, palette: ColorPalette): string {

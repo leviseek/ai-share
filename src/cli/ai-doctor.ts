@@ -48,7 +48,11 @@ checks.push(
   {
     name: "tools",
     status: !installResult.ok ? "error" : installResult.tools.every((tool) => tool.installed) ? "ok" : "warning",
-    summary: !installResult.ok ? "工具检测失败。" : installResult.hints.length === 0 ? "工具已安装并配置。" : "工具未全部安装或仍有使用提示。",
+    summary: !installResult.ok
+      ? "工具检测失败。"
+      : installResult.hints.length === 0
+        ? "工具已安装并配置。"
+        : "工具未全部安装或仍有使用提示。",
     details: formatInstallRunResult(installResult, false),
   },
   diagnosticCheck(

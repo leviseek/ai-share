@@ -72,7 +72,10 @@ export async function runInstall(
     const config = await loadValidatedConfig(paths.configDir);
     const runner = input.runner ?? spawnInstallCommand;
     const userPluginSpecs = await readUserPluginSpecs(paths.targetOpenCodeConfig);
-    const detected = await detectInstalledTools(platform, tmpdir(), runner, [...config.plugins.plugins, ...userPluginSpecs]);
+    const detected = await detectInstalledTools(platform, tmpdir(), runner, [
+      ...config.plugins.plugins,
+      ...userPluginSpecs,
+    ]);
     const tools = INSTALL_TOOLS.map((tool) => ({
       id: tool.id,
       label: tool.label,
