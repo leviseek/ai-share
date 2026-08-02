@@ -1,6 +1,6 @@
 ---
 name: ai-share-generator
-description: Use when changing config/*.yaml, OpenCode builders, generated OpenCode config, aioc, ai:gen, ai:explain, or ai:check behavior.
+description: Use when changing config/*.yaml, OpenCode builders, generated OpenCode config, aioc, ai:gen, ai:explain, ai:check, or ai:help behavior.
 ---
 
 # AI Share Generator

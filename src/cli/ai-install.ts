@@ -131,48 +131,9 @@ export function formatInstallRunResult(
     const status = tool.installed ? palette.green("已安装") : palette.yellow("未安装");
     lines.push(`- ${tool.label}：${status}`);
   }
-  const usageHints = result.hints.filter(
-    (hint) => hint.kind === "configure-openspec" || hint.kind === "configure-openspec-after-install",
-  );
-  const openspecInstalled = result.tools.some((tool) => tool.id === "openspec" && tool.installed);
-  const codegraphInstalled = result.tools.some((tool) => tool.id === "codegraph" && tool.installed);
-  const superpowersInstalled = result.tools.some((tool) => tool.id === "superpowers" && tool.installed);
-  if (usageHints.length > 0 || openspecInstalled || codegraphInstalled || superpowersInstalled) {
-    lines.push("", palette.bold(palette.cyan("使用提示：")));
-    if (usageHints.length > 0 || openspecInstalled) {
-      lines.push(palette.bold(palette.cyan("OpenSpec")));
-      for (const hint of usageHints) {
-        const prefix = hint.kind === "configure-openspec" ? "初始化" : "安装后初始化";
-        lines.push(palette.yellow(`  ${prefix}`));
-        lines.push(palette.white(`    在项目根目录执行：${hint.command} ${hint.args.join(" ")}`));
-      }
-      if (openspecInstalled) {
-        lines.push(palette.yellow("  会话使用"));
-        lines.push(palette.white("    启动 OpenCode 后，直接描述需求，例如：使用 OpenSpec 创建变更提案"));
-      }
-    }
-    if (codegraphInstalled) {
-      if (usageHints.length > 0 || openspecInstalled) lines.push("");
-      lines.push(palette.bold(palette.cyan("CodeGraph")));
-      lines.push(palette.yellow("  会话使用"));
-      lines.push(palette.white("    启动 OpenCode 后，直接请求：使用 CodeGraph 分析当前项目代码"));
-    }
-    if (superpowersInstalled) {
-      if (usageHints.length > 0 || openspecInstalled || codegraphInstalled) lines.push("");
-      lines.push(palette.bold(palette.cyan("Superpowers")));
-      lines.push(palette.yellow("  会话使用"));
-      lines.push(palette.white("    启动 OpenCode 后，直接请求：使用 Superpowers 执行当前任务"));
-    }
-  }
   if (result.hints.length === 0) return [...lines, palette.green("所有工具均已安装或配置。")].join("\n");
   const installHints = result.hints.filter((hint) => hint.kind === "command" || hint.kind === "prepare-scoop-extras");
-  const configHints = result.hints.filter(
-    (hint) =>
-      hint.kind !== "command" &&
-      hint.kind !== "prepare-scoop-extras" &&
-      hint.kind !== "configure-openspec" &&
-      hint.kind !== "configure-openspec-after-install",
-  );
+  const configHints = result.hints.filter((hint) => hint.kind !== "command" && hint.kind !== "prepare-scoop-extras");
   if (installHints.length > 0) {
     lines.push("", palette.bold(palette.yellow("安装指令：")));
     for (const hint of installHints) {
@@ -189,8 +150,40 @@ export function formatInstallRunResult(
     } else if (hint.kind === "configure-openspec-superpowers") {
       lines.push(palette.magenta("- OpenSpec：已安装 Superpowers，但尚未在 OpenSpec 配置中启用"));
       lines.push(palette.white("  请在 openspec 配置中加入 Superpowers 集成后重新运行检测"));
+    } else if (hint.kind === "configure-openspec" || hint.kind === "configure-openspec-after-install") {
+      const prefix = hint.kind === "configure-openspec" ? "初始化" : "安装后初始化";
+      lines.push(palette.magenta(`- OpenSpec ${prefix}：在项目根目录执行 ${hint.command} ${hint.args.join(" ")}`));
     }
   }
+  return lines.join("\n");
+}
+
+export function formatInstalledToolDocs(
+  result: InstallRunResult,
+  useColor: boolean = process.stdout.isTTY && process.env.NO_COLOR === undefined,
+): string {
+  const palette = createColor(useColor);
+  if (!result.ok)
+    return palette.red(`检测失败：${result.error instanceof Error ? result.error.message : String(result.error)}`);
+
+  const installedIds = new Set(result.tools.filter((tool) => tool.installed).map((tool) => tool.id));
+  const lines = [palette.bold(palette.cyan("工具使用提示："))];
+  if (installedIds.has("openspec")) {
+    lines.push("", palette.bold(palette.cyan("OpenSpec")));
+    lines.push(palette.yellow("  会话使用"));
+    lines.push(palette.white("    启动 OpenCode 后，直接描述需求，例如：使用 OpenSpec 创建变更提案"));
+  }
+  if (installedIds.has("codegraph")) {
+    lines.push("", palette.bold(palette.cyan("CodeGraph")));
+    lines.push(palette.yellow("  会话使用"));
+    lines.push(palette.white("    启动 OpenCode 后，直接请求：使用 CodeGraph 分析当前项目代码"));
+  }
+  if (installedIds.has("superpowers")) {
+    lines.push("", palette.bold(palette.cyan("Superpowers")));
+    lines.push(palette.yellow("  会话使用"));
+    lines.push(palette.white("    启动 OpenCode 后，直接请求：使用 Superpowers 执行当前任务"));
+  }
+  if (lines.length === 1) lines.push("", palette.white("当前没有已安装工具的使用提示。"));
   return lines.join("\n");
 }
 

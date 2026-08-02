@@ -21,7 +21,7 @@
     },
     "opencode_min_version": {
       "type": "string",
-      "description": "Minimum OpenCode CLI version checked by ai:doctor.",
+      "description": "Minimum OpenCode CLI version checked by ai:check.",
       "minLength": 1,
       "pattern": "^\\d+\\.\\d+\\.\\d+$"
     }

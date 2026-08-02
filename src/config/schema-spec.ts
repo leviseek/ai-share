@@ -90,7 +90,7 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
       properties: {
         model: patternStringSchema(CONFIG_ID_PATTERN, "Default OpenCode model id from models.yaml."),
         provider: patternStringSchema(CONFIG_ID_PATTERN, "Default provider id from provider.yaml."),
-        opencode_min_version: patternStringSchema(SEMVER_PATTERN, "Minimum OpenCode CLI version checked by ai:doctor."),
+        opencode_min_version: patternStringSchema(SEMVER_PATTERN, "Minimum OpenCode CLI version checked by ai:check."),
       },
     }),
   },

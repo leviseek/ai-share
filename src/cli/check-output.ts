@@ -1,30 +1,30 @@
 import { createColor, type ColorPalette } from "./color.ts";
 
-export type DoctorStatus = "ok" | "warning" | "error";
+export type CheckStatus = "ok" | "warning" | "error";
 
-export type DoctorCheck = {
+export type CheckItem = {
   name: string;
-  status: DoctorStatus;
+  status: CheckStatus;
   summary: string;
   details?: unknown;
 };
 
-export type DoctorReport = {
-  status: DoctorStatus;
+export type CheckReport = {
+  status: CheckStatus;
   online: boolean;
   canary: boolean;
   elapsed_ms: number;
-  checks: DoctorCheck[];
+  checks: CheckItem[];
 };
 
-export function renderDoctorReport(report: DoctorReport, providerId: string, useColor: boolean): string {
+export function renderCheckReport(report: CheckReport, providerId: string, useColor: boolean): string {
   const palette = createColor(useColor);
   const statusIcon = report.status === "ok" ? "✓" : report.status === "warning" ? "⚠" : "✗";
   const metadata = palette.white(
     `Provider: ${providerId}  在线检查: ${report.online ? "已启用" : "未启用"}  耗时: ${report.elapsed_ms}ms`,
   );
   const lines = [
-    palette.bold(palette.cyan("AI Doctor")) +
+    palette.bold(palette.cyan("AI Check")) +
       `  ${paintStatus(report.status, `${statusIcon} ${report.status.toUpperCase()}`, palette)}`,
     metadata,
   ];
@@ -42,7 +42,7 @@ export function renderDoctorReport(report: DoctorReport, providerId: string, use
         if (formatted === "") {
           lines.push("");
         } else {
-          if (/^(工具安装状态|安装指令|使用提示|配置提示)：$/.test(line.trim()) && lines.at(-1) !== "") lines.push("");
+          if (/^(工具安装状态|安装指令|配置提示)：$/.test(line.trim()) && lines.at(-1) !== "") lines.push("");
           lines.push(formatted);
         }
       }
@@ -53,7 +53,7 @@ export function renderDoctorReport(report: DoctorReport, providerId: string, use
   return lines.join("\n");
 }
 
-function appendTableCheck(lines: string[], check: DoctorCheck, palette: ColorPalette): void {
+function appendTableCheck(lines: string[], check: CheckItem, palette: ColorPalette): void {
   const symbol = check.status === "ok" ? "✓" : check.status === "warning" ? "!" : "✗";
   lines.push(
     `${paintStatus(check.status, symbol, palette)} ${palette.bold(check.name)}${palette.white(":")} ${check.summary}`,
@@ -62,7 +62,7 @@ function appendTableCheck(lines: string[], check: DoctorCheck, palette: ColorPal
     lines.push(...check.details.split(/\r?\n/).map((line) => palette.white(`  ${line}`)));
 }
 
-function appendCheck(lines: string[], check: DoctorCheck, palette: ColorPalette): void {
+function appendCheck(lines: string[], check: CheckItem, palette: ColorPalette): void {
   const symbol = check.status === "ok" ? "✓" : check.status === "warning" ? "!" : "✗";
   lines.push(
     `${paintStatus(check.status, symbol, palette)} ${palette.bold(check.name)}${palette.white(":")} ${check.summary}`,
@@ -76,7 +76,6 @@ function formatToolLine(line: string, palette: ColorPalette): string {
   if (!trimmed) return "";
   const sourceIndent = line.length - line.trimStart().length;
   if (trimmed === "配置提示：") return palette.bold(palette.magenta(trimmed));
-  if (trimmed === "使用提示：") return palette.bold(palette.cyan(trimmed));
   if (/^(OpenSpec|CodeGraph)$/.test(trimmed)) {
     return palette.bold(palette.cyan(`  ${trimmed}`));
   }
@@ -92,7 +91,7 @@ function formatToolLine(line: string, palette: ColorPalette): string {
   return palette.white(`${sourceIndent >= 4 ? "    " : "  "}${trimmed}`);
 }
 
-function paintStatus(status: DoctorStatus, text: string, palette: ColorPalette): string {
+function paintStatus(status: CheckStatus, text: string, palette: ColorPalette): string {
   if (status === "ok") return palette.green(text);
   if (status === "warning") return palette.yellow(text);
   return palette.red(text);

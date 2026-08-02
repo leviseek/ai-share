@@ -18,13 +18,14 @@ config/*.yaml + config/local/*.yaml
 
 ```sh
 bun install --frozen-lockfile
-bun run ai:doctor
+bun run ai:check
+bun run ai:help
 bun run ai:explain -- --json
 bun run ai:gen -- --dry-run
 bun run ai:gen
 ```
 
-`ai:doctor` 会检查仓库配置，并检测受管工具及其配置状态。`ai:bootstrap` 会安装依赖、检查配置并生成 OpenCode 输出：
+`ai:check` 会检查仓库配置，并检测受管工具及其配置状态；`ai:help` 会根据相同的检测结果输出已安装工具的使用提示。`ai:bootstrap` 会安装依赖、检查配置并生成 OpenCode 输出：
 
 ```sh
 bun run ai:bootstrap
@@ -34,7 +35,8 @@ bun run ai:bootstrap -- --skip-install
 在 Windows 或 macOS 上，可检测 AI 开发环境中的受管工具：
 
 ```sh
-bun run ai:doctor
+bun run ai:check
+bun run ai:help
 ```
 
 检测部分只检查受管工具是否已安装，不会下载、升级或修改配置，也不会在 Linux 上运行。缺失工具会显示对应平台的 `pnpm`、Scoop 或 Homebrew 安装指令；缺少 Windows 桌面工具时还会提示 Scoop `extras` bucket 的前置指令。
@@ -166,11 +168,12 @@ bun run schema:check
 ## 诊断与质量门禁
 
 ```sh
-bun run ai:doctor
-bun run ai:doctor -- --online
-bun run ai:doctor -- --canary --json
+bun run ai:check
+bun run ai:check -- --online
+bun run ai:check -- --canary --json
+bun run ai:help
 bun run provider:check -- --provider codexapis
 bun run check
 ```
 
-`ai:doctor` 默认检查 OpenCode 版本、配置漂移、managed env、`aioc`、本地代理、memory 和 API Key env 是否存在；只有 `--online`/`--canary` 访问 Provider。完整 `check` 包含 format、lint、typecheck、tests、schema、memory、skill 和配置检查。
+`ai:check` 默认检查 OpenCode 版本、配置漂移、managed env、`aioc`、本地代理、memory 和 API Key env 是否存在；只有 `--online`/`--canary` 访问 Provider。`ai:help` 只输出当前已安装工具的使用提示。完整 `check` 包含 format、lint、typecheck、tests、schema、memory、skill 和配置检查。

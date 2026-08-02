@@ -6,7 +6,7 @@ import { buildInstructionsPaths, buildOpenCodeConfig, formatOpenCodeConfigJsonc 
 import { loadValidatedConfig } from "../config/load.ts";
 import { argsFromArgv, hasFlag, parseOptionValue } from "./args.ts";
 import { collectConfigDiagnostics } from "./config-diagnostics.ts";
-import { renderDoctorReport, type DoctorCheck, type DoctorReport, type DoctorStatus } from "./doctor-output.ts";
+import { renderCheckReport, type CheckItem, type CheckReport, type CheckStatus } from "./check-output.ts";
 import { summarizeLocalProxyChecks } from "./env-runtime-check.ts";
 import { checkMemoryPrivacy } from "./memory-privacy-check.ts";
 import { resolveProviderId } from "./options.ts";
@@ -29,7 +29,7 @@ const provider = config.providers.providers[providerId];
 if (!provider) throw new Error(`提供商未定义：${providerId}`);
 const canary = hasFlag(args, "--canary");
 const online = hasFlag(args, "--online") || canary;
-const checks: DoctorCheck[] = [];
+const checks: CheckItem[] = [];
 const installResult = await runInstall();
 const expectedConfig = formatOpenCodeConfigJsonc(
   buildOpenCodeConfig(config, providerId, buildInstructionsPaths(paths.projectRoot), paths.targetOpenCodeSkillsDir),
@@ -52,7 +52,7 @@ checks.push(
       ? "工具检测失败。"
       : installResult.hints.length === 0
         ? "工具已安装并配置。"
-        : "工具未全部安装或仍有使用提示。",
+        : "工具未全部安装或仍有配置提示。",
     details: formatInstallRunResult(installResult, false),
   },
   diagnosticCheck(
@@ -65,7 +65,7 @@ checks.push(
     "default_config",
     diagnostics.defaultConfigDrift.value.status === "current",
     "默认配置与生成源一致。",
-    `默认配置状态：${diagnostics.defaultConfigDrift.value.status}`,
+    `默认配置状态：${formatDefaultConfigStatus(diagnostics.defaultConfigDrift.value.status)}`,
   ),
   diagnosticCheck(
     "opencode_env",
@@ -126,7 +126,7 @@ if (online) {
   }
 }
 
-const report: DoctorReport = {
+const report: CheckReport = {
   status: aggregateStatus(checks),
   online,
   canary,
@@ -135,12 +135,12 @@ const report: DoctorReport = {
 };
 const jsonOutput = hasFlag(args, "--json");
 if (jsonOutput) console.log(JSON.stringify(report, null, 2));
-else console.log(renderDoctorReport(report, providerId, process.stdout.isTTY && process.env.NO_COLOR === undefined));
+else console.log(renderCheckReport(report, providerId, process.stdout.isTTY && process.env.NO_COLOR === undefined));
 const outputPath = parseOptionValue(args, "--output", { missingValue: "error" });
 if (outputPath) await writeReport(outputPath, report);
 process.exitCode = report.status === "error" ? 1 : 0;
 
-function diagnosticCheck(name: string, ok: boolean, success: string, warning: string, details?: unknown): DoctorCheck {
+function diagnosticCheck(name: string, ok: boolean, success: string, warning: string, details?: unknown): CheckItem {
   return {
     name,
     status: ok ? "ok" : "warning",
@@ -149,13 +149,19 @@ function diagnosticCheck(name: string, ok: boolean, success: string, warning: st
   };
 }
 
-function aggregateStatus(checks: readonly DoctorCheck[]): DoctorStatus {
+function aggregateStatus(checks: readonly CheckItem[]): CheckStatus {
   if (checks.some((check) => check.status === "error")) return "error";
   if (checks.some((check) => check.status === "warning")) return "warning";
   return "ok";
 }
 
-async function writeReport(path: string, report: DoctorReport): Promise<void> {
+function formatDefaultConfigStatus(status: "missing" | "current" | "drifted"): string {
+  if (status === "missing") return "missing（缺失）";
+  if (status === "current") return "current（当前有效）";
+  return "drifted（已漂移）";
+}
+
+async function writeReport(path: string, report: CheckReport): Promise<void> {
   const target = resolve(path);
   await mkdir(dirname(target), { recursive: true });
   await writeFile(target, `${JSON.stringify(report, null, 2)}\n`, "utf8");
