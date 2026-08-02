@@ -3,6 +3,7 @@ import {
   INSTALL_TOOLS,
   SUPERPOWERS_PLUGIN_SPEC,
   buildInstallActions,
+  buildInstallHints,
   buildInstalledToolIds,
   collectScoopGlobalIds,
   parseBrewCaskInstalled,
@@ -22,6 +23,28 @@ describe("AI tool installation plan", () => {
       { id: "superpowers", required: false },
       { id: "codegraph", required: false },
     ]);
+  });
+
+  test("builds Windows install hints without upgrade actions", () => {
+    expect(buildInstallHints("win32", new Set(["opencode", "opencode-desktop", "wezterm", "superpowers"]))).toEqual([
+      { kind: "command", toolId: "opencode", command: "bun", args: ["install", "--global", "opencode-ai@latest"] },
+      { kind: "prepare-scoop-extras", command: "scoop", args: ["bucket", "add", "extras"] },
+      { kind: "command", toolId: "opencode-desktop", command: "scoop", args: ["install", "opencode-desktop"] },
+      { kind: "command", toolId: "wezterm", command: "scoop", args: ["install", "wezterm"] },
+      { kind: "configure-superpowers", toolId: "superpowers", pluginSpec: SUPERPOWERS_PLUGIN_SPEC },
+    ]);
+  });
+
+  test("builds macOS cask hints", () => {
+    expect(buildInstallHints("darwin", new Set(["opencode-desktop", "wezterm"]))).toEqual([
+      { kind: "command", toolId: "opencode-desktop", command: "brew", args: ["install", "--cask", "opencode-desktop"] },
+      { kind: "command", toolId: "wezterm", command: "brew", args: ["install", "--cask", "wezterm"] },
+    ]);
+  });
+
+  test("prints the Scoop extras prerequisite only once", () => {
+    const hints = buildInstallHints("win32", new Set(["opencode-desktop", "wezterm"]));
+    expect(hints.filter((hint) => hint.kind === "prepare-scoop-extras")).toHaveLength(1);
   });
 
   test("parses exact pnpm package names and rejects malformed output", () => {
@@ -48,11 +71,11 @@ describe("AI tool installation plan", () => {
       ["wezterm", { global: true }],
     ]);
     expect(() => parseScoopInstalled("Installed apps:\n\nopencode-desktop\n")).toThrow("Scoop 应用列表解析失败");
-    expect(() =>
+    expect(
       parseScoopInstalled(
         "Installed apps:\n\nName    Version Source Updated    Info\n----    ------- ------ -------    ----\nwezterm 2.0     extras 2026-08-01 Install failed\n",
-      ),
-    ).toThrow("Scoop 应用列表解析失败");
+      ).has("wezterm"),
+    ).toBe(false);
     expect(() =>
       parseScoopInstalled(
         "Installed apps:\n\nName    Version Source Updated    Info\n----    ------- ------ -------    ----\nwezterm 2.0     extras 2026-08-01 unexpected-extra\n",
@@ -203,17 +226,17 @@ describe("AI tool installation plan", () => {
     expect(parsed.get("wezterm")).toEqual({ global: true });
   });
 
-  test("accepts non-failure Scoop info flags and rejects failed target rows", () => {
+  test("accepts non-failure Scoop info flags and skips failed target rows", () => {
     expect(
       parseScoopInstalled(
         "Installed apps:\n\nName Version Source Updated Info\n---- ------- ------ ------- ----\nwezterm nightly extras 2026-08-01 Global install, Held\n",
       ).get("wezterm"),
     ).toEqual({ global: true });
-    expect(() =>
+    expect(
       parseScoopInstalled(
         "Installed apps:\n\nName Version Source Updated Info\n---- ------- ------ ------- ----\nwezterm nightly extras 2026-08-01 Global install, Install failed\n",
-      ),
-    ).toThrow("Scoop 应用列表解析失败");
+      ).has("wezterm"),
+    ).toBe(false);
   });
 
   test("parses Scoop rows with a date and time in Updated", () => {

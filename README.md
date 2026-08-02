@@ -24,22 +24,25 @@ bun run ai:gen -- --dry-run
 bun run ai:gen
 ```
 
-`ai:check` 是离线仓库配置检查。`ai:bootstrap` 会安装依赖、检查配置并生成 OpenCode 输出：
+`ai:check` 会检查仓库配置，并检测受管工具及其配置状态。`ai:bootstrap` 会安装依赖、检查配置并生成 OpenCode 输出：
 
 ```sh
 bun run ai:bootstrap
 bun run ai:bootstrap -- --skip-install
 ```
 
-在 Windows 或 macOS 上，可使用安装器交互式检查并安装 AI 开发环境：
+在 Windows 或 macOS 上，可检测 AI 开发环境中的受管工具：
 
 ```sh
-bun run ai:install
+bun run ai:check
 ```
 
-OpenCode CLI、OpenCode Desktop 和 WezTerm 为必装项；OpenSpec、Superpowers 和 CodeGraph 可选。安装器会在执行前显示确定的命令参数，只执行这些 `pnpm`、Scoop 或 Homebrew 命令，不会自动安装包管理器，也不会在 Linux 上运行。已检测到的工具会在第二个菜单中提供可选升级，默认不升级。
+检测部分只检查受管工具是否已安装，不会下载、升级或修改配置，也不会在 Linux 上运行。缺失工具会显示对应平台的 `pnpm`、Scoop 或 Homebrew 安装指令；缺少 Windows 桌面工具时还会提示 Scoop `extras` bucket 的前置指令。
 
-Superpowers 使用官方 canonical Git plugin spec，并写入被 Git 忽略的 `config/local/plugins.yaml`；安装完成后调用 `bun run ai:gen`。该配置写入和生成步骤失败时会回滚 overlay，但包管理器已完成的外部安装无法事务化撤销。Superpowers 目前不提供独立升级动作，因此不会出现在升级菜单中。
+Superpowers 尚未配置时，请执行 `bun run ai:gen`，并在可选插件配置步骤中选择 Superpowers。选择结果写入用户级 OpenCode 配置，不会修改当前仓库配置。
+
+当 OpenCode CLI 和 OpenSpec 均已安装、但当前项目尚未初始化 OpenSpec 时，检测结果会提示执行 `openspec init`。如果 OpenSpec 尚未安装但 OpenCode CLI 已安装，检测结果会同时给出 OpenSpec 安装指令和安装完成后的 `openspec init` 配置指令。
+如果 Superpowers 和 OpenSpec 均已安装，但 OpenSpec 配置文件中尚未包含 `superpowers`，检测结果会提示在 OpenSpec 配置中启用 Superpowers 集成。
 
 生成完成后使用 `aioc` 启动；直接运行 `opencode` 也可使用相同配置，但不会加载 ai-share managed `.env` 中的代理变量。
 

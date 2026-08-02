@@ -8,7 +8,6 @@
     "ai:check": "bun run ./src/cli/config-check.ts",
     "ai:clean": "bun run ./src/cli/clean.ts",
     "ai:doctor": "bun run ./src/cli/ai-doctor.ts",
-    "ai:install": "bun run ./src/cli/ai-install.ts",
     "ai:dry-run": "bun run ./src/generate-user-config.ts --dry-run",
     "ai:explain": "bun run ./src/cli/ai-explain.ts",
     "ai:gen": "bun run ./src/generate-user-config.ts",

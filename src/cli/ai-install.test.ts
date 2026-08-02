@@ -1,437 +1,202 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
 import {
   formatInstallRunResult,
   parseInstallOptions,
+  printInstallResult,
   resolveInstallExecutable,
   runInstall,
   type InstallCommandResult,
-  type InstallCommand,
   type InstallRunner,
 } from "./ai-install.ts";
-import { SUPERPOWERS_PLUGIN_SPEC } from "./install-plan.ts";
 import { createExplainTestFixture } from "./explain-test-fixture.ts";
 
 describe("ai:install CLI", () => {
-  test("parses only the installer interface", () => {
+  test("detects Windows tools without running installers or selectors", async () => {
+    const fixture = createExplainTestFixture();
+    const calls: string[] = [];
+    try {
+      const result = await runInstall({
+        argv: ["bun", "script"],
+        env: fixture.env,
+        projectRoot: fixture.root,
+        platform: "win32",
+        runner: createRunner(calls, {
+          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: {} }]),
+          "scoop list": textResult(scoopList("", false)),
+        }),
+      });
+
+      expect(result.ok, formatInstallRunResult(result)).toBe(true);
+      expect(calls).toEqual(["pnpm list --global --depth 0 --json", "scoop list", "scoop bucket list"]);
+      const report = formatInstallRunResult(result);
+      expect(report).toContain("OpenCode CLI：未安装");
+      expect(report).toContain("执行：bun install --global opencode-ai@latest");
+      expect(report).toContain("执行：scoop bucket add extras");
+      expect(report).toContain("执行：scoop install wezterm");
+      expect(report).toContain("请执行 bun run ai:gen，并在可选插件配置步骤中选择 Superpowers");
+      expect(printInstallResult(result, () => undefined)).toBe(0);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test("reports macOS cask hints without running installers", async () => {
+    const fixture = createExplainTestFixture();
+    const calls: string[] = [];
+    try {
+      const result = await runInstall({
+        argv: ["bun", "script"],
+        env: fixture.env,
+        projectRoot: fixture.root,
+        platform: "darwin",
+        runner: createRunner(calls, {
+          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: {} }]),
+          "brew list --cask --versions": textResult(""),
+        }),
+      });
+
+      expect(result.ok, formatInstallRunResult(result)).toBe(true);
+      expect(calls).toEqual(["pnpm list --global --depth 0 --json", "brew list --cask --versions"]);
+      expect(formatInstallRunResult(result)).toContain("执行：brew install --cask opencode-desktop");
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test("prompts OpenSpec initialization when OpenCode and OpenSpec are installed", async () => {
+    const fixture = createExplainTestFixture();
+    try {
+      const result = await runInstall({
+        argv: ["bun", "script"],
+        env: fixture.env,
+        projectRoot: fixture.root,
+        platform: "darwin",
+        runner: createRunner([], {
+          "pnpm list --global --depth 0 --json": jsonResult([
+            { dependencies: { "opencode-ai": { version: "1.0.0" }, "@fission-ai/openspec": { version: "1.0.0" } } },
+          ]),
+          "brew list --cask --versions": textResult(""),
+        }),
+      });
+
+      expect(result.ok, formatInstallRunResult(result)).toBe(true);
+      expect(formatInstallRunResult(result)).toContain("OpenSpec：需要配置时，在项目根目录执行：openspec init");
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test("prompts OpenSpec initialization after installing missing OpenSpec", async () => {
+    const fixture = createExplainTestFixture();
+    try {
+      const result = await runInstall({
+        argv: ["bun", "script"],
+        env: fixture.env,
+        projectRoot: fixture.root,
+        platform: "darwin",
+        runner: createRunner([], {
+          "pnpm list --global --depth 0 --json": jsonResult([
+            { dependencies: { "opencode-ai": { version: "1.0.0" } } },
+          ]),
+          "brew list --cask --versions": textResult(""),
+        }),
+      });
+
+      expect(result.ok, formatInstallRunResult(result)).toBe(true);
+      const report = formatInstallRunResult(result);
+      expect(report).toContain("执行：pnpm add --global @fission-ai/openspec@latest");
+      expect(report).toContain("OpenSpec：安装后如需配置，在项目根目录执行：openspec init");
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test("prompts linking Superpowers into an existing OpenSpec config", async () => {
+    const fixture = createExplainTestFixture();
+    try {
+      await mkdir(`${fixture.root}/openspec`);
+      await writeFile(`${fixture.root}/openspec/config.yaml`, "project: demo\n");
+      await writeFile(
+        `${fixture.root}/config/local/plugins.yaml`,
+        "plugins:\n  - superpowers@git+https://github.com/obra/superpowers.git\n",
+      );
+      const result = await runInstall({
+        argv: ["bun", "script"],
+        env: fixture.env,
+        projectRoot: fixture.root,
+        platform: "darwin",
+        runner: createRunner([], {
+          "pnpm list --global --depth 0 --json": jsonResult([
+            {
+              dependencies: {
+                "opencode-ai": { version: "1.0.0" },
+                "@fission-ai/openspec": { version: "1.0.0" },
+              },
+            },
+          ]),
+          "brew list --cask --versions": textResult(""),
+        }),
+      });
+
+      expect(result.ok, formatInstallRunResult(result)).toBe(true);
+      expect(formatInstallRunResult(result)).toContain("尚未在 OpenSpec 配置中启用");
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test("formats detection failures and exits unsuccessfully", async () => {
+    const fixture = createExplainTestFixture();
+    try {
+      const result = await runInstall({
+        argv: ["bun", "script"],
+        env: fixture.env,
+        projectRoot: fixture.root,
+        platform: "darwin",
+        runner: createRunner([], {
+          "pnpm list --global --depth 0 --json": failureResult("pnpm unavailable"),
+        }),
+      });
+
+      expect(result.ok).toBe(false);
+      expect(formatInstallRunResult(result)).toStartWith("检测失败：");
+      expect(printInstallResult(result, () => undefined)).toBe(1);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test("reports pnpm-managed tools as missing when pnpm is unavailable", async () => {
+    const fixture = createExplainTestFixture();
+    try {
+      const result = await runInstall({
+        argv: ["bun", "script"],
+        env: fixture.env,
+        projectRoot: fixture.root,
+        platform: "darwin",
+        runner: createRunner([], {
+          "pnpm list --global --depth 0 --json": {
+            status: null,
+            stdout: "",
+            stderr: "",
+            error: new Error('Executable not found in $PATH: "pnpm"'),
+          },
+          "brew list --cask --versions": textResult(""),
+        }),
+      });
+
+      expect(result.ok, formatInstallRunResult(result)).toBe(true);
+      expect(formatInstallRunResult(result)).toContain("OpenCode CLI：未安装");
+      expect(formatInstallRunResult(result)).toContain("执行：bun install --global opencode-ai@latest");
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test("keeps the command-line interface and Windows executable resolution", () => {
     expect(parseInstallOptions(["bun", "script"])).toEqual({});
     expect(() => parseInstallOptions(["bun", "script", "--json"])).toThrow("未知参数");
-    expect(() => parseInstallOptions(["bun", "script", "--provider"])).toThrow("未知参数");
-  });
-
-  test("detects tools, installs selected tools, and configures Superpowers last", async () => {
-    const fixture = createExplainTestFixture();
-    const calls: string[] = [];
-    try {
-      const result = await runInstall({
-        argv: ["bun", "script"],
-        env: fixture.env,
-        projectRoot: fixture.root,
-        platform: "win32",
-        runner: createRunner(calls, {
-          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: {} }]),
-          "scoop list": textResult(scoopList("opencode-desktop", false)),
-          "scoop bucket list": textResult(
-            "Name  Source  Updated  Identifier\nmain  https://example.test/main  2026-08-01  main\n",
-          ),
-          "pnpm add --global opencode-ai@latest": okResult(),
-          "scoop bucket add extras": okResult(),
-          "scoop install wezterm": okResult(),
-          "pnpm add --global @colbymchenry/codegraph@latest": okResult(),
-          "bun run ai:gen": okResult(),
-        }),
-        select: (choices) => {
-          expect(choices.find((choice) => choice.id === "opencode")).toMatchObject({ required: true });
-          return Promise.resolve(new Set(["opencode", "opencode-desktop", "wezterm", "superpowers", "codegraph"]));
-        },
-        selectUpgrade: (choices) => {
-          expect(choices.map((choice) => choice.id)).toEqual(["opencode-desktop"]);
-          expect(choices[0]).toMatchObject({ required: false, selected: false });
-          return Promise.resolve(new Set());
-        },
-      });
-
-      expect(result.ok, formatInstallRunResult(result)).toBe(true);
-      expect(calls).toEqual([
-        "pnpm list --global --depth 0 --json",
-        "scoop list",
-        "scoop bucket list",
-        "pnpm add --global opencode-ai@latest",
-        "scoop bucket add extras",
-        "scoop install wezterm",
-        "pnpm add --global @colbymchenry/codegraph@latest",
-        "bun run ai:gen",
-      ]);
-      expect(readFileSync(join(fixture.root, "config", "local", "plugins.yaml"), "utf8")).toContain(
-        SUPERPOWERS_PLUGIN_SPEC,
-      );
-    } finally {
-      fixture.cleanup();
-    }
-  });
-
-  test("stops after the first failed install command and does not change config", async () => {
-    const fixture = createExplainTestFixture();
-    const calls: string[] = [];
-    try {
-      const result = await runInstall({
-        argv: ["bun", "script"],
-        env: fixture.env,
-        projectRoot: fixture.root,
-        platform: "darwin",
-        runner: createRunner(calls, {
-          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: {} }]),
-          "brew list --cask --versions": textResult(""),
-          "pnpm add --global opencode-ai@latest": failureResult("pnpm unavailable"),
-          "brew install --cask opencode-desktop": okResult(),
-        }),
-        select: () => Promise.resolve(new Set(["opencode", "opencode-desktop", "wezterm", "superpowers"])),
-      });
-
-      expect(result.ok).toBe(false);
-      expect(calls).toEqual([
-        "pnpm list --global --depth 0 --json",
-        "brew list --cask --versions",
-        "pnpm add --global opencode-ai@latest",
-      ]);
-      expect(existsSync(join(fixture.root, "config", "local", "plugins.yaml"))).toBe(false);
-      expect(formatInstallRunResult(result)).toContain("pnpm unavailable");
-    } finally {
-      fixture.cleanup();
-    }
-  });
-
-  test("restores the previous overlay when ai:gen fails", async () => {
-    const fixture = createExplainTestFixture();
-    const overlayPath = join(fixture.root, "config", "local", "plugins.yaml");
-    const original = "plugins:\n  - existing-plugin\n";
-    try {
-      await Bun.write(overlayPath, original);
-      const calls: string[] = [];
-      const result = await runInstall({
-        argv: ["bun", "script"],
-        env: fixture.env,
-        projectRoot: fixture.root,
-        platform: "darwin",
-        runner: createRunner(calls, {
-          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: {} }]),
-          "brew list --cask --versions": textResult(""),
-          "bun run ai:gen": failureResult("generation failed"),
-        }),
-        select: () => Promise.resolve(new Set(["opencode", "opencode-desktop", "wezterm", "superpowers"])),
-      });
-
-      expect(result.ok).toBe(false);
-      expect(readFileSync(overlayPath, "utf8")).toBe(original);
-    } finally {
-      fixture.cleanup();
-    }
-  });
-
-  test("removes a newly created Superpowers overlay when generation fails", async () => {
-    const fixture = createExplainTestFixture();
-    const overlayPath = join(fixture.root, "config", "local", "plugins.yaml");
-    try {
-      const result = await runInstall({
-        argv: ["bun", "script"],
-        env: fixture.env,
-        projectRoot: fixture.root,
-        platform: "darwin",
-        runner: createRunner([], {
-          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: {} }]),
-          "brew list --cask --versions": textResult(""),
-          "bun run ai:gen": failureResult("generation failed"),
-        }),
-        select: () => Promise.resolve(new Set(["opencode", "opencode-desktop", "wezterm", "superpowers"])),
-      });
-
-      expect(result.ok).toBe(false);
-      expect(existsSync(overlayPath)).toBe(false);
-    } finally {
-      fixture.cleanup();
-    }
-  });
-
-  test("does not leave the overlay staging directory after a successful generation", async () => {
-    const fixture = createExplainTestFixture();
-    const stagingPath = join(fixture.root, "config", "local", ".ai-share-staging");
-    try {
-      await runInstall({
-        argv: ["bun", "script"],
-        env: fixture.env,
-        projectRoot: fixture.root,
-        platform: "darwin",
-        runner: createRunner([], {
-          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: {} }]),
-          "brew list --cask --versions": textResult(""),
-          "pnpm add --global opencode-ai@latest": okResult(),
-          "brew install --cask opencode-desktop": okResult(),
-          "brew install --cask wezterm": okResult(),
-          "bun run ai:gen": okResult(),
-        }),
-        select: () => Promise.resolve(new Set(["opencode", "opencode-desktop", "wezterm", "superpowers"])),
-      });
-      expect(existsSync(stagingPath)).toBe(false);
-    } finally {
-      fixture.cleanup();
-    }
-  });
-
-  test("replaces an existing Superpowers spec instead of loading two plugin instances", async () => {
-    const fixture = createExplainTestFixture();
-    const overlayPath = join(fixture.root, "config", "local", "plugins.yaml");
-    try {
-      await Bun.write(overlayPath, "plugins:\n  - superpowers@next\n  - other-plugin\n");
-      const result = await runInstall({
-        argv: ["bun", "script"],
-        env: fixture.env,
-        projectRoot: fixture.root,
-        platform: "darwin",
-        runner: createRunner([], {
-          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: {} }]),
-          "brew list --cask --versions": textResult(""),
-          "pnpm add --global opencode-ai@latest": okResult(),
-          "brew install --cask opencode-desktop": okResult(),
-          "brew install --cask wezterm": okResult(),
-          "bun run ai:gen": okResult(),
-        }),
-        select: () => Promise.resolve(new Set(["opencode", "opencode-desktop", "wezterm", "superpowers"])),
-      });
-      expect(result.ok, formatInstallRunResult(result)).toBe(true);
-      const plugins = await Bun.file(overlayPath).text();
-      expect(plugins).toContain("superpowers@git+https://github.com/obra/superpowers.git");
-      expect(plugins).not.toContain("superpowers@next");
-      expect(plugins.match(/superpowers@/g)).toHaveLength(1);
-    } finally {
-      fixture.cleanup();
-    }
-  });
-
-  test("returns actions in the same order as execution", async () => {
-    const fixture = createExplainTestFixture();
-    try {
-      const result = await runInstall({
-        argv: ["bun", "script"],
-        env: fixture.env,
-        projectRoot: fixture.root,
-        platform: "win32",
-        runner: createRunner([], {
-          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: {} }]),
-          "scoop list": textResult(scoopList("", false)),
-          "scoop bucket list": textResult("Name : extras\n"),
-          "pnpm add --global opencode-ai@latest": okResult(),
-          "scoop install opencode-desktop": okResult(),
-          "scoop install wezterm": okResult(),
-          "pnpm add --global @colbymchenry/codegraph@latest": okResult(),
-          "bun run ai:gen": okResult(),
-        }),
-        select: () => Promise.resolve(new Set(["opencode", "opencode-desktop", "wezterm", "superpowers", "codegraph"])),
-      });
-      expect(result.ok).toBe(true);
-      if (!result.ok) return;
-      expect(result.actions.map((action) => action.kind)).toEqual([
-        "command",
-        "command",
-        "command",
-        "command",
-        "configure-superpowers",
-      ]);
-    } finally {
-      fixture.cleanup();
-    }
-  });
-
-  test("passes projectRoot to generation and uses a neutral cwd for pnpm", async () => {
-    const fixture = createExplainTestFixture();
-    const commands: InstallCommand[] = [];
-    try {
-      const result = await runInstall({
-        argv: ["bun", "script"],
-        env: fixture.env,
-        projectRoot: fixture.root,
-        platform: "darwin",
-        runner: (command) => {
-          commands.push(command);
-          if (command.command === "pnpm" && command.args[0] === "list")
-            return Promise.resolve(jsonResult([{ dependencies: {} }]));
-          if (command.command === "brew" && command.args[0] === "list") return Promise.resolve(textResult(""));
-          return Promise.resolve(okResult());
-        },
-        select: () => Promise.resolve(new Set(["opencode", "opencode-desktop", "wezterm", "superpowers"])),
-      });
-      expect(result.ok).toBe(true);
-      const pnpmProbe = commands.find((command) => command.command === "pnpm");
-      expect(pnpmProbe?.cwd).not.toBe(fixture.root);
-      expect(commands.find((command) => command.command === "bun")?.cwd).toBe(fixture.root);
-    } finally {
-      fixture.cleanup();
-    }
-  });
-
-  test("reports each planned command before executing it", async () => {
-    const fixture = createExplainTestFixture();
-    const output: string[] = [];
-    try {
-      await runInstall({
-        argv: ["bun", "script"],
-        env: fixture.env,
-        projectRoot: fixture.root,
-        platform: "darwin",
-        runner: createRunner([], {
-          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: {} }]),
-          "brew list --cask --versions": textResult(""),
-          "pnpm add --global opencode-ai@latest": okResult(),
-          "brew install --cask opencode-desktop": okResult(),
-          "brew install --cask wezterm": okResult(),
-          "bun run ai:gen": okResult(),
-        }),
-        select: () => Promise.resolve(new Set(["opencode", "opencode-desktop", "wezterm", "superpowers"])),
-        write: (line) => output.push(line),
-      });
-      expect(output).toContain("执行：pnpm add --global opencode-ai@latest");
-      expect(output).toContain("执行：brew install --cask opencode-desktop");
-      expect(output).toContain("执行：bun run ai:gen");
-    } finally {
-      fixture.cleanup();
-    }
-  });
-
-  test("prints commands in the same order as execution", async () => {
-    const fixture = createExplainTestFixture();
-    const calls: string[] = [];
-    const output: string[] = [];
-    try {
-      const result = await runInstall({
-        argv: ["bun", "script"],
-        env: fixture.env,
-        projectRoot: fixture.root,
-        platform: "win32",
-        runner: createRunner(calls, {
-          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: {} }]),
-          "scoop list": textResult(scoopList("", false)),
-          "scoop bucket list": textResult("Name : extras\n"),
-          "pnpm add --global opencode-ai@latest": okResult(),
-          "scoop install opencode-desktop": okResult(),
-          "scoop install wezterm": okResult(),
-          "pnpm add --global @colbymchenry/codegraph@latest": okResult(),
-          "bun run ai:gen": okResult(),
-        }),
-        select: () => Promise.resolve(new Set(["opencode", "opencode-desktop", "wezterm", "superpowers", "codegraph"])),
-        write: (line) => output.push(line),
-      });
-
-      expect(result.ok, formatInstallRunResult(result)).toBe(true);
-      expect(output).toEqual([
-        "执行：pnpm add --global opencode-ai@latest",
-        "执行：scoop install opencode-desktop",
-        "执行：scoop install wezterm",
-        "执行：pnpm add --global @colbymchenry/codegraph@latest",
-        "配置 Superpowers canonical plugin",
-        "执行：bun run ai:gen",
-      ]);
-      expect(calls.slice(3)).toEqual([
-        "pnpm add --global opencode-ai@latest",
-        "scoop install opencode-desktop",
-        "scoop install wezterm",
-        "pnpm add --global @colbymchenry/codegraph@latest",
-        "bun run ai:gen",
-      ]);
-    } finally {
-      fixture.cleanup();
-    }
-  });
-
-  test("recognizes Scoop single-bucket output for extras", async () => {
-    const fixture = createExplainTestFixture();
-    const calls: string[] = [];
-    try {
-      const result = await runInstall({
-        argv: ["bun", "script"],
-        env: fixture.env,
-        projectRoot: fixture.root,
-        platform: "win32",
-        runner: createRunner(calls, {
-          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: {} }]),
-          "scoop list": textResult(scoopList("opencode-desktop", false)),
-          "scoop bucket list": textResult("Name : extras\n"),
-          "scoop install opencode-desktop": okResult(),
-          "scoop update opencode-desktop": okResult(),
-          "scoop install wezterm": okResult(),
-          "pnpm add --global opencode-ai@latest": okResult(),
-          "scoop bucket add extras": okResult(),
-        }),
-        select: () => Promise.resolve(new Set(["opencode", "opencode-desktop", "wezterm"])),
-      });
-      expect(result.ok, formatInstallRunResult(result)).toBe(true);
-      expect(calls).not.toContain("scoop bucket add extras");
-    } finally {
-      fixture.cleanup();
-    }
-  });
-
-  test("accepts Scoop non-zero empty-state probes", async () => {
-    const fixture = createExplainTestFixture();
-    const calls: string[] = [];
-    try {
-      const result = await runInstall({
-        argv: ["bun", "script"],
-        env: fixture.env,
-        projectRoot: fixture.root,
-        platform: "win32",
-        runner: createRunner(calls, {
-          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: {} }]),
-          "scoop list": { status: 1, stdout: "There aren't any apps installed.\n", stderr: "" },
-          "scoop bucket list": {
-            status: 2,
-            stdout: "WARN  No bucket found. Please run 'scoop bucket add main' to add the main bucket.\n",
-            stderr: "",
-          },
-          "pnpm add --global opencode-ai@latest": okResult(),
-          "scoop bucket add extras": okResult(),
-          "scoop install opencode-desktop": okResult(),
-          "scoop install wezterm": okResult(),
-        }),
-        select: () => Promise.resolve(new Set(["opencode", "opencode-desktop", "wezterm"])),
-      });
-      expect(result.ok, formatInstallRunResult(result)).toBe(true);
-      expect(calls).toContain("scoop bucket add extras");
-    } finally {
-      fixture.cleanup();
-    }
-  });
-
-  test("uses the default selector for the upgrade menu and runs generation with Bun", async () => {
-    const fixture = createExplainTestFixture();
-    const selections: string[][] = [];
-    const calls: string[] = [];
-    try {
-      const result = await runInstall({
-        argv: ["bun", "script"],
-        env: fixture.env,
-        projectRoot: fixture.root,
-        platform: "darwin",
-        runner: createRunner(calls, {
-          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: { "opencode-ai": { version: "1" } } }]),
-          "brew list --cask --versions": textResult("opencode-desktop 1.0\n"),
-          "pnpm add --global opencode-ai@latest": okResult(),
-          "brew install --cask wezterm": okResult(),
-          "bun run ai:gen": okResult(),
-        }),
-        select: (choices) => {
-          selections.push(choices.map((choice) => choice.id));
-          return Promise.resolve(selections.length === 1 ? new Set(["superpowers"]) : new Set<string>());
-        },
-      });
-      expect(result.ok, formatInstallRunResult(result)).toBe(true);
-      expect(selections).toHaveLength(2);
-      expect(calls).toContain("bun run ai:gen");
-    } finally {
-      fixture.cleanup();
-    }
-  });
-
-  test("resolves Windows package-manager shims without shell command concatenation", () => {
     expect(resolveInstallExecutable("win32", "pnpm")).toBe("pnpm.cmd");
     expect(resolveInstallExecutable("win32", "scoop")).toBe("scoop.cmd");
     expect(resolveInstallExecutable("darwin", "pnpm")).toBe("pnpm");
@@ -444,10 +209,6 @@ function createRunner(calls: string[], responses: Record<string, InstallCommandR
     calls.push(key);
     return Promise.resolve(responses[key] ?? failureResult(`未配置测试命令：${key}`));
   };
-}
-
-function okResult(): InstallCommandResult {
-  return { status: 0, stdout: "", stderr: "" };
 }
 
 function jsonResult(value: unknown): InstallCommandResult {

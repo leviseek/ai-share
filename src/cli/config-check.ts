@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { buildOpenCodeConfig, buildInstructionsPaths, formatOpenCodeConfigJsonc } from "../config-builders.ts";
 import { loadValidatedConfig, ConfigValidationError, formatValidationError } from "../config/load.ts";
 import { resolveProviderId } from "./options.ts";
+import { formatInstallRunResult, runInstall } from "./ai-install.ts";
 
 const projectRoot = resolve(import.meta.dirname, "..", "..");
 
@@ -19,6 +20,9 @@ if (import.meta.main) {
     );
     JSON.parse(output.slice(output.indexOf("{")));
     console.log(`配置检查通过：model=${config.global.model} provider=${providerId}`);
+    const installResult = await runInstall();
+    console.log(formatInstallRunResult(installResult));
+    if (!installResult.ok) process.exitCode = 1;
   } catch (error) {
     if (error instanceof ConfigValidationError) {
       for (const finding of error.errors) console.error(formatValidationError(finding));

@@ -29,6 +29,25 @@ export type InstallAction =
       operation: InstallOperation;
     };
 
+export type InstallHint =
+  | {
+      kind: "command";
+      toolId: Exclude<InstallToolId, "superpowers">;
+      command: string;
+      args: string[];
+    }
+  | { kind: "prepare-scoop-extras"; command: "scoop"; args: ["bucket", "add", "extras"] }
+  | { kind: "configure-superpowers"; toolId: "superpowers"; pluginSpec: string; configPath?: string }
+  | { kind: "configure-openspec"; toolId: "openspec"; command: "openspec"; args: ["init"]; projectRoot?: string }
+  | {
+      kind: "configure-openspec-after-install";
+      toolId: "openspec";
+      command: "openspec";
+      args: ["init"];
+      projectRoot?: string;
+    }
+  | { kind: "configure-openspec-superpowers"; toolId: "superpowers" };
+
 export const INSTALL_TOOLS: readonly InstallTool[] = [
   { id: "opencode", label: "OpenCode CLI", required: true },
   { id: "opencode-desktop", label: "OpenCode Desktop", required: true },
@@ -96,6 +115,7 @@ export function parseScoopInstalled(text: string): Map<string, InstalledSystemPa
   for (const line of lines.slice(headerIndex + 2)) {
     const trimmed = line.trim();
     if (!trimmed) continue;
+    if (/\binstall failed\b/i.test(trimmed)) continue;
     const candidateName = trimmed.split(/\s+/, 1)[0];
     if (!candidateName || !isInstallToolId(candidateName)) continue;
     const fields = splitScoopFields(line, separator);
@@ -103,10 +123,10 @@ export function parseScoopInstalled(text: string): Map<string, InstalledSystemPa
     if (!name || !isPackageManagerId(name)) {
       throw new Error("Scoop 应用列表解析失败：输出格式无效。");
     }
+    if (isInstallToolId(name) && /\binstall failed\b/i.test(fields.info)) continue;
     if (
       isInstallToolId(name) &&
       (!fields.version ||
-        /\binstall failed\b/i.test(fields.info) ||
         (fields.info !== "" &&
           !/\bglobal install\b|\bheld\b|\bdeprecated\b|\b(?:32|64)bit\b|\barm64\b/i.test(fields.info)))
     ) {
@@ -194,6 +214,46 @@ export function buildInstallActions(input: InstallPlanInput): InstallAction[] {
     actions.push(buildToolAction(tool.id, operation, platform, input.scoopGlobalIds));
   }
   return actions;
+}
+
+export function buildInstallHints(
+  platform: NodeJS.Platform,
+  missingIds: ReadonlySet<InstallToolId>,
+  scoopExtrasAvailable = false,
+): InstallHint[] {
+  const supportedPlatform = requireSupportedPlatform(platform);
+  const hints: InstallHint[] = [];
+  let scoopExtrasAdded = false;
+
+  for (const tool of INSTALL_TOOLS) {
+    if (!missingIds.has(tool.id)) continue;
+    if (tool.id === "superpowers") {
+      hints.push({ kind: "configure-superpowers", toolId: tool.id, pluginSpec: SUPERPOWERS_PLUGIN_SPEC });
+      continue;
+    }
+    if (
+      supportedPlatform === "win32" &&
+      (tool.id === "opencode-desktop" || tool.id === "wezterm") &&
+      !scoopExtrasAdded &&
+      !scoopExtrasAvailable
+    ) {
+      hints.push({ kind: "prepare-scoop-extras", command: "scoop", args: ["bucket", "add", "extras"] });
+      scoopExtrasAdded = true;
+    }
+    const action = buildToolAction(tool.id, "install", supportedPlatform, undefined);
+    if (action.kind !== "command") throw new Error(`无法生成 ${tool.id} 的安装提示。`);
+    if (tool.id === "opencode") {
+      hints.push({
+        toolId: tool.id,
+        command: "bun",
+        args: ["install", "--global", "opencode-ai@latest"],
+        kind: "command",
+      });
+      continue;
+    }
+    hints.push({ kind: "command", toolId: action.toolId, command: action.command, args: action.args });
+  }
+  return hints;
 }
 
 export function requireSupportedPlatform(platform: NodeJS.Platform): InstallPlatform {

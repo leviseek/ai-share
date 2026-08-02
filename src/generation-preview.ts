@@ -11,6 +11,8 @@ import {
 import { buildGeneratorPaths, type GeneratorPaths } from "./cli/paths.ts";
 import { buildProviderChoices, selectProviderInteractive, type ProviderSelector } from "./cli/provider-select.ts";
 import { buildAiocLauncherFiles } from "./cli/aioc-install.ts";
+import { SUPERPOWERS_PLUGIN_SPEC } from "./cli/install-plan.ts";
+import { selectInstallInteractive, type InstallChoice } from "./cli/install-select.ts";
 
 export type GenerationPreviewOptions = {
   force: boolean;
@@ -45,10 +47,24 @@ export async function buildGenerationPreview(input: {
   projectRoot?: string;
   providerSelector?: ProviderSelector;
   interactiveProviderSelection?: boolean;
+  pluginSelector?: (choices: readonly InstallChoice[]) => Promise<ReadonlySet<string>>;
 }): Promise<GenerationPreview> {
   const paths = buildGeneratorPaths(input.projectRoot, input.env);
   const loadedConfig = await loadValidatedConfigWithTrace(paths.configDir);
-  const config = loadedConfig.config;
+  const config = structuredClone(loadedConfig.config);
+  const pluginSpecs = [...new Set([...config.plugins.plugins, SUPERPOWERS_PLUGIN_SPEC])];
+  const pluginChoices = pluginSpecs.map((spec) => ({
+    id: spec,
+    label: spec === SUPERPOWERS_PLUGIN_SPEC ? "Superpowers" : spec,
+    required: false,
+    selected: config.plugins.plugins.includes(spec),
+    status: config.plugins.plugins.includes(spec) ? "已启用" : "未启用",
+  }));
+  if (input.pluginSelector) {
+    config.plugins.plugins = [...(await input.pluginSelector(pluginChoices))];
+  } else if (process.stdin.isTTY && process.stdout.isTTY && input.interactiveProviderSelection !== false) {
+    config.plugins.plugins = [...(await selectInstallInteractive(pluginChoices))];
+  }
   const providerDecision = await selectProviderDecision({
     providers: config.providers.providers,
     ...(input.options.provider ? { cliProvider: input.options.provider } : {}),

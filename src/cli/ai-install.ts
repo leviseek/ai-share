@@ -5,23 +5,21 @@ import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { loadValidatedConfig } from "../config/load.ts";
-import { StagedFileWriter, pathExists } from "./fs.ts";
+import { createColor } from "./color.ts";
+import { pathExists } from "./fs.ts";
 import { argsFromArgv } from "./args.ts";
-import { buildGeneratorPaths } from "./paths.ts";
-import { selectInstallInteractive, type InstallChoice } from "./install-select.ts";
 import {
   INSTALL_TOOLS,
-  SUPERPOWERS_PLUGIN_SPEC,
-  buildInstallActions,
+  buildInstallHints,
   buildInstalledToolIds,
-  collectScoopGlobalIds,
   parseBrewCaskInstalled,
   parsePnpmGlobalPackages,
   parseScoopInstalled,
   requireSupportedPlatform,
-  type InstallAction,
+  type InstallHint,
   type InstallToolId,
 } from "./install-plan.ts";
+import { buildGeneratorPaths } from "./paths.ts";
 
 export type InstallOptions = Record<never, never>;
 
@@ -40,11 +38,15 @@ export type InstallCommandResult = {
 
 export type InstallRunner = (command: InstallCommand) => Promise<InstallCommandResult>;
 
-export type InstallChoiceSelector = (choices: readonly InstallChoice[]) => Promise<ReadonlySet<string>>;
+export type InstallToolStatus = {
+  id: InstallToolId;
+  label: string;
+  installed: boolean;
+};
 
 export type InstallRunResult =
-  | { ok: true; installedIds: ReadonlySet<InstallToolId>; actions: readonly InstallAction[] }
-  | { ok: false; error: unknown; actions?: readonly InstallAction[] };
+  | { ok: true; tools: readonly InstallToolStatus[]; hints: readonly InstallHint[] }
+  | { ok: false; error: unknown };
 
 export function parseInstallOptions(argv: readonly string[] = Bun.argv): InstallOptions {
   const args = argsFromArgv(argv);
@@ -59,13 +61,8 @@ export async function runInstall(
     projectRoot?: string;
     platform?: NodeJS.Platform;
     runner?: InstallRunner;
-    select?: InstallChoiceSelector;
-    selectUpgrade?: InstallChoiceSelector;
-    write?: (content: string) => void;
   } = {},
 ): Promise<InstallRunResult> {
-  let actions: readonly InstallAction[] | undefined;
-  let rollbackOverlay: (() => Promise<void>) | undefined;
   try {
     parseInstallOptions(input.argv ?? Bun.argv);
     const env = input.env ?? Bun.env;
@@ -75,88 +72,89 @@ export async function runInstall(
     const config = await loadValidatedConfig(paths.configDir);
     const runner = input.runner ?? spawnInstallCommand;
     const detected = await detectInstalledTools(platform, tmpdir(), runner, config.plugins.plugins);
-    const choices = INSTALL_TOOLS.map((tool) => ({
+    const tools = INSTALL_TOOLS.map((tool) => ({
       id: tool.id,
       label: tool.label,
-      required: tool.required,
-      selected: tool.required,
-      status: detected.installedIds.has(tool.id) ? "已安装" : "未安装",
+      installed: detected.installedIds.has(tool.id),
     }));
-    const selected = await (input.select ?? ((items) => selectInstallInteractive(items)))(choices);
-    const selectedIds = new Set<InstallToolId>([...selected].filter(isInstallToolId));
-    for (const tool of INSTALL_TOOLS) if (tool.required) selectedIds.add(tool.id);
-
-    const upgradeChoices = choices
-      .filter((choice) => detected.installedIds.has(choice.id) && choice.id !== "superpowers")
-      .map((choice) => ({ ...choice, required: false, selected: false }));
-    const upgrade =
-      upgradeChoices.length > 0
-        ? await (
-            input.selectUpgrade ??
-            input.select ??
-            ((items) => selectInstallInteractive(items, undefined, "upgrade"))
-          )(upgradeChoices)
-        : new Set<string>();
-    const upgradeIds = new Set<InstallToolId>([...upgrade].filter(isInstallToolId));
-    actions = buildInstallActions({
-      platform,
-      selectedIds,
-      installedIds: detected.installedIds,
-      upgradeIds,
-      scoopGlobalIds: detected.scoopGlobalIds,
-      scoopExtrasAvailable: detected.scoopExtrasAvailable,
-    });
-    const executionActions: InstallAction[] = actions.filter((action) => action.kind !== "configure-superpowers");
-    const superpowersAction = actions.find((action) => action.kind === "configure-superpowers");
-    if (superpowersAction) executionActions.push(superpowersAction);
-    actions = executionActions;
-    const write = input.write ?? ((line) => console.log(line));
-    for (const action of actions) {
-      if (action.kind === "command" || action.kind === "prepare-scoop-extras") write(formatInstallAction(action));
-    }
-    if (actions.some((action) => action.kind === "configure-superpowers")) {
-      write("配置 Superpowers canonical plugin");
-      write("执行：bun run ai:gen");
-    }
-
-    for (const action of actions) {
-      if (action.kind === "configure-superpowers") continue;
-      await runChecked(runner, {
-        command: action.command,
-        args: action.args,
-        cwd: action.command === "pnpm" ? tmpdir() : projectRoot,
+    const missingIds = new Set(tools.filter((tool) => !tool.installed).map((tool) => tool.id));
+    const hints: InstallHint[] = buildInstallHints(platform, missingIds, detected.scoopExtrasAvailable).map(
+      (hint): InstallHint =>
+        hint.kind === "configure-superpowers"
+          ? { ...hint, configPath: paths.targetOpenCodeConfig }
+          : hint.kind === "configure-openspec" || hint.kind === "configure-openspec-after-install"
+            ? { ...hint, projectRoot }
+            : hint,
+    );
+    if (
+      detected.installedIds.has("opencode") &&
+      detected.installedIds.has("openspec") &&
+      !(await pathExists(resolve(projectRoot, "openspec")))
+    ) {
+      hints.push({ kind: "configure-openspec", toolId: "openspec", command: "openspec", args: ["init"] });
+    } else if (detected.installedIds.has("opencode") && !detected.installedIds.has("openspec")) {
+      hints.push({
+        kind: "configure-openspec-after-install",
+        toolId: "openspec",
+        command: "openspec",
+        args: ["init"],
       });
     }
-    if (superpowersAction) {
-      rollbackOverlay = await enableSuperpowers(paths.configDir, config.plugins.plugins);
-      await runChecked(runner, { command: "bun", args: ["run", "ai:gen"], cwd: projectRoot });
-      rollbackOverlay = undefined;
+    if (
+      detected.installedIds.has("opencode") &&
+      detected.installedIds.has("openspec") &&
+      detected.installedIds.has("superpowers") &&
+      (await pathExists(resolve(projectRoot, "openspec"))) &&
+      !(await hasOpenSpecSuperpowersConfig(projectRoot))
+    ) {
+      hints.push({ kind: "configure-openspec-superpowers", toolId: "superpowers" });
     }
-    const installedIds = new Set(detected.installedIds);
-    for (const action of actions) {
-      if (action.kind === "command") installedIds.add(action.toolId);
-      else if (action.kind === "configure-superpowers") installedIds.add(action.toolId);
-    }
-    return { ok: true, installedIds, actions };
+    return { ok: true, tools, hints };
   } catch (error) {
-    if (rollbackOverlay) {
-      try {
-        await rollbackOverlay();
-      } catch (rollbackError) {
-        return {
-          ok: false,
-          error: new AggregateError([error, rollbackError], "安装失败且插件配置回滚失败。"),
-          ...(actions ? { actions } : {}),
-        };
-      }
-    }
-    return { ok: false, error, ...(actions ? { actions } : {}) };
+    return { ok: false, error };
   }
 }
 
-export function formatInstallRunResult(result: InstallRunResult): string {
-  if (!result.ok) return `安装失败：${result.error instanceof Error ? result.error.message : String(result.error)}`;
-  return `安装完成：actions=${result.actions.length}`;
+export function formatInstallRunResult(
+  result: InstallRunResult,
+  useColor: boolean = process.stdout.isTTY && process.env.NO_COLOR === undefined,
+): string {
+  const palette = createColor(useColor);
+  if (!result.ok)
+    return palette.red(`检测失败：${result.error instanceof Error ? result.error.message : String(result.error)}`);
+  const lines = [palette.bold(palette.cyan("工具安装状态："))];
+  for (const tool of result.tools) {
+    const status = tool.installed ? palette.green("已安装") : palette.yellow("未安装");
+    lines.push(`- ${tool.label}：${status}`);
+  }
+  if (result.hints.length === 0) return [...lines, palette.green("所有工具均已安装或配置。")].join("\n");
+  const installHints = result.hints.filter((hint) => hint.kind === "command" || hint.kind === "prepare-scoop-extras");
+  const configHints = result.hints.filter((hint) => hint.kind !== "command" && hint.kind !== "prepare-scoop-extras");
+  if (installHints.length > 0) {
+    lines.push("", palette.bold(palette.yellow("安装指令：")));
+    for (const hint of installHints) {
+      if (hint.kind === "command" || hint.kind === "prepare-scoop-extras") {
+        lines.push(palette.yellow(`- 执行：${hint.command} ${hint.args.join(" ")}`));
+      }
+    }
+  }
+  if (configHints.length > 0) lines.push("", palette.bold(palette.magenta("配置提示：")));
+  for (const hint of configHints) {
+    if (hint.kind === "configure-superpowers") {
+      lines.push(palette.magenta("- Superpowers：请执行 bun run ai:gen，并在可选插件配置步骤中选择 Superpowers"));
+      lines.push(palette.gray("  ai:gen 会将选择写入用户级 OpenCode 配置"));
+    } else if (hint.kind === "configure-openspec") {
+      lines.push(palette.magenta(`- OpenSpec：需要配置时，在项目根目录执行：${hint.command} ${hint.args.join(" ")}`));
+    } else if (hint.kind === "configure-openspec-after-install") {
+      lines.push(
+        palette.magenta(`- OpenSpec：安装后如需配置，在项目根目录执行：${hint.command} ${hint.args.join(" ")}`),
+      );
+    } else if (hint.kind === "configure-openspec-superpowers") {
+      lines.push(palette.magenta("- OpenSpec：已安装 Superpowers，但尚未在 OpenSpec 配置中启用"));
+      lines.push(palette.gray("  请在 openspec 配置中加入 Superpowers 集成后重新运行检测"));
+    }
+  }
+  return lines.join("\n");
 }
 
 export function printInstallResult(result: InstallRunResult, write: (content: string) => void = console.log): number {
@@ -171,48 +169,54 @@ async function detectInstalledTools(
   cwd: string,
   runner: InstallRunner,
   pluginSpecs: readonly string[],
-): Promise<{
-  installedIds: Set<InstallToolId>;
-  scoopGlobalIds: Set<InstallToolId>;
-  scoopExtrasAvailable: boolean;
-}> {
-  const pnpm = await runChecked(runner, {
+): Promise<{ installedIds: Set<InstallToolId>; scoopExtrasAvailable: boolean }> {
+  const pnpmCommand = {
     command: "pnpm",
     args: ["list", "--global", "--depth", "0", "--json"],
     cwd,
-  });
-  const pnpmPackages = parsePnpmGlobalPackages(pnpm.stdout);
+  } satisfies InstallCommand;
+  const pnpmResult = await runner(pnpmCommand);
+  const pnpmPackages = isMissingExecutable(pnpmResult) ? new Set<string>() : parsePnpmResult(pnpmResult, pnpmCommand);
   const systemPackages = new Set<string>();
-  let scoopGlobalIds = new Set<InstallToolId>();
-  let scoopExtrasAvailable = true;
+  let scoopExtrasAvailable = false;
   if (platform === "win32") {
-    const scoop = await runProbe(
-      runner,
-      { command: "scoop", args: ["list"], cwd },
-      (result) => result.status === 1 && /There aren't any apps installed\.?/i.test(result.stdout),
-    );
-    const parsed = parseScoopInstalled(scoop.stdout);
-    for (const name of parsed.keys()) systemPackages.add(name);
-    scoopGlobalIds = collectScoopGlobalIds(parsed);
-    const buckets = await runProbe(
-      runner,
-      { command: "scoop", args: ["bucket", "list"], cwd },
-      (result) => result.status === 2 && /No buckets installed|No bucket found/i.test(result.stdout),
-    );
-    scoopExtrasAvailable = hasScoopExtras(buckets.stdout);
+    const scoopCommand = { command: "scoop", args: ["list"], cwd } satisfies InstallCommand;
+    const scoop = await runner(scoopCommand);
+    if (!isMissingExecutable(scoop)) {
+      const validScoop = await runProbeResult(
+        scoop,
+        scoopCommand,
+        (result) => result.status === 1 && /There aren't any apps installed\.?/i.test(result.stdout),
+      );
+      for (const name of parseScoopInstalled(validScoop.stdout).keys()) systemPackages.add(name);
+    }
+    const bucketCommand = { command: "scoop", args: ["bucket", "list"], cwd } satisfies InstallCommand;
+    const buckets = await runner(bucketCommand);
+    if (!isMissingExecutable(buckets) && buckets.status === 0)
+      scoopExtrasAvailable = stripAnsi(buckets.stdout)
+        .split(/\r?\n/)
+        .some((line) => /^\s*extras\s+/i.test(line));
   } else {
-    const brew = await runChecked(runner, { command: "brew", args: ["list", "--cask", "--versions"], cwd });
-    for (const name of parseBrewCaskInstalled(brew.stdout)) systemPackages.add(name);
+    const brewCommand = { command: "brew", args: ["list", "--cask", "--versions"], cwd } satisfies InstallCommand;
+    const brew = await runner(brewCommand);
+    if (!isMissingExecutable(brew)) {
+      const validBrew = await runCheckedResult(brew, brewCommand);
+      for (const name of parseBrewCaskInstalled(validBrew.stdout)) systemPackages.add(name);
+    }
   }
-  return {
-    installedIds: buildInstalledToolIds({ pnpmPackages, systemPackages, pluginSpecs }),
-    scoopGlobalIds,
-    scoopExtrasAvailable,
-  };
+  return { installedIds: buildInstalledToolIds({ pnpmPackages, systemPackages, pluginSpecs }), scoopExtrasAvailable };
 }
 
-async function runChecked(runner: InstallRunner, command: InstallCommand): Promise<InstallCommandResult> {
-  const result = await runner(command);
+function stripAnsi(value: string): string {
+  return value.replaceAll(/\u001b\[[0-?]*[ -/]*[@-~]/g, "");
+}
+
+function parsePnpmResult(result: InstallCommandResult, command: InstallCommand): Set<string> {
+  const valid = runCheckedResult(result, command);
+  return parsePnpmGlobalPackages(valid.stdout);
+}
+
+function runCheckedResult(result: InstallCommandResult, command: InstallCommand): InstallCommandResult {
   if (result.error || result.status !== 0) {
     const detail = result.error?.message ?? result.stderr ?? result.stdout ?? `exit ${result.status ?? "unknown"}`;
     throw new Error(`${command.command} ${command.args.join(" ")} 执行失败：${detail}`, { cause: result.error });
@@ -220,12 +224,11 @@ async function runChecked(runner: InstallRunner, command: InstallCommand): Promi
   return result;
 }
 
-async function runProbe(
-  runner: InstallRunner,
+function runProbeResult(
+  result: InstallCommandResult,
   command: InstallCommand,
   allowNonZero: (result: InstallCommandResult) => boolean,
-): Promise<InstallCommandResult> {
-  const result = await runner(command);
+): InstallCommandResult {
   if (result.error || (result.status !== 0 && !allowNonZero(result))) {
     const detail = result.error?.message ?? result.stderr ?? result.stdout ?? `exit ${result.status ?? "unknown"}`;
     throw new Error(`${command.command} ${command.args.join(" ")} 执行失败：${detail}`, { cause: result.error });
@@ -233,39 +236,20 @@ async function runProbe(
   return result;
 }
 
-async function enableSuperpowers(configDir: string, existingPlugins: readonly string[]): Promise<() => Promise<void>> {
-  const localPath = resolve(configDir, "local", "plugins.yaml");
-  const hadExisting = await pathExists(localPath);
-  const original = hadExisting ? await readFile(localPath, "utf8") : undefined;
-  const plugins = [
-    ...new Set([...existingPlugins.filter((spec) => pluginPackageId(spec) !== "superpowers"), SUPERPOWERS_PLUGIN_SPEC]),
-  ];
-  const writer = await StagedFileWriter.create(resolve(configDir, "local", ".ai-share-staging"));
-  const restore = async (): Promise<void> => {
-    const rollbackWriter = await StagedFileWriter.create(resolve(configDir, "local", ".ai-share-staging"));
+function isMissingExecutable(result: InstallCommandResult): boolean {
+  return result.error?.message.includes("Executable not found") === true;
+}
+
+async function hasOpenSpecSuperpowersConfig(projectRoot: string): Promise<boolean> {
+  for (const relativePath of ["openspec/config.yaml", "openspec/config.yml", "openspec/config.json"]) {
     try {
-      if (original === undefined) rollbackWriter.delete(localPath);
-      else await rollbackWriter.writeText(localPath, original);
-      await rollbackWriter.promote();
-    } finally {
-      await rollbackWriter.cleanup();
+      if ((await readFile(resolve(projectRoot, relativePath), "utf8")).toLowerCase().includes("superpowers"))
+        return true;
+    } catch {
+      // Missing optional config files mean OpenSpec integration is not configured.
     }
-  };
-  try {
-    await writer.writeText(localPath, `${Bun.YAML.stringify({ plugins })}\n`);
-    await writer.promote();
-  } catch (error) {
-    try {
-      await writer.cleanup();
-      await restore();
-    } catch (rollbackError) {
-      throw new AggregateError([error, rollbackError], "Superpowers overlay 写入失败且回滚失败。", {
-        cause: rollbackError,
-      });
-    }
-    throw new Error(error instanceof Error ? error.message : String(error), { cause: error });
   }
-  return restore;
+  return false;
 }
 
 export function resolveInstallExecutable(platform: NodeJS.Platform, command: string): string {
@@ -285,48 +269,4 @@ function spawnInstallCommand(command: InstallCommand): Promise<InstallCommandRes
     stderr: result.stderr ?? "",
     ...(result.error ? { error: result.error } : {}),
   });
-}
-
-function hasScoopExtras(text: string): boolean {
-  return text
-    .split("\n")
-    .map(stripAnsi)
-    .some((line) => /^\s*extras\s+/i.test(line) || /^\s*Name\s*:\s*extras\s*$/i.test(line));
-}
-
-function stripAnsi(value: string): string {
-  let output = "";
-  let inEscape = false;
-  for (const character of value) {
-    const code = character.charCodeAt(0);
-    if (!inEscape && code === 0x1b) {
-      inEscape = true;
-      continue;
-    }
-    if (inEscape) {
-      if (code >= 0x40 && code <= 0x7e && code !== 0x5b) inEscape = false;
-      continue;
-    }
-    output += character;
-  }
-  return output;
-}
-
-function isInstallToolId(value: string): value is InstallToolId {
-  return INSTALL_TOOLS.some((tool) => tool.id === value);
-}
-
-function pluginPackageId(spec: string): string | undefined {
-  if (spec.startsWith("@")) {
-    const slash = spec.indexOf("/");
-    const at = slash < 0 ? -1 : spec.indexOf("@", slash + 1);
-    return at < 0 ? spec : spec.slice(0, at);
-  }
-  const at = spec.indexOf("@");
-  return at < 0 ? spec : spec.slice(0, at);
-}
-
-function formatInstallAction(action: InstallAction): string {
-  if (action.kind === "configure-superpowers") return "配置 Superpowers canonical plugin";
-  return `执行：${action.command} ${action.args.join(" ")}`;
 }

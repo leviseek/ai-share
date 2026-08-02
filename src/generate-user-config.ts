@@ -7,6 +7,7 @@ import { parseCliOptions } from "./cli/options.ts";
 import type { ProviderSelector } from "./cli/provider-select.ts";
 import { buildGenerationPreview } from "./generation-preview.ts";
 import type { CliOptions } from "./types.ts";
+import type { InstallChoice } from "./cli/install-select.ts";
 
 export type GenerationRunResult =
   | {
@@ -25,6 +26,7 @@ export async function runGeneration(
     env?: Record<string, string | undefined>;
     projectRoot?: string;
     providerSelector?: ProviderSelector;
+    pluginSelector?: (choices: readonly InstallChoice[]) => Promise<ReadonlySet<string>>;
   } = {},
 ): Promise<GenerationRunResult> {
   let plan: GenerationPlan | undefined;
@@ -37,6 +39,7 @@ export async function runGeneration(
       env,
       ...(input.projectRoot ? { projectRoot: input.projectRoot } : {}),
       ...(input.providerSelector ? { providerSelector: input.providerSelector } : {}),
+      ...(input.pluginSelector ? { pluginSelector: input.pluginSelector } : {}),
     });
     plan = preview.plan;
 
