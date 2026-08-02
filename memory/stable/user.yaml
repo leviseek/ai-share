@@ -7,7 +7,7 @@ identity:
     - AI 基础设施与自动化
     - AI 辅助编码工作流
   tools:
-    - Codex CLI（主力 AI 编码 agent，本地 Build/Plan/Review 协作）
+    - OpenCode（主力 AI 编码 agent，通过 aioc 加载共享配置并进行 Build/Plan/Review 协作）
     - Bun（首选运行时和包管理器）
     - Node.js（特定场景备选）
   editors:

@@ -65,8 +65,8 @@ describe("ai:explain CLI", () => {
     const fixture = createExplainTestFixture();
     try {
       const unmanagedConfig = "user-owned = true\n";
-      mkdirSync(dirname(join(fixture.codexHome, "config.toml")), { recursive: true });
-      writeFileSync(join(fixture.codexHome, "config.toml"), unmanagedConfig, "utf8");
+      mkdirSync(dirname(join(fixture.openCodeDir, "opencode.jsonc")), { recursive: true });
+      writeFileSync(join(fixture.openCodeDir, "opencode.jsonc"), unmanagedConfig, "utf8");
 
       const collision = await runExplain({
         argv: ["bun", "script", "--provider", "provider-a", "--json"],
@@ -76,7 +76,7 @@ describe("ai:explain CLI", () => {
       expect(collision.exitCode).toBe(1);
       expect(collision.report.status).toBe("collision");
       expect(collision.report.plan.collisions).toContainEqual({
-        path: join(fixture.codexHome, "config.toml"),
+        path: join(fixture.openCodeDir, "opencode.jsonc"),
         kind: "collision",
         reason: "unowned-collision",
         ownership: "unmanaged",
@@ -90,13 +90,13 @@ describe("ai:explain CLI", () => {
       expect(forced.exitCode).toBe(0);
       expect(forced.report.status).toBe("ok");
       expect(forced.report.plan.actions).toContainEqual({
-        path: join(fixture.codexHome, "config.toml"),
+        path: join(fixture.openCodeDir, "opencode.jsonc"),
         kind: "update",
         reason: "force-adoption",
         ownership: "unmanaged",
       });
-      expect(readFileSync(join(fixture.codexHome, "config.toml"), "utf8")).toBe(unmanagedConfig);
-      expect(existsSync(join(fixture.codexHome, ".ai-share-staging"))).toBe(false);
+      expect(readFileSync(join(fixture.openCodeDir, "opencode.jsonc"), "utf8")).toBe(unmanagedConfig);
+      expect(existsSync(join(fixture.openCodeDir, ".ai-share-staging"))).toBe(false);
     } finally {
       fixture.cleanup();
     }
@@ -154,7 +154,7 @@ describe("ai:explain CLI", () => {
     }
   });
 
-  test("fails before creating a project-local Codex directory when HOME is missing", async () => {
+  test("fails before creating a project-local OpenCode directory when HOME is missing", async () => {
     const fixture = createExplainTestFixture();
     try {
       const result = await runExplain({
@@ -165,7 +165,7 @@ describe("ai:explain CLI", () => {
       expect(result.exitCode).toBe(1);
       expect(result.report.error?.code).toBe("runtime");
       expect(result.report.error?.messages[0]).toContain("HOME 或 USERPROFILE");
-      expect(existsSync(join(fixture.root, ".codex"))).toBe(false);
+      expect(existsSync(join(fixture.root, ".config", "opencode"))).toBe(false);
     } finally {
       fixture.cleanup();
     }
@@ -193,7 +193,7 @@ describe("ai:explain CLI", () => {
         projectRoot: fixture.root,
       });
       expect(formatExplainRunResult(explain)).toBe(formatExplainRunResult(repeated));
-      expect(existsSync(fixture.codexHome)).toBe(false);
+      expect(existsSync(fixture.openCodeDir)).toBe(false);
     } finally {
       fixture.cleanup();
     }

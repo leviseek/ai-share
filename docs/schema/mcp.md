@@ -4,10 +4,10 @@
 
 ## stdio
 
-`transport` 可写 `stdio`，`command` 必填；可选 `args`、`env`。不得出现 `url`、`bearer_token_env_var` 或 OAuth 字段。敏感 env 值必须使用 `${ENV_NAME}` 引用。
+`transport: stdio` 时 `command` 必填，可选 `args`、`env`。输出为 OpenCode `{ type: "local", command: [...] }`。敏感 env 值必须使用 `${ENV_NAME}`。
 
 ## HTTP
 
-`transport: http` 时 `url` 必填；可选 `bearer_token_env_var`、`oauth_client_id`、`oauth_resource`。不得出现 `command`、`args` 或 `env`。URL 查询参数不得携带 token、key、cookie 等敏感值。
+`transport: http` 时 `url` 必填，可选 `bearer_token_env_var`、`oauth_client_id`。输出为 OpenCode remote MCP；Bearer token 使用 `Authorization: Bearer {env:ENV_NAME}`，OAuth client ID 写入 `oauth.clientId`。不得配置 `command`、`args` 或 `env`，URL 不得包含敏感查询参数。
 
 固定 server 对象拒绝未知字段。

@@ -46,7 +46,7 @@ export async function runGeneration(
       );
     }
     if (!options.dryRun) {
-      await executeGenerationPlan(plan, resolve(preview.paths.targetCodexConfigDir, ".ai-share-staging"));
+      await executeGenerationPlan(plan, resolve(preview.paths.targetOpenCodeConfigDir, ".ai-share-staging"));
     }
     return {
       ok: true,

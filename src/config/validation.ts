@@ -1,8 +1,8 @@
 import type { AgentsYaml, EnvYaml, GlobalYaml, McpYaml, ModelsYaml, ProviderYaml } from "../types.ts";
-import { isSensitiveName, looksLikeSecretLiteral } from "../security/secret-patterns.ts";
+import { isSensitiveName } from "../security/secret-patterns.ts";
 import type { ValidationError } from "./validators/common.ts";
 import { isRecord } from "./validators/common.ts";
-import { validateCodexEnv } from "./validators/env.ts";
+import { validateOpenCodeEnv } from "./validators/env.ts";
 import { validateMcpServers } from "./validators/mcp.ts";
 import { validateYamlSchemaShapes } from "./validators/schema-shape.ts";
 
@@ -73,33 +73,9 @@ export function validateYamlConsistency(
 
   validateCrossFileReferences(errors, modelsConfig, providersConfig, globalConfig, agentsConfig);
   validateProviderUrls(errors, providersConfig);
-  validateGlobalShellEnvironment(errors, globalConfig);
   validateMcpServers(errors, mcpConfig);
-  validateCodexEnv(errors, envConfig);
+  validateOpenCodeEnv(errors, envConfig);
   return errors;
-}
-
-function validateGlobalShellEnvironment(errors: ValidationError[], globalConfig: unknown): void {
-  if (!isRecord(globalConfig) || !isRecord(globalConfig.codex_shell_environment_policy)) return;
-  const values = globalConfig.codex_shell_environment_policy.set;
-  if (!isRecord(values)) return;
-  for (const [envName, envValue] of Object.entries(values)) {
-    const path = `codex_shell_environment_policy.set.${envName}`;
-    if (isSensitiveName(envName)) {
-      errors.push({
-        file: "global.yaml",
-        path,
-        message: `shell environment policy 不得持久化敏感变量 '${envName}'；请改用系统环境变量`,
-      });
-    }
-    if (typeof envValue === "string" && looksLikeSecretLiteral(envValue)) {
-      errors.push({
-        file: "global.yaml",
-        path,
-        message: `shell environment policy 的 '${envName}' 疑似包含明文 secret；请改用系统环境变量`,
-      });
-    }
-  }
 }
 
 function validateProviderUrls(errors: ValidationError[], providersConfig: unknown): void {

@@ -12,12 +12,13 @@
         "type": "object",
         "required": [
           "description",
-          "developer_instructions"
+          "mode",
+          "prompt"
         ],
         "properties": {
           "description": {
             "type": "string",
-            "description": "Human-facing guidance for when Codex should use the agent.",
+            "description": "Human-facing guidance for when OpenCode should use the agent.",
             "minLength": 1
           },
           "model": {
@@ -28,7 +29,7 @@
           },
           "reasoning_effort": {
             "type": "string",
-            "description": "Codex reasoning effort override.",
+            "description": "OpenCode reasoning effort override.",
             "minLength": 1,
             "enum": [
               "low",
@@ -36,9 +37,19 @@
               "high"
             ]
           },
-          "developer_instructions": {
+          "mode": {
             "type": "string",
-            "description": "Core instructions that define the agent behavior.",
+            "description": "OpenCode agent mode.",
+            "minLength": 1,
+            "enum": [
+              "primary",
+              "subagent",
+              "all"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Core prompt that defines the agent behavior.",
             "minLength": 1
           }
         },

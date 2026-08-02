@@ -86,7 +86,7 @@ describe("local config overlay", () => {
       writeFileSync(join(root, "env.yaml"), "variables: {}\n");
       writeFileSync(
         join(root, "agents.yaml"),
-        "agents:\n  commit:\n    description: Commit changes\n    model: model-a\n    reasoning_effort: low\n    developer_instructions: Create a commit.\n",
+        "agents:\n  commit:\n    description: Commit changes\n    model: model-a\n    reasoning_effort: low\n    mode: subagent\n    prompt: Create a commit.\n",
       );
       writeFileSync(join(root, "local", "global.yaml"), "model: model-b\n");
 

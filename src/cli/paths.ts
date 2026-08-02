@@ -4,12 +4,15 @@ export type GeneratorPaths = {
   projectRoot: string;
   configDir: string;
   homeDir: string;
-  targetCodexConfigDir: string;
-  targetCodexConfig: string;
-  targetCodexEnv: string;
-  targetCodexInstructions: string;
-  targetCodexSkillsDir: string;
-  targetCodexAgentsDir: string;
+  targetOpenCodeConfigDir: string;
+  targetOpenCodeConfig: string;
+  targetOpenCodeEnv: string;
+  targetOpenCodeSkillsDir: string;
+  targetUserBinDir: string;
+  targetAiocScript: string;
+  targetAiocUnix: string;
+  targetAiocCmd: string;
+  targetAiocPowerShell: string;
 };
 
 export function buildGeneratorPaths(
@@ -21,21 +24,25 @@ export function buildGeneratorPaths(
   if (!homeValue?.trim()) throw new Error("无法解析用户目录。请设置 HOME 或 USERPROFILE 环境变量。");
   if (!isAbsolute(homeValue)) throw new Error("HOME 或 USERPROFILE 必须是绝对路径。");
   const homeDir = resolve(homeValue);
-  const codexHomeValue = env.CODEX_HOME;
-  if (codexHomeValue !== undefined && (!codexHomeValue.trim() || !isAbsolute(codexHomeValue))) {
-    throw new Error("CODEX_HOME 必须是非空绝对路径。");
+  const openCodeConfigDirValue = env.OPENCODE_CONFIG_DIR;
+  if (openCodeConfigDirValue !== undefined && (!openCodeConfigDirValue.trim() || !isAbsolute(openCodeConfigDirValue))) {
+    throw new Error("OPENCODE_CONFIG_DIR 必须是非空绝对路径。");
   }
-  const targetCodexConfigDir = resolve(codexHomeValue ?? resolve(homeDir, ".codex"));
+  const targetOpenCodeConfigDir = resolve(openCodeConfigDirValue ?? resolve(homeDir, ".config", "opencode"));
+  const targetUserBinDir = resolve(homeDir, ".local", "bin");
 
   return {
     projectRoot,
     configDir,
     homeDir,
-    targetCodexConfigDir,
-    targetCodexConfig: resolve(targetCodexConfigDir, "config.toml"),
-    targetCodexEnv: resolve(targetCodexConfigDir, ".env"),
-    targetCodexInstructions: resolve(targetCodexConfigDir, "AGENTS.md"),
-    targetCodexSkillsDir: resolve(targetCodexConfigDir, "skills"),
-    targetCodexAgentsDir: resolve(targetCodexConfigDir, "agents"),
+    targetOpenCodeConfigDir,
+    targetOpenCodeConfig: resolve(targetOpenCodeConfigDir, "opencode.jsonc"),
+    targetOpenCodeEnv: resolve(targetOpenCodeConfigDir, ".env"),
+    targetOpenCodeSkillsDir: resolve(targetOpenCodeConfigDir, "skills"),
+    targetUserBinDir,
+    targetAiocScript: resolve(targetUserBinDir, "aioc.ts"),
+    targetAiocUnix: resolve(targetUserBinDir, "aioc"),
+    targetAiocCmd: resolve(targetUserBinDir, "aioc.cmd"),
+    targetAiocPowerShell: resolve(targetUserBinDir, "aioc.ps1"),
   };
 }

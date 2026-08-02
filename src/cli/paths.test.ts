@@ -9,34 +9,33 @@ describe("generator paths", () => {
     const root = mkdtempSync(join(tmpdir(), "ai-share-paths-"));
     try {
       expect(() => buildGeneratorPaths(root, {})).toThrow("HOME 或 USERPROFILE");
-      expect(existsSync(resolve(root, ".codex"))).toBe(false);
+      expect(existsSync(resolve(root, ".config", "opencode"))).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  test("derives only Codex output paths from an explicit home", () => {
+  test("derives OpenCode config, skills and aioc launcher paths from an explicit home", () => {
     const root = resolve("fixture-project");
     const home = resolve("fixture-home");
     const paths = buildGeneratorPaths(root, { HOME: home });
-    expect(paths.targetCodexConfigDir).toBe(resolve(home, ".codex"));
-    expect(Object.keys(paths).sort()).toEqual([
-      "configDir",
-      "homeDir",
-      "projectRoot",
-      "targetCodexAgentsDir",
-      "targetCodexConfig",
-      "targetCodexConfigDir",
-      "targetCodexEnv",
-      "targetCodexInstructions",
-      "targetCodexSkillsDir",
-    ]);
+    expect(paths.targetOpenCodeConfigDir).toBe(resolve(home, ".config", "opencode"));
+    expect(paths.targetOpenCodeConfig).toBe(resolve(home, ".config", "opencode", "opencode.jsonc"));
+    expect(paths.targetOpenCodeSkillsDir).toBe(resolve(home, ".config", "opencode", "skills"));
+    expect(paths.targetUserBinDir).toBe(resolve(home, ".local", "bin"));
+    expect(paths.targetAiocScript).toBe(resolve(home, ".local", "bin", "aioc.ts"));
   });
 
-  test("rejects relative HOME and CODEX_HOME paths", () => {
-    expect(() => buildGeneratorPaths(resolve("fixture-project"), { HOME: "relative-home" })).toThrow("绝对路径");
-    expect(() =>
-      buildGeneratorPaths(resolve("fixture-project"), { HOME: resolve("fixture-home"), CODEX_HOME: "relative" }),
-    ).toThrow("CODEX_HOME 必须是非空绝对路径");
+  test("accepts an absolute OPENCODE_CONFIG_DIR and rejects relative paths", () => {
+    const project = resolve("fixture-project");
+    const home = resolve("fixture-home");
+    const configDir = resolve("custom-opencode");
+    expect(buildGeneratorPaths(project, { HOME: home, OPENCODE_CONFIG_DIR: configDir }).targetOpenCodeConfigDir).toBe(
+      configDir,
+    );
+    expect(() => buildGeneratorPaths(project, { HOME: "relative-home" })).toThrow("绝对路径");
+    expect(() => buildGeneratorPaths(project, { HOME: home, OPENCODE_CONFIG_DIR: "relative" })).toThrow(
+      "OPENCODE_CONFIG_DIR 必须是非空绝对路径",
+    );
   });
 });

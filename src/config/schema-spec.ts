@@ -81,28 +81,9 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
     root: objectSchema({
       required: ["model", "provider"],
       properties: {
-        model: patternStringSchema(CONFIG_ID_PATTERN, "Default Codex model id from models.yaml."),
+        model: patternStringSchema(CONFIG_ID_PATTERN, "Default OpenCode model id from models.yaml."),
         provider: patternStringSchema(CONFIG_ID_PATTERN, "Default provider id from provider.yaml."),
-        codex_min_version: patternStringSchema(SEMVER_PATTERN, "Minimum Codex CLI version checked by ai:doctor."),
-        codex_allow_login_shell: booleanSchema("Whether Codex shell commands may use login shells."),
-        codex_windows: objectSchema({
-          properties: {
-            sandbox: enumStringSchema(["elevated", "unelevated"], "Windows sandbox backend."),
-          },
-        }),
-        codex_shell_environment_policy: objectSchema({
-          properties: {
-            inherit: enumStringSchema(["all", "core", "none"], "Inherited environment policy for shell commands."),
-            ignore_default_excludes: booleanSchema("Whether to ignore Codex default env excludes."),
-            experimental_use_profile: booleanSchema("Whether to read shell profile files for command environments."),
-            exclude: stringArraySchema("Environment variable patterns excluded from shell commands."),
-            include_only: stringArraySchema("Environment variable patterns included in shell commands."),
-            set: objectSchema({
-              propertyNames: { pattern: ENV_FILE_NAME_PATTERN },
-              additionalProperties: stringSchema("Explicit shell command environment value."),
-            }),
-          },
-        }),
+        opencode_min_version: patternStringSchema(SEMVER_PATTERN, "Minimum OpenCode CLI version checked by ai:doctor."),
       },
     }),
   },
@@ -138,7 +119,7 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
         required: ["model_name"],
         properties: {
           model_name: stringSchema("Upstream model name sent to provider."),
-          reasoning_effort: enumStringSchema(["low", "medium", "high"], "Codex reasoning effort."),
+          reasoning_effort: enumStringSchema(["low", "medium", "high"], "OpenCode model reasoning effort."),
         },
       }),
     }),
@@ -164,7 +145,6 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
               url: patternStringSchema(HTTP_URL_PATTERN, "HTTP MCP URL."),
               bearer_token_env_var: envNameSchema("Bearer token env var name."),
               oauth_client_id: stringSchema("OAuth client id."),
-              oauth_resource: stringSchema("OAuth resource."),
             },
           }),
         }),
@@ -180,7 +160,7 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
       properties: {
         variables: objectSchema({
           propertyNames: { pattern: ENV_FILE_NAME_PATTERN },
-          additionalProperties: stringSchema("Codex .env variable value."),
+          additionalProperties: stringSchema("OpenCode launcher environment value."),
         }),
       },
     }),
@@ -195,12 +175,13 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
         agents: objectSchema({
           propertyNames: { pattern: AGENT_ID_PATTERN },
           additionalProperties: objectSchema({
-            required: ["description", "developer_instructions"],
+            required: ["description", "mode", "prompt"],
             properties: {
-              description: stringSchema("Human-facing guidance for when Codex should use the agent."),
+              description: stringSchema("Human-facing guidance for when OpenCode should use the agent."),
               model: patternStringSchema(CONFIG_ID_PATTERN, "Model id from models.yaml."),
-              reasoning_effort: enumStringSchema(["low", "medium", "high"], "Codex reasoning effort override."),
-              developer_instructions: stringSchema("Core instructions that define the agent behavior."),
+              reasoning_effort: enumStringSchema(["low", "medium", "high"], "OpenCode reasoning effort override."),
+              mode: enumStringSchema(["primary", "subagent", "all"], "OpenCode agent mode."),
+              prompt: stringSchema("Core prompt that defines the agent behavior."),
             },
           }),
         }),
@@ -231,10 +212,6 @@ function stringArraySchema(description: string): Extract<SchemaNode, { type: "ar
     items: stringSchema(description),
     description,
   };
-}
-
-function booleanSchema(description: string): Extract<SchemaNode, { type: "boolean" }> {
-  return { type: "boolean", description };
 }
 
 function objectSchema(input: Omit<ObjectSchemaNode, "type"> = {}): Extract<SchemaNode, { type: "object" }> {

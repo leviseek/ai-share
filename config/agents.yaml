@@ -3,7 +3,8 @@ agents:
     description: ai-share 的提交执行官
     model: gpt-5.5
     reasoning_effort: low
-    developer_instructions: |-
+    mode: subagent
+    prompt: |-
       Inspect the diff.
       Create the requested commit.
       Work only when the parent explicitly delegates a user-requested commit, push, or commit-and-push operation.

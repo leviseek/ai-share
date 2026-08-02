@@ -5,13 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { buildInstructionsPaths } from "../config/builders/instructions.ts";
 import { searchMemory } from "../memory/retrieval.ts";
-import {
-  buildGenerationPlan,
-  GENERATED_CONFIG_HEADER,
-  GENERATED_INSTRUCTIONS_MARKER,
-  LEGACY_RUNTIME_MANIFEST,
-  SKILL_MANAGED_MARKER,
-} from "./generation-plan.ts";
+import { buildGenerationPlan, GENERATED_CONFIG_HEADER, SKILL_MANAGED_MARKER } from "./generation-plan.ts";
 import { nativeSkillNames } from "./native-skills.ts";
 import type { GeneratorPaths } from "./paths.ts";
 
@@ -103,24 +97,22 @@ async function evaluateManagedSkills(root: string): Promise<MemoryEvalResult> {
     const paths = temporaryPaths(tempRoot, root);
     const plan = await buildGenerationPlan({
       paths,
-      configToml: `${GENERATED_CONFIG_HEADER}\n`,
-      instructions: `${GENERATED_INSTRUCTIONS_MARKER}\n`,
+      configJsonc: `${GENERATED_CONFIG_HEADER}\n{}\n`,
       envConfig: { variables: {} },
-      agentTomls: {},
+      launcherFiles: {},
       force: false,
     });
     const writes = new Set(
       plan.actions
         .filter((action) => action.kind === "create" || action.kind === "update")
-        .map((action) => relative(paths.targetCodexConfigDir, action.path).split(sep).join("/")),
+        .map((action) => relative(paths.targetOpenCodeConfigDir, action.path).split(sep).join("/")),
     );
     const complete = registered.every(
       (skill) => writes.has(`skills/${skill}/SKILL.md`) && writes.has(`skills/${skill}/${SKILL_MANAGED_MARKER}`),
     );
-    const hasManifest = [...writes].some((path) => path.endsWith(LEGACY_RUNTIME_MANIFEST));
-    return complete && !hasManifest
+    return complete
       ? pass("skill_install_plan", `planned ${registered.length} marked skills without a runtime manifest`)
-      : fail("skill_install_plan", `incomplete plan or runtime manifest present: ${[...writes].join(",")}`);
+      : fail("skill_install_plan", `incomplete skill plan: ${[...writes].join(",")}`);
   } finally {
     rmSync(tempRoot, { recursive: true, force: true });
   }
@@ -146,17 +138,21 @@ function writeFixture(root: string, path: string, content: string): void {
 }
 
 function temporaryPaths(tempRoot: string, projectRoot: string): GeneratorPaths {
-  const codexHome = resolve(tempRoot, "codex-home");
+  const openCodeDir = resolve(tempRoot, "opencode-home");
+  const binDir = resolve(tempRoot, "home", ".local", "bin");
   return {
     projectRoot,
     configDir: resolve(projectRoot, "config"),
     homeDir: resolve(tempRoot, "home"),
-    targetCodexConfigDir: codexHome,
-    targetCodexConfig: resolve(codexHome, "config.toml"),
-    targetCodexEnv: resolve(codexHome, ".env"),
-    targetCodexInstructions: resolve(codexHome, "AGENTS.md"),
-    targetCodexSkillsDir: resolve(codexHome, "skills"),
-    targetCodexAgentsDir: resolve(codexHome, "agents"),
+    targetOpenCodeConfigDir: openCodeDir,
+    targetOpenCodeConfig: resolve(openCodeDir, "opencode.jsonc"),
+    targetOpenCodeEnv: resolve(openCodeDir, ".env"),
+    targetOpenCodeSkillsDir: resolve(openCodeDir, "skills"),
+    targetUserBinDir: binDir,
+    targetAiocScript: resolve(binDir, "aioc.ts"),
+    targetAiocUnix: resolve(binDir, "aioc"),
+    targetAiocCmd: resolve(binDir, "aioc.cmd"),
+    targetAiocPowerShell: resolve(binDir, "aioc.ps1"),
   };
 }
 

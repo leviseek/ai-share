@@ -23,7 +23,7 @@ object 递归合并，数组与标量由 overlay 整体替换。overlay 不能�
 
 ## Shareable Template
 
-`templates/shareable/config/` 包含 `global.yaml`、`provider.yaml`、`models.yaml`、`mcp.yaml`、`env.yaml`，并在测试中经过与主配置完全相同的 loader、validation 和 Codex builder pipeline。
+`templates/shareable/config/` 包含 `global.yaml`、`provider.yaml`、`models.yaml`、`mcp.yaml`、`env.yaml`、`agents.yaml`，并在测试中经过与主配置完全相同的 loader、validation 和 OpenCode builder pipeline。`agents.yaml` 可使用 `agents: {}`，但仍是 pipeline 的必需输入文件。
 
 ```powershell
 Copy-Item -Recurse templates/shareable/config config-template

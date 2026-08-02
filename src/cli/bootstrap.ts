@@ -17,12 +17,12 @@ const skipInstall = Bun.argv.includes("--skip-install");
 const steps: Step[] = [
   ...(skipInstall ? [] : [{ label: "安装 Bun 依赖", command: bunCommand, args: ["install", "--frozen-lockfile"] }]),
   { label: "检查 ai-share 配置", command: bunCommand, args: ["run", "ai:check"] },
-  { label: "生成并安装用户级 Codex 配置", command: bunCommand, args: ["run", "ai:gen"] },
+  { label: "生成并安装用户级 OpenCode 配置", command: bunCommand, args: ["run", "ai:gen"] },
 ];
 
 console.log(color.bold("ai-share bootstrap"));
 console.log(`${color.cyan("项目目录")}：${paths.projectRoot}`);
-console.log(`${color.cyan("Codex home")}：${paths.targetCodexConfigDir}`);
+console.log(`${color.cyan("OpenCode config")}：${paths.targetOpenCodeConfigDir}`);
 console.log("");
 
 let exitCode = 0;
@@ -33,7 +33,7 @@ for (const step of steps) {
 
 if (exitCode === 0) {
   console.log("");
-  console.log(color.green("bootstrap 完成。现在可以在任意项目目录运行：codex"));
+  console.log(color.green("bootstrap 完成。现在可以在任意项目目录运行：aioc"));
 }
 process.exitCode = exitCode;
 

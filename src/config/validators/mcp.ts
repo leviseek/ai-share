@@ -96,7 +96,7 @@ function validateStdioMcpServer(
     });
   }
 
-  for (const field of ["bearer_token_env_var", "oauth_client_id", "oauth_resource"] as const) {
+  for (const field of ["bearer_token_env_var", "oauth_client_id"] as const) {
     if (server[field] !== undefined) {
       errors.push({
         file: "mcp.yaml",

@@ -9,7 +9,7 @@ docs/schema/json/
 
 bun.lock
 
-.codex/
+.opencode/
 .codegraph/
 .rie/
 .playwright-mcp/

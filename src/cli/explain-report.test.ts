@@ -15,7 +15,7 @@ describe("explain report", () => {
       });
       const report = buildExplainReport(preview);
 
-      expect(report.schema_version).toBe(1);
+      expect(report.schema_version).toBe(2);
       expect(report.status).toBe("ok");
       expect(report.inputs.provider).toEqual({
         id: "provider-a",

@@ -9,18 +9,18 @@ describe("generation security boundary", () => {
   test("force never bypasses secret validation or creates partial output", async () => {
     const root = mkdtempSync(join(tmpdir(), "ai-share-security-"));
     const home = join(root, "home");
-    const codexHome = join(root, "codex-home");
+    const openCodeDir = join(root, "opencode-home");
     try {
       writeConfigFixture(root, "variables:\n  API_TOKEN: placeholder-only\n");
       const result = await runGeneration({
         argv: ["bun", "script", "--force"],
-        env: { HOME: home, CODEX_HOME: codexHome },
+        env: { HOME: home, OPENCODE_CONFIG_DIR: openCodeDir },
         projectRoot: root,
       });
 
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error).toBeInstanceOf(ConfigValidationError);
-      expect(existsSync(codexHome)).toBe(false);
+      expect(existsSync(openCodeDir)).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -29,20 +29,21 @@ describe("generation security boundary", () => {
   test("compiles the CLI task instead of AI_SHARE_TASK into this generation", async () => {
     const root = mkdtempSync(join(tmpdir(), "ai-share-task-"));
     const home = join(root, "home");
-    const codexHome = join(root, "codex-home");
+    const openCodeDir = join(root, "opencode-home");
     try {
       writeConfigFixture(root, "variables: {}\n");
       writeMemoryFixture(root);
       const result = await runGeneration({
         argv: ["bun", "script", "--task", "cli-parser-command"],
-        env: { HOME: home, CODEX_HOME: codexHome, AI_SHARE_TASK: "proxy-runtime-variable" },
+        env: { HOME: home, OPENCODE_CONFIG_DIR: openCodeDir, AI_SHARE_TASK: "proxy-runtime-variable" },
         projectRoot: root,
       });
 
       expect(result.ok).toBe(true);
-      const instructions = readFileSync(join(codexHome, "AGENTS.md"), "utf8");
-      expect(instructions).toContain(join(root, "memory", "architecture", "cli.md"));
-      expect(instructions).not.toContain(join(root, "memory", "architecture", "env.md"));
+      const output = readFileSync(join(openCodeDir, "opencode.jsonc"), "utf8");
+      const config = JSON.parse(output.slice(output.indexOf("{"))) as { instructions: string[] };
+      expect(config.instructions).toContain(join(root, "memory", "architecture", "cli.md"));
+      expect(config.instructions).not.toContain(join(root, "memory", "architecture", "env.md"));
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -58,7 +59,7 @@ describe("generation security boundary", () => {
         argv: ["bun", "script", "--dry-run"],
         env: {
           HOME: join(root, "home"),
-          CODEX_HOME: join(root, "codex-home"),
+          OPENCODE_CONFIG_DIR: join(root, "opencode-home"),
           AI_SHARE_PROVIDER: "missing-provider",
         },
         projectRoot: root,
@@ -85,7 +86,7 @@ describe("generation security boundary", () => {
       let selectorCalls = 0;
       const result = await runGeneration({
         argv: ["bun", "script", "--dry-run", "--provider", "provider-b"],
-        env: { HOME: join(root, "home"), CODEX_HOME: join(root, "codex-home") },
+        env: { HOME: join(root, "home"), OPENCODE_CONFIG_DIR: join(root, "opencode-home") },
         projectRoot: root,
         providerSelector: () => {
           selectorCalls += 1;

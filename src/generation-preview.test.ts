@@ -3,18 +3,19 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { buildGenerationPreview } from "./generation-preview.ts";
+import type { OpenCodeConfig } from "./types.ts";
 
 describe("generation preview", () => {
-  test("builds the exact no-write inputs with provider and task decisions", async () => {
+  test("builds OpenCode no-write inputs with provider and task decisions", async () => {
     const root = mkdtempSync(join(tmpdir(), "ai-share-preview-"));
     try {
       writeConfig(root);
-      const codexHome = join(root, "codex-home");
+      const openCodeDir = join(root, "opencode-home");
       const preview = await buildGenerationPreview({
         options: { force: false },
         env: {
           HOME: join(root, "home"),
-          CODEX_HOME: codexHome,
+          OPENCODE_CONFIG_DIR: openCodeDir,
           AI_SHARE_PROVIDER: "provider-a",
           AI_SHARE_TASK: "memory task",
         },
@@ -25,14 +26,16 @@ describe("generation preview", () => {
       expect(preview.providerDecision).toEqual({ id: "provider-b", source: "interactive" });
       expect(preview.taskDecision).toEqual({ value: "memory task", source: "environment" });
       expect(preview.loadedConfig.provenance.global.provider).toBe("config/global.yaml");
-      expect(preview.agentTomls.commit).toContain('model = "upstream-model"');
-      expect(preview.agentTomls.commit).toContain('model_reasoning_effort = "low"');
-      expect(preview.plan.actions.some((action) => action.path === join(codexHome, "agents", "commit.toml"))).toBe(
-        true,
-      );
-      expect(preview.plan.actions.length).toBeGreaterThan(0);
+      const config = JSON.parse(
+        preview.configJsonc.slice(preview.configJsonc.indexOf("{")),
+      ) as unknown as OpenCodeConfig;
+      expect(config.model).toBe("provider-b/model-a");
+      expect(config.enabled_providers).toEqual(["provider-b"]);
+      expect(config.agent.commit?.model).toBe("provider-b/model-a");
+      expect(config.agent.commit?.options).toEqual({ reasoningEffort: "low" });
+      expect(preview.plan.actions.some((action) => action.path === join(openCodeDir, "opencode.jsonc"))).toBe(true);
       expect(preview.plan.collisions).toEqual([]);
-      expect(existsSync(codexHome)).toBe(false);
+      expect(existsSync(openCodeDir)).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -59,7 +62,7 @@ function writeConfig(root: string): void {
   write(join(root, "config", "env.yaml"), "variables: {}\n");
   write(
     join(root, "config", "agents.yaml"),
-    "agents:\n  commit:\n    description: Commit changes\n    model: model-a\n    reasoning_effort: low\n    developer_instructions: Create a commit.\n",
+    "agents:\n  commit:\n    description: Commit changes\n    model: model-a\n    reasoning_effort: low\n    mode: subagent\n    prompt: Create a commit.\n",
   );
 }
 

@@ -6,38 +6,38 @@ devices:
     role: 主力开发机
     shell: PowerShell 7+
     paths:
-      codex_home: ~/.codex/
+      opencode_config: ~/.config/opencode/
       ai_share_memory: memory/
     notes: >-
-      日常主力机。所有 AI 配置生成和大部分开发在此进行。Codex 通过 codex 命令启动，已加入用户 PATH。
+      日常主力机。所有 AI 配置生成和大部分开发在此进行。OpenCode 由官方 opencode 命令提供，日常通过 aioc 注入本机非密钥环境后启动。
 
   - name: wsl2
     os: Ubuntu (WSL2)
     role: Linux 开发环境
     shell: bash
     paths:
-      codex_home: ~/.codex/
+      opencode_config: ~/.config/opencode/
       ai_share_memory: memory/
     notes: >-
-      用于 Linux 原生构建，以及某些工具链在 Linux 下表现更好的场景。ai-share Git 仓库从 Windows 同步或单独克隆。
+      用于 Linux 原生构建，以及某些工具链在 Linux 下表现更好的场景。OpenCode、aioc、环境变量和生成配置在 WSL 内独立安装。
 
   - name: macbook
     os: macOS
     role: 备用开发设备
     shell: zsh
     paths:
-      codex_home: ~/.codex/
+      opencode_config: ~/.config/opencode/
       ai_share_memory: memory/
     notes: >-
-      备用或出差设备。运行相同的 ai-share 配置，环境变量按本机单独设置。
+      备用或出差设备。运行相同的 ai-share 配置，OpenCode 与环境变量按本机单独设置。
 
 model_preferences:
   daily_coding: gpt-5 系列
   deep_reasoning: gpt-5 系列
 
 cross_device_rules:
-  - ai-share 配置源通过 Git 同步，每个设备独立生成配置
-  - 生成的 Codex TOML、AGENTS 和 skills 不提交到仓库，每个设备独立生成
+  - ai-share 配置源通过 Git 同步，每个设备独立生成 OpenCode 配置、skills 和 aioc
+  - 生成的 opencode.jsonc、managed .env、skills 和 aioc 不提交到仓库
   - API Key 按设备单独设置，永不写入仓库；非密钥代理使用 ignored config/local/env.yaml
   - memory/ 目录随 ai-share 仓库同步，不再使用独立记忆仓库
-  - ai-share 不安装独立启动器；codex 命令由本机安装的 Codex CLI 提供
+  - 官方 opencode 命令必须可用；aioc 只负责加载非密钥运行环境并透传参数

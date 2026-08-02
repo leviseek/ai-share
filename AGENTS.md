@@ -5,7 +5,7 @@
 
 ## OVERVIEW
 
-`ai-share` centralizes Codex CLI, MCP, native skills, prompts, and user-level memory for multiple machines/projects. Bun + strict TypeScript generate a single user-level Codex config, native skills, runtime manifests, and instruction memory from YAML sources.
+`ai-share` centralizes OpenCode CLI, MCP, native skills, agents, and user-level memory for multiple machines/projects. Bun + strict TypeScript generate user-level OpenCode config, native skills, an `aioc` launcher, and instruction paths from YAML sources.
 
 ## STRUCTURE
 
@@ -28,14 +28,14 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.sisyphus/evidence/`, `
 | Task                                  | Location                                        | Notes                                              |
 | ------------------------------------- | ----------------------------------------------- | -------------------------------------------------- |
 | Change providers/models/default model | `config/*.yaml`                                 | Canonical inputs; generated files are outputs      |
-| Codex `.env` runtime variables        | `config/env.yaml`                               | Non-secret runtime env only                        |
+| `aioc` runtime variables              | `config/env.yaml`                               | Non-secret runtime env only                        |
 | Generator orchestration               | `src/generate-user-config.ts`                   | Loads YAML, builds configs, writes/install outputs |
-| Codex config shape                    | `src/config/builders/codex.ts`                  | Codex TOML, model providers, MCP                   |
+| OpenCode config shape                 | `src/config/builders/opencode.ts`               | JSONC config, model providers, agents, MCP         |
 | YAML schema and runtime shape checks  | `src/config/schema-spec.ts`                     | Single source for JSON Schema and shape validation |
 | Instruction path builder              | `src/config/builders/instructions.ts`           | Generates memory file list                         |
-| Native skill install behavior         | `src/cli/install.ts`                            | Installs native skills                             |
-| Output paths                          | `src/cli/paths.ts`                              | Codex home and skills output paths                 |
-| Shared AI workflow rules              | `AI_GUIDELINES.md`                              | Loaded into generated Codex instructions           |
+| Skills and launcher ownership         | `src/cli/generation-plan.ts`                    | Plans transactional managed outputs                |
+| Output paths                          | `src/cli/paths.ts`                              | OpenCode config, skills, and `aioc` paths          |
+| Shared AI workflow rules              | `AI_GUIDELINES.md`                              | Referenced by OpenCode instructions                |
 | Commit format                         | `GIT_COMMIT_GUIDELINES.md`                      | `option: 中文描述`                                 |
 | User memory content                   | `memory/`                                       | Structured Markdown/YAML memory                    |
 | Shareable templates and overlays      | `templates/` + `docs/templates-and-overlays.md` | Not direct generator input                         |
@@ -45,9 +45,9 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.sisyphus/evidence/`, `
 | Symbol                     | Type     | Location                                | Role                                   |
 | -------------------------- | -------- | --------------------------------------- | -------------------------------------- |
 | `loadYaml`                 | function | `src/generate-user-config.ts`           | Parse YAML source files from `config/` |
-| `buildCodexCliConfig`      | function | `src/config/builders/codex.ts`          | Generate Codex CLI TOML shape          |
+| `buildOpenCodeConfig`      | function | `src/config/builders/opencode.ts`       | Generate OpenCode config shape         |
 | `buildInstructionsPaths`   | function | `src/config/builders/instructions.ts`   | Generate instruction/memory file list  |
-| `installNativeSkills`      | function | `src/cli/install.ts`                    | Install native skills into Codex home  |
+| `buildAiocLauncherFiles`   | function | `src/cli/aioc-install.ts`               | Build cross-platform `aioc` launchers  |
 | `parseCliOptions`          | function | `src/cli/options.ts`                    | Handles flags and provider groups      |
 | `YAML_SCHEMA_SPECS`        | const    | `src/config/schema-spec.ts`             | Shared field spec for YAML schema      |
 | `validateYamlSchemaShapes` | function | `src/config/validators/schema-shape.ts` | Runtime validation from schema spec    |
@@ -58,11 +58,11 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.sisyphus/evidence/`, `
 - YAML in `config/` is authoritative. Do not hand-edit generated user config as the durable fix.
 - YAML field shape rules live in `src/config/schema-spec.ts`; JSON Schema output and runtime shape validation must derive from it.
 - Secrets policy is env-only: API keys are env-var references; never write real keys/tokens/cookies into repo files.
-- `config/env.yaml` may manage local proxy variables for `CODEX_HOME/.env`, but must not contain API keys, tokens, `CODEX_HOME`, `PATH`, `AI_SHARE_*`, or `CODEX_*`.
+- `config/env.yaml` may manage local proxy variables for the OpenCode config `.env`, but must not contain API keys, tokens, `PATH`, `AI_SHARE_*`, or `OPENCODE_*`.
 - TypeScript is strict: `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `noUnused*`, `isolatedDeclarations`, `erasableSyntaxOnly`.
 - User-facing thrown errors in generator code are Chinese.
 - Prettier: 2 spaces, double quotes, semicolons, trailing commas, LF, print width 120.
-- Generated `~/.codex/config.toml` is preserved when it already exists unless `--force` is used.
+- An unmanaged `~/.config/opencode/opencode.jsonc` is preserved unless explicit adoption uses `--force`.
 - Git commits require explicit user request; format is `option: 中文描述`.
 
 ## ANTI-PATTERNS
@@ -91,7 +91,7 @@ bun run schema:gen
 
 ## NOTES
 
-- Default Codex model is configured by `config/global.yaml` (`model: gpt-5.5`).
-- `memory/` contains user-level memory files loaded as Codex startup instructions via `buildInstructionsPaths`.
+- Default OpenCode model is configured by `config/global.yaml` (`model: gpt-5.6-sol`).
+- `memory/` contains user-level memory files referenced by OpenCode startup instructions via `buildInstructionsPaths`.
 - Memory privacy layers are documented in `docs/memory-privacy.md`; local/private/project memory directories are ignored.
 - Existing local knowledge files: `config/AGENTS.md`, `src/AGENTS.md`.

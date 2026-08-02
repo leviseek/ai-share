@@ -20,7 +20,8 @@ describe("strict config validation", () => {
           description: "Commit changes",
           model: "missing-model",
           reasoning_effort: "ultra",
-          developer_instructions: "Create a commit.",
+          mode: "invalid",
+          prompt: "Create a commit.",
           unknown: true,
         },
       },
@@ -33,6 +34,7 @@ describe("strict config validation", () => {
     const paths = findings.map((finding) => finding.path);
     expect(paths).toContain("agents.Bad Agent");
     expect(paths).toContain("agents.Bad Agent.reasoning_effort");
+    expect(paths).toContain("agents.Bad Agent.mode");
     expect(paths).toContain("agents.Bad Agent.unknown");
     expect(findings.map((finding) => finding.message)).toContain("agent 'Bad Agent' 引用未定义模型 'missing-model'");
   });
@@ -76,7 +78,7 @@ describe("strict config validation", () => {
     fixture.env = {
       variables: {
         AI_SHARE_PROVIDER: "provider-a",
-        CODEX_FOO: "value",
+        OPENCODE_FOO: "value",
         HOME: "/tmp/home",
         JAVA_HOME: "/tmp/java",
         TOKEN_VALUE: "plain",
@@ -84,22 +86,18 @@ describe("strict config validation", () => {
       },
     };
     const messages = errors(fixture);
-    expect(messages.filter((message) => message.includes("不应写入 Codex .env"))).toHaveLength(4);
+    expect(messages.filter((message) => message.includes("不应写入 OpenCode .env"))).toHaveLength(4);
     expect(messages.some((message) => message.includes("敏感变量"))).toBe(true);
     expect(messages.some((message) => message.includes("明文 secret"))).toBe(true);
   });
 
-  test("rejects secrets in shell environment policy values", () => {
+  test("rejects removed Codex-only global settings", () => {
     const fixture = validConfig();
     fixture.global = {
       model: "model-a",
       provider: "provider-a",
-      codex_shell_environment_policy: {
-        set: {
-          SERVICE_API_KEY: "plain-text",
-          BENIGN_VALUE: "sk-1234567890abcdef",
-        },
-      },
+      codex_allow_login_shell: false,
+      codex_shell_environment_policy: { inherit: "all" },
     };
     const findings = validateYamlConsistency(
       fixture.models,
@@ -108,8 +106,8 @@ describe("strict config validation", () => {
       fixture.mcp,
       fixture.env,
     );
-    expect(findings.map((finding) => finding.path)).toContain("codex_shell_environment_policy.set.SERVICE_API_KEY");
-    expect(findings.map((finding) => finding.path)).toContain("codex_shell_environment_policy.set.BENIGN_VALUE");
+    expect(findings.map((finding) => finding.path)).toContain("codex_allow_login_shell");
+    expect(findings.map((finding) => finding.path)).toContain("codex_shell_environment_policy");
   });
 
   test("enforces MCP transport-specific fields", () => {
@@ -128,7 +126,7 @@ describe("strict config validation", () => {
 
   test("validates ids, semver, HTTPS providers, enum values and MCP env keys", () => {
     const fixture = validConfig();
-    fixture.global = { model: "Bad Model", provider: "provider-a", codex_min_version: "1.2" };
+    fixture.global = { model: "Bad Model", provider: "provider-a", opencode_min_version: "1.2" };
     fixture.models = { "Bad Model": { model_name: "upstream", reasoning_effort: "ultra" } };
     fixture.providers = {
       providers: {
@@ -149,7 +147,7 @@ describe("strict config validation", () => {
     );
     const paths = findings.map((finding) => finding.path);
     expect(paths).toContain("model");
-    expect(paths).toContain("codex_min_version");
+    expect(paths).toContain("opencode_min_version");
     expect(paths).toContain("models.Bad Model");
     expect(paths).toContain("models.Bad Model.reasoning_effort");
     expect(paths).toContain("providers.provider-a.base_url");

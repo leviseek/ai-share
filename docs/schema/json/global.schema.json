@@ -9,7 +9,7 @@
   "properties": {
     "model": {
       "type": "string",
-      "description": "Default Codex model id from models.yaml.",
+      "description": "Default OpenCode model id from models.yaml.",
       "minLength": 1,
       "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
     },
@@ -19,83 +19,11 @@
       "minLength": 1,
       "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
     },
-    "codex_min_version": {
+    "opencode_min_version": {
       "type": "string",
-      "description": "Minimum Codex CLI version checked by ai:doctor.",
+      "description": "Minimum OpenCode CLI version checked by ai:doctor.",
       "minLength": 1,
       "pattern": "^\\d+\\.\\d+\\.\\d+$"
-    },
-    "codex_allow_login_shell": {
-      "type": "boolean",
-      "description": "Whether Codex shell commands may use login shells."
-    },
-    "codex_windows": {
-      "type": "object",
-      "properties": {
-        "sandbox": {
-          "type": "string",
-          "description": "Windows sandbox backend.",
-          "minLength": 1,
-          "enum": [
-            "elevated",
-            "unelevated"
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
-    "codex_shell_environment_policy": {
-      "type": "object",
-      "properties": {
-        "inherit": {
-          "type": "string",
-          "description": "Inherited environment policy for shell commands.",
-          "minLength": 1,
-          "enum": [
-            "all",
-            "core",
-            "none"
-          ]
-        },
-        "ignore_default_excludes": {
-          "type": "boolean",
-          "description": "Whether to ignore Codex default env excludes."
-        },
-        "experimental_use_profile": {
-          "type": "boolean",
-          "description": "Whether to read shell profile files for command environments."
-        },
-        "exclude": {
-          "type": "array",
-          "description": "Environment variable patterns excluded from shell commands.",
-          "items": {
-            "type": "string",
-            "description": "Environment variable patterns excluded from shell commands.",
-            "minLength": 1
-          }
-        },
-        "include_only": {
-          "type": "array",
-          "description": "Environment variable patterns included in shell commands.",
-          "items": {
-            "type": "string",
-            "description": "Environment variable patterns included in shell commands.",
-            "minLength": 1
-          }
-        },
-        "set": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "description": "Explicit shell command environment value.",
-            "minLength": 1
-          },
-          "propertyNames": {
-            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
-          }
-        }
-      },
-      "additionalProperties": false
     }
   },
   "additionalProperties": false

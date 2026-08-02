@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { StagedFileWriter } from "./fs.ts";
 
 describe("StagedFileWriter", () => {
@@ -89,6 +90,73 @@ describe("StagedFileWriter", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  test("stages each target on the same simulated volume before promotion", async () => {
+    const root = mkdtempSync(join(tmpdir(), "ai-share-fs-volumes-"));
+    try {
+      const configVolume = join(root, "config-volume");
+      const homeVolume = join(root, "home-volume");
+      mkdirSync(configVolume, { recursive: true });
+      mkdirSync(homeVolume, { recursive: true });
+      const observedRenames: [string, string][] = [];
+      const writer = await StagedFileWriter.create(join(configVolume, ".staging"), {
+        rename: async (source, target) => {
+          observedRenames.push([source, target]);
+          if (simulatedVolume(configVolume, homeVolume, source) !== simulatedVolume(configVolume, homeVolume, target)) {
+            throw Object.assign(new Error("simulated cross-volume rename"), { code: "EXDEV" });
+          }
+          await rename(source, target);
+        },
+      });
+      const configTarget = join(configVolume, "opencode.jsonc");
+      const launcherTarget = join(homeVolume, "aioc");
+      await writer.writeText(configTarget, "config\n");
+      await writer.writeText(launcherTarget, "launcher\n");
+
+      await writer.promote();
+
+      expect(readFileSync(configTarget, "utf8")).toBe("config\n");
+      expect(readFileSync(launcherTarget, "utf8")).toBe("launcher\n");
+      expect(observedRenames.length).toBeGreaterThan(0);
+      expect(
+        observedRenames.every(
+          ([source, target]) =>
+            simulatedVolume(configVolume, homeVolume, source) === simulatedVolume(configVolume, homeVolume, target),
+        ),
+      ).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("preserves recovery files when rollback cannot restore a backup", async () => {
+    const root = mkdtempSync(join(tmpdir(), "ai-share-fs-recovery-"));
+    try {
+      const existingPath = join(root, "config.jsonc");
+      const blockingPath = join(root, "not-dir");
+      writeFileSync(existingPath, "old\n");
+      writeFileSync(blockingPath, "file\n");
+      const writer = await StagedFileWriter.create(join(root, ".staging"), {
+        rename: async (source, target) => {
+          if (source.split(/[\\/]/).includes("backups") && target === existingPath) {
+            throw new Error("simulated restore failure");
+          }
+          await rename(source, target);
+        },
+      });
+      await writer.writeText(existingPath, "new\n");
+      await writer.writeText(join(blockingPath, "nested.jsonc"), "cannot promote\n");
+
+      const error = await captureError(writer.promote());
+
+      expect(error).toBeInstanceOf(AggregateError);
+      expect(String(error)).toContain("回滚失败");
+      expect(existsSync(writer.stagingDir)).toBe(true);
+      expect(readAllFileContents(root)).toContain("old\n");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 async function captureError(promise: Promise<unknown>): Promise<unknown> {
@@ -98,4 +166,22 @@ async function captureError(promise: Promise<unknown>): Promise<unknown> {
   } catch (error) {
     return error;
   }
+}
+
+function simulatedVolume(configVolume: string, homeVolume: string, path: string): string {
+  const rel = relative(configVolume, path);
+  if (!rel.startsWith(`..${sep}`) && rel !== "..") return "config";
+  const homeRel = relative(homeVolume, path);
+  if (!homeRel.startsWith(`..${sep}`) && homeRel !== "..") return "home";
+  return "outside";
+}
+
+function readAllFileContents(root: string): string[] {
+  const output: string[] = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) output.push(...readAllFileContents(path));
+    else if (entry.isFile()) output.push(readFileSync(path, "utf8"));
+  }
+  return output;
 }

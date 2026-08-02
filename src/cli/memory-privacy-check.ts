@@ -32,7 +32,7 @@ const REQUIRED_MEMORY_GITIGNORE_PATTERNS = [
 
 const REQUIRED_RUNTIME_GITIGNORE_PATTERNS = [
   ".playwright-mcp/",
-  ".codex/",
+  ".opencode/",
   ".codegraph/",
   ".rie/",
   ".sisyphus/evidence/",

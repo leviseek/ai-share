@@ -1,139 +1,81 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { CODEX_ENV_MANAGED_BEGIN, CODEX_ENV_MANAGED_END } from "../config/builders/env.ts";
-import { cleanCodexConfig } from "./clean.ts";
+import { OPENCODE_ENV_MANAGED_BEGIN, OPENCODE_ENV_MANAGED_END } from "../config/builders/env.ts";
+import { cleanOpenCodeConfig } from "./clean.ts";
 import {
   GENERATED_CONFIG_HEADER,
-  GENERATED_INSTRUCTIONS_MARKER,
-  AGENT_GENERATED_HEADER,
-  LEGACY_RUNTIME_MANIFEST,
+  LAUNCHER_MANAGED_MARKER,
   SKILL_MANAGED_CONTENT,
   SKILL_MANAGED_MARKER,
 } from "./generation-plan.ts";
 import type { GeneratorPaths } from "./paths.ts";
 
 describe("surgical clean", () => {
-  test("removes only marked outputs and preserves private Codex content", async () => {
+  test("removes only marked OpenCode outputs and preserves user content", async () => {
     const root = makeRoot();
     try {
       const paths = testPaths(root);
-      const managedSkill = join(paths.targetCodexSkillsDir, "managed-skill");
-      const userSkill = join(paths.targetCodexSkillsDir, "user-skill");
-      const invalidMarkerSkill = join(paths.targetCodexSkillsDir, "invalid-marker");
-      const malformedManifest = join(paths.targetCodexConfigDir, LEGACY_RUNTIME_MANIFEST);
-      const managedAgent = join(paths.targetCodexAgentsDir, "managed.toml");
-      const userAgent = join(paths.targetCodexAgentsDir, "user.toml");
-      write(paths.targetCodexConfig, `${GENERATED_CONFIG_HEADER}\nmodel = "test"\n`);
-      write(paths.targetCodexInstructions, `${GENERATED_INSTRUCTIONS_MARKER}\n`);
+      const managedSkill = join(paths.targetOpenCodeSkillsDir, "managed-skill");
+      const userSkill = join(paths.targetOpenCodeSkillsDir, "user-skill");
+      write(paths.targetOpenCodeConfig, `${GENERATED_CONFIG_HEADER}\n{}\n`);
       write(
-        paths.targetCodexEnv,
-        `PRIVATE_FLAG=1\n\n${CODEX_ENV_MANAGED_BEGIN}\nHTTP_PROXY=http://127.0.0.1:7897\n${CODEX_ENV_MANAGED_END}\n`,
+        paths.targetOpenCodeEnv,
+        `PRIVATE_FLAG=1\n\n${OPENCODE_ENV_MANAGED_BEGIN}\nHTTP_PROXY=http://127.0.0.1:7897\n${OPENCODE_ENV_MANAGED_END}\n`,
       );
       write(join(managedSkill, "SKILL.md"), "managed\n");
       write(join(managedSkill, SKILL_MANAGED_MARKER), SKILL_MANAGED_CONTENT);
       write(join(userSkill, "SKILL.md"), "user\n");
-      write(join(invalidMarkerSkill, "SKILL.md"), "user\n");
-      write(join(invalidMarkerSkill, SKILL_MANAGED_MARKER), "not-ai-share\n");
-      write(join(paths.targetCodexConfigDir, "user.toml"), "user\n");
-      write(malformedManifest, "{ malformed\n");
-      write(managedAgent, `${AGENT_GENERATED_HEADER}\nname = "managed"\n`);
-      write(userAgent, 'name = "user"\n');
+      write(join(paths.targetOpenCodeConfigDir, "user.jsonc"), "{}\n");
+      write(paths.targetAiocScript, `#!/usr/bin/env bun\n// ${LAUNCHER_MANAGED_MARKER}\n`);
+      write(paths.targetAiocUnix, `#!/bin/sh\n# ${LAUNCHER_MANAGED_MARKER}\n`);
+      write(paths.targetAiocCmd, `@REM user-owned aioc wrapper\r\n@REM ${LAUNCHER_MANAGED_MARKER}\r\n`);
+      write(paths.targetAiocPowerShell, `# ${LAUNCHER_MANAGED_MARKER}\n`);
 
-      const result = await cleanCodexConfig(paths, { backup: false });
+      const result = await cleanOpenCodeConfig(paths, { backup: false });
 
       expect(result.changed.length).toBeGreaterThan(0);
-      expect(existsSync(paths.targetCodexConfig)).toBe(false);
-      expect(existsSync(paths.targetCodexInstructions)).toBe(false);
-      expect(readFileSync(paths.targetCodexEnv, "utf8")).toBe("PRIVATE_FLAG=1\n");
+      expect(existsSync(paths.targetOpenCodeConfig)).toBe(false);
+      expect(readFileSync(paths.targetOpenCodeEnv, "utf8")).toBe("PRIVATE_FLAG=1\n\n");
       expect(existsSync(managedSkill)).toBe(false);
-      expect(existsSync(managedAgent)).toBe(false);
-      expect(readFileSync(userAgent, "utf8")).toBe('name = "user"\n');
       expect(readFileSync(join(userSkill, "SKILL.md"), "utf8")).toBe("user\n");
-      expect(readFileSync(join(invalidMarkerSkill, "SKILL.md"), "utf8")).toBe("user\n");
-      expect(readFileSync(join(paths.targetCodexConfigDir, "user.toml"), "utf8")).toBe("user\n");
-      expect(readFileSync(malformedManifest, "utf8")).toBe("{ malformed\n");
-      expect(existsSync(paths.targetCodexConfigDir)).toBe(true);
+      expect(readFileSync(join(paths.targetOpenCodeConfigDir, "user.jsonc"), "utf8")).toBe("{}\n");
+      expect(existsSync(paths.targetAiocScript)).toBe(false);
+      expect(existsSync(paths.targetAiocUnix)).toBe(false);
+      expect(readFileSync(paths.targetAiocCmd, "utf8")).toContain("user-owned");
+      expect(existsSync(paths.targetAiocPowerShell)).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  test("uses a valid legacy manifest for one-time cleanup and backs up affected targets", async () => {
+  test("backs up managed config and launcher under separate safe roots", async () => {
     const root = makeRoot();
     try {
       const paths = testPaths(root);
-      const legacySkill = join(paths.targetCodexSkillsDir, "legacy-skill");
-      const manifest = join(paths.targetCodexConfigDir, LEGACY_RUNTIME_MANIFEST);
-      write(paths.targetCodexConfig, "# legacy generated config\n");
-      write(join(legacySkill, "SKILL.md"), "legacy\n");
-      write(
-        manifest,
-        `${JSON.stringify({
-          version: 4,
-          primary_stack: "codex",
-          scope: "user",
-          paths: { codex_home: paths.targetCodexConfigDir, codex_skills: paths.targetCodexSkillsDir },
-          managed: { codex_config: paths.targetCodexConfig, skills: ["legacy-skill"] },
-        })}\n`,
-      );
+      write(paths.targetOpenCodeConfig, `${GENERATED_CONFIG_HEADER}\n{}\n`);
+      write(paths.targetAiocScript, `#!/usr/bin/env bun\n// ${LAUNCHER_MANAGED_MARKER}\n`);
 
-      const result = await cleanCodexConfig(paths, { backup: true });
-
-      expect(result.backupPath).toBeDefined();
+      const result = await cleanOpenCodeConfig(paths, { backup: true });
       const backup = requireString(result.backupPath);
-      expect(readFileSync(join(backup, "config.toml"), "utf8")).toBe("# legacy generated config\n");
-      expect(readFileSync(join(backup, "skills", "legacy-skill", "SKILL.md"), "utf8")).toBe("legacy\n");
-      expect(existsSync(join(backup, LEGACY_RUNTIME_MANIFEST))).toBe(true);
-      expect(existsSync(paths.targetCodexConfig)).toBe(false);
-      expect(existsSync(legacySkill)).toBe(false);
-      expect(existsSync(manifest)).toBe(false);
-      expect(existsSync(paths.targetCodexConfigDir)).toBe(true);
+      expect(readFileSync(join(backup, "opencode", "opencode.jsonc"), "utf8")).toContain(GENERATED_CONFIG_HEADER);
+      expect(readFileSync(join(backup, "bin", "aioc.ts"), "utf8")).toContain(LAUNCHER_MANAGED_MARKER);
+      expect(existsSync(paths.targetOpenCodeConfig)).toBe(false);
+      expect(existsSync(paths.targetAiocScript)).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  test("preserves an incomplete env marker instead of deleting user content", async () => {
+  test("preserves an incomplete env marker", async () => {
     const root = makeRoot();
     try {
       const paths = testPaths(root);
-      const content = "PRIVATE_FLAG=1\n# BEGIN ai-share managed env\n";
-      write(paths.targetCodexEnv, content);
-
-      expect(await cleanCodexConfig(paths, { backup: false })).toEqual({ changed: [] });
-      expect(readFileSync(paths.targetCodexEnv, "utf8")).toBe(content);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
-
-  test("preserves an unmanaged file blocking the agents directory", async () => {
-    const root = makeRoot();
-    try {
-      const paths = testPaths(root);
-      write(paths.targetCodexAgentsDir, "user blocking file\n");
-
-      expect(await cleanCodexConfig(paths, { backup: false })).toEqual({ changed: [] });
-      expect(readFileSync(paths.targetCodexAgentsDir, "utf8")).toBe("user blocking file\n");
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
-
-  test("does not follow an agents junction outside CODEX_HOME", async () => {
-    const root = makeRoot();
-    try {
-      const paths = testPaths(root);
-      const external = join(root, "external-agents");
-      const externalAgent = join(external, "managed.toml");
-      write(externalAgent, `${AGENT_GENERATED_HEADER}\nname = "external"\n`);
-      mkdirSync(paths.targetCodexConfigDir, { recursive: true });
-      symlinkSync(external, paths.targetCodexAgentsDir, "junction");
-
-      expect(await cleanCodexConfig(paths, { backup: false })).toEqual({ changed: [] });
-      expect(readFileSync(externalAgent, "utf8")).toContain('name = "external"');
+      const content = `PRIVATE_FLAG=1\n${OPENCODE_ENV_MANAGED_BEGIN}\n`;
+      write(paths.targetOpenCodeEnv, content);
+      expect(await cleanOpenCodeConfig(paths, { backup: false })).toEqual({ changed: [] });
+      expect(readFileSync(paths.targetOpenCodeEnv, "utf8")).toBe(content);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -145,17 +87,22 @@ function makeRoot(): string {
 }
 
 function testPaths(root: string): GeneratorPaths {
-  const codexHome = join(root, "codex-home");
+  const home = join(root, "home");
+  const configDir = join(home, ".config", "opencode");
+  const binDir = join(home, ".local", "bin");
   return {
     projectRoot: root,
     configDir: join(root, "config"),
-    homeDir: join(root, "home"),
-    targetCodexConfigDir: codexHome,
-    targetCodexConfig: join(codexHome, "config.toml"),
-    targetCodexEnv: join(codexHome, ".env"),
-    targetCodexInstructions: join(codexHome, "AGENTS.md"),
-    targetCodexSkillsDir: join(codexHome, "skills"),
-    targetCodexAgentsDir: join(codexHome, "agents"),
+    homeDir: home,
+    targetOpenCodeConfigDir: configDir,
+    targetOpenCodeConfig: join(configDir, "opencode.jsonc"),
+    targetOpenCodeEnv: join(configDir, ".env"),
+    targetOpenCodeSkillsDir: join(configDir, "skills"),
+    targetUserBinDir: binDir,
+    targetAiocScript: join(binDir, "aioc.ts"),
+    targetAiocUnix: join(binDir, "aioc"),
+    targetAiocCmd: join(binDir, "aioc.cmd"),
+    targetAiocPowerShell: join(binDir, "aioc.ps1"),
   };
 }
 

@@ -2,7 +2,7 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { buildCodexCliConfig, formatCodexConfigToml } from "../config-builders.ts";
+import { buildInstructionsPaths, buildOpenCodeConfig, formatOpenCodeConfigJsonc } from "../config-builders.ts";
 import { loadValidatedConfig } from "../config/load.ts";
 import { argsFromArgv, hasFlag, parseOptionValue } from "./args.ts";
 import { collectConfigDiagnostics } from "./config-diagnostics.ts";
@@ -11,6 +11,7 @@ import { summarizeLocalProxyChecks } from "./env-runtime-check.ts";
 import { checkMemoryPrivacy } from "./memory-privacy-check.ts";
 import { resolveProviderId } from "./options.ts";
 import { buildGeneratorPaths } from "./paths.ts";
+import { buildAiocLauncherFiles } from "./aioc-install.ts";
 import { checkProviderCanaries, checkProviderModels } from "./provider-check.ts";
 
 const startedAt = performance.now();
@@ -28,13 +29,16 @@ if (!provider) throw new Error(`提供商未定义：${providerId}`);
 const canary = hasFlag(args, "--canary");
 const online = hasFlag(args, "--online") || canary;
 const checks: DoctorCheck[] = [];
-const expectedConfig = formatCodexConfigToml(buildCodexCliConfig(config, providerId, paths.targetCodexInstructions));
+const expectedConfig = formatOpenCodeConfigJsonc(
+  buildOpenCodeConfig(config, providerId, buildInstructionsPaths(paths.projectRoot), paths.targetOpenCodeSkillsDir),
+);
 const diagnostics = await collectConfigDiagnostics({
   paths,
   provider,
   envConfig: config.env,
   globalConfig: config.global,
-  expectedCodexConfig: expectedConfig,
+  expectedOpenCodeConfig: expectedConfig,
+  launcherFiles: buildAiocLauncherFiles(paths),
 });
 const localProxySummary = summarizeLocalProxyChecks(diagnostics.localProxyChecks.value);
 
@@ -52,16 +56,22 @@ checks.push(
     `默认配置状态：${diagnostics.defaultConfigDrift.value.status}`,
   ),
   diagnosticCheck(
-    "codex_env",
+    "opencode_env",
     diagnostics.envManagedBlockCurrent.value,
     ".env managed block 当前有效。",
     ".env managed block 缺失或漂移。",
   ),
   diagnosticCheck(
+    "aioc_launcher",
+    diagnostics.launcherFilesCurrent.value,
+    "aioc 启动器当前有效。",
+    "aioc 启动器缺失或漂移。",
+  ),
+  diagnosticCheck(
     "runtime_versions",
     diagnostics.versionResults.value.every((entry) => entry.ok),
-    "Codex 版本满足要求。",
-    "Codex 版本不足或不可检测。",
+    "OpenCode 版本满足要求。",
+    "OpenCode 版本不足或不可检测。",
     diagnostics.versionResults.value,
   ),
   {

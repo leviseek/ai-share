@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { checkCodexEnvLocalProxies, collectLocalProxyTargets, summarizeLocalProxyChecks } from "./env-runtime-check.ts";
+import {
+  checkOpenCodeEnvLocalProxies,
+  collectLocalProxyTargets,
+  summarizeLocalProxyChecks,
+} from "./env-runtime-check.ts";
 
-describe("Codex .env runtime checks", () => {
+describe("OpenCode launcher env runtime checks", () => {
   test("deduplicates loopback proxy targets from uppercase and lowercase env names", () => {
     expect(
       collectLocalProxyTargets({
@@ -28,7 +32,7 @@ describe("Codex .env runtime checks", () => {
   });
 
   test("reports probe status without touching the real network when a probe is supplied", async () => {
-    const checks = await checkCodexEnvLocalProxies(
+    const checks = await checkOpenCodeEnvLocalProxies(
       {
         variables: {
           ALL_PROXY: "socks5://127.0.0.1:7897",

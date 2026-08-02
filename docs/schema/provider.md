@@ -1,6 +1,6 @@
 # config/provider.yaml Schema
 
-`provider.yaml` 定义可选 Provider；生成时只把当前选中的一个写入 Codex `model_providers`。
+`provider.yaml` 定义 OpenAI-compatible Provider；生成时只物化当前选中的一个。
 
 | Field                     | Type             | Required | Description                          |
 | ------------------------- | ---------------- | -------- | ------------------------------------ |
@@ -9,4 +9,4 @@
 | `providers.<id>.base_url` | HTTPS URL        | yes      | OpenAI-compatible API base URL       |
 | `providers.<id>.api_key`  | `${ENV_NAME}`    | yes      | API Key 环境变量引用                 |
 
-固定 Provider 对象拒绝未知字段。真实 key、token、cookie 或凭据不得写入 YAML。
+输出使用 `@ai-sdk/openai-compatible`，并将引用转换为 OpenCode `{env:ENV_NAME}`。真实凭据不得写入 YAML。

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { resolve } from "node:path";
-import { buildCodexCliConfig, formatCodexConfigToml } from "../config-builders.ts";
+import { buildOpenCodeConfig, buildInstructionsPaths, formatOpenCodeConfigJsonc } from "../config-builders.ts";
 import { loadValidatedConfig, ConfigValidationError, formatValidationError } from "../config/load.ts";
 import { resolveProviderId } from "./options.ts";
 
@@ -14,7 +14,10 @@ if (import.meta.main) {
       defaultProvider: config.global.provider,
     });
     if (!config.providers.providers[providerId]) throw new Error(`提供商未定义：${providerId}`);
-    Bun.TOML.parse(formatCodexConfigToml(buildCodexCliConfig(config, providerId, "<CODEX_HOME>/AGENTS.md")));
+    const output = formatOpenCodeConfigJsonc(
+      buildOpenCodeConfig(config, providerId, buildInstructionsPaths(projectRoot), "<OPENCODE_CONFIG_DIR>/skills"),
+    );
+    JSON.parse(output.slice(output.indexOf("{")));
     console.log(`配置检查通过：model=${config.global.model} provider=${providerId}`);
   } catch (error) {
     if (error instanceof ConfigValidationError) {

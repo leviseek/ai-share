@@ -1,61 +1,57 @@
 import type { EnvYaml } from "../../types.ts";
 
-export const CODEX_ENV_MANAGED_BEGIN = "# BEGIN ai-share managed env";
-export const CODEX_ENV_MANAGED_END = "# END ai-share managed env";
+export const OPENCODE_ENV_MANAGED_BEGIN = "# BEGIN ai-share managed env";
+export const OPENCODE_ENV_MANAGED_END = "# END ai-share managed env";
 
-export function formatCodexEnvFile(envConfig: EnvYaml): string {
-  return formatCodexEnvManagedBlock(envConfig);
+export function formatOpenCodeEnvFile(envConfig: EnvYaml): string {
+  return formatOpenCodeEnvManagedBlock(envConfig);
 }
 
-export function formatCodexEnvManagedBlock(envConfig: EnvYaml): string {
+export function formatOpenCodeEnvManagedBlock(envConfig: EnvYaml): string {
   const variables = envConfig.variables;
   const lines = [
-    CODEX_ENV_MANAGED_BEGIN,
-    "# Non-secret Codex runtime environment only. Keep API keys and tokens outside this file.",
+    OPENCODE_ENV_MANAGED_BEGIN,
+    "# Non-secret OpenCode runtime environment only. Keep API keys and tokens outside this file.",
     ...Object.entries(variables).map(([key, value]) => `${key}=${formatEnvValue(value)}`),
-    CODEX_ENV_MANAGED_END,
+    OPENCODE_ENV_MANAGED_END,
   ];
   return `${lines.join("\n")}\n`;
 }
 
-export function buildCodexEnvFileWithManagedBlock(envConfig: EnvYaml, existingContent?: string): string {
-  const managedBlock = formatCodexEnvManagedBlock(envConfig).trimEnd();
-  const normalizedExisting = existingContent?.replaceAll("\r\n", "\n");
-  if (!normalizedExisting || isLegacyGeneratedEnvFile(normalizedExisting)) return `${managedBlock}\n`;
+export function buildOpenCodeEnvFileWithManagedBlock(envConfig: EnvYaml, existingContent?: string): string {
+  const managedBlock = formatOpenCodeEnvManagedBlock(envConfig);
+  if (!existingContent || isLegacyGeneratedEnvFile(existingContent)) return managedBlock;
 
-  const block = managedBlockLocation(normalizedExisting);
+  const block = managedBlockLocation(existingContent);
   if (block.status === "malformed") {
-    throw new Error("Codex .env 中的 ai-share managed block marker 不完整或重复；请先手动修复 marker。");
+    throw new Error("OpenCode .env 中的 ai-share managed block marker 不完整或重复；请先手动修复 marker。");
   }
   if (block.status === "complete") {
-    const afterEndIndex = block.endIndex + CODEX_ENV_MANAGED_END.length;
-    return normalizeEnvFile(
-      `${normalizedExisting.slice(0, block.beginIndex)}${managedBlock}${normalizedExisting.slice(afterEndIndex)}`,
-    );
+    const replacement = formatManagedBlockWithLineEnding(envConfig, block.lineEnding, block.hasTrailingLineEnding);
+    return `${existingContent.slice(0, block.beginIndex)}${replacement}${existingContent.slice(block.endExclusive)}`;
   }
 
-  return normalizeEnvFile(`${normalizedExisting.trimEnd()}\n\n${managedBlock}\n`);
+  const lineEnding = preferredLineEnding(existingContent);
+  const separator = existingContent.endsWith("\n") ? "" : lineEnding;
+  return `${existingContent}${separator}${formatManagedBlockWithLineEnding(envConfig, lineEnding, true)}`;
 }
 
-export function codexEnvManagedBlockIsCurrent(envConfig: EnvYaml, existingContent: string | undefined): boolean {
+export function openCodeEnvManagedBlockIsCurrent(envConfig: EnvYaml, existingContent: string | undefined): boolean {
   if (!existingContent) return false;
   return (
-    extractManagedBlock(existingContent.replaceAll("\r\n", "\n"))?.trimEnd() ===
-    formatCodexEnvManagedBlock(envConfig).trimEnd()
+    extractManagedBlock(existingContent)?.replaceAll("\r\n", "\n").trimEnd() ===
+    formatOpenCodeEnvManagedBlock(envConfig).trimEnd()
   );
 }
 
-export function removeCodexEnvManagedBlock(existingContent: string): string {
-  const normalized = existingContent.replaceAll("\r\n", "\n");
-  const block = managedBlockLocation(normalized);
-  if (block.status !== "complete") return normalizeEnvFile(normalized);
-  return normalizeEnvFile(
-    `${normalized.slice(0, block.beginIndex)}${normalized.slice(block.endIndex + CODEX_ENV_MANAGED_END.length)}`,
-  );
+export function removeOpenCodeEnvManagedBlock(existingContent: string): string {
+  const block = managedBlockLocation(existingContent);
+  if (block.status !== "complete") return existingContent;
+  return `${existingContent.slice(0, block.beginIndex)}${existingContent.slice(block.endExclusive)}`;
 }
 
-export function codexEnvHasCompleteManagedBlock(existingContent: string): boolean {
-  return managedBlockLocation(existingContent.replaceAll("\r\n", "\n")).status === "complete";
+export function openCodeEnvHasCompleteManagedBlock(existingContent: string): boolean {
+  return managedBlockLocation(existingContent).status === "complete";
 }
 
 function formatEnvValue(value: string): string {
@@ -69,39 +65,74 @@ function isLegacyGeneratedEnvFile(content: string): boolean {
 
 function extractManagedBlock(content: string): string | undefined {
   const block = managedBlockLocation(content);
-  return block.status === "complete"
-    ? content.slice(block.beginIndex, block.endIndex + CODEX_ENV_MANAGED_END.length)
-    : undefined;
+  return block.status === "complete" ? content.slice(block.beginIndex, block.endExclusive) : undefined;
 }
 
-function managedBlockLocation(
-  content: string,
-): { status: "none" | "malformed" } | { status: "complete"; beginIndex: number; endIndex: number } {
-  const beginIndexes = exactLineIndexes(content, CODEX_ENV_MANAGED_BEGIN);
-  const endIndexes = exactLineIndexes(content, CODEX_ENV_MANAGED_END);
-  if (beginIndexes.length === 0 && endIndexes.length === 0) return { status: "none" };
-  const beginIndex = beginIndexes[0];
-  const endIndex = endIndexes[0];
-  if (beginIndexes.length !== 1 || endIndexes.length !== 1 || beginIndex === undefined || endIndex === undefined) {
+function managedBlockLocation(content: string):
+  | { status: "none" | "malformed" }
+  | {
+      status: "complete";
+      beginIndex: number;
+      endExclusive: number;
+      lineEnding: "\n" | "\r\n";
+      hasTrailingLineEnding: boolean;
+    } {
+  const beginLines = exactLines(content, OPENCODE_ENV_MANAGED_BEGIN);
+  const endLines = exactLines(content, OPENCODE_ENV_MANAGED_END);
+  if (beginLines.length === 0 && endLines.length === 0) return { status: "none" };
+  const beginLine = beginLines[0];
+  const endLine = endLines[0];
+  if (beginLines.length !== 1 || endLines.length !== 1 || !beginLine || !endLine) {
     return { status: "malformed" };
   }
-  if (endIndex < beginIndex) return { status: "malformed" };
-  return { status: "complete", beginIndex, endIndex };
+  if (endLine.start < beginLine.start) return { status: "malformed" };
+  return {
+    status: "complete",
+    beginIndex: beginLine.start,
+    endExclusive: endLine.endExclusive,
+    lineEnding: beginLine.lineEnding ?? preferredLineEnding(content),
+    hasTrailingLineEnding: endLine.lineEnding !== undefined,
+  };
 }
 
-function exactLineIndexes(content: string, marker: string): number[] {
-  const indexes: number[] = [];
+type ExactLine = {
+  start: number;
+  endExclusive: number;
+  lineEnding?: "\n" | "\r\n";
+};
+
+function exactLines(content: string, marker: string): ExactLine[] {
+  const lines: ExactLine[] = [];
   let lineStart = 0;
   while (lineStart <= content.length) {
     const newlineIndex = content.indexOf("\n", lineStart);
-    const lineEnd = newlineIndex < 0 ? content.length : newlineIndex;
-    if (content.slice(lineStart, lineEnd) === marker) indexes.push(lineStart);
+    const rawLineEnd = newlineIndex < 0 ? content.length : newlineIndex;
+    const hasCarriageReturn = rawLineEnd > lineStart && content[rawLineEnd - 1] === "\r";
+    const contentEnd = hasCarriageReturn ? rawLineEnd - 1 : rawLineEnd;
+    if (content.slice(lineStart, contentEnd) === marker) {
+      lines.push({
+        start: lineStart,
+        endExclusive: newlineIndex < 0 ? content.length : newlineIndex + 1,
+        ...(newlineIndex < 0 ? {} : { lineEnding: hasCarriageReturn ? "\r\n" : "\n" }),
+      });
+    }
     if (newlineIndex < 0) break;
     lineStart = newlineIndex + 1;
   }
-  return indexes;
+  return lines;
 }
 
-function normalizeEnvFile(content: string): string {
-  return `${content.replaceAll("\r\n", "\n").trimEnd()}\n`;
+function preferredLineEnding(content: string): "\n" | "\r\n" {
+  const newlineIndex = content.indexOf("\n");
+  return newlineIndex > 0 && content[newlineIndex - 1] === "\r" ? "\r\n" : "\n";
+}
+
+function formatManagedBlockWithLineEnding(
+  envConfig: EnvYaml,
+  lineEnding: "\n" | "\r\n",
+  trailingLineEnding: boolean,
+): string {
+  const normalized = formatOpenCodeEnvManagedBlock(envConfig).trimEnd();
+  const formatted = lineEnding === "\n" ? normalized : normalized.replaceAll("\n", lineEnding);
+  return trailingLineEnding ? `${formatted}${lineEnding}` : formatted;
 }

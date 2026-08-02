@@ -6,19 +6,15 @@ const REASON_TEXT: Readonly<Record<PlanReason, string>> = {
   "target-missing": "目标不存在，将创建",
   "content-current": "受管内容已是最新",
   "managed-content-drift": "受管内容发生漂移，将更新",
+  "managed-mode-drift": "Unix launcher 执行权限发生漂移，将修复",
   "env-managed-block-drift": ".env managed block 发生漂移，将更新",
-  "legacy-owned-content-drift": "旧 manifest 证明所有权，将迁移更新",
   "force-adoption": "--force 模拟接管未受管目标",
   "unowned-collision": "未受管目标阻止生成",
   "blocking-path-collision": "目标路径类型阻挡受管输出",
   "force-replace-blocking-path": "--force 模拟替换阻挡路径",
   "stale-managed-skill": "已不再声明的受管 skill，将删除",
-  "stale-managed-agent": "已不再声明的受管 agent，将删除",
   "unmanaged-skill-preserved": "用户 skill 不属于 ai-share，保留",
-  "unmanaged-agent-preserved": "用户 agent 不属于 ai-share，保留",
   "invalid-marker-preserved": "skill marker 无效，保留并提示风险",
-  "legacy-manifest-cleanup": "完成迁移后删除旧 manifest",
-  "legacy-manifest-invalid-preserved": "旧 manifest 无效，无法证明所有权，保留",
 };
 
 export function renderExplainReport(report: ExplainReport, useColor: boolean): string {
@@ -142,8 +138,7 @@ function paintPlanEntry(entry: ExplainPlanEntry, text: string, palette: ColorPal
   if (
     entry.reason === "force-adoption" ||
     entry.reason === "force-replace-blocking-path" ||
-    entry.reason === "invalid-marker-preserved" ||
-    entry.reason === "legacy-manifest-invalid-preserved"
+    entry.reason === "invalid-marker-preserved"
   ) {
     return palette.yellow(text);
   }

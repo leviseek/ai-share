@@ -1,102 +1,80 @@
 # ai-share
 
-`ai-share` 以严格 YAML 为权威源，为多个设备生成一套用户级 Codex 配置、instructions 和 native skills。项目使用 Bun + strict TypeScript，不维护独立启动器、Provider group、fallback 或运行时 manifest。
+`ai-share` 以严格 YAML 为权威源，为多个设备生成用户级 OpenCode 配置、instructions、native skills 和最小 `aioc` 启动器。项目使用 Bun + strict TypeScript，不维护 oh-my-openagent、profile、fallback 或运行时 manifest。
 
 ```text
 config/*.yaml + config/local/*.yaml
 → Bun.YAML.parse
 → 严格配置与 secret 校验
-→ 唯一 model/provider 解析
+→ model/provider 与 task memory 解析
 → GenerationPlan
-→ 事务化写入、迁移和 prune
+→ 事务化写入和 prune
 ```
 
 ## 环境要求
 
 - Bun `1.3.13`
-- Codex CLI 仅在实际使用 Codex 时需要；仓库质量检查不依赖 Codex、API Key、代理或用户配置
-
-使用 mise 时：
-
-```sh
-mise trust
-mise install
-```
-
-不使用 mise 时，直接安装匹配版本的 Bun。安装依赖时使用锁文件：
+- OpenCode `1.18.11+`
 
 ```sh
 bun install --frozen-lockfile
-```
-
-## 快速开始
-
-```sh
 bun run ai:check
 bun run ai:explain -- --json
 bun run ai:gen -- --dry-run
 bun run ai:gen
 ```
 
-`ai:check` 是纯仓库配置检查，不读取 API Key，不探测 Provider、代理或 Codex 安装。`ai:bootstrap` 会依次安装依赖、执行纯配置检查并生成 Codex 输出；遇到未标记的已有配置时会拒绝覆盖。
+`ai:check` 是离线仓库配置检查。`ai:bootstrap` 会安装依赖、检查配置并生成 OpenCode 输出：
 
 ```sh
 bun run ai:bootstrap
 bun run ai:bootstrap -- --skip-install
 ```
 
+生成完成后使用 `aioc` 启动；直接运行 `opencode` 也可使用相同配置，但不会加载 ai-share managed `.env` 中的代理变量。
+
 ## 配置源
 
-| 文件                   | 用途                                                          |
-| ---------------------- | ------------------------------------------------------------- |
-| `config/global.yaml`   | 必填默认 `model` 和 `provider`，以及可选 Codex 运行设置       |
-| `config/provider.yaml` | Provider 的 `name`、HTTPS `base_url`、API Key 环境变量引用    |
-| `config/models.yaml`   | `model_name` 与可选 `reasoning_effort: low \| medium \| high` |
-| `config/mcp.yaml`      | stdio 或 HTTP MCP server                                      |
-| `config/env.yaml`      | 可共享的非密钥 Codex `.env` 变量；默认 `variables: {}`        |
-| `config/agents.yaml`   | 用户级 custom agent、模型覆盖与 developer instructions        |
+| 文件                   | 用途                                                               |
+| ---------------------- | ------------------------------------------------------------------ |
+| `config/global.yaml`   | 默认 `model`、`provider` 与 OpenCode 最低版本                      |
+| `config/provider.yaml` | OpenAI-compatible Provider、HTTPS endpoint 与 API Key 环境变量引用 |
+| `config/models.yaml`   | 上游 `model_name` 与可选 `reasoning_effort`                        |
+| `config/mcp.yaml`      | stdio 或 HTTP MCP server                                           |
+| `config/env.yaml`      | `aioc` 注入的共享非密钥环境变量                                    |
+| `config/agents.yaml`   | OpenCode custom agent、模型、mode、prompt 与 reasoning 覆盖        |
 
-固定对象拒绝未知字段。API Key 只能写成 `${ENV_NAME}` 引用；真实 key、token、cookie 或凭据不得进入仓库。
+固定对象拒绝未知字段。API Key 只能写成 `${ENV_NAME}` 引用；生成的 OpenCode 配置会转换为 `{env:ENV_NAME}`，不会读取或持久化真实值。
 
-### 本机 overlay
-
-生成器先读取 `config/*.yaml`，再深合并同名 `config/local/*.yaml`：object 深合并，数组和标量替换。所有合并结果都经过同一套严格校验。
-
-当前机器的代理等非密钥值应放在被 Git 忽略的 `config/local/env.yaml`。可复制示例：
+生成器先读取 `config/*.yaml`，再深合并同名 `config/local/*.yaml`：object 深合并，数组和标量替换。当前机器的代理等非密钥值放在被 Git 忽略的 `config/local/env.yaml`：
 
 ```powershell
 New-Item -ItemType Directory -Force config/local | Out-Null
 Copy-Item templates/personal-overlay/env.local.example.yaml config/local/env.yaml
 ```
 
-禁止把 `HOME`、`USERPROFILE`、`PATH`、`AI_SHARE_*`、`CODEX_*` 或敏感变量写入 `config/env.yaml` 及其 overlay。
+禁止把 `HOME`、`USERPROFILE`、`PATH`、`AI_SHARE_*`、`OPENCODE_*` 或敏感变量写入 env 配置。
 
 ## Provider 与任务选择
 
-默认 Provider 的唯一权威源是 `config/global.yaml`。交互终端中未传 `--provider` 时，`ai:gen` 会列出所有
-Provider；可输入数字索引，或使用 `↑`/`↓` 切换，按 Enter 确认。有效的 `AI_SHARE_PROVIDER` 用作菜单初始选中项，
-未设置或无效时使用 `global.provider`。确认后菜单会清除，终端输入状态会恢复。
-
-显式传入 `--provider` 会跳过菜单；非交互环境不会等待输入，选择优先级为：
+默认 Provider 的权威源是 `global.provider`。显式和非交互选择优先级为：
 
 ```text
 --provider > AI_SHARE_PROVIDER > global.provider
 ```
 
+交互终端未传 `--provider` 时显示 Provider 菜单。生成配置只物化当前选中的 Provider，但会在该 Provider 下注册 `models.yaml` 的全部模型别名。
+
 ```sh
 bun run ai:gen -- --provider packyapi
-AI_SHARE_PROVIDER=packyapi bun run ai:gen
-```
-
-`ai:gen` 只支持 `--provider`、`--task`、`--force`、`--dry-run`。任务描述优先级为 `--task > AI_SHARE_TASK`；本次生成会把最多 3 个相关 memory 路径编译进 `AGENTS.md`。
-
-```sh
 bun run ai:gen -- --task "Windows 事务化文件写入"
 ```
 
-## 可解释生成预览
+任务优先级为 `--task > AI_SHARE_TASK`。最多三个相关 memory 文件会直接追加到 OpenCode `instructions` 数组。
 
-`ai:explain` 复用 `ai:gen` 的配置加载、Provider/model 解析、Memory 检索和 GenerationPlan 构建流程，解释“为什么会选择这些输入、上下文和文件操作”。它始终只读：不写文件、不创建 staging 目录、不访问 Provider，也不读取真实 API Key。
+## 可解释预览
+
+`ai:explain` 复用 `ai:gen` 的加载、选择、检索和 GenerationPlan 流程，但始终零写入、离线且不读取真实 API Key。
 
 ```sh
 bun run ai:explain
@@ -106,44 +84,38 @@ bun run ai:explain -- --force
 bun run ai:explain -- --json
 ```
 
-人类可读模式按“输入决策 → 配置来源 → Memory 选择 → 文件计划 → 结果”输出，并在交互终端中复用 `ai:gen` 的 Provider 菜单和状态颜色。`--force` 只模拟接管后的计划，不执行接管。报告只显示 API Key 环境变量名和受管 env 名称，不显示 env 值、生成内容、diff 或凭据。
+JSON 接口当前为 `schema_version: 2`。报告只包含来源、env 名称、memory 决策和 plan metadata，不包含 env 值、生成内容或凭据。未受管 collision 返回 `1`；`--force` 仅模拟显式接管。
 
-`--json` 禁用交互菜单，按 `--provider > AI_SHARE_PROVIDER > global.provider` 确定性选择 Provider，输出单一、无 ANSI、无时间戳的版本化 JSON。可用于 CI、审计或后续工具消费：
+## Custom agent
 
-- 配置有效且不存在 collision 时退出码为 `0`。
-- validation、取消、运行错误或未受管 collision 时退出码为 `1`。
-- `--force` 能把 collision 安全转换为 `force-adoption` 计划时退出码为 `0`，但仍然零写入。
-
-## Commit custom agent
-
-`config/agents.yaml` 声明用户级 custom agents。默认 `ai-share-commit-operator` agent（“ai-share 的提交执行官”）固定使用 `gpt-5.5` 和 `low` reasoning；主会话的模型与 reasoning 不受影响。运行 `bun run ai:gen` 后，用户明确要求提交、推送或提交并推送时，当前会话会把对应 Git 操作委派给该 agent。未明确要求时不会执行 Git 写操作。
-
-`ai-share-commit-operator` agent 只暂存任务相关路径并运行相关检查。检查或 hook 失败时停止并回报；不使用 `--no-verify`、amend、rebase 或 force push。仅推送请求不会顺带提交工作区改动。
+`config/agents.yaml` 中的 agents 直接生成到 `opencode.jsonc` 的 `agent` 对象。默认 `ai-share-commit-operator` 是 `subagent`，使用 `gpt-5.5` 和 `low` reasoning；只有用户明确要求提交、推送或提交并推送时才应委派给它。
 
 ## 生成输出与所有权
 
-Codex 目录优先读取 `CODEX_HOME`，否则使用 `HOME`/`USERPROFILE` 下的 `.codex`：
+默认 OpenCode 配置目录是 `~/.config/opencode`；可用绝对路径 `OPENCODE_CONFIG_DIR` 覆盖。
 
 ```text
-CODEX_HOME/config.toml
-CODEX_HOME/.env                         # 仅更新 ai-share managed block
-CODEX_HOME/AGENTS.md
-CODEX_HOME/agents/<agent>.toml
-CODEX_HOME/skills/<skill>/SKILL.md
-CODEX_HOME/skills/<skill>/.ai-share-managed
+~/.config/opencode/opencode.jsonc
+~/.config/opencode/.env                     # 仅更新 ai-share managed block
+~/.config/opencode/skills/<skill>/SKILL.md
+~/.config/opencode/skills/<skill>/.ai-share-managed
+~/.local/bin/aioc.ts
+~/.local/bin/aioc
+~/.local/bin/aioc.cmd
+~/.local/bin/aioc.ps1
 ```
 
-不再生成 `ai-share.runtime.json`，也不会创建 `~/ai-workspace` 或仓库 symlink。
+- 缺失目标创建；受管目标更新；内容相同不写入。
+- 未受管 config、skill 或 launcher collision 会使整批计划失败。
+- `--force` 只显式接管冲突，不能绕过 schema 或 secret 校验。
+- `.env` block 外内容和未标记的用户 skills/launchers保持不变。
+- config、env、skills 与 launcher 在同一事务中 promote，失败时回滚。
 
-生成规则：
+已有未受管 `opencode.jsonc` 首次采用需备份后运行 `bun run ai:gen -- --force`。迁移不会读取、修改或清理原来的 `~/.codex`。
 
-- 缺失目标直接创建；受管目标自动更新；内容相同不写入。
-- 未标记目标发生冲突时整批失败，不产生部分输出。
-- `--force` 只用于显式接管冲突，永远不能绕过配置或 secret 校验。
-- `.env` 只更新 managed block，block 外内容保持不变。
-- 只 prune 带 `.ai-share-managed` 的废弃 skill；用户 skill 保留。
-- 合法旧 manifest 仅用于一次迁移识别，成功后删除且不再生成。
-- `agents/*.toml` 只管理带 ai-share generated header 的文件；同名用户 agent 默认保留并报告冲突。
+## `aioc` 环境规则
+
+`aioc` 读取 OpenCode 配置目录中的 managed `.env`，只补全当前进程尚未设置的变量，再原样执行 `opencode <args...>`。Shell/系统环境优先，因此可临时覆盖代理。API Key、token、cookie 不允许进入该文件。
 
 ## 安全清理
 
@@ -152,56 +124,37 @@ bun run ai:clean
 bun run ai:clean -- --no-backup
 ```
 
-`ai:clean` 默认备份即将修改的受管目标，只删除带 generated header 的固定输出、`.env` managed block、带 marker 或合法旧 manifest 声明的 skill，以及合法旧 manifest。它不会递归删除整个 `CODEX_HOME`，也不会删除未受管文件。
+`ai:clean` 只处理 generated header、managed env block、skill marker 和 launcher marker 能证明所有权的目标。默认备份到 `~/.opencode-backups/`，不会递归删除整个 OpenCode 配置目录，也不会触碰未受管文件。
 
-## Memory 注入
+## Memory 与 Schema
 
-默认 `AGENTS.md` 只注入以下 6 个基础文件，并在第 4 位插入最多 3 个任务检索结果：
+固定 instructions 为：
 
 1. `AI_GUIDELINES.md`
 2. `memory/policies/ai-execution-contract.md`
 3. `memory/policies/memory-lifecycle.md`
-4. 最多 3 个任务相关文件
+4. 最多三个任务检索结果
 5. `memory/stable/user.yaml`
 6. `memory/stable/workflows.yaml`
 7. `memory/stable/devices.yaml`
 
-检索范围仅包含非固定的 `memory/architecture/`、`memory/stack/`、`memory/policies/` 和 `confirmed_by_user: true` 的 `memory/distilled/`。`TEMPLATE.md`、`memory/inferred/` 和未确认 distilled 内容不会注入。记忆修改由 `memory-curator`、`failure-distiller` 产出普通 patch，并继续要求人工确认。
-
-## Schema 与模板
+检索只包含 architecture、stack、非固定 policies 和人工确认的 distilled 内容。`TEMPLATE.md`、inferred 和未确认 distilled 不注入。
 
 ```sh
-bun run schema:gen       # 写入并删除废弃 schema
-bun run schema:check     # 只读检查缺失、漂移和额外 schema
+bun run schema:gen
+bun run schema:check
 ```
 
-`src/config/schema-spec.ts` 同时驱动 JSON Schema 与运行时 shape 校验。`templates/shareable/config/` 通过和主配置相同的加载、overlay、校验与 builder pipeline。
+`src/config/schema-spec.ts` 同时驱动 JSON Schema 与运行时 shape 校验；shareable templates 使用相同 pipeline。
 
-## 运行态诊断
-
-`ai:doctor` 默认不访问外部 Provider，但会探测配置的本地代理端口；缺少 API Key、Codex 或生成输出只报告 warning。
-`--online` 才访问 Provider `/models`，`--canary` 才发送最小 completion（并自动启用 online）。
-交互终端按状态显示绿色、黄色或红色；设置 `NO_COLOR` 或将输出重定向到文件时保持纯文本。
+## 诊断与质量门禁
 
 ```sh
 bun run ai:doctor
 bun run ai:doctor -- --online
 bun run ai:doctor -- --canary --json
-```
-
-严格 Provider 检查失败返回非零：
-
-```sh
 bun run provider:check -- --provider codexapis
-bun run provider:check -- --provider codexapis --canary
-```
-
-Provider 检查只访问选中的 Provider，并检查 `config/models.yaml` 中所有去重后的上游 `model_name`。
-
-## 质量门禁
-
-```sh
 bun run check
 ```
 
-完整门禁包含 format、lint、typecheck、test、只读 schema 检查、memory privacy/lint/eval、skill lint 和纯配置检查。Windows 与 Linux CI 均使用 Bun `1.3.13` 和 frozen lockfile。
+`ai:doctor` 默认检查 OpenCode 版本、配置漂移、managed env、`aioc`、本地代理、memory 和 API Key env 是否存在；只有 `--online`/`--canary` 访问 Provider。完整 `check` 包含 format、lint、typecheck、tests、schema、memory、skill 和配置检查。

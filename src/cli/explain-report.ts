@@ -17,7 +17,7 @@ export type ExplainPlanEntry = {
 };
 
 export type ExplainReport = {
-  schema_version: 1;
+  schema_version: 2;
   status: ExplainStatus;
   inputs: {
     force: boolean;
@@ -71,7 +71,7 @@ export function buildExplainReport(preview: GenerationPreview): ExplainReport {
   const task = preview.taskDecision;
 
   return {
-    schema_version: 1,
+    schema_version: 2,
     status: preview.plan.collisions.length > 0 ? "collision" : "ok",
     inputs: {
       force: preview.options.force,
@@ -119,7 +119,7 @@ export function buildExplainErrorReport(input: {
   const providerDecision = input.providerDecision ?? { id: "", source: "global-config" };
   const taskDecision = input.taskDecision ?? { source: "none" };
   return {
-    schema_version: 1,
+    schema_version: 2,
     status: "error",
     inputs: {
       force: input.force,

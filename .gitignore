@@ -33,7 +33,7 @@ docs/superpowers/
 
 ### Local AI runtime state
 .playwright-mcp/
-.codex/
+.opencode/
 .codegraph/
 .rie/
 .env

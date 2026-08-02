@@ -9,7 +9,7 @@ export default tseslint.config(
       "**/dist/**",
       "target/**",
       "**/target/**",
-      ".codex/**",
+      ".opencode/**",
       ".codegraph/**",
       ".rie/**",
       ".playwright-mcp/**",

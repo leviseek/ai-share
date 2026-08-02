@@ -21,7 +21,7 @@ type TcpProbe = (host: string, port: number, timeoutMs: number) => Promise<boole
 const PROXY_ENV_NAMES = new Set(["http_proxy", "https_proxy", "all_proxy"]);
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
-export async function checkCodexEnvLocalProxies(
+export async function checkOpenCodeEnvLocalProxies(
   envConfig: EnvYaml,
   probe: TcpProbe = tcpConnect,
   timeoutMs = 800,

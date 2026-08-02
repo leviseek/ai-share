@@ -89,7 +89,7 @@ function writeRequiredGitignore(root: string): void {
       "memory/runtime/",
       "memory/sync/",
       ".playwright-mcp/",
-      ".codex/",
+      ".opencode/",
       ".codegraph/",
       ".rie/",
       ".sisyphus/evidence/",

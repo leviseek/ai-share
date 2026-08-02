@@ -2,7 +2,7 @@
 
 ## OVERVIEW
 
-Bun/strict TypeScript 实现的纯配置加载、Codex builder、GenerationPlan、事务化安装、安全清理和按需 memory 检索。
+Bun/strict TypeScript 实现的纯配置加载、OpenCode builder、GenerationPlan、事务化安装、安全清理和按需 memory 检索。
 
 ## STRUCTURE
 
@@ -14,7 +14,7 @@ src/
 ├── config/                 # async loader、schema、validation、builders
 ├── cli/                    # options、paths、GenerationPlan、staging、doctor/check/clean
 ├── memory/                 # 确定性轻量检索
-├── types/                  # YAML/Codex/CLI types
+├── types/                  # YAML/OpenCode/CLI types
 ├── types.ts                # type re-export facade
 └── yaml.ts                 # Bun.YAML plain-object wrapper
 ```
@@ -30,7 +30,7 @@ src/
 | Async config pipeline          | `config/load.ts`                  | base + local overlay + validation         |
 | YAML shape source              | `config/schema-spec.ts`           | JSON Schema 与运行时 shape 的单一来源     |
 | Cross-file/security validation | `config/validation.ts`            | 输入 `unknown`，成功返回 `ConfigSet`      |
-| Codex TOML/instructions        | `config/builders/codex.ts`        | 只物化选中的 Provider                     |
+| OpenCode JSONC/instructions    | `config/builders/opencode.ts`     | 只物化选中的 Provider                     |
 | `.env` managed block           | `config/builders/env.ts`          | 保留 block 外用户内容                     |
 | Memory injection               | `config/builders/instructions.ts` | 6 个基础文件 + 最多 3 个任务结果          |
 | Ownership and migration        | `cli/generation-plan.ts`          | create/update/delete/current/collision    |
@@ -47,7 +47,7 @@ src/
 - 配置 loader 保持 async；overlay 的 object 深合并、数组/标量替换语义不可漂移。
 - `exactOptionalPropertyTypes`、`noUncheckedIndexedAccess`、`noUnused*`、`isolatedDeclarations` 均启用。
 - 用户可见错误使用中文；标识符、参数、路径、env 名保持英文。
-- 所有验证和所有权预检完成前不得产生 Codex 输出副作用。
+- 所有验证和所有权预检完成前不得产生 OpenCode 输出副作用。
 - staging 必须同时支持 write/delete，并在任一 promote 失败时回滚。
 - Provider 菜单只在未传 `--provider` 且 stdin/stdout 为 TTY 时启用；非 TTY 必须确定性回退，不能等待输入。
 - 不重新引入 runtime manifest 输出、workspace link 或 memory compiler/proposal。

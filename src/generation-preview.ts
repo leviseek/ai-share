@@ -1,10 +1,4 @@
-import {
-  buildCodexAgentConfigs,
-  buildCodexCliConfig,
-  formatCodexAgentToml,
-  formatCodexConfigToml,
-  formatCodexInstructions,
-} from "./config-builders.ts";
+import { buildOpenCodeConfig, formatOpenCodeConfigJsonc } from "./config-builders.ts";
 import { loadValidatedConfigWithTrace, type LoadedValidatedConfig } from "./config/load.ts";
 import { buildInstructionsSelection, type InstructionsSelection } from "./config/builders/instructions.ts";
 import { buildGenerationPlan, type GenerationPlan } from "./cli/generation-plan.ts";
@@ -16,6 +10,7 @@ import {
 } from "./cli/options.ts";
 import { buildGeneratorPaths, type GeneratorPaths } from "./cli/paths.ts";
 import { buildProviderChoices, selectProviderInteractive, type ProviderSelector } from "./cli/provider-select.ts";
+import { buildAiocLauncherFiles } from "./cli/aioc-install.ts";
 
 export type GenerationPreviewOptions = {
   force: boolean;
@@ -30,9 +25,7 @@ export type GenerationPreview = {
   providerDecision: ProviderDecision;
   taskDecision: TaskDecision;
   instructionsSelection: InstructionsSelection;
-  configToml: string;
-  instructions: string;
-  agentTomls: Record<string, string>;
+  configJsonc: string;
   plan: GenerationPlan;
 };
 
@@ -73,19 +66,14 @@ export async function buildGenerationPreview(input: {
   });
   const task = taskDecision.source === "none" ? undefined : taskDecision.value;
   const instructionsSelection = buildInstructionsSelection(paths.projectRoot, task);
-  const configToml = formatCodexConfigToml(
-    buildCodexCliConfig(config, providerDecision.id, paths.targetCodexInstructions),
-  );
-  const instructions = formatCodexInstructions(instructionsSelection.paths);
-  const agentTomls = Object.fromEntries(
-    Object.entries(buildCodexAgentConfigs(config)).map(([agentId, agent]) => [agentId, formatCodexAgentToml(agent)]),
+  const configJsonc = formatOpenCodeConfigJsonc(
+    buildOpenCodeConfig(config, providerDecision.id, instructionsSelection.paths, paths.targetOpenCodeSkillsDir),
   );
   const plan = await buildGenerationPlan({
     paths,
-    configToml,
-    instructions,
+    configJsonc,
     envConfig: config.env,
-    agentTomls,
+    launcherFiles: buildAiocLauncherFiles(paths),
     force: input.options.force,
   });
   return {
@@ -95,9 +83,7 @@ export async function buildGenerationPreview(input: {
     providerDecision,
     taskDecision,
     instructionsSelection,
-    configToml,
-    instructions,
-    agentTomls,
+    configJsonc,
     plan,
   };
 }

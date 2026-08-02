@@ -1,18 +1,13 @@
 export {
-  buildCodexCliConfig,
-  buildCodexInstructions,
-  formatCodexConfigToml,
-  formatCodexInstructions,
-} from "./config/builders/codex.ts";
-export {
-  buildCodexAgentConfigs,
-  CODEX_AGENT_GENERATED_HEADER,
-  formatCodexAgentToml,
-} from "./config/builders/agents.ts";
+  buildOpenCodeConfig,
+  formatOpenCodeConfigJsonc,
+  OPENCODE_CONFIG_GENERATED_HEADER,
+} from "./config/builders/opencode.ts";
 export { buildInstructionsPaths, buildInstructionsSelection } from "./config/builders/instructions.ts";
 export {
-  buildCodexEnvFileWithManagedBlock,
-  codexEnvManagedBlockIsCurrent,
-  formatCodexEnvFile,
-  removeCodexEnvManagedBlock,
+  buildOpenCodeEnvFileWithManagedBlock,
+  formatOpenCodeEnvFile,
+  openCodeEnvHasCompleteManagedBlock,
+  openCodeEnvManagedBlockIsCurrent,
+  removeOpenCodeEnvManagedBlock,
 } from "./config/builders/env.ts";

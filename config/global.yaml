@@ -2,19 +2,4 @@ model: gpt-5.6-sol
 provider: codexapis
 
 # Version compatibility requirements
-codex_min_version: 0.146.0
-
-# Windows Codex runtime hardening.
-# - Disable login shells so PowerShell profile hooks (for example Conda activation) cannot break sandboxed commands.
-# - Keep the Windows sandbox elevated to match Codex on Windows permission semantics.
-# - Strip Conda activation metadata from child command environments while preserving normal PATH/tool access.
-codex_allow_login_shell: false
-codex_windows:
-  sandbox: elevated
-codex_shell_environment_policy:
-  inherit: all
-  experimental_use_profile: false
-  ignore_default_excludes: false
-  exclude:
-    - CONDA_*
-    - _CE_*
+opencode_min_version: 1.18.11

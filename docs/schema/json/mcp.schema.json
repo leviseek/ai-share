@@ -61,11 +61,6 @@
             "type": "string",
             "description": "OAuth client id.",
             "minLength": 1
-          },
-          "oauth_resource": {
-            "type": "string",
-            "description": "OAuth resource.",
-            "minLength": 1
           }
         },
         "additionalProperties": false

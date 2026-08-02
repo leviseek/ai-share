@@ -2,15 +2,9 @@
 
 import { cp, lstat, mkdir, readFile, readdir } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
-import { codexEnvHasCompleteManagedBlock, removeCodexEnvManagedBlock } from "../config/builders/env.ts";
+import { openCodeEnvHasCompleteManagedBlock, removeOpenCodeEnvManagedBlock } from "../config/builders/env.ts";
 import { argsFromArgv, parseBooleanOption, parseOptionValue } from "./args.ts";
-import {
-  GENERATED_CONFIG_HEADER,
-  GENERATED_INSTRUCTIONS_MARKER,
-  AGENT_GENERATED_HEADER,
-  hasManagedSkillMarker,
-  readLegacyOwnership,
-} from "./generation-plan.ts";
+import { GENERATED_CONFIG_HEADER, hasManagedLauncherHeader, hasManagedSkillMarker } from "./generation-plan.ts";
 import { pathExists, StagedFileWriter } from "./fs.ts";
 import { buildGeneratorPaths, type GeneratorPaths } from "./paths.ts";
 
@@ -20,7 +14,7 @@ export type CleanResult = { changed: string[]; backupPath?: string };
 if (import.meta.main) {
   const paths = buildGeneratorPaths();
   const options = parseCleanOptions();
-  const result = await cleanCodexConfig(paths, { backup: await resolveBackupOption(options.backup) });
+  const result = await cleanOpenCodeConfig(paths, { backup: await resolveBackupOption(options.backup) });
   console.log(
     result.changed.length > 0 ? `已清理 ${result.changed.length} 个 ai-share 受管目标。` : "没有可清理的受管目标。",
   );
@@ -42,33 +36,32 @@ export async function resolveBackupOption(value: boolean | undefined): Promise<b
   return await askYesNo("是否备份即将修改的 ai-share 受管文件？", true);
 }
 
-export async function cleanCodexConfig(paths: GeneratorPaths, options: { backup: boolean }): Promise<CleanResult> {
-  const legacy = await readLegacyOwnership(paths);
+export async function cleanOpenCodeConfig(paths: GeneratorPaths, options: { backup: boolean }): Promise<CleanResult> {
   const deletes: string[] = [];
   const writes: { path: string; content: string }[] = [];
 
-  if (await ownedTextFile(paths.targetCodexConfig, GENERATED_CONFIG_HEADER, legacy.configPath)) {
-    deletes.push(paths.targetCodexConfig);
-  }
-  if (await ownedTextFile(paths.targetCodexInstructions, GENERATED_INSTRUCTIONS_MARKER)) {
-    deletes.push(paths.targetCodexInstructions);
-  }
-  if (await pathExists(paths.targetCodexEnv)) {
-    const content = await readFile(paths.targetCodexEnv, "utf8");
-    if (codexEnvHasCompleteManagedBlock(content)) {
-      const cleaned = removeCodexEnvManagedBlock(content);
-      if (cleaned.trim()) writes.push({ path: paths.targetCodexEnv, content: cleaned });
-      else deletes.push(paths.targetCodexEnv);
+  if (await ownedTextFile(paths.targetOpenCodeConfig, GENERATED_CONFIG_HEADER))
+    deletes.push(paths.targetOpenCodeConfig);
+  if (await pathExists(paths.targetOpenCodeEnv)) {
+    const stat = await lstat(paths.targetOpenCodeEnv);
+    if (stat.isFile() && !stat.isSymbolicLink()) {
+      const content = await readFile(paths.targetOpenCodeEnv, "utf8");
+      if (openCodeEnvHasCompleteManagedBlock(content)) {
+        const cleaned = removeOpenCodeEnvManagedBlock(content);
+        if (cleaned.trim()) writes.push({ path: paths.targetOpenCodeEnv, content: cleaned });
+        else deletes.push(paths.targetOpenCodeEnv);
+      }
     }
   }
-  deletes.push(...(await managedSkillDirs(paths, legacy.skills)));
-  deletes.push(...(await managedAgentFiles(paths)));
-  if (legacy.manifestPath) deletes.push(legacy.manifestPath);
+  deletes.push(...(await managedSkillDirs(paths.targetOpenCodeSkillsDir)));
+  for (const path of launcherPaths(paths)) {
+    if (await ownedLauncherFile(path, paths)) deletes.push(path);
+  }
 
   const changed = [...writes.map((entry) => entry.path), ...deletes];
   if (changed.length === 0) return { changed: [] };
   const backupPath = options.backup ? await backupTargets(paths, changed) : undefined;
-  const writer = await StagedFileWriter.create(resolve(paths.targetCodexConfigDir, ".ai-share-staging"));
+  const writer = await StagedFileWriter.create(resolve(paths.targetOpenCodeConfigDir, ".ai-share-staging"));
   try {
     for (const entry of writes) await writer.writeText(entry.path, entry.content);
     for (const path of deletes) writer.delete(path);
@@ -80,32 +73,30 @@ export async function cleanCodexConfig(paths: GeneratorPaths, options: { backup:
   return backupPath ? { changed, backupPath } : { changed };
 }
 
-async function managedAgentFiles(paths: GeneratorPaths): Promise<string[]> {
-  if (!(await pathExists(paths.targetCodexAgentsDir))) return [];
-  const agentsDirStat = await lstat(paths.targetCodexAgentsDir);
-  if (agentsDirStat.isSymbolicLink() || !agentsDirStat.isDirectory()) return [];
-  const output: string[] = [];
-  for (const entry of await readdir(paths.targetCodexAgentsDir, { withFileTypes: true })) {
-    if (!entry.isFile() || !entry.name.endsWith(".toml")) continue;
-    const path = resolve(paths.targetCodexAgentsDir, entry.name);
-    if ((await readFile(path, "utf8")).startsWith(AGENT_GENERATED_HEADER)) output.push(path);
-  }
-  return output.sort();
-}
-
-async function ownedTextFile(path: string, marker: string, legacyPath?: string): Promise<boolean> {
+async function ownedTextFile(path: string, marker: string): Promise<boolean> {
   if (!(await pathExists(path))) return false;
-  if (legacyPath && resolve(legacyPath) === resolve(path)) return true;
-  return (await readFile(path, "utf8")).startsWith(marker);
+  const stat = await lstat(path);
+  if (!stat.isFile() || stat.isSymbolicLink()) return false;
+  const content = await readFile(path, "utf8");
+  return content.startsWith(marker);
 }
 
-async function managedSkillDirs(paths: GeneratorPaths, legacySkills: ReadonlySet<string>): Promise<string[]> {
-  if (!(await pathExists(paths.targetCodexSkillsDir))) return [];
+async function ownedLauncherFile(path: string, paths: GeneratorPaths): Promise<boolean> {
+  if (!(await pathExists(path))) return false;
+  const stat = await lstat(path);
+  if (!stat.isFile() || stat.isSymbolicLink()) return false;
+  return hasManagedLauncherHeader(path, await readFile(path, "utf8"), paths);
+}
+
+async function managedSkillDirs(skillsDir: string): Promise<string[]> {
+  if (!(await pathExists(skillsDir))) return [];
+  const stat = await lstat(skillsDir);
+  if (!stat.isDirectory() || stat.isSymbolicLink()) return [];
   const output: string[] = [];
-  for (const entry of await readdir(paths.targetCodexSkillsDir, { withFileTypes: true })) {
+  for (const entry of await readdir(skillsDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
-    const dir = resolve(paths.targetCodexSkillsDir, entry.name);
-    if ((await hasManagedSkillMarker(dir)) || legacySkills.has(entry.name)) output.push(dir);
+    const dir = resolve(skillsDir, entry.name);
+    if (await hasManagedSkillMarker(dir)) output.push(dir);
   }
   return output.sort();
 }
@@ -113,21 +104,35 @@ async function managedSkillDirs(paths: GeneratorPaths, legacySkills: ReadonlySet
 async function backupTargets(paths: GeneratorPaths, targets: readonly string[]): Promise<string> {
   const backupRoot = resolve(
     paths.homeDir,
-    ".codex-backups",
+    ".opencode-backups",
     `ai-share-clean-${new Date().toISOString().replaceAll(/[:.]/g, "-")}`,
   );
   await mkdir(backupRoot, { recursive: true });
   for (const target of targets) {
     if (!(await pathExists(target))) continue;
-    const rel = relative(paths.targetCodexConfigDir, target);
-    if (!rel || isAbsolute(rel) || rel.split(/[\\/]/)[0] === "..") {
-      throw new Error(`拒绝备份 CODEX_HOME 外路径：${target}`);
-    }
-    const backupTarget = resolve(backupRoot, rel);
+    const backupTarget = resolveBackupTarget(paths, backupRoot, target);
     await mkdir(dirname(backupTarget), { recursive: true });
     await cp(target, backupTarget, { recursive: true, errorOnExist: true, force: false });
   }
   return backupRoot;
+}
+
+function resolveBackupTarget(paths: GeneratorPaths, backupRoot: string, target: string): string {
+  const configRelative = safeRelative(paths.targetOpenCodeConfigDir, target);
+  if (configRelative !== undefined) return resolve(backupRoot, "opencode", configRelative);
+  const binRelative = safeRelative(paths.targetUserBinDir, target);
+  if (binRelative !== undefined) return resolve(backupRoot, "bin", binRelative);
+  throw new Error(`拒绝备份 OpenCode 配置目录和用户 bin 目录外路径：${target}`);
+}
+
+function safeRelative(parent: string, child: string): string | undefined {
+  const rel = relative(resolve(parent), resolve(child));
+  if (!rel || isAbsolute(rel) || rel.split(/[\\/]/)[0] === "..") return undefined;
+  return rel;
+}
+
+function launcherPaths(paths: GeneratorPaths): string[] {
+  return [paths.targetAiocScript, paths.targetAiocUnix, paths.targetAiocCmd, paths.targetAiocPowerShell];
 }
 
 async function askYesNo(question: string, defaultValue: boolean): Promise<boolean> {

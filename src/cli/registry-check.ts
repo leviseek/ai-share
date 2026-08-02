@@ -9,18 +9,21 @@ export type VersionCheckResult = {
   ok: boolean;
 };
 
-export function checkVersions(globalConfig: GlobalYaml): VersionCheckResult[] {
+export function checkVersions(
+  globalConfig: GlobalYaml,
+  getVersion: (command: string) => string | null = getCommandVersion,
+): VersionCheckResult[] {
   const results: VersionCheckResult[] = [];
 
-  const codexMin = globalConfig.codex_min_version;
-  if (codexMin) {
-    const current = getCommandVersion("codex") ?? "unknown";
+  const openCodeMin = globalConfig.opencode_min_version;
+  if (openCodeMin) {
+    const current = getVersion("opencode") ?? "unknown";
     results.push({
-      name: "Codex CLI",
-      field: "codex_min_version",
+      name: "OpenCode CLI",
+      field: "opencode_min_version",
       current,
-      minimum: codexMin,
-      ok: versionCheckOk(current, codexMin),
+      minimum: openCodeMin,
+      ok: versionCheckOk(current, openCodeMin),
     });
   }
 

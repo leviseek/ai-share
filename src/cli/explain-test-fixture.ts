@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 
 export type ExplainTestFixture = {
   root: string;
-  codexHome: string;
+  openCodeDir: string;
   home: string;
   env: Record<string, string | undefined>;
   cleanup(): void;
@@ -12,7 +12,7 @@ export type ExplainTestFixture = {
 
 export function createExplainTestFixture(): ExplainTestFixture {
   const root = mkdtempSync(join(tmpdir(), "ai-share-explain-"));
-  const codexHome = join(root, "codex-home");
+  const openCodeDir = join(root, "opencode-home");
   const home = join(root, "home");
 
   write(join(root, "config", "global.yaml"), "model: model-a\nprovider: provider-a\n");
@@ -40,7 +40,7 @@ export function createExplainTestFixture(): ExplainTestFixture {
   write(join(root, "config", "env.yaml"), "variables: {}\n");
   write(
     join(root, "config", "agents.yaml"),
-    "agents:\n  commit:\n    description: Commit changes\n    model: model-a\n    reasoning_effort: low\n    developer_instructions: Create a commit.\n",
+    "agents:\n  commit:\n    description: Commit changes\n    model: model-a\n    reasoning_effort: low\n    mode: subagent\n    prompt: Create a commit.\n",
   );
   write(join(root, "config", "local", "env.yaml"), "variables:\n  HTTP_PROXY: http://127.0.0.1:7897\n");
   write(
@@ -53,9 +53,9 @@ export function createExplainTestFixture(): ExplainTestFixture {
 
   return {
     root,
-    codexHome,
+    openCodeDir,
     home,
-    env: { HOME: home, CODEX_HOME: codexHome, A_API_KEY: "UNREADABLE_TEST_VALUE_42" },
+    env: { HOME: home, OPENCODE_CONFIG_DIR: openCodeDir, A_API_KEY: "UNREADABLE_TEST_VALUE_42" },
     cleanup: () => rmSync(root, { recursive: true, force: true }),
   };
 }

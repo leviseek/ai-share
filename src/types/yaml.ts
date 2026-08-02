@@ -18,7 +18,8 @@ export type AgentSource = {
   description: string;
   model?: string;
   reasoning_effort?: "low" | "medium" | "high";
-  developer_instructions: string;
+  mode: "primary" | "subagent" | "all";
+  prompt: string;
 };
 
 export type McpServerSource = {
@@ -29,7 +30,6 @@ export type McpServerSource = {
   url?: string;
   bearer_token_env_var?: string;
   oauth_client_id?: string;
-  oauth_resource?: string;
 };
 
 export type ProviderSource = {
@@ -48,21 +48,5 @@ export type ModelSource = {
 export type GlobalYaml = {
   model: string;
   provider: string;
-  codex_min_version?: string;
-  codex_allow_login_shell?: boolean;
-  codex_windows?: CodexWindowsSource;
-  codex_shell_environment_policy?: CodexShellEnvironmentPolicySource;
-};
-
-export type CodexWindowsSource = {
-  sandbox?: "elevated" | "unelevated";
-};
-
-export type CodexShellEnvironmentPolicySource = {
-  inherit?: "all" | "core" | "none";
-  ignore_default_excludes?: boolean;
-  experimental_use_profile?: boolean;
-  exclude?: string[];
-  include_only?: string[];
-  set?: Record<string, string>;
+  opencode_min_version?: string;
 };
