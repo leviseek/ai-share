@@ -16,7 +16,7 @@ const skipInstall = Bun.argv.includes("--skip-install");
 
 const steps: Step[] = [
   ...(skipInstall ? [] : [{ label: "安装 Bun 依赖", command: bunCommand, args: ["install", "--frozen-lockfile"] }]),
-  { label: "检查 ai-share 配置", command: bunCommand, args: ["run", "ai:check"] },
+  { label: "检查 ai-share 配置", command: bunCommand, args: ["run", "ai:doctor"] },
   { label: "生成并安装用户级 OpenCode 配置", command: bunCommand, args: ["run", "ai:gen"] },
 ];
 

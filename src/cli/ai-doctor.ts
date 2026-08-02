@@ -13,6 +13,7 @@ import { resolveProviderId } from "./options.ts";
 import { buildGeneratorPaths } from "./paths.ts";
 import { buildAiocLauncherFiles } from "./aioc-install.ts";
 import { checkProviderCanaries, checkProviderModels } from "./provider-check.ts";
+import { formatInstallRunResult, runInstall } from "./ai-install.ts";
 
 const startedAt = performance.now();
 const args = argsFromArgv();
@@ -29,6 +30,7 @@ if (!provider) throw new Error(`提供商未定义：${providerId}`);
 const canary = hasFlag(args, "--canary");
 const online = hasFlag(args, "--online") || canary;
 const checks: DoctorCheck[] = [];
+const installResult = await runInstall();
 const expectedConfig = formatOpenCodeConfigJsonc(
   buildOpenCodeConfig(config, providerId, buildInstructionsPaths(paths.projectRoot), paths.targetOpenCodeSkillsDir),
 );
@@ -43,6 +45,12 @@ const diagnostics = await collectConfigDiagnostics({
 const localProxySummary = summarizeLocalProxyChecks(diagnostics.localProxyChecks.value);
 
 checks.push(
+  {
+    name: "tools",
+    status: !installResult.ok ? "error" : installResult.tools.every((tool) => tool.installed) ? "ok" : "warning",
+    summary: !installResult.ok ? "工具检测失败。" : installResult.hints.length === 0 ? "工具已安装并配置。" : "工具未全部安装或仍有使用提示。",
+    details: formatInstallRunResult(installResult, false),
+  },
   diagnosticCheck(
     "api_key_env",
     diagnostics.missingApiKey.value === undefined,

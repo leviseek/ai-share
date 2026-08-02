@@ -4,6 +4,7 @@ export type ColorPalette = {
   bold(text: string): string;
   cyan(text: string): string;
   gray(text: string): string;
+  white(text: string): string;
   green(text: string): string;
   magenta(text: string): string;
   red(text: string): string;
@@ -15,6 +16,7 @@ export function createColor(enabled: boolean): ColorPalette {
     bold: (text) => paint(text, 1, enabled),
     cyan: (text) => paint(text, 36, enabled),
     gray: (text) => paint(text, 90, enabled),
+    white: (text) => paint(text, 97, enabled),
     green: (text) => paint(text, 32, enabled),
     magenta: (text) => paint(text, 35, enabled),
     red: (text) => paint(text, 31, enabled),

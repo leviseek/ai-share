@@ -18,13 +18,13 @@ config/*.yaml + config/local/*.yaml
 
 ```sh
 bun install --frozen-lockfile
-bun run ai:check
+bun run ai:doctor
 bun run ai:explain -- --json
 bun run ai:gen -- --dry-run
 bun run ai:gen
 ```
 
-`ai:check` 会检查仓库配置，并检测受管工具及其配置状态。`ai:bootstrap` 会安装依赖、检查配置并生成 OpenCode 输出：
+`ai:doctor` 会检查仓库配置，并检测受管工具及其配置状态。`ai:bootstrap` 会安装依赖、检查配置并生成 OpenCode 输出：
 
 ```sh
 bun run ai:bootstrap
@@ -34,7 +34,7 @@ bun run ai:bootstrap -- --skip-install
 在 Windows 或 macOS 上，可检测 AI 开发环境中的受管工具：
 
 ```sh
-bun run ai:check
+bun run ai:doctor
 ```
 
 检测部分只检查受管工具是否已安装，不会下载、升级或修改配置，也不会在 Linux 上运行。缺失工具会显示对应平台的 `pnpm`、Scoop 或 Homebrew 安装指令；缺少 Windows 桌面工具时还会提示 Scoop `extras` bucket 的前置指令。

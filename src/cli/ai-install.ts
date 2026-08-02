@@ -71,7 +71,8 @@ export async function runInstall(
     const paths = buildGeneratorPaths(projectRoot, env);
     const config = await loadValidatedConfig(paths.configDir);
     const runner = input.runner ?? spawnInstallCommand;
-    const detected = await detectInstalledTools(platform, tmpdir(), runner, config.plugins.plugins);
+    const userPluginSpecs = await readUserPluginSpecs(paths.targetOpenCodeConfig);
+    const detected = await detectInstalledTools(platform, tmpdir(), runner, [...config.plugins.plugins, ...userPluginSpecs]);
     const tools = INSTALL_TOOLS.map((tool) => ({
       id: tool.id,
       label: tool.label,
@@ -127,9 +128,48 @@ export function formatInstallRunResult(
     const status = tool.installed ? palette.green("已安装") : palette.yellow("未安装");
     lines.push(`- ${tool.label}：${status}`);
   }
+  const usageHints = result.hints.filter(
+    (hint) => hint.kind === "configure-openspec" || hint.kind === "configure-openspec-after-install",
+  );
+  const openspecInstalled = result.tools.some((tool) => tool.id === "openspec" && tool.installed);
+  const codegraphInstalled = result.tools.some((tool) => tool.id === "codegraph" && tool.installed);
+  const superpowersInstalled = result.tools.some((tool) => tool.id === "superpowers" && tool.installed);
+  if (usageHints.length > 0 || openspecInstalled || codegraphInstalled || superpowersInstalled) {
+    lines.push("", palette.bold(palette.cyan("使用提示：")));
+    if (usageHints.length > 0 || openspecInstalled) {
+      lines.push(palette.bold(palette.cyan("OpenSpec")));
+      for (const hint of usageHints) {
+        const prefix = hint.kind === "configure-openspec" ? "初始化" : "安装后初始化";
+        lines.push(palette.yellow(`  ${prefix}`));
+        lines.push(palette.white(`    在项目根目录执行：${hint.command} ${hint.args.join(" ")}`));
+      }
+      if (openspecInstalled) {
+        lines.push(palette.yellow("  会话使用"));
+        lines.push(palette.white("    启动 OpenCode 后，直接描述需求，例如：使用 OpenSpec 创建变更提案"));
+      }
+    }
+    if (codegraphInstalled) {
+      if (usageHints.length > 0 || openspecInstalled) lines.push("");
+      lines.push(palette.bold(palette.cyan("CodeGraph")));
+      lines.push(palette.yellow("  会话使用"));
+      lines.push(palette.white("    启动 OpenCode 后，直接请求：使用 CodeGraph 分析当前项目代码"));
+    }
+    if (superpowersInstalled) {
+      if (usageHints.length > 0 || openspecInstalled || codegraphInstalled) lines.push("");
+      lines.push(palette.bold(palette.cyan("Superpowers")));
+      lines.push(palette.yellow("  会话使用"));
+      lines.push(palette.white("    启动 OpenCode 后，直接请求：使用 Superpowers 执行当前任务"));
+    }
+  }
   if (result.hints.length === 0) return [...lines, palette.green("所有工具均已安装或配置。")].join("\n");
   const installHints = result.hints.filter((hint) => hint.kind === "command" || hint.kind === "prepare-scoop-extras");
-  const configHints = result.hints.filter((hint) => hint.kind !== "command" && hint.kind !== "prepare-scoop-extras");
+  const configHints = result.hints.filter(
+    (hint) =>
+      hint.kind !== "command" &&
+      hint.kind !== "prepare-scoop-extras" &&
+      hint.kind !== "configure-openspec" &&
+      hint.kind !== "configure-openspec-after-install",
+  );
   if (installHints.length > 0) {
     lines.push("", palette.bold(palette.yellow("安装指令：")));
     for (const hint of installHints) {
@@ -142,16 +182,10 @@ export function formatInstallRunResult(
   for (const hint of configHints) {
     if (hint.kind === "configure-superpowers") {
       lines.push(palette.magenta("- Superpowers：请执行 bun run ai:gen，并在可选插件配置步骤中选择 Superpowers"));
-      lines.push(palette.gray("  ai:gen 会将选择写入用户级 OpenCode 配置"));
-    } else if (hint.kind === "configure-openspec") {
-      lines.push(palette.magenta(`- OpenSpec：需要配置时，在项目根目录执行：${hint.command} ${hint.args.join(" ")}`));
-    } else if (hint.kind === "configure-openspec-after-install") {
-      lines.push(
-        palette.magenta(`- OpenSpec：安装后如需配置，在项目根目录执行：${hint.command} ${hint.args.join(" ")}`),
-      );
+      lines.push(palette.white("  ai:gen 会将选择写入用户级 OpenCode 配置"));
     } else if (hint.kind === "configure-openspec-superpowers") {
       lines.push(palette.magenta("- OpenSpec：已安装 Superpowers，但尚未在 OpenSpec 配置中启用"));
-      lines.push(palette.gray("  请在 openspec 配置中加入 Superpowers 集成后重新运行检测"));
+      lines.push(palette.white("  请在 openspec 配置中加入 Superpowers 集成后重新运行检测"));
     }
   }
   return lines.join("\n");
@@ -177,13 +211,18 @@ async function detectInstalledTools(
   } satisfies InstallCommand;
   const pnpmResult = await runner(pnpmCommand);
   const pnpmPackages = isMissingExecutable(pnpmResult) ? new Set<string>() : parsePnpmResult(pnpmResult, pnpmCommand);
+  const opencodeResult = await runner({ command: "opencode", args: ["--version"], cwd });
+  // A broken runtime/config can make `opencode --version` exit non-zero even
+  // though the executable is installed. `spawnSync` reports a missing command
+  // through `error`, so use that as the installation signal instead of status.
+  if (opencodeResult.status !== null && !opencodeResult.error) pnpmPackages.add("opencode-ai");
   const systemPackages = new Set<string>();
   let scoopExtrasAvailable = false;
   if (platform === "win32") {
     const scoopCommand = { command: "scoop", args: ["list"], cwd } satisfies InstallCommand;
     const scoop = await runner(scoopCommand);
     if (!isMissingExecutable(scoop)) {
-      const validScoop = await runProbeResult(
+      const validScoop = runProbeResult(
         scoop,
         scoopCommand,
         (result) => result.status === 1 && /There aren't any apps installed\.?/i.test(result.stdout),
@@ -200,7 +239,7 @@ async function detectInstalledTools(
     const brewCommand = { command: "brew", args: ["list", "--cask", "--versions"], cwd } satisfies InstallCommand;
     const brew = await runner(brewCommand);
     if (!isMissingExecutable(brew)) {
-      const validBrew = await runCheckedResult(brew, brewCommand);
+      const validBrew = runCheckedResult(brew, brewCommand);
       for (const name of parseBrewCaskInstalled(validBrew.stdout)) systemPackages.add(name);
     }
   }
@@ -208,6 +247,8 @@ async function detectInstalledTools(
 }
 
 function stripAnsi(value: string): string {
+  // ANSI escape sequences begin with ESC (0x1b), which is intentional here.
+  // eslint-disable-next-line no-control-regex
   return value.replaceAll(/\u001b\[[0-?]*[ -/]*[@-~]/g, "");
 }
 
@@ -252,8 +293,20 @@ async function hasOpenSpecSuperpowersConfig(projectRoot: string): Promise<boolea
   return false;
 }
 
+async function readUserPluginSpecs(configPath: string): Promise<readonly string[]> {
+  try {
+    const content = await readFile(configPath, "utf8");
+    if (!/superpowers/i.test(content)) return [];
+    return ["superpowers@git+https://github.com/obra/superpowers.git"];
+  } catch {
+    return [];
+  }
+}
+
 export function resolveInstallExecutable(platform: NodeJS.Platform, command: string): string {
-  if (platform === "win32" && (command === "pnpm" || command === "scoop")) return `${command}.cmd`;
+  if (platform === "win32" && (command === "pnpm" || command === "scoop")) {
+    return `${command}.cmd`;
+  }
   return command;
 }
 

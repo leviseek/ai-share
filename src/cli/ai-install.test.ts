@@ -28,7 +28,12 @@ describe("ai:install CLI", () => {
       });
 
       expect(result.ok, formatInstallRunResult(result)).toBe(true);
-      expect(calls).toEqual(["pnpm list --global --depth 0 --json", "scoop list", "scoop bucket list"]);
+      expect(calls).toEqual([
+        "pnpm list --global --depth 0 --json",
+        "opencode --version",
+        "scoop list",
+        "scoop bucket list",
+      ]);
       const report = formatInstallRunResult(result);
       expect(report).toContain("OpenCode CLI：未安装");
       expect(report).toContain("执行：bun install --global opencode-ai@latest");
@@ -57,7 +62,11 @@ describe("ai:install CLI", () => {
       });
 
       expect(result.ok, formatInstallRunResult(result)).toBe(true);
-      expect(calls).toEqual(["pnpm list --global --depth 0 --json", "brew list --cask --versions"]);
+      expect(calls).toEqual([
+        "pnpm list --global --depth 0 --json",
+        "opencode --version",
+        "brew list --cask --versions",
+      ]);
       expect(formatInstallRunResult(result)).toContain("执行：brew install --cask opencode-desktop");
     } finally {
       fixture.cleanup();
@@ -81,7 +90,8 @@ describe("ai:install CLI", () => {
       });
 
       expect(result.ok, formatInstallRunResult(result)).toBe(true);
-      expect(formatInstallRunResult(result)).toContain("OpenSpec：需要配置时，在项目根目录执行：openspec init");
+      expect(formatInstallRunResult(result)).toContain("初始化");
+      expect(formatInstallRunResult(result)).toContain("在项目根目录执行：openspec init");
     } finally {
       fixture.cleanup();
     }
@@ -106,7 +116,8 @@ describe("ai:install CLI", () => {
       expect(result.ok, formatInstallRunResult(result)).toBe(true);
       const report = formatInstallRunResult(result);
       expect(report).toContain("执行：pnpm add --global @fission-ai/openspec@latest");
-      expect(report).toContain("OpenSpec：安装后如需配置，在项目根目录执行：openspec init");
+      expect(report).toContain("安装后初始化");
+      expect(report).toContain("在项目根目录执行：openspec init");
     } finally {
       fixture.cleanup();
     }
@@ -141,6 +152,32 @@ describe("ai:install CLI", () => {
 
       expect(result.ok, formatInstallRunResult(result)).toBe(true);
       expect(formatInstallRunResult(result)).toContain("尚未在 OpenSpec 配置中启用");
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test("recognizes Superpowers configured in the user OpenCode config", async () => {
+    const fixture = createExplainTestFixture();
+    try {
+      await mkdir(fixture.openCodeDir, { recursive: true });
+      await writeFile(
+        `${fixture.openCodeDir}/opencode.jsonc`,
+        '{\n  "plugin": ["superpowers@git+https://github.com/obra/superpowers.git"]\n}\n',
+      );
+      const result = await runInstall({
+        argv: ["bun", "script"],
+        env: fixture.env,
+        projectRoot: fixture.root,
+        platform: "darwin",
+        runner: createRunner([], {
+          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: { "opencode-ai": { version: "1.0.0" } } }]),
+          "brew list --cask --versions": textResult(""),
+        }),
+      });
+
+      expect(result.ok, formatInstallRunResult(result)).toBe(true);
+      expect(formatInstallRunResult(result)).not.toContain("Superpowers：请执行 bun run ai:gen");
     } finally {
       fixture.cleanup();
     }
@@ -194,11 +231,57 @@ describe("ai:install CLI", () => {
     }
   });
 
+  test("recognizes an installed OpenCode executable even when version probing fails", async () => {
+    const fixture = createExplainTestFixture();
+    try {
+      const result = await runInstall({
+        argv: ["bun", "script"],
+        env: fixture.env,
+        projectRoot: fixture.root,
+        platform: "darwin",
+        runner: createRunner([], {
+          "pnpm list --global --depth 0 --json": jsonResult([{ dependencies: {} }]),
+          "opencode --version": { status: 1, stdout: "", stderr: "runtime initialization failed" },
+          "brew list --cask --versions": textResult(""),
+        }),
+      });
+
+      expect(result.ok, formatInstallRunResult(result)).toBe(true);
+      const report = formatInstallRunResult(result);
+      expect(report).not.toContain("OpenCode CLI：未安装");
+      expect(report).toContain("使用提示：");
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test("shows CodeGraph usage guidance when installed", () => {
+    const report = formatInstallRunResult(
+      {
+        ok: true,
+        tools: [
+          { id: "opencode", label: "OpenCode CLI", installed: false },
+          { id: "opencode-desktop", label: "OpenCode Desktop", installed: true },
+          { id: "wezterm", label: "WezTerm", installed: true },
+          { id: "openspec", label: "OpenSpec", installed: false },
+          { id: "superpowers", label: "Superpowers", installed: true },
+          { id: "codegraph", label: "CodeGraph", installed: true },
+        ],
+        hints: [],
+      },
+      false,
+    );
+      expect(report).toContain("会话使用");
+      expect(report).toContain("启动 OpenCode 后，直接请求");
+      expect(report).toContain("Superpowers");
+  });
+
   test("keeps the command-line interface and Windows executable resolution", () => {
     expect(parseInstallOptions(["bun", "script"])).toEqual({});
     expect(() => parseInstallOptions(["bun", "script", "--json"])).toThrow("未知参数");
     expect(resolveInstallExecutable("win32", "pnpm")).toBe("pnpm.cmd");
     expect(resolveInstallExecutable("win32", "scoop")).toBe("scoop.cmd");
+    expect(resolveInstallExecutable("win32", "opencode")).toBe("opencode");
     expect(resolveInstallExecutable("darwin", "pnpm")).toBe("pnpm");
   });
 });
@@ -207,7 +290,17 @@ function createRunner(calls: string[], responses: Record<string, InstallCommandR
   return ({ command, args }) => {
     const key = [command, ...args].join(" ");
     calls.push(key);
-    return Promise.resolve(responses[key] ?? failureResult(`未配置测试命令：${key}`));
+    return Promise.resolve(
+      responses[key] ??
+        (command === "opencode"
+          ? {
+              status: null,
+              stdout: "",
+              stderr: "",
+              error: new Error('Executable not found in $PATH: "opencode"'),
+            }
+          : failureResult(`未配置测试命令：${key}`)),
+    );
   };
 }
 
