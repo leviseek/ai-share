@@ -105,7 +105,10 @@ export function parseScoopInstalled(text: string): Map<string, InstalledSystemPa
     }
     if (
       isInstallToolId(name) &&
-      (!fields.version || (fields.info !== "" && !/\bglobal install\b/i.test(fields.info)))
+      (!fields.version ||
+        /\binstall failed\b/i.test(fields.info) ||
+        (fields.info !== "" &&
+          !/\bglobal install\b|\bheld\b|\bdeprecated\b|\b(?:32|64)bit\b|\barm64\b/i.test(fields.info)))
     ) {
       throw new Error("Scoop 应用列表解析失败：输出格式无效。");
     }
@@ -275,6 +278,17 @@ function splitScoopFields(
   updated: string;
   info: string;
 } {
+  const tokens = line.trim().split(/\s+/);
+  if (tokens.length >= 4) {
+    const hasTime = /^\d{4}-\d{2}-\d{2}$/.test(tokens[3] ?? "") && /^\d{2}:\d{2}:\d{2}$/.test(tokens[4] ?? "");
+    return {
+      name: tokens[0] ?? "",
+      version: tokens[1] ?? "",
+      source: tokens[2] ?? "",
+      updated: hasTime ? `${tokens[3] ?? ""} ${tokens[4] ?? ""}` : (tokens[3] ?? ""),
+      info: tokens.slice(hasTime ? 5 : 4).join(" "),
+    };
+  }
   const columns = separator.match(/-+/g);
   if (columns?.length !== 5) throw new Error("Scoop 应用列表解析失败：输出格式无效。");
   const starts = [...separator.matchAll(/-+/g)].map((match) => match.index ?? 0);

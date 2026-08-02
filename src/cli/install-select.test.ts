@@ -83,6 +83,31 @@ describe("install selection state", () => {
     expect(output).toContain("↑/↓ 移动，Space 选择或取消，Enter 确认，Ctrl+C 取消");
   });
 
+  test("renders an upgrade-specific heading and group", () => {
+    const upgradeChoices = [
+      { id: "opencode", label: "OpenCode CLI", required: false, selected: false, status: "已安装" },
+    ];
+    const state = createInstallSelectionState(upgradeChoices);
+    const output = renderInstallMenu(upgradeChoices, state, "upgrade");
+
+    expect(output).toContain("请选择升级内容");
+    expect(output).toContain("可选升级");
+  });
+
+  test("keeps upgrade mode while rerendering after input", async () => {
+    const upgradeChoices = [
+      { id: "opencode", label: "OpenCode CLI", required: false, selected: false, status: "已安装" },
+    ];
+    const terminal = createTerminal();
+    const selection = selectInstallInteractive(upgradeChoices, terminal.io, "upgrade");
+    terminal.input.emit("data", Buffer.from(" "));
+    terminal.input.emit("data", Buffer.from("\r"));
+    await selection;
+    const menus = terminal.rendered.split("\u001b[J");
+    expect(menus.at(-2)).toContain("请选择升级内容");
+    expect(menus.at(-2)).not.toContain("请选择安装内容");
+  });
+
   test("rejects an empty choice list with a Chinese error", async () => {
     expect(() => createInstallSelectionState([])).toThrow("安装选项不能为空。");
     await expectRejected(selectInstallInteractive([]), "安装选项不能为空。");

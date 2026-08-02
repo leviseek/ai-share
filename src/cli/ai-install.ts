@@ -91,7 +91,11 @@ export async function runInstall(
       .map((choice) => ({ ...choice, required: false, selected: false }));
     const upgrade =
       upgradeChoices.length > 0
-        ? await (input.selectUpgrade ?? input.select ?? ((items) => selectInstallInteractive(items)))(upgradeChoices)
+        ? await (
+            input.selectUpgrade ??
+            input.select ??
+            ((items) => selectInstallInteractive(items, undefined, "upgrade"))
+          )(upgradeChoices)
         : new Set<string>();
     const upgradeIds = new Set<InstallToolId>([...upgrade].filter(isInstallToolId));
     actions = buildInstallActions({
@@ -102,11 +106,19 @@ export async function runInstall(
       scoopGlobalIds: detected.scoopGlobalIds,
       scoopExtrasAvailable: detected.scoopExtrasAvailable,
     });
-    const write = input.write ?? ((line) => console.log(line));
-    for (const action of actions) write(formatInstallAction(action));
-    if (actions.some((action) => action.kind === "configure-superpowers")) write("执行：bun run ai:gen");
-
+    const executionActions: InstallAction[] = actions.filter((action) => action.kind !== "configure-superpowers");
     const superpowersAction = actions.find((action) => action.kind === "configure-superpowers");
+    if (superpowersAction) executionActions.push(superpowersAction);
+    actions = executionActions;
+    const write = input.write ?? ((line) => console.log(line));
+    for (const action of actions) {
+      if (action.kind === "command" || action.kind === "prepare-scoop-extras") write(formatInstallAction(action));
+    }
+    if (actions.some((action) => action.kind === "configure-superpowers")) {
+      write("配置 Superpowers canonical plugin");
+      write("执行：bun run ai:gen");
+    }
+
     for (const action of actions) {
       if (action.kind === "configure-superpowers") continue;
       await runChecked(runner, {
@@ -174,11 +186,19 @@ async function detectInstalledTools(
   let scoopGlobalIds = new Set<InstallToolId>();
   let scoopExtrasAvailable = true;
   if (platform === "win32") {
-    const scoop = await runChecked(runner, { command: "scoop", args: ["list"], cwd });
+    const scoop = await runProbe(
+      runner,
+      { command: "scoop", args: ["list"], cwd },
+      (result) => result.status === 1 && /There aren't any apps installed\.?/i.test(result.stdout),
+    );
     const parsed = parseScoopInstalled(scoop.stdout);
     for (const name of parsed.keys()) systemPackages.add(name);
     scoopGlobalIds = collectScoopGlobalIds(parsed);
-    const buckets = await runChecked(runner, { command: "scoop", args: ["bucket", "list"], cwd });
+    const buckets = await runProbe(
+      runner,
+      { command: "scoop", args: ["bucket", "list"], cwd },
+      (result) => result.status === 2 && /No buckets installed|No bucket found/i.test(result.stdout),
+    );
     scoopExtrasAvailable = hasScoopExtras(buckets.stdout);
   } else {
     const brew = await runChecked(runner, { command: "brew", args: ["list", "--cask", "--versions"], cwd });
@@ -200,26 +220,48 @@ async function runChecked(runner: InstallRunner, command: InstallCommand): Promi
   return result;
 }
 
+async function runProbe(
+  runner: InstallRunner,
+  command: InstallCommand,
+  allowNonZero: (result: InstallCommandResult) => boolean,
+): Promise<InstallCommandResult> {
+  const result = await runner(command);
+  if (result.error || (result.status !== 0 && !allowNonZero(result))) {
+    const detail = result.error?.message ?? result.stderr ?? result.stdout ?? `exit ${result.status ?? "unknown"}`;
+    throw new Error(`${command.command} ${command.args.join(" ")} 执行失败：${detail}`, { cause: result.error });
+  }
+  return result;
+}
+
 async function enableSuperpowers(configDir: string, existingPlugins: readonly string[]): Promise<() => Promise<void>> {
   const localPath = resolve(configDir, "local", "plugins.yaml");
   const hadExisting = await pathExists(localPath);
   const original = hadExisting ? await readFile(localPath, "utf8") : undefined;
-  const plugins = [...new Set([...existingPlugins, SUPERPOWERS_PLUGIN_SPEC])];
+  const plugins = [
+    ...new Set([...existingPlugins.filter((spec) => pluginPackageId(spec) !== "superpowers"), SUPERPOWERS_PLUGIN_SPEC]),
+  ];
   const writer = await StagedFileWriter.create(resolve(configDir, "local", ".ai-share-staging"));
   const restore = async (): Promise<void> => {
     const rollbackWriter = await StagedFileWriter.create(resolve(configDir, "local", ".ai-share-staging"));
-    if (original === undefined) rollbackWriter.delete(localPath);
-    else await rollbackWriter.writeText(localPath, original);
-    await rollbackWriter.promote();
+    try {
+      if (original === undefined) rollbackWriter.delete(localPath);
+      else await rollbackWriter.writeText(localPath, original);
+      await rollbackWriter.promote();
+    } finally {
+      await rollbackWriter.cleanup();
+    }
   };
   try {
     await writer.writeText(localPath, `${Bun.YAML.stringify({ plugins })}\n`);
     await writer.promote();
   } catch (error) {
     try {
+      await writer.cleanup();
       await restore();
     } catch (rollbackError) {
-      throw new AggregateError([error, rollbackError], "Superpowers overlay 写入失败且回滚失败。", { cause: error });
+      throw new AggregateError([error, rollbackError], "Superpowers overlay 写入失败且回滚失败。", {
+        cause: rollbackError,
+      });
     }
     throw new Error(error instanceof Error ? error.message : String(error), { cause: error });
   }
@@ -272,6 +314,16 @@ function stripAnsi(value: string): string {
 
 function isInstallToolId(value: string): value is InstallToolId {
   return INSTALL_TOOLS.some((tool) => tool.id === value);
+}
+
+function pluginPackageId(spec: string): string | undefined {
+  if (spec.startsWith("@")) {
+    const slash = spec.indexOf("/");
+    const at = slash < 0 ? -1 : spec.indexOf("@", slash + 1);
+    return at < 0 ? spec : spec.slice(0, at);
+  }
+  const at = spec.indexOf("@");
+  return at < 0 ? spec : spec.slice(0, at);
 }
 
 function formatInstallAction(action: InstallAction): string {

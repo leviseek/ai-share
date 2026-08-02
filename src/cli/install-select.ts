@@ -103,11 +103,20 @@ export function updateInstallSelection(
   };
 }
 
-export function renderInstallMenu(choices: readonly InstallChoice[], state: InstallSelectionState): string {
+export function renderInstallMenu(
+  choices: readonly InstallChoice[],
+  state: InstallSelectionState,
+  mode: "install" | "upgrade" = "install",
+): string {
   assertChoices(choices);
-  const lines = ["请选择安装内容", "", "必须安装"];
+  const lines = [
+    mode === "upgrade" ? "请选择升级内容" : "请选择安装内容",
+    "",
+    mode === "upgrade" ? "可选升级" : "必须安装",
+  ];
   appendChoiceLines(lines, choices, state, true);
-  lines.push("", "可选安装");
+  if (mode === "upgrade") lines.push("");
+  else lines.push("", "可选安装");
   appendChoiceLines(lines, choices, state, false);
   lines.push("", "↑/↓ 移动，Space 选择或取消，Enter 确认，Ctrl+C 取消");
   return `${lines.join("\n")}\n`;
@@ -119,6 +128,7 @@ export async function selectInstallInteractive(
     input: process.stdin,
     output: process.stdout,
   },
+  mode: "install" | "upgrade" = "install",
 ): Promise<ReadonlySet<string>> {
   assertChoices(choices);
   if (!io.input.isTTY || !io.output.isTTY) throw new Error("当前终端不支持交互式安装选择。");
@@ -128,7 +138,7 @@ export async function selectInstallInteractive(
   const restoreRawMode = input.isRaw !== true;
   const wasFlowing = input.readableFlowing === true;
   let state = createInstallSelectionState(choices);
-  const menuLineCount = renderInstallMenu(choices, state).split("\n").length - 1;
+  const menuLineCount = renderInstallMenu(choices, state, mode).split("\n").length - 1;
   const clearSequence = `\u001b[${menuLineCount}A\r\u001b[J`;
 
   return await new Promise<ReadonlySet<string>>((resolve, reject) => {
@@ -202,7 +212,7 @@ export async function selectInstallInteractive(
       }
     };
     const rerender = (): void => {
-      writeMenu(`${clearSequence}${renderInstallMenu(choices, state)}`);
+      writeMenu(`${clearSequence}${renderInstallMenu(choices, state, mode)}`);
     };
     const onData = (data: Buffer): void => {
       if (settled) return;
@@ -239,7 +249,7 @@ export async function selectInstallInteractive(
       input.on("data", onData);
       input.on("end", onEnd);
       input.on("error", onError);
-      writeMenu(renderInstallMenu(choices, state));
+      writeMenu(renderInstallMenu(choices, state, mode));
       input.resume();
     } catch (error) {
       const failure = toError(error);

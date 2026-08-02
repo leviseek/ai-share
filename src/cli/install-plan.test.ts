@@ -203,6 +203,35 @@ describe("AI tool installation plan", () => {
     expect(parsed.get("wezterm")).toEqual({ global: true });
   });
 
+  test("accepts non-failure Scoop info flags and rejects failed target rows", () => {
+    expect(
+      parseScoopInstalled(
+        "Installed apps:\n\nName Version Source Updated Info\n---- ------- ------ ------- ----\nwezterm nightly extras 2026-08-01 Global install, Held\n",
+      ).get("wezterm"),
+    ).toEqual({ global: true });
+    expect(() =>
+      parseScoopInstalled(
+        "Installed apps:\n\nName Version Source Updated Info\n---- ------- ------ ------- ----\nwezterm nightly extras 2026-08-01 Global install, Install failed\n",
+      ),
+    ).toThrow("Scoop 应用列表解析失败");
+  });
+
+  test("parses Scoop rows with a date and time in Updated", () => {
+    expect(
+      parseScoopInstalled(
+        "Installed apps:\n\nName             Version Source Updated               Info\n----             ------- ------ -------               ----\nwezterm          2.0     extras 2026-08-01 12:34:56\n",
+      ).get("wezterm"),
+    ).toEqual({ global: false });
+  });
+
+  test("accepts Scoop architecture info flags", () => {
+    expect(
+      parseScoopInstalled(
+        "Installed apps:\n\nName Version Source Updated Info\n---- ------- ------ ------- ----\nwezterm 2.0 extras 2026-08-01 12:34:56 64bit\n",
+      ).get("wezterm"),
+    ).toEqual({ global: false });
+  });
+
   test("accepts Homebrew cask rows with latest or multiple version fields", () => {
     expect([...parseBrewCaskInstalled("wezterm latest\nother-cask 1.0 2.0\n")]).toEqual(["wezterm", "other-cask"]);
   });
