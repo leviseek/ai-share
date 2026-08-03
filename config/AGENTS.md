@@ -28,7 +28,7 @@
 - `env.yaml` 及 overlay 不得包含 API key、token、cookie、`HOME`、`USERPROFILE`、`PATH`、`AI_SHARE_*` 或 `OPENCODE_*`。
 - Plugin 仅允许 npm package spec 或 `package-name@git+https://...`；拒绝 URL userinfo/query/hash、`file://`、本机路径和 secret literal。
 - 本机代理属于 ignored `config/local/env.yaml`，可从 `../templates/personal-overlay/env.local.example.yaml` 复制。
-- `wezterm.yaml` 的字段和默认值由 `../src/config/schema-spec.ts` 定义；`ai:config` 生成当前用户的 `.config/wezterm/wezterm.lua`。
+- `../src/config/schema-spec.ts` 是 `wezterm.yaml` 的字段、类型和枚举值来源；`config/wezterm.yaml` 是默认值来源。`ai:config` 生成当前用户的 `.config/wezterm/wezterm.lua`。
 - 空集合显式写成 `{}`。
 
 ## VALIDATION

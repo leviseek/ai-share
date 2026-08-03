@@ -41,7 +41,7 @@ bun run ai:config -- --non-interactive
 bun run ai:config -- --non-interactive --force
 ```
 
-命令只接受 `--dry-run`、`--non-interactive` 和 `--force`。`--dry-run` 只输出配置摘要和计划，不写入文件；`--non-interactive` 跳过交互向导；`--force` 只在目标是未受管普通文件时显式接管，不能绕过 YAML 校验，也不能接管目录、符号链接或其他阻塞路径。
+命令只接受 `--dry-run`、`--non-interactive` 和 `--force`。`--dry-run` 永不写入文件；如果 stdin 和 stdout 均为 TTY，仍会先运行六步交互向导，然后输出所选配置摘要和计划；非 TTY 或使用 `--non-interactive` 时直接输出 YAML 配置摘要和计划。`--force` 只在目标是未受管普通文件时显式接管，不能绕过 YAML 校验，也不能接管目录、符号链接或其他阻塞路径。
 
 输出目标固定为当前用户目录下的 `~/.config/wezterm/wezterm.lua`（Windows 使用 `HOME` 或 `USERPROFILE` 解析用户目录）。目标缺失时创建，带有 ai-share managed header 的目标可更新，内容相同时保留；未受管文件默认报告 collision 且不写入。WezTerm 会自动重载已加载的配置文件。
 
@@ -78,7 +78,7 @@ Superpowers 尚未配置时，请执行 `bun run ai:gen`，并在可选插件配
 
 插件仅接受 npm package spec 或 `package-name@git+https://...`；拒绝 URL 凭据、query/hash、`file://`、本机路径和明文 secret。`ai:explain` 只展示 package ID，生成配置保留完整且已验证的 spec。
 
-生成器先读取 `config/*.yaml`，再深合并同名 `config/local/*.yaml`：object 深合并，数组和标量替换。当前机器的代理等非密钥值放在被 Git 忽略的 `config/local/env.yaml`：
+OpenCode 生成器先读取 `config/*.yaml`，再深合并同名 `config/local/*.yaml`：object 深合并，数组和标量替换。该 overlay 规则不适用于 `config/wezterm.yaml`；WezTerm loader 只读取该 base file，不读取 `config/local/wezterm.yaml`。当前机器的代理等非密钥值放在被 Git 忽略的 `config/local/env.yaml`：
 
 ```powershell
 New-Item -ItemType Directory -Force config/local | Out-Null
