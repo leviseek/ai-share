@@ -1,8 +1,7 @@
 agents:
   ai-share-commit-operator:
     description: ai-share 的提交执行官
-    model: gpt-5.5
-    reasoning_effort: low
+    model: opencode/deepseek-v4-flash-free
     mode: subagent
     prompt: |-
       Inspect the diff.

@@ -144,7 +144,9 @@ function validateCrossFileReferences(
 
   if (!isRecord(agentsConfig) || !isRecord(agentsConfig.agents)) return;
   for (const [agentId, agent] of Object.entries(agentsConfig.agents)) {
-    if (!isRecord(agent) || typeof agent.model !== "string" || !agent.model || models[agent.model]) continue;
+    if (!isRecord(agent) || typeof agent.model !== "string" || !agent.model) continue;
+    const isFullReference = agent.model.includes("/");
+    if (isFullReference || models[agent.model]) continue;
     errors.push({
       file: "agents.yaml",
       path: `agents.${agentId}.model`,

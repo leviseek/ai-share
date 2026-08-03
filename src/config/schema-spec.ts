@@ -2,6 +2,7 @@ export const ENV_REFERENCE_PATTERN = "^\\$\\{[A-Z_][A-Z0-9_]*\\}$";
 export const ENV_NAME_PATTERN = "^[A-Z_][A-Z0-9_]*$";
 export const ENV_FILE_NAME_PATTERN = "^[A-Za-z_][A-Za-z0-9_]*$";
 export const CONFIG_ID_PATTERN = "^[a-z0-9]+(?:[.-][a-z0-9]+)*$";
+export const MODEL_REFERENCE_PATTERN = "^[a-z0-9]+(?:[.-][a-z0-9]+)*(?:/[a-z0-9]+(?:[.-][a-z0-9]+)*)?$";
 export const AGENT_ID_PATTERN = "^[a-z][a-z0-9_-]*$";
 export const SEMVER_PATTERN = "^\\d+\\.\\d+\\.\\d+$";
 export const HTTPS_URL_PATTERN = "^https://[^\\s]+$";
@@ -185,7 +186,10 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
             required: ["description", "mode", "prompt"],
             properties: {
               description: stringSchema("Human-facing guidance for when OpenCode should use the agent."),
-              model: patternStringSchema(CONFIG_ID_PATTERN, "Model id from models.yaml."),
+              model: patternStringSchema(
+                MODEL_REFERENCE_PATTERN,
+                "models.yaml model id, or a full provider/model reference (e.g. opencode/deepseek-v4-flash-free).",
+              ),
               reasoning_effort: enumStringSchema(["low", "medium", "high"], "OpenCode reasoning effort override."),
               mode: enumStringSchema(["primary", "subagent", "all"], "OpenCode agent mode."),
               prompt: stringSchema("Core prompt that defines the agent behavior."),

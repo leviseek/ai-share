@@ -68,7 +68,7 @@ function buildOpenCodeModel(modelId: string, model: ConfigSet["models"][string])
 function buildOpenCodeAgents(config: ConfigSet, providerId: string): Record<string, OpenCodeAgent> {
   return Object.fromEntries(
     Object.entries(config.agents.agents).map(([agentId, source]) => {
-      if (source.model && !config.models[source.model]) {
+      if (source.model && !source.model.includes("/") && !config.models[source.model]) {
         throw new Error(`agent '${agentId}' 引用未定义模型 '${source.model}'`);
       }
       return [
@@ -77,7 +77,9 @@ function buildOpenCodeAgents(config: ConfigSet, providerId: string): Record<stri
           description: source.description,
           mode: source.mode,
           prompt: source.prompt,
-          ...(source.model ? { model: modelReference(providerId, source.model) } : {}),
+          ...(source.model
+            ? { model: source.model.includes("/") ? source.model : modelReference(providerId, source.model) }
+            : {}),
           ...(source.reasoning_effort ? { options: { reasoningEffort: source.reasoning_effort } } : {}),
         },
       ];

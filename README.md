@@ -106,7 +106,7 @@ JSON 接口当前为 `schema_version: 3`。报告只包含来源、env 名称、
 
 ## Custom agent
 
-`config/agents.yaml` 中的 agents 直接生成到 `opencode.jsonc` 的 `agent` 对象。默认 `ai-share-commit-operator` 是 `subagent`，使用 `gpt-5.5` 和 `low` reasoning；只有用户明确要求提交、推送或提交并推送时才应委派给它。
+`config/agents.yaml` 中的 agents 直接生成到 `opencode.jsonc` 的 `agent` 对象。默认 `ai-share-commit-operator` 是 `subagent`，使用 opencode 内置免费模型 `opencode/deepseek-v4-flash-free`；只有用户明确要求提交、推送或提交并推送时才应委派给它。agent 的 `model` 可引用 `models.yaml` 的 model id（输出为 `provider/model`），也可直接写完整的 `provider/model` 引用（如内置模型）。
 
 ## 生成输出与所有权
 
