@@ -28,7 +28,6 @@ export function buildOpenCodeConfig(
   return {
     $schema: "https://opencode.ai/config.json",
     model: modelReference(providerId, modelId),
-    enabled_providers: [providerId],
     instructions: [...instructionPaths],
     skills: { paths: [skillsDir] },
     provider: { [providerId]: buildOpenCodeProvider(config, providerId) },

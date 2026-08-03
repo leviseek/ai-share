@@ -1,7 +1,6 @@
 export type OpenCodeConfig = {
   $schema: "https://opencode.ai/config.json";
   model: string;
-  enabled_providers: string[];
   instructions: string[];
   skills: { paths: string[] };
   provider: Record<string, OpenCodeProvider>;
