@@ -42,7 +42,22 @@ export type WezTermConfigOutput = {
   stderr: string;
 };
 
+export type WezTermConfigWriters = {
+  stdout: (content: string) => void;
+  stderr: (content: string) => void;
+};
+
 type WezTermPlanExecutor = typeof executeWezTermPlan;
+
+type WezTermConfigPreviewResult =
+  | {
+      ok: true;
+      options: WezTermConfigOptions;
+      config: WezTermConfig;
+      paths: WezTermPaths;
+      plan: WezTermPlan;
+    }
+  | Extract<WezTermConfigRunResult, { ok: false }>;
 
 export type WezTermConfigRunInput = {
   argv?: readonly string[];
@@ -68,6 +83,52 @@ export function parseWezTermConfigOptions(argv: readonly string[] = Bun.argv): W
 }
 
 export async function runWezTermConfig(input: WezTermConfigRunInput = {}): Promise<WezTermConfigRunResult> {
+  const preview = await buildWezTermConfigPreview(input);
+  if (!preview.ok) return preview;
+
+  const { options, config, paths, plan } = preview;
+  if (plan.kind === "collision") return failureResult(collisionError(plan.path), preview);
+
+  try {
+    if (!options.dryRun) {
+      const stagingRoot = resolve(paths.targetWezTermConfigDir, ".ai-share-staging");
+      await (input.executePlan ?? executeWezTermPlan)(plan, paths, stagingRoot);
+    }
+    return { ok: true, exitCode: 0, options, config, paths, plan, executed: !options.dryRun };
+  } catch (error) {
+    return failureResult(error, preview);
+  }
+}
+
+export async function runWezTermConfigCommand(
+  input: WezTermConfigRunInput = {},
+  writers: WezTermConfigWriters = defaultWriters(),
+): Promise<0 | 1> {
+  const preview = await buildWezTermConfigPreview(input);
+  if (!preview.ok) return printWezTermConfigResult(preview, writers);
+
+  writers.stdout(formatWezTermConfigPreview(preview.config, preview.plan));
+  if (preview.plan.kind === "collision") {
+    writers.stderr(`${collisionError(preview.plan.path).message}\n`);
+    return 1;
+  }
+  if (preview.options.dryRun) {
+    writers.stdout("dry-run：未写入文件。\n");
+    return 0;
+  }
+
+  try {
+    const stagingRoot = resolve(preview.paths.targetWezTermConfigDir, ".ai-share-staging");
+    await (input.executePlan ?? executeWezTermPlan)(preview.plan, preview.paths, stagingRoot);
+    writers.stdout("完成：WezTerm 配置已处理。\n");
+    return 0;
+  } catch (error) {
+    writers.stderr(`WezTerm 配置写入失败：${errorMessage(error)}\n`);
+    return 1;
+  }
+}
+
+async function buildWezTermConfigPreview(input: WezTermConfigRunInput): Promise<WezTermConfigPreviewResult> {
   let options: WezTermConfigOptions | undefined;
   let config: WezTermConfig | undefined;
   let paths: WezTermPaths | undefined;
@@ -90,26 +151,14 @@ export async function runWezTermConfig(input: WezTermConfigRunInput = {}): Promi
 
     const content = buildWezTermLua(config);
     plan = await buildWezTermPlan({ paths, content, force: options.force });
-    if (plan.kind === "collision") {
-      throw new Error(`WezTerm 目标存在未受管冲突：${plan.path}。未写入任何文件；确认后可使用 --force 显式接管。`);
-    }
-
-    if (!options.dryRun) {
-      const stagingRoot = resolve(paths.targetWezTermConfigDir, ".ai-share-staging");
-      await (input.executePlan ?? executeWezTermPlan)(plan, paths, stagingRoot);
-    }
-
-    return { ok: true, exitCode: 0, options, config, paths, plan, executed: !options.dryRun };
+    return { ok: true, options, config, paths, plan };
   } catch (error) {
-    return {
-      ok: false,
-      exitCode: 1,
-      error,
+    return failureResult(error, {
       ...(options ? { options } : {}),
       ...(config ? { config } : {}),
       ...(paths ? { paths } : {}),
       ...(plan ? { plan } : {}),
-    };
+    });
   }
 }
 
@@ -130,10 +179,7 @@ export function formatWezTermConfigResult(result: WezTermConfigRunResult): WezTe
 
 export function printWezTermConfigResult(
   result: WezTermConfigRunResult,
-  writers: { stdout: (content: string) => void; stderr: (content: string) => void } = {
-    stdout: (content) => void process.stdout.write(content),
-    stderr: (content) => void process.stderr.write(content),
-  },
+  writers: WezTermConfigWriters = defaultWriters(),
 ): 0 | 1 {
   const output = formatWezTermConfigResult(result);
   if (output.stdout) writers.stdout(output.stdout);
@@ -159,8 +205,43 @@ function formatWezTermConfigSummary(config: WezTermConfig): string {
   ].join("\n");
 }
 
+function formatWezTermConfigPreview(config: WezTermConfig, plan: WezTermPlan): string {
+  return `${formatWezTermConfigSummary(config)}\nPLAN ${plan.kind.toUpperCase()} ${plan.path}\n`;
+}
+
+function collisionError(path: string): Error {
+  return new Error(`WezTerm 目标存在未受管冲突：${path}。未写入任何文件；确认后可使用 --force 显式接管。`);
+}
+
+function failureResult(
+  error: unknown,
+  state: {
+    options?: WezTermConfigOptions;
+    config?: WezTermConfig;
+    paths?: WezTermPaths;
+    plan?: WezTermPlan;
+  },
+): Extract<WezTermConfigRunResult, { ok: false }> {
+  return {
+    ok: false,
+    exitCode: 1,
+    error,
+    ...(state.options ? { options: state.options } : {}),
+    ...(state.config ? { config: state.config } : {}),
+    ...(state.paths ? { paths: state.paths } : {}),
+    ...(state.plan ? { plan: state.plan } : {}),
+  };
+}
+
+function defaultWriters(): WezTermConfigWriters {
+  return {
+    stdout: (content) => void process.stdout.write(content),
+    stderr: (content) => void process.stderr.write(content),
+  };
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-if (import.meta.main) process.exitCode = printWezTermConfigResult(await runWezTermConfig());
+if (import.meta.main) process.exitCode = await runWezTermConfigCommand();

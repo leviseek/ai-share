@@ -9,6 +9,7 @@ import {
   parseWezTermConfigOptions,
   printWezTermConfigResult,
   runWezTermConfig,
+  runWezTermConfigCommand,
 } from "./ai-config.ts";
 
 const defaults: WezTermConfig = {
@@ -92,6 +93,66 @@ describe("ai:config options", () => {
 });
 
 describe("ai:config orchestration", () => {
+  test("emits the complete summary and plan before execution begins", async () => {
+    await withTempProject(async ({ projectRoot, home }) => {
+      const output: string[] = [];
+      let outputAtExecution = "";
+
+      const exitCode = await runWezTermConfigCommand(
+        {
+          argv: argv("--non-interactive"),
+          env: { HOME: home },
+          platform: "win32",
+          projectRoot,
+          executePlan: () => {
+            outputAtExecution = output.join("");
+            return Promise.resolve();
+          },
+        },
+        { stdout: (value) => output.push(value), stderr: (value) => output.push(value) },
+      );
+
+      expect(exitCode).toBe(0);
+      expect(outputAtExecution).toContain("shell: platform-native");
+      expect(outputAtExecution).toContain("color_scheme: catppuccin-mocha");
+      expect(outputAtExecution).toContain("font_size: 12");
+      expect(outputAtExecution).toContain("window_background_opacity: 0.94");
+      expect(outputAtExecution).toContain("maximize_on_startup: false");
+      expect(outputAtExecution).toContain("scrollback_lines: 100000");
+      expect(outputAtExecution).toContain(`PLAN CREATE ${resolve(home, ".config", "wezterm", "wezterm.lua")}`);
+    });
+  });
+
+  test("prints the prior summary and plan before a Chinese execution failure", async () => {
+    await withTempProject(async ({ projectRoot, home }) => {
+      const events: string[] = [];
+
+      const exitCode = await runWezTermConfigCommand(
+        {
+          argv: argv("--non-interactive"),
+          env: { HOME: home },
+          platform: "darwin",
+          projectRoot,
+          executePlan: () => {
+            events.push("EXECUTE");
+            return Promise.reject(new Error("injected executor rejection"));
+          },
+        },
+        {
+          stdout: (value) => events.push(`STDOUT:${value}`),
+          stderr: (value) => events.push(`STDERR:${value}`),
+        },
+      );
+
+      expect(exitCode).toBe(1);
+      expect(events).toHaveLength(3);
+      expect(events[0]).toContain("WezTerm 配置摘要");
+      expect(events[0]).toContain(`PLAN CREATE ${resolve(home, ".config", "wezterm", "wezterm.lua")}`);
+      expect(events[1]).toBe("EXECUTE");
+      expect(events[2]).toContain("WezTerm 配置写入失败：injected executor rejection");
+    });
+  });
+
   test.each(["win32", "darwin"] as const)("supports %s with an injected HOME", async (platform) => {
     await withTempProject(async ({ projectRoot, home }) => {
       const result = await runWezTermConfig({
@@ -210,6 +271,41 @@ describe("ai:config orchestration", () => {
       const formatted = formatWezTermConfigResult(result);
       expect(formatted.stdout).toContain(`APPLY COLLISION ${target}`);
       expect(formatted.stderr).toContain("未受管冲突");
+    });
+  });
+
+  test("prints a collision summary and plan before failure without executing", async () => {
+    await withTempProject(async ({ projectRoot, home }) => {
+      const target = resolve(home, ".config", "wezterm", "wezterm.lua");
+      await mkdir(resolve(target, ".."), { recursive: true });
+      await writeFile(target, "-- user-owned config\n");
+      const events: string[] = [];
+      let executorCalls = 0;
+
+      const exitCode = await runWezTermConfigCommand(
+        {
+          argv: argv("--non-interactive"),
+          env: { HOME: home },
+          platform: "win32",
+          projectRoot,
+          executePlan: () => {
+            executorCalls += 1;
+            return Promise.resolve();
+          },
+        },
+        {
+          stdout: (value) => events.push(`STDOUT:${value}`),
+          stderr: (value) => events.push(`STDERR:${value}`),
+        },
+      );
+
+      expect(exitCode).toBe(1);
+      expect(executorCalls).toBe(0);
+      expect(events).toHaveLength(2);
+      expect(events[0]).toContain("WezTerm 配置摘要");
+      expect(events[0]).toContain(`PLAN COLLISION ${target}`);
+      expect(events[1]).toContain("WezTerm 目标存在未受管冲突");
+      expect(await readFile(target, "utf8")).toBe("-- user-owned config\n");
     });
   });
 
