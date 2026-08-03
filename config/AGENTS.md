@@ -15,6 +15,7 @@
 | Shared `aioc` environment values            | `env.yaml`      | 非密钥；默认 `variables: {}`             |
 | Custom agents and model overrides           | `agents.yaml`   | 内联到 `opencode.jsonc` 的 `agent` 对象  |
 | OpenCode plugins                            | `plugins.yaml`  | 安全 npm spec；默认 `plugins: []`        |
+| WezTerm user configuration                  | `wezterm.yaml`  | `ai:config` 唯一配置源；无 local overlay |
 | Machine-local overrides                     | `local/`        | Git ignored，合并后仍严格校验            |
 
 ## CONVENTIONS
@@ -27,6 +28,7 @@
 - `env.yaml` 及 overlay 不得包含 API key、token、cookie、`HOME`、`USERPROFILE`、`PATH`、`AI_SHARE_*` 或 `OPENCODE_*`。
 - Plugin 仅允许 npm package spec 或 `package-name@git+https://...`；拒绝 URL userinfo/query/hash、`file://`、本机路径和 secret literal。
 - 本机代理属于 ignored `config/local/env.yaml`，可从 `../templates/personal-overlay/env.local.example.yaml` 复制。
+- `wezterm.yaml` 的字段和默认值由 `../src/config/schema-spec.ts` 定义；`ai:config` 生成当前用户的 `.config/wezterm/wezterm.lua`。
 - 空集合显式写成 `{}`。
 
 ## VALIDATION

@@ -23,6 +23,7 @@ bun run ai:help
 bun run ai:explain -- --json
 bun run ai:gen -- --dry-run
 bun run ai:gen
+bun run ai:config -- --dry-run --non-interactive
 ```
 
 `ai:check` 会检查仓库配置，并检测受管工具及其配置状态；`ai:help` 会根据相同的检测结果输出已安装工具的使用提示。`ai:bootstrap` 会安装依赖、检查配置并生成 OpenCode 输出：
@@ -31,6 +32,18 @@ bun run ai:gen
 bun run ai:bootstrap
 bun run ai:bootstrap -- --skip-install
 ```
+
+`ai:config` 独立生成 WezTerm 配置，不属于 `ai:bootstrap`。默认在 stdin 和 stdout 均为 TTY 时逐项选择配置；非 TTY 或显式使用 `--non-interactive` 时直接使用 `config/wezterm.yaml`。交互选择只对本次运行生效，不会修改 YAML。预览和写入示例：
+
+```sh
+bun run ai:config -- --dry-run
+bun run ai:config -- --non-interactive
+bun run ai:config -- --non-interactive --force
+```
+
+命令只接受 `--dry-run`、`--non-interactive` 和 `--force`。`--dry-run` 只输出配置摘要和计划，不写入文件；`--non-interactive` 跳过交互向导；`--force` 只在目标是未受管普通文件时显式接管，不能绕过 YAML 校验，也不能接管目录、符号链接或其他阻塞路径。
+
+输出目标固定为当前用户目录下的 `~/.config/wezterm/wezterm.lua`（Windows 使用 `HOME` 或 `USERPROFILE` 解析用户目录）。目标缺失时创建，带有 ai-share managed header 的目标可更新，内容相同时保留；未受管文件默认报告 collision 且不写入。WezTerm 会自动重载已加载的配置文件。
 
 在 Windows 或 macOS 上，可检测 AI 开发环境中的受管工具：
 
@@ -50,15 +63,16 @@ Superpowers 尚未配置时，请执行 `bun run ai:gen`，并在可选插件配
 
 ## 配置源
 
-| 文件                   | 用途                                                          |
-| ---------------------- | ------------------------------------------------------------- |
-| `config/global.yaml`   | 默认 `model`、`provider` 与 OpenCode 最低版本                 |
-| `config/provider.yaml` | Provider endpoint、API Key 引用、关联模型、默认模型与原生模式 |
-| `config/models.yaml`   | 上游 `model_name` 与可选 `reasoning_effort`                   |
-| `config/mcp.yaml`      | stdio 或 HTTP MCP server                                      |
-| `config/env.yaml`      | `aioc` 注入的共享非密钥环境变量                               |
-| `config/agents.yaml`   | OpenCode custom agent、模型、mode、prompt 与 reasoning 覆盖   |
-| `config/plugins.yaml`  | OpenCode plugins；基础配置为空数组，可由本机 overlay 整体替换 |
+| 文件                   | 用途                                                               |
+| ---------------------- | ------------------------------------------------------------------ |
+| `config/global.yaml`   | 默认 `model`、`provider` 与 OpenCode 最低版本                      |
+| `config/provider.yaml` | Provider endpoint、API Key 引用、关联模型、默认模型与原生模式      |
+| `config/models.yaml`   | 上游 `model_name` 与可选 `reasoning_effort`                        |
+| `config/mcp.yaml`      | stdio 或 HTTP MCP server                                           |
+| `config/env.yaml`      | `aioc` 注入的共享非密钥环境变量                                    |
+| `config/agents.yaml`   | OpenCode custom agent、模型、mode、prompt 与 reasoning 覆盖        |
+| `config/plugins.yaml`  | OpenCode plugins；基础配置为空数组，可由本机 overlay 整体替换      |
+| `config/wezterm.yaml`  | `ai:config` 的 shell、主题、字体、透明度、启动窗口与滚动回溯默认值 |
 
 固定对象拒绝未知字段。API Key 只能写成 `${ENV_NAME}` 引用；生成的 OpenCode 配置会转换为 `{env:ENV_NAME}`，不会读取或持久化真实值。
 
@@ -166,6 +180,8 @@ bun run schema:check
 ```
 
 `src/config/schema-spec.ts` 同时驱动 JSON Schema 与运行时 shape 校验；shareable templates 使用相同 pipeline。
+
+WezTerm 配置字段、可选值和默认值见 [`docs/schema/wezterm.md`](docs/schema/wezterm.md)。
 
 ## 诊断与质量门禁
 
