@@ -19,7 +19,7 @@ export type WezTermSelectionTransition = {
 export interface WezTermSelectionInput {
   readonly isTTY?: boolean;
   readonly isRaw?: boolean;
-  readonly readableFlowing: boolean | null;
+  readableFlowing: boolean | null;
   setRawMode(enabled: boolean): unknown;
   resume(): unknown;
   pause(): unknown;
@@ -219,7 +219,7 @@ export async function selectWezTermConfigInteractive(
   const input = io.input;
   const output = io.output;
   const shouldRestoreRawMode = input.isRaw !== true;
-  const wasFlowing = input.readableFlowing === true;
+  const initialFlowing = input.readableFlowing;
   let state = createWezTermSelectionState(initial);
 
   return await new Promise<WezTermConfig>((resolve, reject) => {
@@ -243,7 +243,13 @@ export async function selectWezTermConfigInteractive(
       attempt(() => void input.off("end", onEnd));
       attempt(() => void input.off("error", onError));
       if (rawModeChanged) attempt(() => void input.setRawMode(false));
-      if (!wasFlowing) attempt(() => void input.pause());
+      if (initialFlowing === false) attempt(() => void input.pause());
+      if (initialFlowing === null) {
+        attempt(() => void input.pause());
+        attempt(() => {
+          input.readableFlowing = null;
+        });
+      }
       return errors;
     };
     const clearMenu = (): Error | undefined => {

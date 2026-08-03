@@ -21,7 +21,7 @@ const defaults: WezTermConfig = {
 class TestInput implements WezTermSelectionInput {
   readonly isTTY?: boolean;
   isRaw?: boolean;
-  readonly readableFlowing: boolean | null;
+  readableFlowing: boolean | null;
   readonly rawModeCalls: boolean[] = [];
   resumeCalls = 0;
   pauseCalls = 0;
@@ -37,7 +37,7 @@ class TestInput implements WezTermSelectionInput {
   ) {
     this.isTTY = options.isTTY ?? true;
     this.isRaw = options.isRaw ?? false;
-    this.readableFlowing = options.readableFlowing ?? false;
+    this.readableFlowing = options.readableFlowing === undefined ? false : options.readableFlowing;
     this.failEnablingRawMode = options.failEnablingRawMode ?? false;
   }
 
@@ -49,15 +49,19 @@ class TestInput implements WezTermSelectionInput {
 
   resume(): void {
     this.resumeCalls += 1;
+    this.readableFlowing = true;
   }
 
   pause(): void {
     this.pauseCalls += 1;
+    this.readableFlowing = false;
   }
 
   on(event: "data" | "end" | "error", listener: ((data: Buffer) => void) | (() => void) | ((error: Error) => void)) {
-    if (event === "data") this.listeners.data.add(listener as (data: Buffer) => void);
-    else if (event === "end") this.listeners.end.add(listener as () => void);
+    if (event === "data") {
+      this.listeners.data.add(listener as (data: Buffer) => void);
+      this.readableFlowing = true;
+    } else if (event === "end") this.listeners.end.add(listener as () => void);
     else this.listeners.error.add(listener as (error: Error) => void);
     return this;
   }
@@ -161,6 +165,18 @@ describe("WezTerm wizard state", () => {
     expect(second.state.selectedIndex).toBe(1);
   });
 
+  test("decodes SS3 arrow sequences", () => {
+    const transition = updateWezTermSelection(createWezTermSelectionState(defaults), "\u001bOB");
+
+    expect(transition.state.selectedIndex).toBe(1);
+  });
+
+  test("decodes Windows extended arrow sequences", () => {
+    const transition = updateWezTermSelection(createWezTermSelectionState(defaults), "\u00e0P");
+
+    expect(transition.state.selectedIndex).toBe(1);
+  });
+
   test("supports final Cancel and Ctrl+C cancellation", () => {
     const cancelledAtConfirmation = updateWezTermSelection(advanceToConfirmation(), "\u001b[B\r");
     const interrupted = updateWezTermSelection(createWezTermSelectionState(defaults), "\u0003");
@@ -198,84 +214,119 @@ describe("WezTerm wizard rendering", () => {
 });
 
 describe("WezTerm wizard IO lifecycle", () => {
-  test("rejects non-TTY input or output without attaching listeners", () => {
-    const input = new TestInput({ isTTY: false });
-    const output = new TestOutput();
-
-    expect(selectWezTermConfigInteractive(defaults, { input, output })).rejects.toThrow(
-      "当前终端不支持交互式 WezTerm 配置。",
+  test.each([
+    ["input", new TestInput({ isTTY: false }), new TestOutput()],
+    ["output", new TestInput(), new TestOutput({ isTTY: false })],
+  ])("rejects non-TTY %s without attaching listeners", async (_name, input, output) => {
+    const error = await selectWezTermConfigInteractive(defaults, { input, output }).catch(
+      (failure: unknown) => failure,
     );
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("当前终端不支持交互式 WezTerm 配置。");
     expect(input.listenerCount()).toBe(0);
     expect(input.rawModeCalls).toEqual([]);
   });
 
-  test("returns the in-memory config and restores raw mode, flow state, and listeners on success", () => {
+  test("returns the in-memory config and restores raw mode, flow state, and listeners on success", async () => {
     const input = new TestInput();
     const output = new TestOutput();
     const selection = selectWezTermConfigInteractive(defaults, { input, output });
 
     input.emitData("\r\r\r\r\r\r\r");
 
-    expect(selection).resolves.toEqual(defaults);
+    const selected = await selection;
+    expect(selected).toEqual(defaults);
+    selected.font_size = 13;
+    expect(defaults.font_size).toBe(12);
     expect(input.rawModeCalls).toEqual([true, false]);
     expect(input.resumeCalls).toBe(1);
     expect(input.pauseCalls).toBe(1);
+    expect(input.readableFlowing).toBe(false);
     expect(input.listenerCount()).toBe(0);
   });
 
-  test("cleans up after Ctrl+C cancellation", () => {
+  test("cleans up after Ctrl+C cancellation", async () => {
     const input = new TestInput();
     const selection = selectWezTermConfigInteractive(defaults, { input, output: new TestOutput() });
 
     input.emitData("\u0003");
 
-    expect(selection).rejects.toThrow("已取消 WezTerm 配置。");
+    const error = await selection.catch((failure: unknown) => failure);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("已取消 WezTerm 配置。");
     expect(input.rawModeCalls).toEqual([true, false]);
     expect(input.pauseCalls).toBe(1);
+    expect(input.readableFlowing).toBe(false);
     expect(input.listenerCount()).toBe(0);
   });
 
-  test("cleans up on input end while preserving pre-existing raw and flowing state", () => {
+  test("cleans up on input end while preserving pre-existing raw and flowing state", async () => {
     const input = new TestInput({ isRaw: true, readableFlowing: true });
     const selection = selectWezTermConfigInteractive(defaults, { input, output: new TestOutput() });
 
     input.emitEnd();
 
-    expect(selection).rejects.toThrow("WezTerm 配置输入已结束。");
+    const error = await selection.catch((failure: unknown) => failure);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("WezTerm 配置输入已结束。");
     expect(input.rawModeCalls).toEqual([]);
     expect(input.pauseCalls).toBe(0);
+    expect(input.readableFlowing).toBe(true);
     expect(input.listenerCount()).toBe(0);
   });
 
-  test("cleans up and reports input errors", () => {
+  test("restores an initially unconsumed input to readableFlowing null", async () => {
+    const input = new TestInput({ readableFlowing: null });
+    const selection = selectWezTermConfigInteractive(defaults, { input, output: new TestOutput() });
+
+    input.emitEnd();
+
+    const error = await selection.catch((failure: unknown) => failure);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("WezTerm 配置输入已结束。");
+    expect(input.readableFlowing).toBeNull();
+    expect(input.listenerCount()).toBe(0);
+  });
+
+  test("cleans up and reports input errors", async () => {
     const input = new TestInput();
     const selection = selectWezTermConfigInteractive(defaults, { input, output: new TestOutput() });
 
     input.emitError(new Error("device lost"));
 
-    expect(selection).rejects.toThrow("WezTerm 配置输入错误：device lost");
+    const error = await selection.catch((failure: unknown) => failure);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("WezTerm 配置输入错误：device lost");
     expect(input.rawModeCalls).toEqual([true, false]);
     expect(input.pauseCalls).toBe(1);
     expect(input.listenerCount()).toBe(0);
   });
 
-  test("cleans up and rejects when terminal output fails", () => {
+  test("cleans up and rejects when terminal output fails", async () => {
     const input = new TestInput();
 
-    expect(selectWezTermConfigInteractive(defaults, { input, output: new TestOutput({ failAt: 1 }) })).rejects.toThrow(
-      "WezTerm 配置输出失败：broken output",
-    );
+    const error = await selectWezTermConfigInteractive(defaults, {
+      input,
+      output: new TestOutput({ failAt: 1 }),
+    }).catch((failure: unknown) => failure);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("WezTerm 配置输出失败：broken output");
     expect(input.rawModeCalls).toEqual([true, false]);
     expect(input.pauseCalls).toBe(1);
     expect(input.listenerCount()).toBe(0);
   });
 
-  test("attempts to restore raw mode when enabling raw mode throws after changing state", () => {
+  test("attempts to restore raw mode when enabling raw mode throws after changing state", async () => {
     const input = new TestInput({ failEnablingRawMode: true });
 
-    expect(selectWezTermConfigInteractive(defaults, { input, output: new TestOutput() })).rejects.toThrow(
-      "WezTerm 配置失败：raw mode unavailable",
+    const error = await selectWezTermConfigInteractive(defaults, { input, output: new TestOutput() }).catch(
+      (failure: unknown) => failure,
     );
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("WezTerm 配置失败：raw mode unavailable");
     expect(input.rawModeCalls).toEqual([true, false]);
     expect(input.pauseCalls).toBe(1);
     expect(input.listenerCount()).toBe(0);
