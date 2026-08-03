@@ -1,0 +1,149 @@
+import { describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { runGeneration } from "./generate-user-config.ts";
+import { buildGenerationPreview } from "./generation-preview.ts";
+
+describe("generation preview model integration", () => {
+  test("passes the dynamically selected DeepSeek provider model to generated config", async () => {
+    const fixture = createFixture();
+    let choices: readonly { id: string; name: string }[] = [];
+    let pluginSelectorCalls = 0;
+    try {
+      const preview = await buildGenerationPreview({
+        options: { force: false },
+        env: fixture.env,
+        projectRoot: fixture.root,
+        pluginSelector: () => {
+          pluginSelectorCalls += 1;
+          return Promise.resolve(new Set());
+        },
+        providerSelector: (availableChoices) => {
+          choices = availableChoices;
+          return Promise.resolve("deepseek");
+        },
+      });
+
+      expect(pluginSelectorCalls).toBe(1);
+      expect(choices.map((choice) => choice.id)).toEqual(["codexapis", "deepseek"]);
+      expect(preview.providerDecision).toEqual({ id: "deepseek", source: "interactive" });
+      expect(preview.modelDecision).toEqual({
+        providerId: "deepseek",
+        modelId: "deepseek-v4-flash",
+        modelSource: "provider-default",
+      });
+      expect(preview.configJsonc).toContain('"model": "deepseek/deepseek-v4-flash"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test("uses the global model for the noninteractive default provider", async () => {
+    const fixture = createFixture();
+    try {
+      const preview = await buildGenerationPreview({
+        options: { force: false },
+        env: fixture.env,
+        projectRoot: fixture.root,
+        interactiveProviderSelection: false,
+      });
+
+      expect(preview.providerDecision).toEqual({ id: "codexapis", source: "global-config" });
+      expect(preview.modelDecision).toEqual({
+        providerId: "codexapis",
+        modelId: "gpt-5.5",
+        modelSource: "global-config",
+      });
+      expect(preview.configJsonc).toContain('"model": "codexapis/gpt-5.5"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test("does not invoke the provider selector when a provider is explicit", async () => {
+    const fixture = createFixture();
+    let pluginSelectorCalls = 0;
+    try {
+      const preview = await buildGenerationPreview({
+        options: { force: false, provider: "deepseek" },
+        env: fixture.env,
+        projectRoot: fixture.root,
+        pluginSelector: () => {
+          pluginSelectorCalls += 1;
+          return Promise.resolve(new Set());
+        },
+        providerSelector: () => Promise.reject(new Error("selector should not be called")),
+      });
+
+      expect(pluginSelectorCalls).toBe(1);
+      expect(preview.providerDecision).toEqual({ id: "deepseek", source: "cli" });
+      expect(preview.modelDecision.modelId).toBe("deepseek-v4-flash");
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test("reports the resolved model for an explicit non-default provider", async () => {
+    const fixture = createFixture();
+    try {
+      const result = await runGeneration({
+        argv: ["bun", "generate-user-config.ts", "--dry-run", "--provider", "deepseek"],
+        env: fixture.env,
+        projectRoot: fixture.root,
+        pluginSelector: () => Promise.resolve(new Set()),
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.modelId).toBe("deepseek-v4-flash");
+    } finally {
+      fixture.cleanup();
+    }
+  });
+});
+
+function createFixture(): { root: string; env: Record<string, string | undefined>; cleanup(): void } {
+  const root = mkdtempSync(join(tmpdir(), "ai-share-generation-preview-"));
+  write(join(root, "config", "global.yaml"), "model: gpt-5.5\nprovider: codexapis\n");
+  write(
+    join(root, "config", "provider.yaml"),
+    [
+      "providers:",
+      "  codexapis:",
+      "    name: Codex APIs",
+      "    base_url: https://codex.example.test/v1",
+      "    api_key: ${CODEXAPIS_API_KEY}",
+      "    models: [gpt-5.5]",
+      "    default_model: gpt-5.5",
+      "  deepseek:",
+      "    name: DeepSeek",
+      "    base_url: https://deepseek.example.test/v1",
+      "    api_key: ${DEEPSEEK_API_KEY}",
+      "    models: [deepseek-v4-flash]",
+      "    default_model: deepseek-v4-flash",
+      "",
+    ].join("\n"),
+  );
+  write(
+    join(root, "config", "models.yaml"),
+    "gpt-5.5:\n  model_name: gpt-5.5\ndeepseek-v4-flash:\n  model_name: deepseek-v4-flash\n",
+  );
+  write(join(root, "config", "mcp.yaml"), "servers: {}\n");
+  write(join(root, "config", "env.yaml"), "variables: {}\n");
+  write(join(root, "config", "agents.yaml"), "agents: {}\n");
+  write(join(root, "config", "plugins.yaml"), "plugins: []\n");
+
+  return {
+    root,
+    env: {
+      HOME: join(root, "home"),
+      OPENCODE_CONFIG_DIR: join(root, "opencode"),
+    },
+    cleanup: () => rmSync(root, { recursive: true, force: true }),
+  };
+}
+
+function write(path: string, content: string): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, content, "utf8");
+}

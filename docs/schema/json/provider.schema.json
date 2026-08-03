@@ -12,7 +12,9 @@
         "type": "object",
         "required": [
           "base_url",
-          "api_key"
+          "api_key",
+          "models",
+          "default_model"
         ],
         "properties": {
           "name": {
@@ -31,6 +33,28 @@
             "description": "Environment variable reference.",
             "minLength": 1,
             "pattern": "^\\$\\{[A-Z_][A-Z0-9_]*\\}$"
+          },
+          "models": {
+            "type": "array",
+            "description": "models.yaml model id supported by this provider.",
+            "items": {
+              "type": "string",
+              "description": "models.yaml model id supported by this provider.",
+              "minLength": 1,
+              "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "default_model": {
+            "type": "string",
+            "description": "Default models.yaml model id for this provider.",
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
+          },
+          "native": {
+            "type": "boolean",
+            "description": "Whether OpenCode provides native support for this provider."
           }
         },
         "additionalProperties": false

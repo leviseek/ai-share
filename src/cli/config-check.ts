@@ -5,6 +5,7 @@ import { buildOpenCodeConfig, buildInstructionsPaths, formatOpenCodeConfigJsonc 
 import { loadValidatedConfig, ConfigValidationError, formatValidationError } from "../config/load.ts";
 import { resolveProviderId } from "./options.ts";
 import { formatInstallRunResult, runInstall } from "./ai-install.ts";
+import { resolveProviderModelDecision } from "../config/provider-model.ts";
 
 const projectRoot = resolve(import.meta.dirname, "..", "..");
 
@@ -15,11 +16,18 @@ if (import.meta.main) {
       defaultProvider: config.global.provider,
     });
     if (!config.providers.providers[providerId]) throw new Error(`提供商未定义：${providerId}`);
+    const modelDecision = resolveProviderModelDecision(config, providerId);
     const output = formatOpenCodeConfigJsonc(
-      buildOpenCodeConfig(config, providerId, buildInstructionsPaths(projectRoot), "<OPENCODE_CONFIG_DIR>/skills"),
+      buildOpenCodeConfig(
+        config,
+        providerId,
+        modelDecision.modelId,
+        buildInstructionsPaths(projectRoot),
+        "<OPENCODE_CONFIG_DIR>/skills",
+      ),
     );
     JSON.parse(output.slice(output.indexOf("{")));
-    console.log(`配置检查通过：model=${config.global.model} provider=${providerId}`);
+    console.log(`配置检查通过：model=${modelDecision.modelId} provider=${providerId}`);
     const installResult = await runInstall();
     console.log(formatInstallRunResult(installResult));
     if (!installResult.ok) process.exitCode = 1;

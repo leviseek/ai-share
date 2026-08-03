@@ -3,3 +3,7 @@ providers:
     name: Example OpenAI Compatible
     base_url: https://api.example.test/v1
     api_key: ${EXAMPLE_API_KEY}
+    models:
+      - example-frontier
+      - example-fast
+    default_model: example-fast

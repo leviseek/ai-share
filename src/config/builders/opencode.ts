@@ -16,13 +16,11 @@ export const OPENCODE_CONFIG_GENERATED_HEADER =
 export function buildOpenCodeConfig(
   config: ConfigSet,
   providerId: string,
+  modelId: string,
   instructionPaths: readonly string[],
   skillsDir: string,
 ): OpenCodeConfig {
-  const modelId = config.global.model;
-  if (!config.models[modelId]) throw new Error(`模型未定义：${modelId}`);
-  const providerSource = config.providers.providers[providerId];
-  if (!providerSource) throw new Error(`提供商未定义：${providerId}`);
+  validateSelectedModel(config, providerId, modelId);
 
   const mcp = buildOpenCodeMcpServers(config.mcp.servers);
   return {
@@ -44,15 +42,26 @@ export function formatOpenCodeConfigJsonc(config: OpenCodeConfig): string {
 function buildOpenCodeProvider(config: ConfigSet, providerId: string): OpenCodeProvider {
   const provider = config.providers.providers[providerId];
   if (!provider) throw new Error(`提供商未定义：${providerId}`);
+  const options = {
+    baseURL: provider.base_url,
+    apiKey: `{env:${requireEnvReferenceName(provider.api_key, `providers.${providerId}.api_key`)}}`,
+  };
+  if (provider.native) {
+    return {
+      whitelist: [...provider.models],
+      options,
+    };
+  }
   return {
     ...(provider.name ? { name: provider.name } : {}),
     npm: "@ai-sdk/openai-compatible",
-    options: {
-      baseURL: provider.base_url,
-      apiKey: `{env:${requireEnvReferenceName(provider.api_key, `providers.${providerId}.api_key`)}}`,
-    },
+    options,
     models: Object.fromEntries(
-      Object.entries(config.models).map(([modelId, model]) => [modelId, buildOpenCodeModel(modelId, model)]),
+      provider.models.map((modelId) => {
+        const model = config.models[modelId];
+        if (!model || !Object.hasOwn(config.models, modelId)) throw new Error(`模型未定义：${modelId}`);
+        return [modelId, buildOpenCodeModel(modelId, model)];
+      }),
     ),
   };
 }
@@ -68,8 +77,8 @@ function buildOpenCodeModel(modelId: string, model: ConfigSet["models"][string])
 function buildOpenCodeAgents(config: ConfigSet, providerId: string): Record<string, OpenCodeAgent> {
   return Object.fromEntries(
     Object.entries(config.agents.agents).map(([agentId, source]) => {
-      if (source.model && !source.model.includes("/") && !config.models[source.model]) {
-        throw new Error(`agent '${agentId}' 引用未定义模型 '${source.model}'`);
+      if (source.model && !source.model.includes("/") && !isProviderModel(config, providerId, source.model)) {
+        throw new Error(`agent '${agentId}' 引用未关联提供商模型 '${providerId}/${source.model}'`);
       }
       return [
         agentId,
@@ -84,6 +93,25 @@ function buildOpenCodeAgents(config: ConfigSet, providerId: string): Record<stri
         },
       ];
     }),
+  );
+}
+
+function validateSelectedModel(config: ConfigSet, providerId: string, modelId: string): void {
+  const provider = config.providers.providers[providerId];
+  if (!provider || !Object.hasOwn(config.providers.providers, providerId)) {
+    throw new Error(`提供商未定义：${providerId}`);
+  }
+  if (!Object.hasOwn(config.models, modelId)) throw new Error(`模型未定义：${modelId}`);
+  if (!provider.models.includes(modelId)) throw new Error(`模型未关联提供商：${providerId}/${modelId}`);
+}
+
+function isProviderModel(config: ConfigSet, providerId: string, modelId: string): boolean {
+  const provider = config.providers.providers[providerId];
+  return Boolean(
+    provider &&
+    Object.hasOwn(config.providers.providers, providerId) &&
+    Object.hasOwn(config.models, modelId) &&
+    provider.models.includes(modelId),
   );
 }
 

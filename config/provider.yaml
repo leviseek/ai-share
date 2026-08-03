@@ -3,18 +3,64 @@ providers:
     name: Codex APIs
     base_url: https://www.codexapis.com/v1
     api_key: ${CODEXAPIS_API_KEY}
+    models:
+      - gpt-5.6-sol
+      - gpt-5.6-terra
+      - gpt-5.6-luna
+      - gpt-5.5-pro
+      - gpt-5.5
+      - gpt-5.6-coding
+      - gpt-5.5-coding
+    default_model: gpt-5.5
 
   packyapi:
     name: Packy API
     base_url: https://www.packyapi.com/v1
     api_key: ${PACKYAPI_API_KEY}
+    models:
+      - gpt-5.6-sol
+      - gpt-5.6-terra
+      - gpt-5.6-luna
+      - gpt-5.5-pro
+      - gpt-5.5
+      - gpt-5.6-coding
+      - gpt-5.5-coding
+    default_model: gpt-5.5
 
   axasapi:
     name: Axas API
     base_url: https://api.asxs.top/v1
     api_key: ${AXASAPI_API_KEY}
+    models:
+      - gpt-5.6-sol
+      - gpt-5.6-terra
+      - gpt-5.6-luna
+      - gpt-5.5-pro
+      - gpt-5.5
+      - gpt-5.6-coding
+      - gpt-5.5-coding
+    default_model: gpt-5.5
 
   lingsuan:
     name: Lingsuan API
     base_url: https://lingsuan.top
     api_key: ${LINGSUAN_API_KEY}
+    models:
+      - gpt-5.6-sol
+      - gpt-5.6-terra
+      - gpt-5.6-luna
+      - gpt-5.5-pro
+      - gpt-5.5
+      - gpt-5.6-coding
+      - gpt-5.5-coding
+    default_model: gpt-5.5
+
+  deepseek:
+    name: DeepSeek
+    base_url: https://api.deepseek.com
+    api_key: ${DEEPSEEK_API_KEY}
+    models:
+      - deepseek-v4-flash
+      - deepseek-v4-pro
+    default_model: deepseek-v4-flash
+    native: true
