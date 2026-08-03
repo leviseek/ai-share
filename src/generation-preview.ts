@@ -1,6 +1,7 @@
 import { buildOpenCodeConfig, formatOpenCodeConfigJsonc } from "./config-builders.ts";
 import { loadValidatedConfigWithTrace, type LoadedValidatedConfig } from "./config/load.ts";
 import { buildInstructionsSelection, type InstructionsSelection } from "./config/builders/instructions.ts";
+import { lstat, readFile } from "node:fs/promises";
 import { buildGenerationPlan, type GenerationPlan } from "./cli/generation-plan.ts";
 import {
   resolveProviderDecision,
@@ -54,15 +55,22 @@ export async function buildGenerationPreview(input: {
   const paths = buildGeneratorPaths(input.projectRoot, input.env);
   const loadedConfig = await loadValidatedConfigWithTrace(paths.configDir);
   const config = structuredClone(loadedConfig.config);
+  const targetSuperpowersEnabled = await targetOpenCodeConfigHasSuperpowers(paths.targetOpenCodeConfig);
   const pluginSpecs = [...new Set([...config.plugins.plugins, SUPERPOWERS_PLUGIN_SPEC])];
-  const pluginChoices = pluginSpecs.map((spec) => ({
-    id: spec,
-    label: spec === SUPERPOWERS_PLUGIN_SPEC ? "Superpowers" : spec,
-    required: false,
-    selected: config.plugins.plugins.includes(spec),
-    status: config.plugins.plugins.includes(spec) ? "已启用" : "未启用",
-  }));
-  if (input.pluginSelector) {
+  const pluginChoices = pluginSpecs.map((spec) => {
+    const selected =
+      config.plugins.plugins.includes(spec) || (spec === SUPERPOWERS_PLUGIN_SPEC && targetSuperpowersEnabled);
+    return {
+      id: spec,
+      label: spec === SUPERPOWERS_PLUGIN_SPEC ? "Superpowers" : spec,
+      required: false,
+      selected,
+      status: selected ? "已启用" : "未启用",
+    };
+  });
+  if (targetSuperpowersEnabled) {
+    config.plugins.plugins = pluginChoices.filter((choice) => choice.selected).map((choice) => choice.id);
+  } else if (input.pluginSelector) {
     config.plugins.plugins = [...(await input.pluginSelector(pluginChoices))];
   } else if (process.stdin.isTTY && process.stdout.isTTY && input.interactiveProviderSelection !== false) {
     config.plugins.plugins = [...(await selectInstallInteractive(pluginChoices))];
@@ -112,6 +120,30 @@ export async function buildGenerationPreview(input: {
     configJsonc,
     plan,
   };
+}
+
+async function targetOpenCodeConfigHasSuperpowers(path: string): Promise<boolean> {
+  try {
+    const stat = await lstat(path);
+    if (!stat.isFile()) return false;
+    const content = await readFile(path, "utf8");
+    const parsed: unknown = JSON.parse(stripJsoncLineComments(content));
+    return isRecord(parsed) && Array.isArray(parsed.plugin) && parsed.plugin.includes(SUPERPOWERS_PLUGIN_SPEC);
+  } catch {
+    return false;
+  }
+}
+
+function stripJsoncLineComments(content: string): string {
+  return content
+    .replaceAll("\r\n", "\n")
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("//"))
+    .join("\n");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function selectProviderDecision(input: {
