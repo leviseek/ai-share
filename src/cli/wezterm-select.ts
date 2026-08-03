@@ -19,7 +19,7 @@ export type WezTermSelectionTransition = {
 export interface WezTermSelectionInput {
   readonly isTTY?: boolean;
   readonly isRaw?: boolean;
-  readableFlowing: boolean | null;
+  readonly readableFlowing: boolean | null;
   setRawMode(enabled: boolean): unknown;
   resume(): unknown;
   pause(): unknown;
@@ -34,6 +34,10 @@ export interface WezTermSelectionInput {
 export interface WezTermSelectionOutput {
   readonly isTTY?: boolean;
   write(content: string): unknown;
+}
+
+interface RestorableWezTermSelectionInput extends WezTermSelectionInput {
+  readableFlowing: boolean | null;
 }
 
 type WezTermSelectionKey = "up" | "down" | "enter" | "cancel" | { digit: string };
@@ -209,7 +213,7 @@ export function renderWezTermSelection(state: WezTermSelectionState): string {
 
 export async function selectWezTermConfigInteractive(
   initial: WezTermConfig,
-  io: { input: WezTermSelectionInput; output: WezTermSelectionOutput } = {
+  io: { input: RestorableWezTermSelectionInput; output: WezTermSelectionOutput } = {
     input: process.stdin,
     output: process.stdout,
   },
@@ -246,9 +250,7 @@ export async function selectWezTermConfigInteractive(
       if (initialFlowing === false) attempt(() => void input.pause());
       if (initialFlowing === null) {
         attempt(() => void input.pause());
-        attempt(() => {
-          input.readableFlowing = null;
-        });
+        attempt(() => restoreReadableFlowing(input, null));
       }
       return errors;
     };
@@ -449,6 +451,10 @@ function lineCount(content: string): number {
 
 function outputError(error: unknown): Error {
   return new Error(`WezTerm 配置输出失败：${toError(error).message}`);
+}
+
+function restoreReadableFlowing(input: RestorableWezTermSelectionInput, value: boolean | null): void {
+  input.readableFlowing = value;
 }
 
 function toError(error: unknown): Error {

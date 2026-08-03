@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { PassThrough } from "node:stream";
 import type { WezTermConfig } from "../types.ts";
 import {
   createWezTermSelectionState,
@@ -289,6 +290,16 @@ describe("WezTerm wizard IO lifecycle", () => {
     expect(input.listenerCount()).toBe(0);
   });
 
+  test("restores null on a real PassThrough stream through the production cleanup", async () => {
+    const input = new TtyPassThrough();
+    const selection = selectWezTermConfigInteractive(defaults, { input, output: new TestOutput() });
+
+    input.write("\r\r\r\r\r\r\r");
+
+    expect(await selection).toEqual(defaults);
+    expect(input.readableFlowing).toBeNull();
+  });
+
   test("cleans up and reports input errors", async () => {
     const input = new TestInput();
     const selection = selectWezTermConfigInteractive(defaults, { input, output: new TestOutput() });
@@ -332,3 +343,12 @@ describe("WezTerm wizard IO lifecycle", () => {
     expect(input.listenerCount()).toBe(0);
   });
 });
+
+class TtyPassThrough extends PassThrough {
+  readonly isTTY = true;
+  isRaw = false;
+
+  setRawMode(enabled: boolean): void {
+    this.isRaw = enabled;
+  }
+}
