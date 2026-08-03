@@ -40,6 +40,7 @@ function schemaNodeToJsonSchema(node: SchemaNode): JsonSchema {
       ...base,
       ...optionalNumber("minimum", node.minimum),
       ...optionalNumber("exclusiveMinimum", node.exclusiveMinimum),
+      ...optionalNumberArray("enum", node.enum),
     };
   }
 
@@ -80,6 +81,10 @@ function optionalString(key: string, value: string | undefined): JsonSchema {
 }
 
 function optionalStringArray(key: string, value: readonly string[] | undefined): JsonSchema {
+  return value === undefined ? {} : { [key]: [...value] };
+}
+
+function optionalNumberArray(key: string, value: readonly number[] | undefined): JsonSchema {
   return value === undefined ? {} : { [key]: [...value] };
 }
 

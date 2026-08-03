@@ -2,15 +2,24 @@ import { YAML_SCHEMA_SPECS, type SchemaNode, type YamlSchemaSourceFile } from ".
 import type { ValidationError } from "./common.ts";
 import { isRecord } from "./common.ts";
 
-export type YamlSchemaInput = Record<YamlSchemaSourceFile, unknown>;
+export type YamlSchemaInput = Record<Exclude<YamlSchemaSourceFile, "wezterm.yaml">, unknown>;
 
 export function validateYamlSchemaShapes(input: YamlSchemaInput): ValidationError[] {
   const errors: ValidationError[] = [];
 
   for (const spec of YAML_SCHEMA_SPECS) {
+    if (spec.sourceFile === "wezterm.yaml") continue;
     validateNode(errors, spec.sourceFile, spec.root, input[spec.sourceFile], spec.rootDisplayPath ?? "");
   }
 
+  return errors;
+}
+
+export function validateYamlSchemaShape(file: YamlSchemaSourceFile, value: unknown): ValidationError[] {
+  const spec = YAML_SCHEMA_SPECS.find((candidate) => candidate.sourceFile === file);
+  if (!spec) return [];
+  const errors: ValidationError[] = [];
+  validateNode(errors, file, spec.root, value, spec.rootDisplayPath ?? "");
   return errors;
 }
 
@@ -101,6 +110,11 @@ function validateNumberNode(
 
   if (node.minimum !== undefined && value < node.minimum) {
     pushError(errors, file, path, `${displayPath(path)} 必须大于等于 ${node.minimum}`);
+    return;
+  }
+
+  if (node.enum !== undefined && !node.enum.includes(value)) {
+    pushError(errors, file, path, `${displayPath(path)} 必须是 ${formatEnum(node.enum)}`);
   }
 }
 
@@ -182,7 +196,7 @@ function displayPath(path: string): string {
   return path || "根配置";
 }
 
-function formatEnum(values: readonly string[]): string {
+function formatEnum(values: readonly (string | number)[]): string {
   if (values.length <= 1) return values.join("");
   return `${values.slice(0, -1).join("、")} 或 ${values.at(-1)}`;
 }

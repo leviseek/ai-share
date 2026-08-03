@@ -57,3 +57,12 @@ export type GlobalYaml = {
   provider: string;
   opencode_min_version?: string;
 };
+
+export interface WezTermConfig {
+  shell: "platform-native" | "wezterm-default";
+  color_scheme: "catppuccin-mocha" | "dracula" | "tokyo-night" | "wezterm-default";
+  font_size: 11 | 12 | 13;
+  window_background_opacity: 0.88 | 0.94 | 1;
+  maximize_on_startup: boolean;
+  scrollback_lines: 10000 | 100000 | 1000000;
+}

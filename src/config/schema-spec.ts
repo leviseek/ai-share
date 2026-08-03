@@ -37,7 +37,8 @@ export type YamlSchemaSourceFile =
   | "mcp.yaml"
   | "env.yaml"
   | "agents.yaml"
-  | "plugins.yaml";
+  | "plugins.yaml"
+  | "wezterm.yaml";
 
 type BaseSchemaNode = {
   description?: string;
@@ -54,12 +55,14 @@ type NumberSchemaNode = BaseSchemaNode & {
   type: "number";
   exclusiveMinimum?: number;
   minimum?: number;
+  enum?: readonly number[];
 };
 
 type IntegerSchemaNode = BaseSchemaNode & {
   type: "integer";
   exclusiveMinimum?: number;
   minimum?: number;
+  enum?: readonly number[];
 };
 
 type BooleanSchemaNode = BaseSchemaNode & {
@@ -219,6 +222,32 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
       },
     }),
   },
+  {
+    sourceFile: "wezterm.yaml",
+    schemaFileName: "wezterm.schema.json",
+    title: "ai-share wezterm.yaml",
+    root: objectSchema({
+      required: [
+        "shell",
+        "color_scheme",
+        "font_size",
+        "window_background_opacity",
+        "maximize_on_startup",
+        "scrollback_lines",
+      ],
+      properties: {
+        shell: enumStringSchema(["platform-native", "wezterm-default"], "WezTerm shell selection."),
+        color_scheme: enumStringSchema(
+          ["catppuccin-mocha", "dracula", "tokyo-night", "wezterm-default"],
+          "WezTerm color scheme selection.",
+        ),
+        font_size: enumNumberSchema([11, 12, 13], "WezTerm font size."),
+        window_background_opacity: enumNumberSchema([0.88, 0.94, 1], "WezTerm window background opacity."),
+        maximize_on_startup: booleanSchema("Whether WezTerm starts maximized."),
+        scrollback_lines: enumNumberSchema([10000, 100000, 1000000], "WezTerm scrollback line count."),
+      },
+    }),
+  },
 ];
 
 function stringSchema(description: string): Extract<SchemaNode, { type: "string" }> {
@@ -255,6 +284,10 @@ function objectSchema(input: Omit<ObjectSchemaNode, "type"> = {}): Extract<Schem
 
 function enumStringSchema(values: readonly string[], description: string): Extract<SchemaNode, { type: "string" }> {
   return { ...stringSchema(description), enum: values };
+}
+
+function enumNumberSchema(values: readonly number[], description: string): Extract<SchemaNode, { type: "number" }> {
+  return { type: "number", enum: values, description };
 }
 
 export function pluginSpecPattern(): string {

@@ -1,0 +1,6 @@
+shell: platform-native
+color_scheme: catppuccin-mocha
+font_size: 12
+window_background_opacity: 0.94
+maximize_on_startup: false
+scrollback_lines: 100000
