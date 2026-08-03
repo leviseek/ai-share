@@ -11,3 +11,9 @@ test("package scripts expose ai:help without legacy aliases", async () => {
   expect(packageJson.scripts?.["ai:doc"]).toBeUndefined();
   expect(packageJson.scripts?.["ai:doctor"]).toBeUndefined();
 });
+
+test("package scripts expose ai:config", async () => {
+  const packageJson = (await Bun.file(new URL("../../package.json", import.meta.url)).json()) as PackageJson;
+
+  expect(packageJson.scripts?.["ai:config"]).toBe("bun run ./src/cli/ai-config.ts");
+});

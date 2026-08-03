@@ -7,6 +7,7 @@
     "ai:bootstrap": "bun run ./src/cli/bootstrap.ts",
     "ai:clean": "bun run ./src/cli/clean.ts",
     "ai:check": "bun run ./src/cli/ai-check.ts",
+    "ai:config": "bun run ./src/cli/ai-config.ts",
     "ai:help": "bun run ./src/cli/ai-help.ts",
     "ai:dry-run": "bun run ./src/generate-user-config.ts --dry-run",
     "ai:explain": "bun run ./src/cli/ai-explain.ts",
