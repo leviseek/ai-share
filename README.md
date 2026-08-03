@@ -50,15 +50,15 @@ Superpowers 尚未配置时，请执行 `bun run ai:gen`，并在可选插件配
 
 ## 配置源
 
-| 文件                   | 用途                                                               |
-| ---------------------- | ------------------------------------------------------------------ |
-| `config/global.yaml`   | 默认 `model`、`provider` 与 OpenCode 最低版本                      |
-| `config/provider.yaml` | OpenAI-compatible Provider、HTTPS endpoint 与 API Key 环境变量引用 |
-| `config/models.yaml`   | 上游 `model_name` 与可选 `reasoning_effort`                        |
-| `config/mcp.yaml`      | stdio 或 HTTP MCP server                                           |
-| `config/env.yaml`      | `aioc` 注入的共享非密钥环境变量                                    |
-| `config/agents.yaml`   | OpenCode custom agent、模型、mode、prompt 与 reasoning 覆盖        |
-| `config/plugins.yaml`  | OpenCode plugins；基础配置为空数组，可由本机 overlay 整体替换      |
+| 文件                   | 用途                                                          |
+| ---------------------- | ------------------------------------------------------------- |
+| `config/global.yaml`   | 默认 `model`、`provider` 与 OpenCode 最低版本                 |
+| `config/provider.yaml` | Provider endpoint、API Key 引用、关联模型、默认模型与原生模式 |
+| `config/models.yaml`   | 上游 `model_name` 与可选 `reasoning_effort`                   |
+| `config/mcp.yaml`      | stdio 或 HTTP MCP server                                      |
+| `config/env.yaml`      | `aioc` 注入的共享非密钥环境变量                               |
+| `config/agents.yaml`   | OpenCode custom agent、模型、mode、prompt 与 reasoning 覆盖   |
+| `config/plugins.yaml`  | OpenCode plugins；基础配置为空数组，可由本机 overlay 整体替换 |
 
 固定对象拒绝未知字段。API Key 只能写成 `${ENV_NAME}` 引用；生成的 OpenCode 配置会转换为 `{env:ENV_NAME}`，不会读取或持久化真实值。
 
@@ -81,7 +81,9 @@ Copy-Item templates/personal-overlay/env.local.example.yaml config/local/env.yam
 --provider > AI_SHARE_PROVIDER > global.provider
 ```
 
-交互终端未传 `--provider` 时显示 Provider 菜单。生成配置只物化当前选中的 Provider，但会在该 Provider 下注册 `models.yaml` 的全部模型别名。
+交互终端未传 `--provider` 时显示 Provider 菜单。生成配置只物化当前选中的 Provider，并且只注册和检查该
+Provider 在 `provider.yaml` 中关联的模型。选择 `global.provider` 时使用 `global.model`；选择其他 Provider
+时使用其 `default_model`。
 
 ```sh
 bun run ai:gen -- --provider packyapi
@@ -102,7 +104,7 @@ bun run ai:explain -- --force
 bun run ai:explain -- --json
 ```
 
-JSON 接口当前为 `schema_version: 3`。报告只包含来源、env 名称、启用的插件 ID、memory 决策和 plan metadata，不包含 env 值、生成内容或凭据。未受管 collision 返回 `1`；`--force` 仅模拟显式接管。
+JSON 接口当前为 `schema_version: 4`。报告只包含来源、env 名称、启用的插件 ID、memory 决策和 plan metadata，不包含 env 值、生成内容或凭据。未受管 collision 返回 `1`；`--force` 仅模拟显式接管。
 
 ## Custom agent
 

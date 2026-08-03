@@ -1,4 +1,4 @@
-model: example-frontier
+model: example-fast
 provider: example-openai-compatible
 
 opencode_min_version: 1.18.11

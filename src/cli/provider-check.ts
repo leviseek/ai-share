@@ -38,6 +38,7 @@ type FetchLike = (
 export async function checkProviderModels(input: {
   providerId: string;
   provider: ProviderSource | undefined;
+  modelIds: readonly string[];
   models: ModelsYaml;
   env: Record<string, string | undefined>;
   fetchImpl?: FetchLike;
@@ -47,7 +48,7 @@ export async function checkProviderModels(input: {
     await checkProviderModelNames(
       input.providerId,
       input.provider,
-      configuredModelNames(input.models),
+      configuredModelNames(input.modelIds, input.models),
       input.env,
       input.fetchImpl ?? fetch,
       input.timeoutMs ?? 10_000,
@@ -58,6 +59,7 @@ export async function checkProviderModels(input: {
 export async function checkProviderCanaries(input: {
   providerId: string;
   provider: ProviderSource | undefined;
+  modelIds: readonly string[];
   models: ModelsYaml;
   env: Record<string, string | undefined>;
   fetchImpl?: FetchLike;
@@ -66,7 +68,7 @@ export async function checkProviderCanaries(input: {
   const fetchImpl = input.fetchImpl ?? fetch;
   const timeoutMs = input.timeoutMs ?? 15_000;
   return Promise.all(
-    configuredCanaryModels(input.models).map((entry) =>
+    configuredCanaryModels(input.modelIds, input.models).map((entry) =>
       checkProviderCanary(
         input.providerId,
         input.provider,
@@ -80,16 +82,31 @@ export async function checkProviderCanaries(input: {
   );
 }
 
-function configuredModelNames(models: ModelsYaml): string[] {
-  return [...new Set(Object.values(models).map((model) => model.model_name))].sort();
+function configuredModelNames(modelIds: readonly string[], models: ModelsYaml): string[] {
+  return [...new Set(configuredAssociatedModels(modelIds, models).map((entry) => entry.modelName))].sort();
 }
 
-function configuredCanaryModels(models: ModelsYaml): { modelId: string; modelName: string }[] {
+function configuredCanaryModels(
+  modelIds: readonly string[],
+  models: ModelsYaml,
+): { modelId: string; modelName: string }[] {
   const output = new Map<string, { modelId: string; modelName: string }>();
-  for (const [modelId, model] of Object.entries(models)) {
-    if (!output.has(model.model_name)) output.set(model.model_name, { modelId, modelName: model.model_name });
+  for (const entry of configuredAssociatedModels(modelIds, models)) {
+    if (!output.has(entry.modelName)) output.set(entry.modelName, entry);
   }
   return [...output.values()].sort((left, right) => left.modelName.localeCompare(right.modelName));
+}
+
+function configuredAssociatedModels(
+  modelIds: readonly string[],
+  models: ModelsYaml,
+): { modelId: string; modelName: string }[] {
+  return modelIds.map((modelId) => {
+    if (!Object.hasOwn(models, modelId)) throw new Error(`模型未定义：${modelId}`);
+    const model = models[modelId];
+    if (!model) throw new Error(`模型未定义：${modelId}`);
+    return { modelId, modelName: model.model_name };
+  });
 }
 
 async function checkProviderCanary(

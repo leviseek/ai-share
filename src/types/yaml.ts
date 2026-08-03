@@ -40,6 +40,9 @@ export type ProviderSource = {
   name?: string;
   base_url: string;
   api_key: string;
+  models: string[];
+  default_model: string;
+  native?: boolean;
 };
 
 export type ModelsYaml = Record<string, ModelSource>;

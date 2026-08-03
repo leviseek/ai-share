@@ -9,7 +9,9 @@ export type OpenCodeConfig = {
   mcp?: Record<string, OpenCodeMcpServer>;
 };
 
-export type OpenCodeProvider = {
+export type OpenCodeProvider = OpenCodeCompatibleProvider | OpenCodeNativeProvider;
+
+export type OpenCodeCompatibleProvider = {
   name?: string;
   npm: "@ai-sdk/openai-compatible";
   options: {
@@ -17,6 +19,14 @@ export type OpenCodeProvider = {
     apiKey: string;
   };
   models: Record<string, OpenCodeModel>;
+};
+
+export type OpenCodeNativeProvider = {
+  whitelist: string[];
+  options: {
+    baseURL: string;
+    apiKey: string;
+  };
 };
 
 export type OpenCodeModel = {

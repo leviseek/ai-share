@@ -9,7 +9,7 @@
 | Need                                        | File            | Notes                                    |
 | ------------------------------------------- | --------------- | ---------------------------------------- |
 | Default model/provider and OpenCode version | `global.yaml`   | `model`、`provider` 必填                 |
-| Provider endpoint and API-key env reference | `provider.yaml` | 仅 `name`、`base_url`、`api_key`         |
+| Provider endpoint, models, and default      | `provider.yaml` | 关联模型、默认模型与可选原生模式         |
 | Upstream model names                        | `models.yaml`   | 仅 `model_name`、可选 `reasoning_effort` |
 | OpenCode MCP servers                        | `mcp.yaml`      | stdio/HTTP 条件字段严格互斥              |
 | Shared `aioc` environment values            | `env.yaml`      | 非密钥；默认 `variables: {}`             |
@@ -21,6 +21,7 @@
 
 - YAML 是唯一权威源；不要手改生成的 JSONC、managed `.env`、launcher 或 skill 作为长期修复。
 - `global.provider` 是默认 Provider 的唯一权威源。
+- Provider 只生成和检查 `models` 中关联的模型；非默认 Provider 使用自己的 `default_model`。
 - 固定结构拒绝未知字段；字段规格只在 `../src/config/schema-spec.ts` 定义。
 - Provider URL 必须是有效 HTTPS URL，`api_key` 必须是 `${ENV_NAME}` 引用。
 - `env.yaml` 及 overlay 不得包含 API key、token、cookie、`HOME`、`USERPROFILE`、`PATH`、`AI_SHARE_*` 或 `OPENCODE_*`。
@@ -38,6 +39,6 @@ bun run ai:gen -- --dry-run
 
 ## ANTI-PATTERNS
 
-- 不恢复 Provider group、fallback、cost、capabilities、limits、parameters 或无消费者字段。
+- 不恢复 Provider group、fallback、cost、capabilities、limits、parameters 或其他无消费者字段。
 - 不把真实密钥或私有凭据写入 YAML、模板、测试或文档。
 - `--force` 只接管未受管输出，不能绕过任何配置或 secret 校验。

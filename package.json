@@ -11,7 +11,7 @@
     "ai:dry-run": "bun run ./src/generate-user-config.ts --dry-run",
     "ai:explain": "bun run ./src/cli/ai-explain.ts",
     "ai:gen": "bun run ./src/generate-user-config.ts",
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun run schema:check && bun run memory:check && bun run memory:lint && bun run memory:eval && bun run skill:lint && bun run ai:check",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun test && bun run schema:check && bun run memory:check && bun run memory:lint && bun run memory:eval && bun run skill:lint && bun run ai:check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",

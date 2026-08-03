@@ -1,3 +1,4 @@
+# Provider associations and defaults are declared in provider.yaml.
 example-frontier:
   model_name: example-frontier
   reasoning_effort: high

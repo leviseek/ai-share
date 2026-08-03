@@ -14,6 +14,7 @@ import { buildGeneratorPaths } from "./paths.ts";
 import { buildAiocLauncherFiles } from "./aioc-install.ts";
 import { checkProviderCanaries, checkProviderModels } from "./provider-check.ts";
 import { formatInstallRunResult, runInstall } from "./ai-install.ts";
+import { resolveProviderModelDecision } from "../config/provider-model.ts";
 
 const startedAt = performance.now();
 const args = argsFromArgv();
@@ -27,12 +28,19 @@ const providerId = resolveProviderId({
 });
 const provider = config.providers.providers[providerId];
 if (!provider) throw new Error(`提供商未定义：${providerId}`);
+const modelDecision = resolveProviderModelDecision(config, providerId);
 const canary = hasFlag(args, "--canary");
 const online = hasFlag(args, "--online") || canary;
 const checks: CheckItem[] = [];
 const installResult = await runInstall();
 const expectedConfig = formatOpenCodeConfigJsonc(
-  buildOpenCodeConfig(config, providerId, buildInstructionsPaths(paths.projectRoot), paths.targetOpenCodeSkillsDir),
+  buildOpenCodeConfig(
+    config,
+    providerId,
+    modelDecision.modelId,
+    buildInstructionsPaths(paths.projectRoot),
+    paths.targetOpenCodeSkillsDir,
+  ),
 );
 const diagnostics = await collectConfigDiagnostics({
   paths,
@@ -103,7 +111,7 @@ checks.push({
 });
 
 if (online) {
-  const common = { providerId, provider, models: config.models, env: Bun.env };
+  const common = { providerId, provider, modelIds: provider.models, models: config.models, env: Bun.env };
   const results = await checkProviderModels(common);
   checks.push({
     name: "provider_models",

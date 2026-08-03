@@ -13,6 +13,7 @@ import { buildProviderChoices, selectProviderInteractive, type ProviderSelector 
 import { buildAiocLauncherFiles } from "./cli/aioc-install.ts";
 import { SUPERPOWERS_PLUGIN_SPEC } from "./cli/install-plan.ts";
 import { selectInstallInteractive, type InstallChoice } from "./cli/install-select.ts";
+import { resolveProviderModelDecision, type ProviderModelDecision } from "./config/provider-model.ts";
 
 export type GenerationPreviewOptions = {
   force: boolean;
@@ -25,6 +26,7 @@ export type GenerationPreview = {
   paths: GeneratorPaths;
   loadedConfig: LoadedValidatedConfig;
   providerDecision: ProviderDecision;
+  modelDecision: ProviderModelDecision;
   taskDecision: TaskDecision;
   instructionsSelection: InstructionsSelection;
   configJsonc: string;
@@ -76,6 +78,7 @@ export async function buildGenerationPreview(input: {
   if (!config.providers.providers[providerDecision.id]) {
     throw new InvalidProviderError(providerDecision.id);
   }
+  const modelDecision = resolveProviderModelDecision(config, providerDecision.id);
   const taskDecision = resolveTaskDecision({
     ...(input.options.task ? { cliTask: input.options.task } : {}),
     ...(input.env.AI_SHARE_TASK ? { envTask: input.env.AI_SHARE_TASK } : {}),
@@ -83,7 +86,13 @@ export async function buildGenerationPreview(input: {
   const task = taskDecision.source === "none" ? undefined : taskDecision.value;
   const instructionsSelection = buildInstructionsSelection(paths.projectRoot, task);
   const configJsonc = formatOpenCodeConfigJsonc(
-    buildOpenCodeConfig(config, providerDecision.id, instructionsSelection.paths, paths.targetOpenCodeSkillsDir),
+    buildOpenCodeConfig(
+      config,
+      providerDecision.id,
+      modelDecision.modelId,
+      instructionsSelection.paths,
+      paths.targetOpenCodeSkillsDir,
+    ),
   );
   const plan = await buildGenerationPlan({
     paths,
@@ -97,6 +106,7 @@ export async function buildGenerationPreview(input: {
     paths,
     loadedConfig,
     providerDecision,
+    modelDecision,
     taskDecision,
     instructionsSelection,
     configJsonc,

@@ -30,7 +30,7 @@ export function renderExplainReport(report: ExplainReport, useColor: boolean): s
   lines.push(`  API Key 环境变量: ${report.inputs.provider.api_key_env || "不可用"}`);
   lines.push(
     `  Model: ${palette.cyan(report.inputs.model.id || "不可用")} ` +
-      palette.gray(`upstream=${report.inputs.model.model_name || "不可用"}`),
+      palette.gray(`upstream=${report.inputs.model.model_name || "不可用"} source=${report.inputs.model.source}`),
   );
   if (report.inputs.model.reasoning_effort) {
     lines.push(`  Reasoning effort: ${report.inputs.model.reasoning_effort}`);

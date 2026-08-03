@@ -18,7 +18,7 @@ export type ExplainPlanEntry = {
 };
 
 export type ExplainReport = {
-  schema_version: 3;
+  schema_version: 4;
   status: ExplainStatus;
   inputs: {
     force: boolean;
@@ -31,6 +31,7 @@ export type ExplainReport = {
     model: {
       id: string;
       model_name: string;
+      source: GenerationPreview["modelDecision"]["modelSource"];
       reasoning_effort?: "low" | "medium" | "high";
       id_source: string;
       definition_source: string;
@@ -67,13 +68,17 @@ export function buildExplainReport(preview: GenerationPreview): ExplainReport {
   const providerId = preview.providerDecision.id;
   const provider = config.providers.providers[providerId];
   if (!provider) throw new Error(`提供商未定义：${providerId}`);
-  const modelId = config.global.model;
+  const modelId = preview.modelDecision.modelId;
   const model = config.models[modelId];
   if (!model) throw new Error(`模型未定义：${modelId}`);
+  const modelIdSource =
+    preview.modelDecision.modelSource === "global-config"
+      ? sourceReference(preview.loadedConfig.provenance.global, "model")
+      : sourceReference(preview.loadedConfig.provenance.providers, `providers.${providerId}.default_model`);
   const task = preview.taskDecision;
 
   return {
-    schema_version: 3,
+    schema_version: 4,
     status: preview.plan.collisions.length > 0 ? "collision" : "ok",
     inputs: {
       force: preview.options.force,
@@ -86,8 +91,9 @@ export function buildExplainReport(preview: GenerationPreview): ExplainReport {
       model: {
         id: modelId,
         model_name: model.model_name,
+        source: preview.modelDecision.modelSource,
         ...(model.reasoning_effort ? { reasoning_effort: model.reasoning_effort } : {}),
-        id_source: sourceReference(preview.loadedConfig.provenance.global, "model"),
+        id_source: modelIdSource,
         definition_source: sourceReference(preview.loadedConfig.provenance.models, `${modelId}.model_name`),
       },
       task: task.source === "none" ? { source: "none" } : { value: task.value, source: task.source },
@@ -122,7 +128,7 @@ export function buildExplainErrorReport(input: {
   const providerDecision = input.providerDecision ?? { id: "", source: "global-config" };
   const taskDecision = input.taskDecision ?? { source: "none" };
   return {
-    schema_version: 3,
+    schema_version: 4,
     status: "error",
     inputs: {
       force: input.force,
@@ -135,6 +141,7 @@ export function buildExplainErrorReport(input: {
       model: {
         id: "",
         model_name: "",
+        source: "global-config",
         id_source: "",
         definition_source: "",
       },

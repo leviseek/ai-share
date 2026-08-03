@@ -69,6 +69,8 @@ type BooleanSchemaNode = BaseSchemaNode & {
 type ArraySchemaNode = BaseSchemaNode & {
   type: "array";
   items: SchemaNode;
+  minItems?: number;
+  uniqueItems?: boolean;
 };
 
 type ObjectSchemaNode = BaseSchemaNode & {
@@ -105,11 +107,18 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
         providers: objectSchema({
           propertyNames: { pattern: CONFIG_ID_PATTERN },
           additionalProperties: objectSchema({
-            required: ["base_url", "api_key"],
+            required: ["base_url", "api_key", "models", "default_model"],
             properties: {
               name: stringSchema("Human-readable provider name."),
               base_url: patternStringSchema(HTTPS_URL_PATTERN, "OpenAI-compatible HTTPS base URL."),
               api_key: envReferenceSchema("Environment variable reference."),
+              models: {
+                ...stringArraySchema("models.yaml model id supported by this provider.", CONFIG_ID_PATTERN),
+                minItems: 1,
+                uniqueItems: true,
+              },
+              default_model: patternStringSchema(CONFIG_ID_PATTERN, "Default models.yaml model id for this provider."),
+              native: booleanSchema("Whether OpenCode provides native support for this provider."),
             },
           }),
         }),
@@ -226,6 +235,10 @@ function envReferenceSchema(description: string): Extract<SchemaNode, { type: "s
 
 function envNameSchema(description: string): Extract<SchemaNode, { type: "string" }> {
   return { ...stringSchema(description), pattern: ENV_NAME_PATTERN };
+}
+
+function booleanSchema(description: string): Extract<SchemaNode, { type: "boolean" }> {
+  return { type: "boolean", description };
 }
 
 function stringArraySchema(description: string, pattern?: string): Extract<SchemaNode, { type: "array" }> {

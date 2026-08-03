@@ -53,7 +53,7 @@ export async function runGeneration(
     }
     return {
       ok: true,
-      modelId: preview.loadedConfig.config.global.model,
+      modelId: preview.modelDecision.modelId,
       providerId: preview.providerDecision.id,
       options,
       plan,

@@ -49,6 +49,8 @@ function schemaNodeToJsonSchema(node: SchemaNode): JsonSchema {
     return {
       ...base,
       items: schemaNodeToJsonSchema(node.items),
+      ...optionalNumber("minItems", node.minItems),
+      ...optionalBoolean("uniqueItems", node.uniqueItems),
     };
   }
 
@@ -66,6 +68,10 @@ function optionalDescription(description: string | undefined): JsonSchema {
 }
 
 function optionalNumber(key: string, value: number | undefined): JsonSchema {
+  return value === undefined ? {} : { [key]: value };
+}
+
+function optionalBoolean(key: string, value: boolean | undefined): JsonSchema {
   return value === undefined ? {} : { [key]: value };
 }
 

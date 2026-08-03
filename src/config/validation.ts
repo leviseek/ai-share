@@ -1,7 +1,7 @@
 import type { AgentsYaml, EnvYaml, GlobalYaml, McpYaml, ModelsYaml, PluginsYaml, ProviderYaml } from "../types.ts";
 import { isSensitiveName } from "../security/secret-patterns.ts";
 import type { ValidationError } from "./validators/common.ts";
-import { isRecord } from "./validators/common.ts";
+import { isRecord, isStringArray } from "./validators/common.ts";
 import { validateOpenCodeEnv } from "./validators/env.ts";
 import { validateMcpServers } from "./validators/mcp.ts";
 import { validatePlugins } from "./validators/plugins.ts";
@@ -79,11 +79,78 @@ export function validateYamlConsistency(
   });
 
   validateCrossFileReferences(errors, modelsConfig, providersConfig, globalConfig, agentsConfig);
+  validateProviderModels(errors, modelsConfig, providersConfig, globalConfig);
   validateProviderUrls(errors, providersConfig);
   validateMcpServers(errors, mcpConfig);
   validateOpenCodeEnv(errors, envConfig);
   validatePlugins(errors, pluginsConfig);
   return errors;
+}
+
+function validateProviderModels(
+  errors: ValidationError[],
+  modelsConfig: unknown,
+  providersConfig: unknown,
+  globalConfig: unknown,
+): void {
+  if (!isRecord(providersConfig) || !isRecord(providersConfig.providers)) return;
+  const models = isRecord(modelsConfig) ? modelsConfig : {};
+
+  for (const [providerId, value] of Object.entries(providersConfig.providers)) {
+    if (!isRecord(value)) continue;
+
+    if (Array.isArray(value.models) && value.models.length === 0) {
+      errors.push({
+        file: "provider.yaml",
+        path: `providers.${providerId}.models`,
+        message: `provider '${providerId}' 的 models 不得为空`,
+      });
+    }
+
+    if (!isStringArray(value.models)) continue;
+    const seenModelIds = new Set<string>();
+    value.models.forEach((modelId, index) => {
+      if (seenModelIds.has(modelId)) {
+        errors.push({
+          file: "provider.yaml",
+          path: `providers.${providerId}.models[${index}]`,
+          message: `provider '${providerId}' 的 models 包含重复模型 '${modelId}'`,
+        });
+      } else {
+        seenModelIds.add(modelId);
+      }
+
+      if (!Object.hasOwn(models, modelId)) {
+        errors.push({
+          file: "provider.yaml",
+          path: `providers.${providerId}.models[${index}]`,
+          message: `provider '${providerId}' 引用未定义模型 '${modelId}'`,
+        });
+      }
+    });
+
+    if (typeof value.default_model === "string" && !seenModelIds.has(value.default_model)) {
+      errors.push({
+        file: "provider.yaml",
+        path: `providers.${providerId}.default_model`,
+        message: `provider '${providerId}' 的 default_model '${value.default_model}' 不在 models 中`,
+      });
+    }
+  }
+
+  if (!isRecord(globalConfig)) return;
+  const providerId = globalConfig.provider;
+  const modelId = globalConfig.model;
+  if (typeof providerId !== "string" || typeof modelId !== "string") return;
+  const provider = Object.hasOwn(providersConfig.providers, providerId)
+    ? providersConfig.providers[providerId]
+    : undefined;
+  if (!isRecord(provider) || !isStringArray(provider.models) || provider.models.includes(modelId)) return;
+  errors.push({
+    file: "global.yaml",
+    path: "model",
+    message: `global.model '${modelId}' 不在 provider '${providerId}' 的 models 中`,
+  });
 }
 
 function validateProviderUrls(errors: ValidationError[], providersConfig: unknown): void {
@@ -125,7 +192,7 @@ function validateCrossFileReferences(
   const providers = isRecord(providersConfig) && isRecord(providersConfig.providers) ? providersConfig.providers : {};
 
   const modelId = globalConfig.model;
-  if (typeof modelId === "string" && modelId && !models[modelId]) {
+  if (typeof modelId === "string" && modelId && !Object.hasOwn(models, modelId)) {
     errors.push({
       file: "global.yaml",
       path: "model",
@@ -134,7 +201,7 @@ function validateCrossFileReferences(
   }
 
   const providerId = globalConfig.provider;
-  if (typeof providerId === "string" && providerId && !providers[providerId]) {
+  if (typeof providerId === "string" && providerId && !Object.hasOwn(providers, providerId)) {
     errors.push({
       file: "global.yaml",
       path: "provider",
@@ -146,7 +213,7 @@ function validateCrossFileReferences(
   for (const [agentId, agent] of Object.entries(agentsConfig.agents)) {
     if (!isRecord(agent) || typeof agent.model !== "string" || !agent.model) continue;
     const isFullReference = agent.model.includes("/");
-    if (isFullReference || models[agent.model]) continue;
+    if (isFullReference || Object.hasOwn(models, agent.model)) continue;
     errors.push({
       file: "agents.yaml",
       path: `agents.${agentId}.model`,

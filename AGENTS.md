@@ -58,6 +58,8 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.sisyphus/evidence/`, `
 - Default communication/docs are Simplified Chinese; identifiers, commands, paths, API names stay English.
 - YAML in `config/` is authoritative. Do not hand-edit generated user config as the durable fix.
 - YAML field shape rules live in `src/config/schema-spec.ts`; JSON Schema output and runtime shape validation must derive from it.
+- Providers declare their associated model IDs and default model; generation and checks process only the selected provider's associated models.
+- Selecting `global.provider` uses `global.model`; selecting another provider uses that provider's `default_model`.
 - Secrets policy is env-only: API keys are env-var references; never write real keys/tokens/cookies into repo files.
 - `config/env.yaml` may manage local proxy variables for the OpenCode config `.env`, but must not contain API keys, tokens, `PATH`, `AI_SHARE_*`, or `OPENCODE_*`.
 - `config/plugins.yaml` accepts npm package specs and named `git+https` specs only; explain output exposes package IDs, not versions or URLs.
@@ -93,7 +95,7 @@ bun run schema:gen
 
 ## NOTES
 
-- Default OpenCode model is configured by `config/global.yaml` (`model: gpt-5.6-sol`).
+- Default OpenCode model is configured by `config/global.yaml` (`model: gpt-5.5`).
 - `memory/` contains user-level memory files referenced by OpenCode startup instructions via `buildInstructionsPaths`.
 - Memory privacy layers are documented in `docs/memory-privacy.md`; local/private/project memory directories are ignored.
 - Existing local knowledge files: `config/AGENTS.md`, `src/AGENTS.md`.

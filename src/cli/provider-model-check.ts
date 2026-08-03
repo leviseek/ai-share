@@ -35,7 +35,7 @@ async function main(): Promise<void> {
   const canary = hasFlag(args, "--canary");
   const jsonOutput = hasFlag(args, "--json");
   const outputPath = parseOptionValue(args, "--output", { missingValue: "error" });
-  const common = { providerId, provider, models: config.models, env: Bun.env };
+  const common = { providerId, provider, modelIds: provider.models, models: config.models, env: Bun.env };
   const modelResults = await checkProviderModels(common);
   const canaryResults = canary ? await checkProviderCanaries(common) : [];
   const report: ProviderCheckReport = {
