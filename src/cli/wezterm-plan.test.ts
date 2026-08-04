@@ -2,12 +2,21 @@ import { describe, expect, test } from "bun:test";
 import { access, mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { WEZTERM_CONFIG_MANAGED_HEADER } from "../config/builders/wezterm.ts";
+import { WEZTERM_CONFIG_MANAGED_HEADER, buildWezTermLua } from "../config/builders/wezterm.ts";
+import type { WezTermConfig } from "../types.ts";
 import { buildGeneratorPaths, buildWezTermPaths, type WezTermPaths } from "./paths.ts";
 import { buildWezTermPlan, executeWezTermPlan } from "./wezterm-plan.ts";
 
-const content = `${WEZTERM_CONFIG_MANAGED_HEADER}\nreturn {}\n`;
-const updatedContent = `${WEZTERM_CONFIG_MANAGED_HEADER}\nreturn { updated = true }\n`;
+const content = `${WEZTERM_CONFIG_MANAGED_HEADER}return {}\n`;
+const updatedContent = `${WEZTERM_CONFIG_MANAGED_HEADER}return { updated = true }\n`;
+const defaults: WezTermConfig = {
+  shell: "platform-native",
+  color_scheme: "catppuccin-mocha",
+  font_size: 12,
+  window_background_opacity: 0.94,
+  maximize_on_startup: false,
+  scrollback_lines: 100000,
+};
 
 async function withTempDirectory<T>(callback: (root: string) => Promise<T>): Promise<T> {
   const root = await mkdtemp(join(tmpdir(), "ai-share-wezterm-plan-"));
@@ -127,6 +136,34 @@ describe("WezTerm ownership plan", () => {
         precondition: { target: { kind: "file" } },
       });
       expect("content" in preserve).toBe(false);
+    });
+  });
+
+  test("recognizes generated LF content as managed", async () => {
+    await withTempDirectory(async (root) => {
+      const paths = pathsFor(root);
+      const generated = buildWezTermLua(defaults);
+      await writeTarget(paths, generated.replace("config.font_size = 12", "config.font_size = 11"));
+
+      expect(await buildWezTermPlan({ paths, content: generated, force: false })).toMatchObject({
+        kind: "update",
+        ownership: "managed",
+        reason: "managed-content-drift",
+      });
+    });
+  });
+
+  test("does not accept a suffixed ownership marker on the first line", async () => {
+    await withTempDirectory(async (root) => {
+      const paths = pathsFor(root);
+      await writeTarget(paths, `${WEZTERM_CONFIG_MANAGED_HEADER.trimEnd()} forged\nreturn {}\n`);
+
+      expect(await buildWezTermPlan({ paths, content, force: false })).toEqual({
+        kind: "collision",
+        path: paths.targetWezTermConfig,
+        ownership: "unmanaged",
+        reason: "unowned-collision",
+      });
     });
   });
 
@@ -326,7 +363,7 @@ describe("WezTerm plan execution", () => {
       const stagingRoot = resolve(root, "staging");
       await writeTarget(paths, content);
       const plan = await buildWezTermPlan({ paths, content: updatedContent, force: false });
-      await writeFile(paths.targetWezTermConfig, `${WEZTERM_CONFIG_MANAGED_HEADER}\nreturn { concurrent = true }\n`);
+      await writeFile(paths.targetWezTermConfig, `${WEZTERM_CONFIG_MANAGED_HEADER}return { concurrent = true }\n`);
 
       const error = await captureError(executeWezTermPlan(plan, paths, stagingRoot));
       expect(error.message).toContain("WezTerm 目标在计划后发生变化");
@@ -399,6 +436,39 @@ describe("WezTerm plan execution", () => {
 
       expect(error.message).toContain("staged writer 提交失败且回滚失败");
       expect(await readFile(paths.targetWezTermConfig, "utf8")).toBe("-- concurrent user file\n");
+    });
+  });
+
+  test("fails at the final rename boundary when .config is replaced without touching the link target", async () => {
+    await withTempDirectory(async (root) => {
+      const paths = pathsFor(root);
+      const stagingRoot = resolve(root, "staging");
+      const outsideConfig = resolve(root, "outside-config");
+      const detachedConfig = resolve(root, "detached-config");
+      const outsideTarget = resolve(outsideConfig, "wezterm", "wezterm.lua");
+      await mkdir(resolve(outsideConfig, "wezterm"), { recursive: true });
+      await writeFile(outsideTarget, "-- outside user config\n");
+      await writeTarget(paths, content);
+      const plan = await buildWezTermPlan({ paths, content: updatedContent, force: false });
+      let renameCalls = 0;
+
+      const error = await captureError(
+        executeWezTermPlan(plan, paths, stagingRoot, {
+          rename: async (source, target) => {
+            renameCalls += 1;
+            if (renameCalls === 2) {
+              await rename(resolve(paths.homeDir, ".config"), detachedConfig);
+              await createDirectoryLink(outsideConfig, resolve(paths.homeDir, ".config"));
+            }
+            await rename(source, target);
+          },
+        }),
+      );
+
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toMatchObject({ code: "ENOENT" });
+      expect(renameCalls).toBe(2);
+      expect(await readFile(outsideTarget, "utf8")).toBe("-- outside user config\n");
     });
   });
 });

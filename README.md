@@ -43,7 +43,7 @@ bun run ai:config -- --non-interactive --force
 
 命令只接受 `--dry-run`、`--non-interactive` 和 `--force`。`--dry-run` 永不写入文件；如果 stdin 和 stdout 均为 TTY，仍会先运行六步交互向导，然后输出所选配置摘要和计划；非 TTY 或使用 `--non-interactive` 时直接输出 YAML 配置摘要和计划。`--force` 只在目标是未受管普通文件时显式接管，不能绕过 YAML 校验，也不能接管目录、符号链接或其他阻塞路径。
 
-输出目标固定为当前用户目录下的 `~/.config/wezterm/wezterm.lua`（Windows 使用 `HOME` 或 `USERPROFILE` 解析用户目录）。目标缺失时创建，带有 ai-share managed header 的目标可更新，内容相同时保留；未受管文件默认报告 collision 且不写入。WezTerm 会自动重载已加载的配置文件。
+输出目标固定为当前用户目录下的 `~/.config/wezterm/wezterm.lua`（Windows 使用 `HOME` 或 `USERPROFILE` 解析用户目录）。目标缺失时创建，首行精确匹配 ai-share managed header 的目标可更新，内容相同时保留；未受管文件默认报告 collision 且不写入。执行会在写入前复核目标及受控祖先，并依靠同一受控祖先下的 staging source 使已检测祖先被替换时失败而不跟随新链接。Node/Bun 的跨平台文件系统 API 不提供原子 no-follow rename，因此该边界防止误操作和已检测的并发变化，但不承诺抵御可同时重建随机事务路径的恶意同用户进程。WezTerm 会自动重载已加载的配置文件。
 
 在 Windows 或 macOS 上，可检测 AI 开发环境中的受管工具：
 

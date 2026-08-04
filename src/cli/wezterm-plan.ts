@@ -141,6 +141,10 @@ export async function executeWezTermPlan(
       } else if ((await inspectTarget(paths.targetWezTermConfig)).kind !== "missing") {
         throw new Error(`WezTerm 目标在计划后发生变化：${paths.targetWezTermConfig}`);
       }
+      // StagedFileWriter places the source below the target's nearest existing directory. If a checked ancestor is
+      // replaced after this callback's lstat, source lookup moves with it and rename fails instead of following the new
+      // link to an external target. This bounds accidental/stale races; portable Node APIs cannot provide an atomic
+      // no-follow guarantee against a malicious same-user process that can also recreate transaction paths.
       await (options.rename ?? rename)(source, destination);
       promotionRenames += 1;
     },

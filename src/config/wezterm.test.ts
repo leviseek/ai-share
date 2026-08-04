@@ -21,6 +21,21 @@ describe("WezTerm configuration", () => {
     expect(await loadWezTermConfig(configDir)).toEqual(defaults);
   });
 
+  test("wraps a missing YAML file with Chinese context and the filesystem cause", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "ai-share-wezterm-missing-"));
+    try {
+      const error = await loadWezTermConfig(directory).catch((failure: unknown) => failure);
+
+      expect(error).toBeInstanceOf(Error);
+      if (!(error instanceof Error)) throw new Error("预期 WezTerm 配置读取失败。");
+      expect(error.message).toBe(`读取 WezTerm YAML 配置失败：${resolve(directory, "wezterm.yaml")}`);
+      expect(error.cause).toBeInstanceOf(Error);
+      expect(error.cause).toMatchObject({ code: "ENOENT" });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   test("rejects missing fields with Chinese validation errors", async () => {
     await withConfig("color_scheme: catppuccin-mocha\n", async (directory) => {
       await expectLoadError(directory, "缺少 shell 字段");
