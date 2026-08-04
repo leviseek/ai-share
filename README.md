@@ -112,7 +112,7 @@ bun run ai:gen -- --task "Windows 事务化文件写入"
 
 ```sh
 bun run ai:explain
-bun run ai:explain -- --provider codexapis
+bun run ai:explain -- --provider deepseek
 bun run ai:explain -- --task "Windows 事务化文件写入"
 bun run ai:explain -- --force
 bun run ai:explain -- --json
@@ -190,7 +190,7 @@ bun run ai:check
 bun run ai:check -- --online
 bun run ai:check -- --canary --json
 bun run ai:help
-bun run provider:check -- --provider codexapis
+bun run provider:check -- --provider deepseek
 bun run check
 ```
 

@@ -95,7 +95,7 @@ bun run schema:gen
 
 ## NOTES
 
-- Default OpenCode model is configured by `config/global.yaml` (`model: gpt-5.5`).
+- Default OpenCode model is configured by `config/global.yaml` (`model: deepseek-v4-flash`).
 - `memory/` contains user-level memory files referenced by OpenCode startup instructions via `buildInstructionsPaths`.
 - Memory privacy layers are documented in `docs/memory-privacy.md`; local/private/project memory directories are ignored.
 - Existing local knowledge files: `config/AGENTS.md`, `src/AGENTS.md`.

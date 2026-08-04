@@ -1,4 +1,15 @@
 providers:
+  deepseek:
+    name: DeepSeek
+    base_url: https://api.deepseek.com
+    api_key: ${DEEPSEEK_API_KEY}
+    models:
+      - deepseek-v4-flash
+      - deepseek-v4-pro
+    default_model: deepseek-v4-flash
+    native: true
+    always_include: true
+
   codexapis:
     name: Codex APIs
     base_url: https://www.codexapis.com/v1
@@ -12,6 +23,7 @@ providers:
       - gpt-5.6-coding
       - gpt-5.5-coding
     default_model: gpt-5.5
+    always_include: true
 
   packyapi:
     name: Packy API
@@ -54,14 +66,3 @@ providers:
       - gpt-5.6-coding
       - gpt-5.5-coding
     default_model: gpt-5.5
-
-  deepseek:
-    name: DeepSeek
-    base_url: https://api.deepseek.com
-    api_key: ${DEEPSEEK_API_KEY}
-    models:
-      - deepseek-v4-flash
-      - deepseek-v4-pro
-    default_model: deepseek-v4-flash
-    native: true
-    always_include: true

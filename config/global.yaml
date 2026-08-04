@@ -1,5 +1,5 @@
-model: gpt-5.5
-provider: codexapis
+model: deepseek-v4-flash
+provider: deepseek
 
 # Version compatibility requirements
 opencode_min_version: 1.18.11
