@@ -55,6 +55,10 @@
           "native": {
             "type": "boolean",
             "description": "Whether OpenCode provides native support for this provider."
+          },
+          "always_include": {
+            "type": "boolean",
+            "description": "Always include this provider in generated OpenCode config, regardless of which provider is selected."
           }
         },
         "additionalProperties": false

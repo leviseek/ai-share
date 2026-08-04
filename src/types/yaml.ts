@@ -43,6 +43,7 @@ export type ProviderSource = {
   models: string[];
   default_model: string;
   native?: boolean;
+  always_include?: boolean;
 };
 
 export type ModelsYaml = Record<string, ModelSource>;

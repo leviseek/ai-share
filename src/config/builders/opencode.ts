@@ -28,7 +28,10 @@ export function buildOpenCodeConfig(
     model: modelReference(providerId, modelId),
     instructions: [...instructionPaths],
     skills: { paths: [skillsDir] },
-    provider: { [providerId]: buildOpenCodeProvider(config, providerId) },
+    provider: {
+      [providerId]: buildOpenCodeProvider(config, providerId),
+      ...buildAlwaysIncludedProviders(config, providerId),
+    },
     agent: buildOpenCodeAgents(config, providerId),
     ...(config.plugins.plugins.length > 0 ? { plugin: [...config.plugins.plugins] } : {}),
     ...(Object.keys(mcp).length > 0 ? { mcp } : {}),
@@ -64,6 +67,14 @@ function buildOpenCodeProvider(config: ConfigSet, providerId: string): OpenCodeP
       }),
     ),
   };
+}
+
+function buildAlwaysIncludedProviders(config: ConfigSet, selectedProviderId: string): Record<string, OpenCodeProvider> {
+  return Object.fromEntries(
+    Object.entries(config.providers.providers)
+      .filter(([id, provider]) => provider.always_include === true && id !== selectedProviderId)
+      .map(([id]) => [id, buildOpenCodeProvider(config, id)]),
+  );
 }
 
 function buildOpenCodeModel(modelId: string, model: ConfigSet["models"][string]): OpenCodeModel {

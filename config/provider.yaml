@@ -64,3 +64,4 @@ providers:
       - deepseek-v4-pro
     default_model: deepseek-v4-flash
     native: true
+    always_include: true

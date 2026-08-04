@@ -97,6 +97,44 @@ describe("OpenCode provider generation", () => {
       "提供商未定义：constructor",
     );
   });
+
+  test("includes always_include providers alongside the selected provider", () => {
+    const config = createConfig();
+    const otherProvider = config.providers.providers.other;
+    if (!otherProvider) throw new Error("test setup failed");
+    otherProvider.always_include = true;
+
+    const output = buildOpenCodeConfig(config, "compatible", "shared", [], "skills");
+
+    const providers = output.provider;
+    if (!providers) throw new Error("expected providers to be defined");
+    expect(providers.compatible).toBeDefined();
+    expect(providers.other).toBeDefined();
+    expect(Object.keys(providers)).toHaveLength(2);
+  });
+
+  test("does not duplicate always_include provider when it is also selected", () => {
+    const config = createConfig();
+    const compatibleProvider = config.providers.providers.compatible;
+    if (!compatibleProvider) throw new Error("test setup failed");
+    compatibleProvider.always_include = true;
+
+    const output = buildOpenCodeConfig(config, "compatible", "shared", [], "skills");
+
+    const providers2 = output.provider;
+    if (!providers2) throw new Error("expected providers to be defined");
+    expect(providers2.compatible).toBeDefined();
+    expect(Object.keys(providers2)).toHaveLength(1);
+  });
+
+  test("always_include providers are not checked against selected provider models", () => {
+    const config = createConfig();
+    const otherProvider = config.providers.providers.other;
+    if (!otherProvider) throw new Error("test setup failed");
+    otherProvider.always_include = true;
+
+    expect(() => buildOpenCodeConfig(config, "compatible", "shared", [], "skills")).not.toThrow();
+  });
 });
 
 function createConfig(): ConfigSet {

@@ -122,6 +122,9 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
               },
               default_model: patternStringSchema(CONFIG_ID_PATTERN, "Default models.yaml model id for this provider."),
               native: booleanSchema("Whether OpenCode provides native support for this provider."),
+              always_include: booleanSchema(
+                "Always include this provider in generated OpenCode config, regardless of which provider is selected.",
+              ),
             },
           }),
         }),
