@@ -64,7 +64,7 @@ export type InstalledSystemPackage = {
 };
 
 type InstalledToolInput = {
-  pnpmPackages: ReadonlySet<string>;
+  bunPackages: ReadonlySet<string>;
   systemPackages: ReadonlySet<string> | ReadonlyMap<string, InstalledSystemPackage>;
   pluginSpecs: readonly string[];
 };
@@ -78,23 +78,41 @@ type InstallPlanInput = {
   scoopExtrasAvailable: boolean;
 };
 
-export function parsePnpmGlobalPackages(jsonText: string): Set<string> {
-  let value: unknown;
-  try {
-    value = JSON.parse(jsonText);
-  } catch (error) {
-    throw new Error("pnpm 全局包列表解析失败。", { cause: error });
-  }
-  if (!Array.isArray(value)) throw new Error("pnpm 全局包列表解析失败：输出格式无效。");
+export function parseBunGlobalPackages(text: string): Set<string> {
+  const normalized = stripAnsi(text).replaceAll("\r\n", "\n").trim();
+  if (normalized === "") return new Set();
 
   const packages = new Set<string>();
-  for (const entry of value) {
-    if (!isRecord(entry)) throw new Error("pnpm 全局包列表解析失败：项目格式无效。");
-    collectDependencyNames(packages, entry.dependencies);
-    collectDependencyNames(packages, entry.devDependencies);
-    collectDependencyNames(packages, entry.optionalDependencies);
+  let seenHeader = false;
+  for (const line of normalized.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (!seenHeader) {
+      if (!isBunGlobalHeader(trimmed)) {
+        throw new Error("Bun 全局包列表解析失败：输出格式无效。");
+      }
+      seenHeader = true;
+      continue;
+    }
+    const entry = /^(?:├──|└──)\s+(.+)$/.exec(trimmed);
+    if (entry) {
+      const spec = entry[1]?.trim() ?? "";
+      if (!spec) throw new Error("Bun 全局包列表解析失败：包条目格式无效。");
+      const versionSeparator = spec.lastIndexOf("@");
+      if (versionSeparator <= 0 || versionSeparator === spec.length - 1) {
+        throw new Error("Bun 全局包列表解析失败：包条目格式无效。");
+      }
+      packages.add(spec.slice(0, versionSeparator));
+      continue;
+    }
+    // 头部只允许作为首个非空行出现；出现在条目后视为重复/错位头部。
+    throw new Error("Bun 全局包列表解析失败：输出格式无效。");
   }
   return packages;
+}
+
+function isBunGlobalHeader(line: string): boolean {
+  return /^(?:[A-Za-z]:[\\/]|\\\\|\/).* node_modules \(\d+\)$/.test(line);
 }
 
 export function parseScoopInstalled(text: string): Map<string, InstalledSystemPackage> {
@@ -176,9 +194,9 @@ export function buildInstalledToolIds(input: InstalledToolInput): Set<InstallToo
   const canonicalSuperpowersEnabled = input.pluginSpecs.includes(SUPERPOWERS_PLUGIN_SPEC);
 
   for (const tool of INSTALL_TOOLS) {
-    if (tool.id === "opencode" && input.pnpmPackages.has("opencode-ai")) installed.add(tool.id);
-    else if (tool.id === "openspec" && input.pnpmPackages.has("@fission-ai/openspec")) installed.add(tool.id);
-    else if (tool.id === "codegraph" && input.pnpmPackages.has("@colbymchenry/codegraph")) installed.add(tool.id);
+    if (tool.id === "opencode" && input.bunPackages.has("opencode-ai")) installed.add(tool.id);
+    else if (tool.id === "openspec" && input.bunPackages.has("@fission-ai/openspec")) installed.add(tool.id);
+    else if (tool.id === "codegraph" && input.bunPackages.has("@colbymchenry/codegraph")) installed.add(tool.id);
     else if (
       (tool.id === "opencode-desktop" || tool.id === "wezterm") &&
       hasSystemPackage(input.systemPackages, tool.id)
@@ -242,15 +260,6 @@ export function buildInstallHints(
     }
     const action = buildToolAction(tool.id, "install", supportedPlatform, undefined);
     if (action.kind !== "command") throw new Error(`无法生成 ${tool.id} 的安装提示。`);
-    if (tool.id === "opencode") {
-      hints.push({
-        toolId: tool.id,
-        command: "bun",
-        args: ["install", "--global", "opencode-ai@latest"],
-        kind: "command",
-      });
-      continue;
-    }
     hints.push({ kind: "command", toolId: action.toolId, command: action.command, args: action.args });
   }
   return hints;
@@ -268,9 +277,9 @@ function buildToolAction(
   scoopGlobalIds: ReadonlySet<InstallToolId> | undefined,
 ): InstallAction {
   if (toolId === "superpowers") return { kind: "configure-superpowers", toolId, operation };
-  if (toolId === "opencode") return pnpmAction(toolId, operation, "opencode-ai@latest");
-  if (toolId === "openspec") return pnpmAction(toolId, operation, "@fission-ai/openspec@latest");
-  if (toolId === "codegraph") return pnpmAction(toolId, operation, "@colbymchenry/codegraph@latest");
+  if (toolId === "opencode") return bunAction(toolId, operation, "opencode-ai@latest");
+  if (toolId === "openspec") return bunAction(toolId, operation, "@fission-ai/openspec@latest");
+  if (toolId === "codegraph") return bunAction(toolId, operation, "@colbymchenry/codegraph@latest");
   if (platform === "win32") {
     return {
       kind: "command",
@@ -293,28 +302,12 @@ function buildToolAction(
   };
 }
 
-function pnpmAction(
+function bunAction(
   toolId: "opencode" | "openspec" | "codegraph",
   operation: InstallOperation,
   packageSpec: string,
 ): InstallAction {
-  return { kind: "command", toolId, operation, command: "pnpm", args: ["add", "--global", packageSpec] };
-}
-
-function collectDependencyNames(packages: Set<string>, value: unknown): void {
-  if (value === undefined) return;
-  if (!isRecord(value)) throw new Error("pnpm 全局包列表解析失败：依赖格式无效。");
-  for (const [name, metadata] of Object.entries(value)) {
-    if (!isRecord(metadata) || typeof metadata.version !== "string" || metadata.version.length === 0) {
-      if (!isTrackedPnpmPackage(name)) continue;
-      throw new Error("pnpm 全局包列表解析失败：依赖条目格式无效。");
-    }
-    packages.add(name);
-  }
-}
-
-function isTrackedPnpmPackage(name: string): boolean {
-  return name === "opencode-ai" || name === "@fission-ai/openspec" || name === "@colbymchenry/codegraph";
+  return { kind: "command", toolId, operation, command: "bun", args: ["install", "--global", packageSpec] };
 }
 
 function hasSystemPackage(
@@ -370,10 +363,6 @@ function isInstallToolId(value: string): value is InstallToolId {
 
 function isPackageManagerId(value: string): boolean {
   return /^[a-z0-9][a-z0-9._-]*$/i.test(value);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function stripAnsi(value: string): string {

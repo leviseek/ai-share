@@ -52,7 +52,7 @@ bun run ai:check
 bun run ai:help
 ```
 
-检测部分只检查受管工具是否已安装，不会下载、升级或修改配置，也不会在 Linux 上运行。缺失工具会显示对应平台的 `pnpm`、Scoop 或 Homebrew 安装指令；缺少 Windows 桌面工具时还会提示 Scoop `extras` bucket 的前置指令。
+检测部分只检查受管工具是否已安装，不会下载、升级或修改配置，也不会在 Linux 上运行。缺失工具会显示对应平台的 `bun`、Scoop 或 Homebrew 安装指令；缺少 Windows 桌面工具时还会提示 Scoop `extras` bucket 的前置指令。
 
 `ai:gen` 在终端中会弹出可选组件多选菜单（Superpowers 插件、`config/agents.yaml` 中的 agents、`skills/` 目录中的 native skills），勾选决定本次生成内容。取消勾选即停用，状态持久化在目标 OpenCode 配置中；`--dry-run` 或非 TTY 时不弹菜单，直接沿用目标配置当前状态。停用的 skill 会在下次生成时作为受管目录删除。
 

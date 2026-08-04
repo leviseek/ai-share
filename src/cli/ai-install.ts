@@ -13,7 +13,7 @@ import {
   buildInstallHints,
   buildInstalledToolIds,
   parseBrewCaskInstalled,
-  parsePnpmGlobalPackages,
+  parseBunGlobalPackages,
   parseScoopInstalled,
   requireSupportedPlatform,
   type InstallHint,
@@ -200,18 +200,21 @@ async function detectInstalledTools(
   runner: InstallRunner,
   pluginSpecs: readonly string[],
 ): Promise<{ installedIds: Set<InstallToolId>; scoopExtrasAvailable: boolean }> {
-  const pnpmCommand = {
-    command: "pnpm",
-    args: ["list", "--global", "--depth", "0", "--json"],
+  const bunCommand = {
+    command: "bun",
+    args: ["pm", "ls", "--global"],
     cwd,
   } satisfies InstallCommand;
-  const pnpmResult = await runner(pnpmCommand);
-  const pnpmPackages = isMissingExecutable(pnpmResult) ? new Set<string>() : parsePnpmResult(pnpmResult, pnpmCommand);
+  const bunResult = await runner(bunCommand);
+  // Only `status: 1` with a missing global lockfile/package.json counts as an
+  // empty global directory; every other failure (including a missing `bun`
+  // executable) must propagate through parseBunResult.
+  const bunPackages = parseBunResult(bunResult, bunCommand);
   const opencodeResult = await runner({ command: "opencode", args: ["--version"], cwd });
   // A broken runtime/config can make `opencode --version` exit non-zero even
   // though the executable is installed. `spawnSync` reports a missing command
   // through `error`, so use that as the installation signal instead of status.
-  if (opencodeResult.status !== null && !opencodeResult.error) pnpmPackages.add("opencode-ai");
+  if (opencodeResult.status !== null && !opencodeResult.error) bunPackages.add("opencode-ai");
   const systemPackages = new Set<string>();
   let scoopExtrasAvailable = false;
   if (platform === "win32") {
@@ -239,7 +242,7 @@ async function detectInstalledTools(
       for (const name of parseBrewCaskInstalled(validBrew.stdout)) systemPackages.add(name);
     }
   }
-  return { installedIds: buildInstalledToolIds({ pnpmPackages, systemPackages, pluginSpecs }), scoopExtrasAvailable };
+  return { installedIds: buildInstalledToolIds({ bunPackages, systemPackages, pluginSpecs }), scoopExtrasAvailable };
 }
 
 function stripAnsi(value: string): string {
@@ -248,9 +251,13 @@ function stripAnsi(value: string): string {
   return value.replaceAll(/\u001b\[[0-?]*[ -/]*[@-~]/g, "");
 }
 
-function parsePnpmResult(result: InstallCommandResult, command: InstallCommand): Set<string> {
+function parseBunResult(result: InstallCommandResult, command: InstallCommand): Set<string> {
+  // `bun pm ls --global` exits 1 when the global node_modules directory has no
+  // packages (no lockfile/package.json exists yet). Treat that as an empty set
+  // instead of a detection failure; other non-zero results must fail loudly.
+  if (result.status === 1 && /Lockfile not found|No package\.json was found/.test(result.stderr)) return new Set();
   const valid = runCheckedResult(result, command);
-  return parsePnpmGlobalPackages(valid.stdout);
+  return parseBunGlobalPackages(valid.stdout);
 }
 
 function runCheckedResult(result: InstallCommandResult, command: InstallCommand): InstallCommandResult {
@@ -301,7 +308,7 @@ async function readUserPluginSpecs(configPath: string): Promise<readonly string[
 }
 
 export function resolveInstallExecutable(platform: NodeJS.Platform, command: string): string {
-  if (platform === "win32" && (command === "pnpm" || command === "scoop")) {
+  if (platform === "win32" && command === "scoop") {
     return `${command}.cmd`;
   }
   return command;
