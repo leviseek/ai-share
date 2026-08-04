@@ -14,7 +14,7 @@
 agents:
   ai-share-commit-operator:
     description: ai-share 的提交执行官
-    model: opencode/deepseek-v4-flash-free
+    model: deepseek/deepseek-v4-flash
     mode: subagent
     prompt: Create only the explicitly requested commit.
 ```
