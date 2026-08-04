@@ -1,7 +1,7 @@
 import { lstat, readFile } from "node:fs/promises";
 import type { EnvYaml, GlobalYaml, ProviderSource } from "../types.ts";
 import { openCodeEnvManagedBlockIsCurrent } from "../config-builders.ts";
-import { missingProviderApiKeyEnvName } from "./api-keys.ts";
+import { missingProviderApiKeyEnvNames } from "./api-keys.ts";
 import { detectDefaultConfigDrift, type DefaultConfigDrift } from "./default-config-drift.ts";
 import { checkOpenCodeEnvLocalProxies, type LocalProxyRuntimeCheck } from "./env-runtime-check.ts";
 import { pathExists } from "./fs.ts";
@@ -14,7 +14,7 @@ export type TimedDiagnostic<T> = {
 };
 
 export type ConfigDiagnostics = {
-  missingApiKey: TimedDiagnostic<string | undefined>;
+  missingApiKeys: TimedDiagnostic<string[]>;
   defaultConfigDrift: TimedDiagnostic<DefaultConfigDrift>;
   envManagedBlockCurrent: TimedDiagnostic<boolean>;
   launcherFilesCurrent: TimedDiagnostic<boolean>;
@@ -24,14 +24,14 @@ export type ConfigDiagnostics = {
 
 export async function collectConfigDiagnostics(input: {
   paths: GeneratorPaths;
-  provider: ProviderSource;
+  providers: readonly ProviderSource[];
   envConfig: EnvYaml;
   globalConfig: GlobalYaml;
   expectedOpenCodeConfig: string;
   launcherFiles: Readonly<Record<string, string>>;
 }): Promise<ConfigDiagnostics> {
   return {
-    missingApiKey: timeSync(() => missingProviderApiKeyEnvName(input.provider)),
+    missingApiKeys: timeSync(() => missingProviderApiKeyEnvNames(input.providers)),
     defaultConfigDrift: await timeAsync(() =>
       detectDefaultConfigDrift(input.paths.targetOpenCodeConfig, input.expectedOpenCodeConfig),
     ),

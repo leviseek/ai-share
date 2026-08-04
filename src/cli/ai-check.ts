@@ -28,6 +28,12 @@ const providerId = resolveProviderId({
 });
 const provider = config.providers.providers[providerId];
 if (!provider) throw new Error(`提供商未定义：${providerId}`);
+const providersToCheck = [
+  provider,
+  ...Object.values(config.providers.providers).filter(
+    (candidate) => candidate.always_include === true && candidate !== provider,
+  ),
+];
 const modelDecision = resolveProviderModelDecision(config, providerId);
 const canary = hasFlag(args, "--canary");
 const online = hasFlag(args, "--online") || canary;
@@ -44,7 +50,7 @@ const expectedConfig = formatOpenCodeConfigJsonc(
 );
 const diagnostics = await collectConfigDiagnostics({
   paths,
-  provider,
+  providers: providersToCheck,
   envConfig: config.env,
   globalConfig: config.global,
   expectedOpenCodeConfig: expectedConfig,
@@ -65,9 +71,9 @@ checks.push(
   },
   diagnosticCheck(
     "api_key_env",
-    diagnostics.missingApiKey.value === undefined,
+    diagnostics.missingApiKeys.value.length === 0,
     "API Key 环境变量已设置。",
-    `缺少 API Key 环境变量：${diagnostics.missingApiKey.value ?? "unknown"}`,
+    `缺少 API Key 环境变量：${diagnostics.missingApiKeys.value.join("、") || "unknown"}`,
   ),
   diagnosticCheck(
     "default_config",
