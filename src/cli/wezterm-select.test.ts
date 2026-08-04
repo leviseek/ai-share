@@ -16,6 +16,7 @@ const defaults: WezTermConfig = {
   font_size: 12,
   window_background_opacity: 0.94,
   maximize_on_startup: false,
+  exit_behavior: "hold",
   scrollback_lines: 100000,
 };
 
@@ -111,7 +112,7 @@ class TestOutput implements WezTermSelectionOutput {
 }
 
 function advanceToConfirmation() {
-  return updateWezTermSelection(createWezTermSelectionState(defaults), "\r\r\r\r\r\r").state;
+  return updateWezTermSelection(createWezTermSelectionState(defaults), "\r\r\r\r\r\r\r").state;
 }
 
 describe("WezTerm wizard state", () => {
@@ -132,8 +133,8 @@ describe("WezTerm wizard state", () => {
     expect(transition.completed).toBe(false);
   });
 
-  test("applies alternatives in the required six-screen order", () => {
-    const transition = updateWezTermSelection(createWezTermSelectionState(defaults), "2\r3\r1\r3\r2\r3\r");
+  test("applies alternatives in the required seven-screen order", () => {
+    const transition = updateWezTermSelection(createWezTermSelectionState(defaults), "2\r3\r1\r3\r2\r3\r3\r");
 
     expect(transition.state.config).toEqual({
       shell: "wezterm-default",
@@ -141,16 +142,17 @@ describe("WezTerm wizard state", () => {
       font_size: 11,
       window_background_opacity: 0.88,
       maximize_on_startup: true,
+      exit_behavior: "close-on-clean-exit",
       scrollback_lines: 1000000,
     });
-    expect(transition.state.stepIndex).toBe(6);
+    expect(transition.state.stepIndex).toBe(7);
   });
 
-  test("advances through all six screens and generates only after final confirmation", () => {
-    const screens = updateWezTermSelection(createWezTermSelectionState(defaults), "\r\r\r\r\r\r");
+  test("advances through all seven screens and generates only after final confirmation", () => {
+    const screens = updateWezTermSelection(createWezTermSelectionState(defaults), "\r\r\r\r\r\r\r");
     const confirmed = updateWezTermSelection(screens.state, "\r");
 
-    expect(screens.state.stepIndex).toBe(6);
+    expect(screens.state.stepIndex).toBe(7);
     expect(screens.completed).toBe(false);
     expect(confirmed.completed).toBe(true);
     expect(confirmed.cancelled).toBe(false);
@@ -192,7 +194,7 @@ describe("WezTerm wizard rendering", () => {
   test("renders the step, focused choice, repository default, current selection, and keyboard help", () => {
     const output = renderWezTermSelection(createWezTermSelectionState(defaults));
 
-    expect(output).toContain("步骤 1/6：Shell");
+    expect(output).toContain("步骤 1/7：Shell");
     expect(output).toContain("> 1. Platform native（仓库默认）");
     expect(output).toContain("当前选择：1");
     expect(output).toContain("↑/↓ 移动，数字选择，Enter 下一步，Ctrl+C 取消");
@@ -207,6 +209,7 @@ describe("WezTerm wizard rendering", () => {
     expect(output).toContain("Font size: 12");
     expect(output).toContain("Opacity: 0.94");
     expect(output).toContain("Startup window: Default size");
+    expect(output).toContain("Exit behavior: Hold");
     expect(output).toContain("Scrollback: 100,000");
     expect(output).toContain("> 1. Generate");
     expect(output).toContain("  2. Cancel");
@@ -234,7 +237,7 @@ describe("WezTerm wizard IO lifecycle", () => {
     const output = new TestOutput();
     const selection = selectWezTermConfigInteractive(defaults, { input, output });
 
-    input.emitData("\r\r\r\r\r\r\r");
+    input.emitData("\r\r\r\r\r\r\r\r");
 
     const selected = await selection;
     expect(selected).toEqual(defaults);
@@ -294,7 +297,7 @@ describe("WezTerm wizard IO lifecycle", () => {
     const input = new TtyPassThrough();
     const selection = selectWezTermConfigInteractive(defaults, { input, output: new TestOutput() });
 
-    input.write("\r\r\r\r\r\r\r");
+    input.write("\r\r\r\r\r\r\r\r");
 
     expect(await selection).toEqual(defaults);
     expect(input.readableFlowing).toBeNull();

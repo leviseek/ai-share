@@ -13,6 +13,7 @@ const defaults: WezTermConfig = {
   font_size: 12,
   window_background_opacity: 0.94,
   maximize_on_startup: false,
+  exit_behavior: "hold",
   scrollback_lines: 100000,
 };
 
@@ -54,6 +55,7 @@ describe("WezTerm configuration", () => {
     ["font_size", 14],
     ["window_background_opacity", 0.5],
     ["maximize_on_startup", "yes"],
+    ["exit_behavior", "unsupported-exit-behavior"],
     ["scrollback_lines", 5000],
   ])("rejects an unsupported %s value", async (field, value) => {
     const config = { ...defaults, [field]: value };
@@ -84,6 +86,7 @@ test("WezTerm JSON Schema carries the strict required fields and numeric enums",
       "font_size",
       "window_background_opacity",
       "maximize_on_startup",
+      "exit_behavior",
       "scrollback_lines",
     ],
     properties: {
@@ -95,6 +98,10 @@ test("WezTerm JSON Schema carries the strict required fields and numeric enums",
       font_size: { type: "number", enum: [11, 12, 13] },
       window_background_opacity: { type: "number", enum: [0.88, 0.94, 1] },
       maximize_on_startup: { type: "boolean" },
+      exit_behavior: {
+        type: "string",
+        enum: ["hold", "close", "close-on-clean-exit"],
+      },
       scrollback_lines: { type: "number", enum: [10000, 100000, 1000000] },
     },
   });

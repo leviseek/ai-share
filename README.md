@@ -41,7 +41,7 @@ bun run ai:config -- --non-interactive
 bun run ai:config -- --non-interactive --force
 ```
 
-命令只接受 `--dry-run`、`--non-interactive` 和 `--force`。`--dry-run` 永不写入文件；如果 stdin 和 stdout 均为 TTY，仍会先运行六步交互向导，然后输出所选配置摘要和计划；非 TTY 或使用 `--non-interactive` 时直接输出 YAML 配置摘要和计划。`--force` 只在目标是未受管普通文件时显式接管，不能绕过 YAML 校验，也不能接管目录、符号链接或其他阻塞路径。
+命令只接受 `--dry-run`、`--non-interactive` 和 `--force`。`--dry-run` 永不写入文件；如果 stdin 和 stdout 均为 TTY，仍会先运行七步交互向导，然后输出所选配置摘要和计划；非 TTY 或使用 `--non-interactive` 时直接输出 YAML 配置摘要和计划。`--force` 只在目标是未受管普通文件时显式接管，不能绕过 YAML 校验，也不能接管目录、符号链接或其他阻塞路径。
 
 输出目标固定为当前用户目录下的 `~/.config/wezterm/wezterm.lua`（Windows 使用 `HOME` 或 `USERPROFILE` 解析用户目录）。目标缺失时创建，首行精确匹配 ai-share managed header 的目标可更新，内容相同时保留；未受管文件默认报告 collision 且不写入。执行会在写入前复核目标及受控祖先，并依靠同一受控祖先下的 staging source 使已检测祖先被替换时失败而不跟随新链接。Node/Bun 的跨平台文件系统 API 不提供原子 no-follow rename，因此该边界防止误操作和已检测的并发变化，但不承诺抵御可同时重建随机事务路径的恶意同用户进程。WezTerm 会自动重载已加载的配置文件。
 
@@ -63,16 +63,16 @@ Superpowers 尚未配置时，请执行 `bun run ai:gen`，并在可选插件配
 
 ## 配置源
 
-| 文件                   | 用途                                                               |
-| ---------------------- | ------------------------------------------------------------------ |
-| `config/global.yaml`   | 默认 `model`、`provider` 与 OpenCode 最低版本                      |
-| `config/provider.yaml` | Provider endpoint、API Key 引用、关联模型、默认模型与原生模式      |
-| `config/models.yaml`   | 上游 `model_name` 与可选 `reasoning_effort`                        |
-| `config/mcp.yaml`      | stdio 或 HTTP MCP server                                           |
-| `config/env.yaml`      | `aioc` 注入的共享非密钥环境变量                                    |
-| `config/agents.yaml`   | OpenCode custom agent、模型、mode、prompt 与 reasoning 覆盖        |
-| `config/plugins.yaml`  | OpenCode plugins；基础配置为空数组，可由本机 overlay 整体替换      |
-| `config/wezterm.yaml`  | `ai:config` 的 shell、主题、字体、透明度、启动窗口与滚动回溯默认值 |
+| 文件                   | 用途                                                                         |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| `config/global.yaml`   | 默认 `model`、`provider` 与 OpenCode 最低版本                                |
+| `config/provider.yaml` | Provider endpoint、API Key 引用、关联模型、默认模型与原生模式                |
+| `config/models.yaml`   | 上游 `model_name` 与可选 `reasoning_effort`                                  |
+| `config/mcp.yaml`      | stdio 或 HTTP MCP server                                                     |
+| `config/env.yaml`      | `aioc` 注入的共享非密钥环境变量                                              |
+| `config/agents.yaml`   | OpenCode custom agent、模型、mode、prompt 与 reasoning 覆盖                  |
+| `config/plugins.yaml`  | OpenCode plugins；基础配置为空数组，可由本机 overlay 整体替换                |
+| `config/wezterm.yaml`  | `ai:config` 的 shell、主题、字体、透明度、退出行为、启动窗口与滚动回溯默认值 |
 
 固定对象拒绝未知字段。API Key 只能写成 `${ENV_NAME}` 引用；生成的 OpenCode 配置会转换为 `{env:ENV_NAME}`，不会读取或持久化真实值。
 

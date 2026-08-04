@@ -201,6 +201,7 @@ function formatWezTermConfigSummary(config: WezTermConfig): string {
     `font_size: ${config.font_size}`,
     `window_background_opacity: ${config.window_background_opacity}`,
     `maximize_on_startup: ${config.maximize_on_startup}`,
+    `exit_behavior: ${config.exit_behavior}`,
     `scrollback_lines: ${config.scrollback_lines}`,
   ].join("\n");
 }

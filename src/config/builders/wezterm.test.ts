@@ -8,6 +8,7 @@ const defaults: WezTermConfig = {
   font_size: 12,
   window_background_opacity: 0.94,
   maximize_on_startup: false,
+  exit_behavior: "hold",
   scrollback_lines: 100000,
 };
 
@@ -35,6 +36,16 @@ describe("WezTerm Lua generation", () => {
     const output = buildWezTermLua({ ...defaults, color_scheme: "wezterm-default" });
 
     expect(output).not.toContain("color_scheme");
+  });
+
+  test.each([
+    ["hold", "Hold"],
+    ["close", "Close"],
+    ["close-on-clean-exit", "CloseOnCleanExit"],
+  ] as const)("maps %s exit behavior to %s", (exitBehavior, weztermValue) => {
+    const output = buildWezTermLua({ ...defaults, exit_behavior: exitBehavior });
+
+    expect(output).toContain(`config.exit_behavior = "${weztermValue}"\n`);
   });
 
   test("selects PowerShell and zsh from wezterm.target_triple for the platform-native shell", () => {

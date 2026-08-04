@@ -18,6 +18,7 @@ export function buildWezTermLua(config: WezTermConfig): string {
     `config.font_size = ${config.font_size}`,
     `config.window_background_opacity = ${config.window_background_opacity}`,
     `config.scrollback_lines = ${config.scrollback_lines}`,
+    `config.exit_behavior = "${exitBehaviorName(config.exit_behavior)}"`,
   );
 
   if (config.shell === "platform-native") {
@@ -55,5 +56,16 @@ function themeName(colorScheme: WezTermConfig["color_scheme"]): string | undefin
       return "Tokyo Night";
     case "wezterm-default":
       return undefined;
+  }
+}
+
+function exitBehaviorName(exitBehavior: WezTermConfig["exit_behavior"]): string {
+  switch (exitBehavior) {
+    case "hold":
+      return "Hold";
+    case "close":
+      return "Close";
+    case "close-on-clean-exit":
+      return "CloseOnCleanExit";
   }
 }

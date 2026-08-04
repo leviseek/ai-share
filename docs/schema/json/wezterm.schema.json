@@ -8,6 +8,7 @@
     "font_size",
     "window_background_opacity",
     "maximize_on_startup",
+    "exit_behavior",
     "scrollback_lines"
   ],
   "properties": {
@@ -52,6 +53,16 @@
     "maximize_on_startup": {
       "type": "boolean",
       "description": "Whether WezTerm starts maximized."
+    },
+    "exit_behavior": {
+      "type": "string",
+      "description": "Behavior when the program in a WezTerm pane exits.",
+      "minLength": 1,
+      "enum": [
+        "hold",
+        "close",
+        "close-on-clean-exit"
+      ]
     },
     "scrollback_lines": {
       "type": "number",

@@ -18,6 +18,7 @@ const defaults: WezTermConfig = {
   font_size: 12,
   window_background_opacity: 0.94,
   maximize_on_startup: false,
+  exit_behavior: "hold",
   scrollback_lines: 100000,
 };
 
@@ -27,6 +28,7 @@ const selected: WezTermConfig = {
   font_size: 13,
   window_background_opacity: 0.88,
   maximize_on_startup: true,
+  exit_behavior: "close-on-clean-exit",
   scrollback_lines: 1000000,
 };
 
@@ -54,6 +56,7 @@ async function writeWezTermYaml(projectRoot: string, config: WezTermConfig): Pro
       `font_size: ${config.font_size}`,
       `window_background_opacity: ${config.window_background_opacity}`,
       `maximize_on_startup: ${config.maximize_on_startup}`,
+      `exit_behavior: ${config.exit_behavior}`,
       `scrollback_lines: ${config.scrollback_lines}`,
       "",
     ].join("\n"),
@@ -118,6 +121,7 @@ describe("ai:config orchestration", () => {
       expect(outputAtExecution).toContain("font_size: 12");
       expect(outputAtExecution).toContain("window_background_opacity: 0.94");
       expect(outputAtExecution).toContain("maximize_on_startup: false");
+      expect(outputAtExecution).toContain("exit_behavior: hold");
       expect(outputAtExecution).toContain("scrollback_lines: 100000");
       expect(outputAtExecution).toContain(`PLAN CREATE ${resolve(home, ".config", "wezterm", "wezterm.lua")}`);
     });
@@ -200,6 +204,8 @@ describe("ai:config orchestration", () => {
       }
       expect(result.plan.content).toContain("config.font_size = 13");
       expect(result.plan.content).toContain('config.color_scheme = "Tokyo Night"');
+      const output = formatWezTermConfigResult(result).stdout;
+      expect(output).toContain("exit_behavior: close-on-clean-exit");
     });
   });
 

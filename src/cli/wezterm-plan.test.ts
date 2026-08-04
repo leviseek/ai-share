@@ -15,6 +15,7 @@ const defaults: WezTermConfig = {
   font_size: 12,
   window_background_opacity: 0.94,
   maximize_on_startup: false,
+  exit_behavior: "hold",
   scrollback_lines: 100000,
 };
 

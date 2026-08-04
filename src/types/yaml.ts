@@ -64,5 +64,6 @@ export interface WezTermConfig {
   font_size: 11 | 12 | 13;
   window_background_opacity: 0.88 | 0.94 | 1;
   maximize_on_startup: boolean;
+  exit_behavior: "hold" | "close" | "close-on-clean-exit";
   scrollback_lines: 10000 | 100000 | 1000000;
 }

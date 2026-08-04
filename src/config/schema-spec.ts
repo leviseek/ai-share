@@ -233,6 +233,7 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
         "font_size",
         "window_background_opacity",
         "maximize_on_startup",
+        "exit_behavior",
         "scrollback_lines",
       ],
       properties: {
@@ -244,6 +245,10 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
         font_size: enumNumberSchema([11, 12, 13], "WezTerm font size."),
         window_background_opacity: enumNumberSchema([0.88, 0.94, 1], "WezTerm window background opacity."),
         maximize_on_startup: booleanSchema("Whether WezTerm starts maximized."),
+        exit_behavior: enumStringSchema(
+          ["hold", "close", "close-on-clean-exit"],
+          "Behavior when the program in a WezTerm pane exits.",
+        ),
         scrollback_lines: enumNumberSchema([10000, 100000, 1000000], "WezTerm scrollback line count."),
       },
     }),

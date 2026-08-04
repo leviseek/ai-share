@@ -69,6 +69,11 @@ type WezTermStep =
       options: readonly { value: WezTermConfig["maximize_on_startup"]; label: string }[];
     }
   | {
+      field: "exit_behavior";
+      title: "Exit behavior";
+      options: readonly { value: WezTermConfig["exit_behavior"]; label: string }[];
+    }
+  | {
       field: "scrollback_lines";
       title: "Scrollback";
       options: readonly { value: WezTermConfig["scrollback_lines"]; label: string }[];
@@ -117,6 +122,15 @@ const WEZTERM_STEPS: readonly WezTermStep[] = [
     options: [
       { value: false, label: "Default size" },
       { value: true, label: "Maximized" },
+    ],
+  },
+  {
+    field: "exit_behavior",
+    title: "Exit behavior",
+    options: [
+      { value: "hold", label: "Hold" },
+      { value: "close", label: "Close" },
+      { value: "close-on-clean-exit", label: "Close on clean exit" },
     ],
   },
   {
@@ -201,7 +215,7 @@ export function updateWezTermSelection(state: WezTermSelectionState, input: stri
 export function renderWezTermSelection(state: WezTermSelectionState): string {
   if (state.stepIndex === WEZTERM_STEPS.length) return renderConfirmation(state);
   const step = currentStep(state);
-  const lines = [`步骤 ${state.stepIndex + 1}/6：${step.title}`, ""];
+  const lines = [`步骤 ${state.stepIndex + 1}/${WEZTERM_STEPS.length}：${step.title}`, ""];
   const repositoryDefault = state.repositoryDefaults[step.field];
   for (const [index, option] of step.options.entries()) {
     const marker = option.value === repositoryDefault ? "（仓库默认）" : "";
@@ -389,6 +403,11 @@ function applySelection(config: WezTermConfig, step: WezTermStep, selectedIndex:
       if (!option) throw new Error("WezTerm 配置选择结果无效。");
       return { ...config, maximize_on_startup: option.value };
     }
+    case "exit_behavior": {
+      const option = step.options[selectedIndex];
+      if (!option) throw new Error("WezTerm 配置选择结果无效。");
+      return { ...config, exit_behavior: option.value };
+    }
     case "scrollback_lines": {
       const option = step.options[selectedIndex];
       if (!option) throw new Error("WezTerm 配置选择结果无效。");
@@ -407,7 +426,8 @@ function renderConfirmation(state: WezTermSelectionState): string {
     `Font size: ${labelForValue(WEZTERM_STEPS[2], config.font_size)}`,
     `Opacity: ${labelForValue(WEZTERM_STEPS[3], config.window_background_opacity)}`,
     `Startup window: ${labelForValue(WEZTERM_STEPS[4], config.maximize_on_startup)}`,
-    `Scrollback: ${labelForValue(WEZTERM_STEPS[5], config.scrollback_lines)}`,
+    `Exit behavior: ${labelForValue(WEZTERM_STEPS[5], config.exit_behavior)}`,
+    `Scrollback: ${labelForValue(WEZTERM_STEPS[6], config.scrollback_lines)}`,
     "",
     `${state.selectedIndex === 0 ? ">" : " "} 1. Generate`,
     `${state.selectedIndex === 1 ? ">" : " "} 2. Cancel`,
