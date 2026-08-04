@@ -4,6 +4,7 @@ export type InstallChoice = {
   required: boolean;
   selected: boolean;
   status: string;
+  kind?: "tool" | "agent" | "skill";
 };
 
 export type InstallSelectionState = {

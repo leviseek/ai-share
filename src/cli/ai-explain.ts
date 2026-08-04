@@ -60,6 +60,7 @@ export async function runExplain(
     const preview = await buildGenerationPreview({
       options: {
         force: options.force,
+        dryRun: false,
         ...(options.provider ? { provider: options.provider } : {}),
         ...(options.task ? { task: options.task } : {}),
       },
@@ -67,6 +68,7 @@ export async function runExplain(
       ...(input.projectRoot ? { projectRoot: input.projectRoot } : {}),
       ...(input.providerSelector ? { providerSelector: input.providerSelector } : {}),
       interactiveProviderSelection: !options.json,
+      interactiveOptionalSelection: false,
     });
     const report = buildExplainReport(preview);
     return { report, json: options.json, exitCode: report.status === "ok" ? 0 : 1 };

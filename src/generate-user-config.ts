@@ -26,7 +26,7 @@ export async function runGeneration(
     env?: Record<string, string | undefined>;
     projectRoot?: string;
     providerSelector?: ProviderSelector;
-    pluginSelector?: (choices: readonly InstallChoice[]) => Promise<ReadonlySet<string>>;
+    optionalSelector?: (choices: readonly InstallChoice[]) => Promise<ReadonlySet<string>>;
   } = {},
 ): Promise<GenerationRunResult> {
   let plan: GenerationPlan | undefined;
@@ -39,7 +39,7 @@ export async function runGeneration(
       env,
       ...(input.projectRoot ? { projectRoot: input.projectRoot } : {}),
       ...(input.providerSelector ? { providerSelector: input.providerSelector } : {}),
-      ...(input.pluginSelector ? { pluginSelector: input.pluginSelector } : {}),
+      ...(input.optionalSelector ? { optionalSelector: input.optionalSelector } : {}),
     });
     plan = preview.plan;
 

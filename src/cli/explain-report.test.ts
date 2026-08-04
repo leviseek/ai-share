@@ -11,7 +11,7 @@ describe("explain report model integration", () => {
     const fixture = createFixture();
     try {
       const preview = await buildGenerationPreview({
-        options: { force: false, provider: "deepseek" },
+        options: { force: false, dryRun: false, provider: "deepseek" },
         env: fixture.env,
         projectRoot: fixture.root,
         interactiveProviderSelection: false,
@@ -41,7 +41,7 @@ describe("explain report model integration", () => {
     const fixture = createFixture();
     try {
       const preview = await buildGenerationPreview({
-        options: { force: false },
+        options: { force: false, dryRun: false },
         env: fixture.env,
         projectRoot: fixture.root,
         interactiveProviderSelection: false,

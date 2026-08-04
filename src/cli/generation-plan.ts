@@ -52,6 +52,7 @@ export async function buildGenerationPlan(input: {
   launcherFiles: Readonly<Record<string, string>>;
   force: boolean;
   platform?: NodeJS.Platform;
+  skillNames?: ReadonlySet<string>;
 }): Promise<GenerationPlan> {
   const plan: GenerationPlan = { actions: [], preserved: [], collisions: [] };
 
@@ -63,7 +64,12 @@ export async function buildGenerationPlan(input: {
     input.force,
   );
   await planManagedEnv(plan, input.paths.targetOpenCodeEnv, input.envConfig);
-  await planSkills(plan, input.paths.targetOpenCodeSkillsDir, input.force);
+  await planSkills(
+    plan,
+    input.paths.targetOpenCodeSkillsDir,
+    input.force,
+    input.skillNames ?? new Set(NATIVE_SKILLS.map((skill) => skill.name)),
+  );
   await planLaunchers(plan, input.paths, input.launcherFiles, input.force, input.platform ?? process.platform);
   return plan;
 }
@@ -122,9 +128,15 @@ export function hasManagedLauncherHeader(path: string, content: string, paths: G
   return false;
 }
 
-async function planSkills(plan: GenerationPlan, skillsDir: string, force: boolean): Promise<void> {
-  const currentSkillNames = new Set(NATIVE_SKILLS.map((skill) => skill.name));
-  for (const skill of NATIVE_SKILLS) {
+async function planSkills(
+  plan: GenerationPlan,
+  skillsDir: string,
+  force: boolean,
+  enabledSkillNames: ReadonlySet<string>,
+): Promise<void> {
+  const enabledSkills = NATIVE_SKILLS.filter((skill) => enabledSkillNames.has(skill.name));
+  const currentSkillNames = new Set(enabledSkills.map((skill) => skill.name));
+  for (const skill of enabledSkills) {
     const skillDir = resolve(skillsDir, skill.name);
     const markerPath = resolve(skillDir, SKILL_MANAGED_MARKER);
     const skillPath = resolve(skillDir, "SKILL.md");

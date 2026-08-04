@@ -4,20 +4,20 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { SUPERPOWERS_PLUGIN_SPEC } from "./cli/install-plan.ts";
 import { runGeneration } from "./generate-user-config.ts";
-import { buildGenerationPreview } from "./generation-preview.ts";
+import { buildGenerationPreview, shouldPromptOptional } from "./generation-preview.ts";
 
 describe("generation preview model integration", () => {
   test("passes the dynamically selected DeepSeek provider model to generated config", async () => {
     const fixture = createFixture();
     let choices: readonly { id: string; name: string }[] = [];
-    let pluginSelectorCalls = 0;
+    let optionalSelectorCalls = 0;
     try {
       const preview = await buildGenerationPreview({
-        options: { force: false },
+        options: { force: false, dryRun: false },
         env: fixture.env,
         projectRoot: fixture.root,
-        pluginSelector: () => {
-          pluginSelectorCalls += 1;
+        optionalSelector: () => {
+          optionalSelectorCalls += 1;
           return Promise.resolve(new Set());
         },
         providerSelector: (availableChoices) => {
@@ -26,7 +26,7 @@ describe("generation preview model integration", () => {
         },
       });
 
-      expect(pluginSelectorCalls).toBe(1);
+      expect(optionalSelectorCalls).toBe(1);
       expect(choices.map((choice) => choice.id)).toEqual(["codexapis", "deepseek"]);
       expect(preview.providerDecision).toEqual({ id: "deepseek", source: "interactive" });
       expect(preview.modelDecision).toEqual({
@@ -44,7 +44,7 @@ describe("generation preview model integration", () => {
     const fixture = createFixture();
     try {
       const preview = await buildGenerationPreview({
-        options: { force: false },
+        options: { force: false, dryRun: false },
         env: fixture.env,
         projectRoot: fixture.root,
         interactiveProviderSelection: false,
@@ -64,20 +64,20 @@ describe("generation preview model integration", () => {
 
   test("does not invoke the provider selector when a provider is explicit", async () => {
     const fixture = createFixture();
-    let pluginSelectorCalls = 0;
+    let optionalSelectorCalls = 0;
     try {
       const preview = await buildGenerationPreview({
-        options: { force: false, provider: "deepseek" },
+        options: { force: false, dryRun: false, provider: "deepseek" },
         env: fixture.env,
         projectRoot: fixture.root,
-        pluginSelector: () => {
-          pluginSelectorCalls += 1;
+        optionalSelector: () => {
+          optionalSelectorCalls += 1;
           return Promise.resolve(new Set());
         },
         providerSelector: () => Promise.reject(new Error("selector should not be called")),
       });
 
-      expect(pluginSelectorCalls).toBe(1);
+      expect(optionalSelectorCalls).toBe(1);
       expect(preview.providerDecision).toEqual({ id: "deepseek", source: "cli" });
       expect(preview.modelDecision.modelId).toBe("deepseek-v4-flash");
     } finally {
@@ -92,7 +92,7 @@ describe("generation preview model integration", () => {
         argv: ["bun", "generate-user-config.ts", "--dry-run", "--provider", "deepseek"],
         env: fixture.env,
         projectRoot: fixture.root,
-        pluginSelector: () => Promise.resolve(new Set()),
+        optionalSelector: () => Promise.resolve(new Set()),
       });
 
       expect(result.ok).toBe(true);
@@ -102,9 +102,8 @@ describe("generation preview model integration", () => {
     }
   });
 
-  test("skips the plugin selector when target OpenCode config already enables Superpowers", async () => {
+  test("keeps Superpowers enabled when target config already enables it and no selector is injected", async () => {
     const fixture = createFixture();
-    let choices: readonly { id: string; name: string }[] = [];
     try {
       write(
         join(fixture.env.OPENCODE_CONFIG_DIR ?? "", "opencode.jsonc"),
@@ -114,24 +113,84 @@ describe("generation preview model integration", () => {
           "",
         ].join("\n"),
       );
-
       const preview = await buildGenerationPreview({
-        options: { force: false },
+        options: { force: false, dryRun: false },
         env: fixture.env,
         projectRoot: fixture.root,
-        pluginSelector: () => Promise.reject(new Error("plugin selector should not be called")),
-        providerSelector: (availableChoices) => {
-          choices = availableChoices;
+        interactiveProviderSelection: false,
+        providerSelector: () => {
           return Promise.resolve("deepseek");
         },
       });
-
-      expect(choices.map((choice) => choice.id)).toEqual(["codexapis", "deepseek"]);
-      expect(preview.providerDecision).toEqual({ id: "deepseek", source: "interactive" });
       expect(preview.configJsonc).toContain(SUPERPOWERS_PLUGIN_SPEC);
     } finally {
       fixture.cleanup();
     }
+  });
+
+  test("filters agents according to the injected optional selector", async () => {
+    const fixture = createFixture();
+    try {
+      write(
+        join(fixture.root, "config", "agents.yaml"),
+        "agents:\n  keep:\n    description: Keep\n    mode: subagent\n    prompt: Work\n  drop:\n    description: Drop\n    mode: subagent\n    prompt: Work\n",
+      );
+      const preview = await buildGenerationPreview({
+        options: { force: false, dryRun: false },
+        env: fixture.env,
+        projectRoot: fixture.root,
+        interactiveProviderSelection: false,
+        optionalSelector: () => Promise.resolve(new Set(["keep"])),
+      });
+      expect(preview.configJsonc).toContain('"keep"');
+      expect(preview.configJsonc).not.toContain('"drop"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test("removes Superpowers plugin when the injected selector omits it", async () => {
+    const fixture = createFixture();
+    try {
+      write(
+        join(fixture.env.OPENCODE_CONFIG_DIR ?? "", "opencode.jsonc"),
+        [
+          "// Generated by ai-share. Do not edit directly; change config/*.yaml instead.",
+          JSON.stringify({ plugin: [SUPERPOWERS_PLUGIN_SPEC] }, null, 2),
+          "",
+        ].join("\n"),
+      );
+      const preview = await buildGenerationPreview({
+        options: { force: false, dryRun: false },
+        env: fixture.env,
+        projectRoot: fixture.root,
+        interactiveProviderSelection: false,
+        optionalSelector: () => Promise.resolve(new Set()),
+      });
+      expect(preview.configJsonc).not.toContain(SUPERPOWERS_PLUGIN_SPEC);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+});
+
+describe("shouldPromptOptional", () => {
+  test("prompts when stdin and stdout are TTY and the run is not a dry run", () => {
+    expect(shouldPromptOptional({ stdinIsTTY: true, stdoutIsTTY: true, dryRun: false })).toBe(true);
+  });
+
+  test("does not prompt when optional selection is explicitly disabled even in a TTY", () => {
+    expect(
+      shouldPromptOptional({ stdinIsTTY: true, stdoutIsTTY: true, dryRun: false, interactiveOptionalSelection: false }),
+    ).toBe(false);
+  });
+
+  test("does not prompt when stdin is not a TTY", () => {
+    expect(shouldPromptOptional({ stdinIsTTY: false, stdoutIsTTY: true, dryRun: false })).toBe(false);
+  });
+
+  test("does not prompt during a dry run", () => {
+    expect(shouldPromptOptional({ stdinIsTTY: true, stdoutIsTTY: true, dryRun: true })).toBe(false);
   });
 });
 

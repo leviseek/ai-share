@@ -38,6 +38,7 @@ src/
 | Surgical clean                 | `cli/clean.ts`                    | 只清理明确受管目标                           |
 | Provider checks                | `cli/provider-check.ts`           | selected Provider `/models` 与最小 canary    |
 | Provider selection             | `cli/provider-select.ts`          | 数字索引、方向键与 Enter 的 TTY 菜单         |
+| Optional component selection   | `cli/optional-components.ts`      | 菜单 choices 构建、目标配置状态解析          |
 | WezTerm config loading         | `config/wezterm.ts`               | 读取并校验 `config/wezterm.yaml`             |
 | WezTerm Lua generation         | `config/builders/wezterm.ts`      | 生成受管 `wezterm.lua`                       |
 | WezTerm command                | `cli/ai-config.ts`                | `ai:config` 预览、选择与执行编排             |

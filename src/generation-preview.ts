@@ -1,7 +1,6 @@
 import { buildOpenCodeConfig, formatOpenCodeConfigJsonc } from "./config-builders.ts";
 import { loadValidatedConfigWithTrace, type LoadedValidatedConfig } from "./config/load.ts";
 import { buildInstructionsSelection, type InstructionsSelection } from "./config/builders/instructions.ts";
-import { lstat, readFile } from "node:fs/promises";
 import { buildGenerationPlan, type GenerationPlan } from "./cli/generation-plan.ts";
 import {
   resolveProviderDecision,
@@ -14,10 +13,18 @@ import { buildProviderChoices, selectProviderInteractive, type ProviderSelector 
 import { buildAiocLauncherFiles } from "./cli/aioc-install.ts";
 import { SUPERPOWERS_PLUGIN_SPEC } from "./cli/install-plan.ts";
 import { selectInstallInteractive, type InstallChoice } from "./cli/install-select.ts";
+import { nativeSkillNames } from "./cli/native-skills.ts";
+import {
+  buildOptionalComponentChoices,
+  parseOptionalSelection,
+  readTargetOptionalState,
+  type OptionalComponentState,
+} from "./cli/optional-components.ts";
 import { resolveProviderModelDecision, type ProviderModelDecision } from "./config/provider-model.ts";
 
 export type GenerationPreviewOptions = {
   force: boolean;
+  dryRun: boolean;
   provider?: string;
   task?: string;
 };
@@ -44,37 +51,57 @@ export class InvalidProviderError extends Error {
   }
 }
 
+export function shouldPromptOptional(input: {
+  stdinIsTTY: boolean;
+  stdoutIsTTY: boolean;
+  dryRun: boolean;
+  interactiveOptionalSelection?: boolean;
+}): boolean {
+  return input.stdinIsTTY && input.stdoutIsTTY && !input.dryRun && input.interactiveOptionalSelection !== false;
+}
+
 export async function buildGenerationPreview(input: {
   options: GenerationPreviewOptions;
   env: Record<string, string | undefined>;
   projectRoot?: string;
   providerSelector?: ProviderSelector;
   interactiveProviderSelection?: boolean;
-  pluginSelector?: (choices: readonly InstallChoice[]) => Promise<ReadonlySet<string>>;
+  interactiveOptionalSelection?: boolean;
+  optionalSelector?: (choices: readonly InstallChoice[]) => Promise<ReadonlySet<string>>;
 }): Promise<GenerationPreview> {
   const paths = buildGeneratorPaths(input.projectRoot, input.env);
   const loadedConfig = await loadValidatedConfigWithTrace(paths.configDir);
   const config = structuredClone(loadedConfig.config);
-  const targetSuperpowersEnabled = await targetOpenCodeConfigHasSuperpowers(paths.targetOpenCodeConfig);
-  const pluginSpecs = [...new Set([...config.plugins.plugins, SUPERPOWERS_PLUGIN_SPEC])];
-  const pluginChoices = pluginSpecs.map((spec) => {
-    const selected =
-      config.plugins.plugins.includes(spec) || (spec === SUPERPOWERS_PLUGIN_SPEC && targetSuperpowersEnabled);
-    return {
-      id: spec,
-      label: spec === SUPERPOWERS_PLUGIN_SPEC ? "Superpowers" : spec,
-      required: false,
-      selected,
-      status: selected ? "已启用" : "未启用",
-    };
+  const agentIds = Object.keys(config.agents.agents);
+  const skillNames = nativeSkillNames();
+  const targetState = await readTargetOptionalState(paths, { agentIds, skillNames });
+  const choices = buildOptionalComponentChoices({ agentIds, skillNames, state: targetState });
+
+  const interactive = shouldPromptOptional({
+    stdinIsTTY: process.stdin.isTTY,
+    stdoutIsTTY: process.stdout.isTTY,
+    dryRun: input.options.dryRun,
+    ...(input.interactiveOptionalSelection === undefined
+      ? {}
+      : { interactiveOptionalSelection: input.interactiveOptionalSelection }),
   });
-  if (targetSuperpowersEnabled) {
-    config.plugins.plugins = pluginChoices.filter((choice) => choice.selected).map((choice) => choice.id);
-  } else if (input.pluginSelector) {
-    config.plugins.plugins = [...(await input.pluginSelector(pluginChoices))];
-  } else if (process.stdin.isTTY && process.stdout.isTTY && input.interactiveProviderSelection !== false) {
-    config.plugins.plugins = [...(await selectInstallInteractive(pluginChoices))];
+
+  let selected: ReadonlySet<string>;
+  if (input.optionalSelector) {
+    selected = await input.optionalSelector(choices);
+  } else if (interactive) {
+    selected = await selectInstallInteractive(choices);
+  } else {
+    selected = new Set(choices.filter((choice) => choice.selected).map((choice) => choice.id));
   }
+
+  const selection: OptionalComponentState = parseOptionalSelection(selected, new Set(skillNames));
+  config.agents.agents = Object.fromEntries(
+    Object.entries(config.agents.agents).filter(([agentId]) => selection.agents.has(agentId)),
+  );
+  config.plugins.plugins = selection.superpowers
+    ? [...new Set([...config.plugins.plugins, SUPERPOWERS_PLUGIN_SPEC])]
+    : config.plugins.plugins.filter((spec) => spec !== SUPERPOWERS_PLUGIN_SPEC);
   const providerDecision = await selectProviderDecision({
     providers: config.providers.providers,
     ...(input.options.provider ? { cliProvider: input.options.provider } : {}),
@@ -108,6 +135,7 @@ export async function buildGenerationPreview(input: {
     envConfig: config.env,
     launcherFiles: buildAiocLauncherFiles(paths),
     force: input.options.force,
+    skillNames: selection.skills,
   });
   return {
     options: { ...input.options },
@@ -120,30 +148,6 @@ export async function buildGenerationPreview(input: {
     configJsonc,
     plan,
   };
-}
-
-async function targetOpenCodeConfigHasSuperpowers(path: string): Promise<boolean> {
-  try {
-    const stat = await lstat(path);
-    if (!stat.isFile()) return false;
-    const content = await readFile(path, "utf8");
-    const parsed: unknown = JSON.parse(stripJsoncLineComments(content));
-    return isRecord(parsed) && Array.isArray(parsed.plugin) && parsed.plugin.includes(SUPERPOWERS_PLUGIN_SPEC);
-  } catch {
-    return false;
-  }
-}
-
-function stripJsoncLineComments(content: string): string {
-  return content
-    .replaceAll("\r\n", "\n")
-    .split("\n")
-    .filter((line) => !line.trimStart().startsWith("//"))
-    .join("\n");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function selectProviderDecision(input: {

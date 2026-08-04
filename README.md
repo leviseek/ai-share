@@ -54,7 +54,7 @@ bun run ai:help
 
 检测部分只检查受管工具是否已安装，不会下载、升级或修改配置，也不会在 Linux 上运行。缺失工具会显示对应平台的 `pnpm`、Scoop 或 Homebrew 安装指令；缺少 Windows 桌面工具时还会提示 Scoop `extras` bucket 的前置指令。
 
-Superpowers 尚未配置时，请执行 `bun run ai:gen`，并在可选插件配置步骤中选择 Superpowers。选择结果写入用户级 OpenCode 配置，不会修改当前仓库配置。
+`ai:gen` 在终端中会弹出可选组件多选菜单（Superpowers 插件、`config/agents.yaml` 中的 agents、`skills/` 目录中的 native skills），勾选决定本次生成内容。取消勾选即停用，状态持久化在目标 OpenCode 配置中；`--dry-run` 或非 TTY 时不弹菜单，直接沿用目标配置当前状态。停用的 skill 会在下次生成时作为受管目录删除。
 
 当 OpenCode CLI 和 OpenSpec 均已安装、但当前项目尚未初始化 OpenSpec 时，检测结果会提示执行 `openspec init`。如果 OpenSpec 尚未安装但 OpenCode CLI 已安装，检测结果会同时给出 OpenSpec 安装指令和安装完成后的 `openspec init` 配置指令。
 如果 Superpowers 和 OpenSpec 均已安装，但 OpenSpec 配置文件中尚未包含 `superpowers`，检测结果会提示在 OpenSpec 配置中启用 Superpowers 集成。
@@ -122,7 +122,7 @@ JSON 接口当前为 `schema_version: 4`。报告只包含来源、env 名称、
 
 ## Custom agent
 
-`config/agents.yaml` 中的 agents 直接生成到 `opencode.jsonc` 的 `agent` 对象。默认 `ai-share-commit-operator` 是 `subagent`，使用 opencode 内置免费模型 `opencode/deepseek-v4-flash-free`；只有用户明确要求提交、推送或提交并推送时才应委派给它。agent 的 `model` 可引用 `models.yaml` 的 model id（输出为 `provider/model`），也可直接写完整的 `provider/model` 引用（如内置模型）。
+`config/agents.yaml` 中的 agents 直接生成到 `opencode.jsonc` 的 `agent` 对象。默认 `ai-share-commit-operator` 是 `subagent`，使用 opencode 内置免费模型 `opencode/deepseek-v4-flash-free`；只有用户明确要求提交、推送或提交并推送时才应委派给它。agent 的 `model` 可引用 `models.yaml` 的 model id（输出为 `provider/model`），也可直接写完整的 `provider/model` 引用（如内置模型）。可通过 `ai:gen` 的交互菜单勾选是否生成某个 agent；取消勾选后该 agent 不再写入 `opencode.jsonc`。
 
 ## 生成输出与所有权
 
