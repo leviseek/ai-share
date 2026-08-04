@@ -1,3 +1,5 @@
+import { createColor, type ColorPalette } from "./color.ts";
+
 export type InstallChoice = {
   id: string;
   label: string;
@@ -108,18 +110,18 @@ export function renderInstallMenu(
   choices: readonly InstallChoice[],
   state: InstallSelectionState,
   mode: "install" | "upgrade" = "install",
+  palette: ColorPalette = createColor(false),
 ): string {
   assertChoices(choices);
-  const lines = [
-    mode === "upgrade" ? "请选择升级内容" : "请选择安装内容",
-    "",
-    mode === "upgrade" ? "可选升级" : "必须安装",
-  ];
-  appendChoiceLines(lines, choices, state, true);
+  const title = mode === "upgrade" ? "请选择升级内容" : "请选择安装内容";
+  const lines = [palette.bold(palette.cyan(title)), ""];
+  const requiredSection = mode === "upgrade" ? "可选升级" : "必须安装";
+  lines.push(palette.magenta(requiredSection));
+  appendChoiceLines(lines, choices, state, true, palette);
   if (mode === "upgrade") lines.push("");
-  else lines.push("", "可选安装");
-  appendChoiceLines(lines, choices, state, false);
-  lines.push("", "↑/↓ 移动，Space 选择或取消，Enter 确认，Ctrl+C 取消");
+  else lines.push("", palette.magenta("可选安装"));
+  appendChoiceLines(lines, choices, state, false, palette);
+  lines.push("", palette.gray("↑/↓ 移动，Space 选择或取消，Enter 确认，Ctrl+C 取消"));
   return `${lines.join("\n")}\n`;
 }
 
@@ -138,6 +140,7 @@ export async function selectInstallInteractive(
   const output = io.output;
   const restoreRawMode = input.isRaw !== true;
   const wasFlowing = input.readableFlowing === true;
+  const palette = createColor(output.isTTY === true && process.env.NO_COLOR === undefined);
   let state = createInstallSelectionState(choices);
   const menuLineCount = renderInstallMenu(choices, state, mode).split("\n").length - 1;
   const clearSequence = `\u001b[${menuLineCount}A\r\u001b[J`;
@@ -213,7 +216,7 @@ export async function selectInstallInteractive(
       }
     };
     const rerender = (): void => {
-      writeMenu(`${clearSequence}${renderInstallMenu(choices, state, mode)}`);
+      writeMenu(`${clearSequence}${renderInstallMenu(choices, state, mode, palette)}`);
     };
     const onData = (data: Buffer): void => {
       if (settled) return;
@@ -250,7 +253,7 @@ export async function selectInstallInteractive(
       input.on("data", onData);
       input.on("end", onEnd);
       input.on("error", onError);
-      writeMenu(renderInstallMenu(choices, state, mode));
+      writeMenu(renderInstallMenu(choices, state, mode, palette));
       input.resume();
     } catch (error) {
       const failure = toError(error);
@@ -266,13 +269,17 @@ function appendChoiceLines(
   choices: readonly InstallChoice[],
   state: InstallSelectionState,
   required: boolean,
+  palette: ColorPalette,
 ): void {
   for (const [index, choice] of choices.entries()) {
     if (choice.required !== required) continue;
     const checked = choice.required || state.selectedIds.has(choice.id);
-    lines.push(
-      `${index === state.focusedIndex ? ">" : " "} [${checked ? "x" : " "}] ${choice.label} (${choice.status})`,
-    );
+    const focused = index === state.focusedIndex;
+    const marker = focused ? ">" : " ";
+    const box = checked ? palette.green("[x]") : palette.gray("[ ]");
+    const status = checked ? palette.green(choice.status) : palette.gray(choice.status);
+    const text = `${marker} ${box} ${choice.label} (${status})`;
+    lines.push(focused ? palette.bold(palette.green(text)) : text);
   }
 }
 

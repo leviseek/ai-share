@@ -1,3 +1,4 @@
+import { createColor, type ColorPalette } from "./color.ts";
 import type { WezTermConfig } from "../types.ts";
 
 export type WezTermSelector = (initial: WezTermConfig) => Promise<WezTermConfig>;
@@ -212,16 +213,25 @@ export function updateWezTermSelection(state: WezTermSelectionState, input: stri
   return { state: nextState, completed, cancelled };
 }
 
-export function renderWezTermSelection(state: WezTermSelectionState): string {
-  if (state.stepIndex === WEZTERM_STEPS.length) return renderConfirmation(state);
+export function renderWezTermSelection(
+  state: WezTermSelectionState,
+  palette: ColorPalette = createColor(false),
+): string {
+  if (state.stepIndex === WEZTERM_STEPS.length) return renderConfirmation(state, palette);
   const step = currentStep(state);
-  const lines = [`步骤 ${state.stepIndex + 1}/${WEZTERM_STEPS.length}：${step.title}`, ""];
+  const lines = [palette.bold(palette.cyan(`步骤 ${state.stepIndex + 1}/${WEZTERM_STEPS.length}：${step.title}`)), ""];
   const repositoryDefault = state.repositoryDefaults[step.field];
   for (const [index, option] of step.options.entries()) {
-    const marker = option.value === repositoryDefault ? "（仓库默认）" : "";
-    lines.push(`${index === state.selectedIndex ? ">" : " "} ${index + 1}. ${option.label}${marker}`);
+    const marker = option.value === repositoryDefault ? palette.yellow("（仓库默认）") : "";
+    const focused = index === state.selectedIndex;
+    const text = `${focused ? ">" : " "} ${index + 1}. ${option.label}${marker}`;
+    lines.push(focused ? palette.bold(palette.green(text)) : text);
   }
-  lines.push("", `当前选择：${state.selectedIndex + 1}`, "↑/↓ 移动，数字选择，Enter 下一步，Ctrl+C 取消");
+  lines.push(
+    "",
+    palette.white(`当前选择：${state.selectedIndex + 1}`),
+    palette.gray("↑/↓ 移动，数字选择，Enter 下一步，Ctrl+C 取消"),
+  );
   return `${lines.join("\n")}\n`;
 }
 
@@ -236,6 +246,7 @@ export async function selectWezTermConfigInteractive(
 
   const input = io.input;
   const output = io.output;
+  const palette = createColor(output.isTTY === true && process.env.NO_COLOR === undefined);
   const shouldRestoreRawMode = input.isRaw !== true;
   const initialFlowing = input.readableFlowing;
   let state = createWezTermSelectionState(initial);
@@ -312,7 +323,7 @@ export async function selectWezTermConfigInteractive(
       }
     };
     const rerender = (): void => {
-      const menu = renderWezTermSelection(state);
+      const menu = renderWezTermSelection(state, palette);
       const clearSequence = visibleLineCount > 0 ? `\u001b[${visibleLineCount}A\r\u001b[J` : "";
       writeMenu(`${clearSequence}${menu}`, lineCount(menu));
     };
@@ -349,7 +360,7 @@ export async function selectWezTermConfigInteractive(
       input.on("data", onData);
       input.on("end", onEnd);
       input.on("error", onError);
-      const menu = renderWezTermSelection(state);
+      const menu = renderWezTermSelection(state, palette);
       writeMenu(menu, lineCount(menu));
       input.resume();
     } catch (error) {
@@ -416,10 +427,12 @@ function applySelection(config: WezTermConfig, step: WezTermStep, selectedIndex:
   }
 }
 
-function renderConfirmation(state: WezTermSelectionState): string {
+function renderConfirmation(state: WezTermSelectionState, palette: ColorPalette): string {
   const config = state.config;
+  const generate = state.selectedIndex === 0 ? palette.bold(palette.green("> 1. Generate")) : "  1. Generate";
+  const cancel = state.selectedIndex === 1 ? palette.bold(palette.green("> 2. Cancel")) : "  2. Cancel";
   const lines = [
-    "配置摘要",
+    palette.bold(palette.cyan("配置摘要")),
     "",
     `Shell: ${labelForValue(WEZTERM_STEPS[0], config.shell)}`,
     `Color theme: ${labelForValue(WEZTERM_STEPS[1], config.color_scheme)}`,
@@ -429,10 +442,10 @@ function renderConfirmation(state: WezTermSelectionState): string {
     `Exit behavior: ${labelForValue(WEZTERM_STEPS[5], config.exit_behavior)}`,
     `Scrollback: ${labelForValue(WEZTERM_STEPS[6], config.scrollback_lines)}`,
     "",
-    `${state.selectedIndex === 0 ? ">" : " "} 1. Generate`,
-    `${state.selectedIndex === 1 ? ">" : " "} 2. Cancel`,
+    generate,
+    cancel,
     "",
-    "↑/↓ 移动，数字选择，Enter 确认，Ctrl+C 取消",
+    palette.gray("↑/↓ 移动，数字选择，Enter 确认，Ctrl+C 取消"),
   ];
   return `${lines.join("\n")}\n`;
 }

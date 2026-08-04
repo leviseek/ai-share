@@ -1,4 +1,5 @@
 import type { ProviderSource } from "../types.ts";
+import { createColor, type ColorPalette } from "./color.ts";
 
 export type ProviderChoice = {
   id: string;
@@ -122,18 +123,21 @@ export function renderProviderMenu(
   choices: readonly ProviderChoice[],
   state: ProviderSelectionState,
   invalid = false,
+  palette: ColorPalette = createColor(false),
 ): string {
-  const lines = ["请选择 Provider（数字索引或 ↑/↓ 切换，Enter 确认，Ctrl+C 取消）"];
+  const lines = [palette.bold(palette.cyan("请选择 Provider（数字索引或 ↑/↓ 切换，Enter 确认，Ctrl+C 取消）"))];
   for (const [index, choice] of choices.entries()) {
-    lines.push(`${index === state.selectedIndex ? ">" : " "} ${index + 1}. ${choice.name} (${choice.id})`);
+    const focused = index === state.selectedIndex;
+    const marker = focused ? ">" : " ";
+    const text = `${marker} ${index + 1}. ${choice.name} ${palette.gray(`(${choice.id})`)}`;
+    lines.push(focused ? palette.bold(palette.green(text)) : text);
   }
-  lines.push(
-    invalid
-      ? `索引无效：${state.numericInput}`
-      : state.numericInput
-        ? `数字索引：${state.numericInput}`
-        : `当前选择：${state.selectedIndex + 1}`,
-  );
+  const status = invalid
+    ? palette.red(`索引无效：${state.numericInput}`)
+    : state.numericInput
+      ? palette.white(`数字索引：${state.numericInput}`)
+      : palette.white(`当前选择：${state.selectedIndex + 1}`);
+  lines.push(status);
   return `${lines.join("\n")}\n`;
 }
 
@@ -150,6 +154,7 @@ export async function selectProviderInteractive(
 
   const input = io.input;
   const output = io.output;
+  const palette = createColor(output.isTTY === true && process.env.NO_COLOR === undefined);
   const restoreRawMode = input.isRaw !== true;
   const wasFlowing = input.readableFlowing === true;
   let state = createProviderSelectionState(choices, initialProviderId);
@@ -219,7 +224,7 @@ export async function selectProviderInteractive(
         return;
       }
       try {
-        output.write(`已选择 Provider：${selected.name} (${selected.id})\n`);
+        output.write(palette.green(`已选择 Provider：${selected.name} (${selected.id})\n`));
       } catch (error) {
         reject(toError(error));
         return;
@@ -227,7 +232,7 @@ export async function selectProviderInteractive(
       resolve(selected.id);
     };
     const rerender = (invalid = false): void => {
-      output.write(`${clearSequence}${renderProviderMenu(choices, state, invalid)}`);
+      output.write(`${clearSequence}${renderProviderMenu(choices, state, invalid, palette)}`);
       menuVisible = true;
     };
     const onData = (data: Buffer): void => {
@@ -265,7 +270,7 @@ export async function selectProviderInteractive(
       input.on("end", onEnd);
       input.on("error", onError);
       menuVisible = true;
-      output.write(renderProviderMenu(choices, state));
+      output.write(renderProviderMenu(choices, state, false, palette));
       input.resume();
     } catch (error) {
       finishWithError(toError(error));

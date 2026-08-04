@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { PassThrough } from "node:stream";
 import type { WezTermConfig } from "../types.ts";
+import { createColor } from "./color.ts";
 import {
   createWezTermSelectionState,
   renderWezTermSelection,
@@ -198,6 +199,7 @@ describe("WezTerm wizard rendering", () => {
     expect(output).toContain("> 1. Platform native（仓库默认）");
     expect(output).toContain("当前选择：1");
     expect(output).toContain("↑/↓ 移动，数字选择，Enter 下一步，Ctrl+C 取消");
+    expect(output).not.toContain("\u001b");
   });
 
   test("renders a complete final summary and Generate/Cancel help", () => {
@@ -214,6 +216,24 @@ describe("WezTerm wizard rendering", () => {
     expect(output).toContain("> 1. Generate");
     expect(output).toContain("  2. Cancel");
     expect(output).toContain("↑/↓ 移动，数字选择，Enter 确认，Ctrl+C 取消");
+  });
+});
+
+describe("WezTerm wizard rendering colors", () => {
+  test("wraps step title, focused choice, default marker, and help in ANSI when colored", () => {
+    const palette = createColor(true);
+    const output = renderWezTermSelection(createWezTermSelectionState(defaults), palette);
+    expect(output).toContain("\u001b[36m"); // cyan step title
+    expect(output).toContain("\u001b[32m"); // green focused
+    expect(output).toContain("\u001b[33m"); // yellow repo-default marker
+    expect(output).toContain("\u001b[90m"); // gray help
+  });
+
+  test("wraps confirmation summary and Generate choice in ANSI when colored", () => {
+    const palette = createColor(true);
+    const output = renderWezTermSelection(advanceToConfirmation(), palette);
+    expect(output).toContain("\u001b[36m"); // cyan summary
+    expect(output).toContain("\u001b[32m"); // green Generate
   });
 });
 
