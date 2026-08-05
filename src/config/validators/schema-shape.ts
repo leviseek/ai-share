@@ -147,6 +147,10 @@ function validateObjectNode(
     validatePropertyNames(errors, file, node.propertyNames.pattern, value, path);
   }
 
+  if (node.minProperties !== undefined && Object.keys(value).length < node.minProperties) {
+    pushError(errors, file, path, `${displayPath(path)} 至少需要一个平台配置`);
+  }
+
   validateAdditionalProperties(errors, file, node, value, path);
 }
 

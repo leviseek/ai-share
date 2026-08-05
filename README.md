@@ -33,7 +33,7 @@ bun run ai:bootstrap
 bun run ai:bootstrap -- --skip-install
 ```
 
-`ai:config` 独立生成 WezTerm 配置，不属于 `ai:bootstrap`。默认在 stdin 和 stdout 均为 TTY 时逐项选择配置；非 TTY 或显式使用 `--non-interactive` 时直接使用 `config/wezterm.yaml`。交互选择只对本次运行生效，不会修改 YAML。预览和写入示例：
+`ai:config` 独立生成 WezTerm 配置，不属于 `ai:bootstrap`；`ai:config`/WezTerm 用户配置流程仅支持 Windows 和 macOS。这与 `ai:check` 对全局工具检测支持 Windows、macOS 和 Linux 是不同边界。默认在 stdin 和 stdout 均为 TTY 时逐项选择配置；非 TTY 或显式使用 `--non-interactive` 时直接使用 `config/wezterm.yaml`。交互选择只对本次运行生效，不会修改 YAML。预览和写入示例：
 
 ```sh
 bun run ai:config -- --dry-run
@@ -45,14 +45,14 @@ bun run ai:config -- --non-interactive --force
 
 输出目标固定为当前用户目录下的 `~/.config/wezterm/wezterm.lua`（Windows 使用 `HOME` 或 `USERPROFILE` 解析用户目录）。目标缺失时创建，首行精确匹配 ai-share managed header 的目标可更新，内容相同时保留；未受管文件默认报告 collision 且不写入。执行会在写入前复核目标及受控祖先，并依靠同一受控祖先下的 staging source 使已检测祖先被替换时失败而不跟随新链接。Node/Bun 的跨平台文件系统 API 不提供原子 no-follow rename，因此该边界防止误操作和已检测的并发变化，但不承诺抵御可同时重建随机事务路径的恶意同用户进程。WezTerm 会自动重载已加载的配置文件。
 
-在 Windows 或 macOS 上，可检测 AI 开发环境中的受管工具：
+在 Windows、macOS 或 Linux 上，可检测 AI 开发环境中的受管工具：
 
 ```sh
 bun run ai:check
 bun run ai:help
 ```
 
-检测部分只检查受管工具是否已安装，不会下载、升级或修改配置，也不会在 Linux 上运行。缺失工具会显示对应平台的 `bun`、Scoop 或 Homebrew 安装指令；缺少 Windows 桌面工具时还会提示 Scoop `extras` bucket 的前置指令。
+检测部分只检查受管工具是否已安装，不会下载、升级或修改配置。缺失工具会显示对应平台的 `bun`、Scoop 或 Homebrew 安装指令；缺少 Windows 桌面工具时还会提示 Scoop `extras` bucket 的前置指令。
 
 `ai:gen` 在终端中会弹出可选组件多选菜单（Superpowers 插件、`config/agents.yaml` 中的 agents、`skills/` 目录中的 native skills），勾选决定本次生成内容。取消勾选即停用，状态持久化在目标 OpenCode 配置中；`--dry-run` 或非 TTY 时不弹菜单，直接沿用目标配置当前状态。停用的 skill 会在下次生成时作为受管目录删除。
 
@@ -72,6 +72,7 @@ bun run ai:help
 | `config/env.yaml`      | `aioc` 注入的共享非密钥环境变量                                              |
 | `config/agents.yaml`   | OpenCode custom agent、模型、mode、prompt 与 reasoning 覆盖                  |
 | `config/plugins.yaml`  | OpenCode plugins；基础配置为空数组，可由本机 overlay 整体替换                |
+| `config/tools.yaml`    | 全局 AI coding 工具的唯一声明源、平台安装 manager 与版本                     |
 | `config/wezterm.yaml`  | `ai:config` 的 shell、主题、字体、透明度、退出行为、启动窗口与滚动回溯默认值 |
 
 固定对象拒绝未知字段。API Key 只能写成 `${ENV_NAME}` 引用；生成的 OpenCode 配置会转换为 `{env:ENV_NAME}`，不会读取或持久化真实值。
@@ -195,3 +196,23 @@ bun run check
 ```
 
 `ai:check` 默认检查 OpenCode 版本、配置漂移、managed env、`aioc`、本地代理、memory 和 API Key env 是否存在；只有 `--online`/`--canary` 访问 Provider。`ai:help` 只输出当前已安装工具的使用提示。完整 `check` 包含 format、lint、typecheck、tests、schema、memory、skill 和配置检查。
+
+`config/tools.yaml` 是全局 AI coding 工具的唯一声明源。当前包含 OpenCode CLI、OpenCode Desktop、WezTerm、OpenSpec、CodeGraph、TypeScript 和 TypeScript Language Server。`ai:check` 会按当前平台的 `platforms` 映射检测工具；没有当前平台后端映射的条目不会显示为缺失，也不会生成安装提示。Bun 工具的安装提示使用 `bun install --global <package>@<version>`，Scoop 和 Homebrew 工具分别使用对应平台 manager 的命令。
+
+TypeScript 和 TypeScript Language Server 通过 Bun 全局安装，并不属于 `ai:gen` 第一轮生成菜单。`ai:gen` 第一轮只选择 OpenCode plugin、agents 和 native skills；全局 CLI/LSP 的安装与检测由工具安装流程负责。项目 `package.json` 的 `devDependencies` 仍只服务于 ai-share 自身开发，可以与设备级全局工具并存。
+
+工具条目示例：
+
+```yaml
+tools:
+  - id: typescript
+    label: TypeScript
+    package: typescript
+    executable: tsc
+    required: false
+    version: latest
+    platforms:
+      win32: { manager: bun }
+      darwin: { manager: bun }
+      linux: { manager: bun }
+```

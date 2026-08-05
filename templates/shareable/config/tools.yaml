@@ -1,0 +1,88 @@
+tools:
+  - id: opencode
+    label: OpenCode CLI
+    package: opencode-ai
+    executable: opencode
+    required: true
+    version: latest
+    platforms:
+      win32:
+        manager: bun
+      darwin:
+        manager: bun
+      linux:
+        manager: bun
+  - id: opencode-desktop
+    label: OpenCode Desktop
+    package: opencode-desktop
+    executable: opencode-desktop
+    required: true
+    version: latest
+    platforms:
+      win32:
+        manager: scoop
+      darwin:
+        manager: brew
+  - id: wezterm
+    label: WezTerm
+    package: wezterm
+    executable: wezterm
+    required: true
+    version: latest
+    platforms:
+      win32:
+        manager: scoop
+      darwin:
+        manager: brew
+  - id: openspec
+    label: OpenSpec
+    package: "@fission-ai/openspec"
+    executable: openspec
+    required: false
+    version: latest
+    platforms:
+      win32:
+        manager: bun
+      darwin:
+        manager: bun
+      linux:
+        manager: bun
+  - id: codegraph
+    label: CodeGraph
+    package: "@colbymchenry/codegraph"
+    executable: codegraph
+    required: false
+    version: latest
+    platforms:
+      win32:
+        manager: bun
+      darwin:
+        manager: bun
+      linux:
+        manager: bun
+  - id: typescript
+    label: TypeScript
+    package: typescript
+    executable: tsc
+    required: false
+    version: latest
+    platforms:
+      win32:
+        manager: bun
+      darwin:
+        manager: bun
+      linux:
+        manager: bun
+  - id: typescript-language-server
+    label: TypeScript Language Server
+    package: typescript-language-server
+    executable: typescript-language-server
+    required: false
+    version: latest
+    platforms:
+      win32:
+        manager: bun
+      darwin:
+        manager: bun
+      linux:
+        manager: bun

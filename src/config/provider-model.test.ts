@@ -87,6 +87,7 @@ function createConfig(): ConfigSet {
     env: { variables: {} },
     agents: { agents: {} },
     plugins: { plugins: [] },
+    tools: { tools: [] },
   };
 }
 

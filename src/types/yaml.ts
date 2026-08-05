@@ -18,6 +18,20 @@ export type PluginsYaml = {
   plugins: string[];
 };
 
+export type ToolManager = "bun" | "scoop" | "brew";
+export type ToolPlatform = "win32" | "darwin" | "linux";
+export type ToolPlatformConfig = { manager: ToolManager };
+export type ToolSource = {
+  id: string;
+  label: string;
+  package: string;
+  executable: string;
+  required: boolean;
+  version: string;
+  platforms: Partial<Record<ToolPlatform, ToolPlatformConfig>>;
+};
+export type ToolsYaml = { tools: ToolSource[] };
+
 export type AgentSource = {
   description: string;
   model?: string;

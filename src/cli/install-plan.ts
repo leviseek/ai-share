@@ -1,19 +1,14 @@
 import { parsePluginSpec } from "../config/validators/plugins.ts";
+import type { ToolSource } from "../types.ts";
 
-export type InstallPlatform = "win32" | "darwin";
-export type InstallToolId = "opencode" | "opencode-desktop" | "wezterm" | "openspec" | "superpowers" | "codegraph";
+export type InstallPlatform = "win32" | "darwin" | "linux";
+export type InstallToolId = string;
 export type InstallOperation = "install" | "upgrade";
-
-export type InstallTool = {
-  id: InstallToolId;
-  label: string;
-  required: boolean;
-};
 
 export type InstallAction =
   | {
       kind: "command";
-      toolId: Exclude<InstallToolId, "superpowers">;
+      toolId: string;
       operation: InstallOperation;
       command: string;
       args: string[];
@@ -32,7 +27,7 @@ export type InstallAction =
 export type InstallHint =
   | {
       kind: "command";
-      toolId: Exclude<InstallToolId, "superpowers">;
+      toolId: string;
       command: string;
       args: string[];
     }
@@ -48,15 +43,6 @@ export type InstallHint =
     }
   | { kind: "configure-openspec-superpowers"; toolId: "superpowers" };
 
-export const INSTALL_TOOLS: readonly InstallTool[] = [
-  { id: "opencode", label: "OpenCode CLI", required: true },
-  { id: "opencode-desktop", label: "OpenCode Desktop", required: true },
-  { id: "wezterm", label: "WezTerm", required: true },
-  { id: "openspec", label: "OpenSpec", required: false },
-  { id: "superpowers", label: "Superpowers", required: false },
-  { id: "codegraph", label: "CodeGraph", required: false },
-];
-
 export const SUPERPOWERS_PLUGIN_SPEC = "superpowers@git+https://github.com/obra/superpowers.git";
 
 export type InstalledSystemPackage = {
@@ -64,12 +50,16 @@ export type InstalledSystemPackage = {
 };
 
 type InstalledToolInput = {
+  tools: readonly ToolSource[];
+  platform: NodeJS.Platform;
   bunPackages: ReadonlySet<string>;
-  systemPackages: ReadonlySet<string> | ReadonlyMap<string, InstalledSystemPackage>;
+  scoopPackages: ReadonlySet<string> | ReadonlyMap<string, InstalledSystemPackage>;
+  brewPackages: ReadonlySet<string>;
   pluginSpecs: readonly string[];
 };
 
 type InstallPlanInput = {
+  tools: readonly ToolSource[];
   platform: NodeJS.Platform;
   selectedIds: ReadonlySet<InstallToolId>;
   installedIds: ReadonlySet<InstallToolId>;
@@ -115,7 +105,8 @@ function isBunGlobalHeader(line: string): boolean {
   return /^(?:[A-Za-z]:[\\/]|\\\\|\/).* node_modules \(\d+\)$/.test(line);
 }
 
-export function parseScoopInstalled(text: string): Map<string, InstalledSystemPackage> {
+export function parseScoopInstalled(text: string, tools: readonly ToolSource[]): Map<string, InstalledSystemPackage> {
+  if (!tools) throw new Error("Scoop 应用列表解析失败：必须提供工具配置。");
   const normalized = stripAnsi(text).replaceAll("\r\n", "\n").trim();
   if (/^There aren't any apps installed\.?$/i.test(normalized)) return new Map();
   if (!/^Installed apps:\s*(?:\n|$)/i.test(normalized)) {
@@ -135,15 +126,15 @@ export function parseScoopInstalled(text: string): Map<string, InstalledSystemPa
     if (!trimmed) continue;
     if (/\binstall failed\b/i.test(trimmed)) continue;
     const candidateName = trimmed.split(/\s+/, 1)[0];
-    if (!candidateName || !isInstallToolId(candidateName)) continue;
+    if (!candidateName || !isConfiguredPackage(candidateName, tools)) continue;
     const fields = splitScoopFields(line, separator);
     const name = fields.name;
     if (!name || !isPackageManagerId(name)) {
       throw new Error("Scoop 应用列表解析失败：输出格式无效。");
     }
-    if (isInstallToolId(name) && /\binstall failed\b/i.test(fields.info)) continue;
+    if (isConfiguredPackage(name, tools) && /\binstall failed\b/i.test(fields.info)) continue;
     if (
-      isInstallToolId(name) &&
+      isConfiguredPackage(name, tools) &&
       (!fields.version ||
         (fields.info !== "" &&
           !/\bglobal install\b|\bheld\b|\bdeprecated\b|\b(?:32|64)bit\b|\barm64\b/i.test(fields.info)))
@@ -155,15 +146,20 @@ export function parseScoopInstalled(text: string): Map<string, InstalledSystemPa
   return packages;
 }
 
-export function collectScoopGlobalIds(packages: ReadonlyMap<string, InstalledSystemPackage>): Set<InstallToolId> {
+export function collectScoopGlobalIds(
+  packages: ReadonlyMap<string, InstalledSystemPackage>,
+  tools: readonly ToolSource[],
+): Set<InstallToolId> {
   const ids = new Set<InstallToolId>();
   for (const [name, metadata] of packages) {
-    if (metadata.global && isInstallToolId(name)) ids.add(name);
+    const tool = tools.find((candidate) => candidate.package === name);
+    if (metadata.global && tool) ids.add(tool.id);
   }
   return ids;
 }
 
-export function parseBrewCaskInstalled(text: string): Set<string> {
+export function parseBrewCaskInstalled(text: string, tools: readonly ToolSource[]): Set<string> {
+  if (!tools) throw new Error("Homebrew Cask 列表解析失败：必须提供工具配置。");
   const normalized = stripAnsi(text).trim();
   if (!normalized) return new Set();
   if (/^(?:error|fatal):/i.test(normalized)) {
@@ -178,10 +174,10 @@ export function parseBrewCaskInstalled(text: string): Set<string> {
       throw new Error("Homebrew Cask 列表解析失败：输出格式无效。");
     }
     if (fields.length < 2) {
-      if (isInstallToolId(name)) throw new Error("Homebrew Cask 列表解析失败：输出格式无效。");
+      if (isConfiguredPackage(name, tools)) throw new Error("Homebrew Cask 列表解析失败：输出格式无效。");
       continue;
     }
-    if (isInstallToolId(name) && fields[1]?.toLowerCase() === "failed") {
+    if (isConfiguredPackage(name, tools) && fields[1]?.toLowerCase() === "failed") {
       throw new Error("Homebrew Cask 列表解析失败：输出格式无效。");
     }
     packages.add(name);
@@ -190,22 +186,21 @@ export function parseBrewCaskInstalled(text: string): Set<string> {
 }
 
 export function buildInstalledToolIds(input: InstalledToolInput): Set<InstallToolId> {
+  const platform = requireSupportedPlatform(input.platform);
   const installed = new Set<InstallToolId>();
   const canonicalSuperpowersEnabled = input.pluginSpecs.includes(SUPERPOWERS_PLUGIN_SPEC);
 
-  for (const tool of INSTALL_TOOLS) {
-    if (tool.id === "opencode" && input.bunPackages.has("opencode-ai")) installed.add(tool.id);
-    else if (tool.id === "openspec" && input.bunPackages.has("@fission-ai/openspec")) installed.add(tool.id);
-    else if (tool.id === "codegraph" && input.bunPackages.has("@colbymchenry/codegraph")) installed.add(tool.id);
-    else if (
-      (tool.id === "opencode-desktop" || tool.id === "wezterm") &&
-      hasSystemPackage(input.systemPackages, tool.id)
-    ) {
+  for (const tool of input.tools) {
+    const platformConfig = tool.platforms[platform];
+    if (!platformConfig) continue;
+    if (platformConfig.manager === "bun" && input.bunPackages.has(tool.package)) installed.add(tool.id);
+    if (platformConfig.manager === "scoop" && hasSystemPackage(input.scoopPackages, tool.package))
       installed.add(tool.id);
-    } else if (tool.id === "superpowers" && canonicalSuperpowersEnabled) {
-      const parsed = parsePluginSpec(SUPERPOWERS_PLUGIN_SPEC);
-      if (parsed?.packageId === "superpowers") installed.add(tool.id);
-    }
+    if (platformConfig.manager === "brew" && input.brewPackages.has(tool.package)) installed.add(tool.id);
+  }
+  if (canonicalSuperpowersEnabled) {
+    const parsed = parsePluginSpec(SUPERPOWERS_PLUGIN_SPEC);
+    if (parsed?.packageId === "superpowers") installed.add("superpowers");
   }
   return installed;
 }
@@ -214,8 +209,9 @@ export function buildInstallActions(input: InstallPlanInput): InstallAction[] {
   const platform = requireSupportedPlatform(input.platform);
   const actions: InstallAction[] = [];
 
-  for (const tool of INSTALL_TOOLS) {
+  for (const tool of input.tools) {
     if (!tool.required && !input.selectedIds.has(tool.id) && !input.upgradeIds.has(tool.id)) continue;
+    if (!tool.platforms[platform] || tool.id === "superpowers") continue;
     const installed = input.installedIds.has(tool.id);
     if (installed && !input.upgradeIds.has(tool.id)) continue;
     const operation: InstallOperation = installed ? "upgrade" : "install";
@@ -223,19 +219,30 @@ export function buildInstallActions(input: InstallPlanInput): InstallAction[] {
     if (
       platform === "win32" &&
       (operation === "install" || operation === "upgrade") &&
-      (tool.id === "opencode-desktop" || tool.id === "wezterm") &&
+      tool.platforms[platform]?.manager === "scoop" &&
       !input.scoopExtrasAvailable &&
       !actions.some((action) => action.kind === "prepare-scoop-extras")
     ) {
       actions.push({ kind: "prepare-scoop-extras", command: "scoop", args: ["bucket", "add", "extras"] });
     }
-    actions.push(buildToolAction(tool.id, operation, platform, input.scoopGlobalIds));
+    actions.push(buildToolAction(tool, operation, platform, input.scoopGlobalIds));
+  }
+  if (input.selectedIds.has("superpowers") || input.upgradeIds.has("superpowers")) {
+    const installed = input.installedIds.has("superpowers");
+    if (!installed || input.upgradeIds.has("superpowers")) {
+      actions.push({
+        kind: "configure-superpowers",
+        toolId: "superpowers",
+        operation: installed ? "upgrade" : "install",
+      });
+    }
   }
   return actions;
 }
 
 export function buildInstallHints(
   platform: NodeJS.Platform,
+  tools: readonly ToolSource[],
   missingIds: ReadonlySet<InstallToolId>,
   scoopExtrasAvailable = false,
 ): InstallHint[] {
@@ -243,22 +250,23 @@ export function buildInstallHints(
   const hints: InstallHint[] = [];
   let scoopExtrasAdded = false;
 
-  for (const tool of INSTALL_TOOLS) {
+  if (missingIds.has("superpowers")) {
+    hints.push({ kind: "configure-superpowers", toolId: "superpowers", pluginSpec: SUPERPOWERS_PLUGIN_SPEC });
+  }
+  for (const tool of tools) {
     if (!missingIds.has(tool.id)) continue;
-    if (tool.id === "superpowers") {
-      hints.push({ kind: "configure-superpowers", toolId: tool.id, pluginSpec: SUPERPOWERS_PLUGIN_SPEC });
-      continue;
-    }
+    if (tool.id === "superpowers") continue;
+    if (!tool.platforms[supportedPlatform]) continue;
     if (
       supportedPlatform === "win32" &&
-      (tool.id === "opencode-desktop" || tool.id === "wezterm") &&
+      tool.platforms[supportedPlatform]?.manager === "scoop" &&
       !scoopExtrasAdded &&
       !scoopExtrasAvailable
     ) {
       hints.push({ kind: "prepare-scoop-extras", command: "scoop", args: ["bucket", "add", "extras"] });
       scoopExtrasAdded = true;
     }
-    const action = buildToolAction(tool.id, "install", supportedPlatform, undefined);
+    const action = buildToolAction(tool, "install", supportedPlatform, undefined);
     if (action.kind !== "command") throw new Error(`无法生成 ${tool.id} 的安装提示。`);
     hints.push({ kind: "command", toolId: action.toolId, command: action.command, args: action.args });
   }
@@ -266,47 +274,41 @@ export function buildInstallHints(
 }
 
 export function requireSupportedPlatform(platform: NodeJS.Platform): InstallPlatform {
-  if (platform === "win32" || platform === "darwin") return platform;
-  throw new Error(`ai:install 仅支持 Windows 和 macOS，当前平台：${platform}`);
+  if (platform === "win32" || platform === "darwin" || platform === "linux") return platform;
+  throw new Error(`ai:install 不支持当前平台：${platform}`);
 }
 
 function buildToolAction(
-  toolId: InstallToolId,
+  tool: ToolSource,
   operation: InstallOperation,
   platform: InstallPlatform,
   scoopGlobalIds: ReadonlySet<InstallToolId> | undefined,
 ): InstallAction {
-  if (toolId === "superpowers") return { kind: "configure-superpowers", toolId, operation };
-  if (toolId === "opencode") return bunAction(toolId, operation, "opencode-ai@latest");
-  if (toolId === "openspec") return bunAction(toolId, operation, "@fission-ai/openspec@latest");
-  if (toolId === "codegraph") return bunAction(toolId, operation, "@colbymchenry/codegraph@latest");
-  if (platform === "win32") {
+  const manager = tool.platforms[platform]?.manager;
+  if (manager === "bun") return bunAction(tool.id, operation, `${tool.package}@${tool.version}`);
+  if (manager === "scoop") {
     return {
       kind: "command",
-      toolId,
+      toolId: tool.id,
       operation,
       command: "scoop",
       args: [
         operation === "install" ? "install" : "update",
-        toolId,
-        ...(scoopGlobalIds?.has(toolId) ? ["--global"] : []),
+        tool.package,
+        ...(scoopGlobalIds?.has(tool.id) ? ["--global"] : []),
       ],
     };
   }
   return {
     kind: "command",
-    toolId,
+    toolId: tool.id,
     operation,
     command: "brew",
-    args: [operation === "install" ? "install" : "upgrade", "--cask", toolId],
+    args: [operation === "install" ? "install" : "upgrade", "--cask", tool.package],
   };
 }
 
-function bunAction(
-  toolId: "opencode" | "openspec" | "codegraph",
-  operation: InstallOperation,
-  packageSpec: string,
-): InstallAction {
+function bunAction(toolId: string, operation: InstallOperation, packageSpec: string): InstallAction {
   return { kind: "command", toolId, operation, command: "bun", args: ["install", "--global", packageSpec] };
 }
 
@@ -357,8 +359,8 @@ function splitScoopFields(
   return { name, version, source, updated, info };
 }
 
-function isInstallToolId(value: string): value is InstallToolId {
-  return INSTALL_TOOLS.some((tool) => tool.id === value);
+function isConfiguredPackage(value: string, tools: readonly ToolSource[]): boolean {
+  return tools.some((tool) => tool.package === value);
 }
 
 function isPackageManagerId(value: string): boolean {

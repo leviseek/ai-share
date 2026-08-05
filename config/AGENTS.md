@@ -6,17 +6,18 @@
 
 ## WHERE TO LOOK
 
-| Need                                        | File            | Notes                                    |
-| ------------------------------------------- | --------------- | ---------------------------------------- |
-| Default model/provider and OpenCode version | `global.yaml`   | `model`、`provider` 必填                 |
-| Provider endpoint, models, and default      | `provider.yaml` | 关联模型、默认模型与可选原生模式         |
-| Upstream model names                        | `models.yaml`   | 仅 `model_name`、可选 `reasoning_effort` |
-| OpenCode MCP servers                        | `mcp.yaml`      | stdio/HTTP 条件字段严格互斥              |
-| Shared `aioc` environment values            | `env.yaml`      | 非密钥；默认 `variables: {}`             |
-| Custom agents and model overrides           | `agents.yaml`   | 内联到 `opencode.jsonc` 的 `agent` 对象  |
-| OpenCode plugins                            | `plugins.yaml`  | 安全 npm spec；默认 `plugins: []`        |
-| WezTerm user configuration                  | `wezterm.yaml`  | `ai:config` 唯一配置源；无 local overlay |
-| Machine-local overrides                     | `local/`        | Git ignored，合并后仍严格校验            |
+| Need                                        | File            | Notes                                                            |
+| ------------------------------------------- | --------------- | ---------------------------------------------------------------- |
+| Default model/provider and OpenCode version | `global.yaml`   | `model`、`provider` 必填                                         |
+| Provider endpoint, models, and default      | `provider.yaml` | 关联模型、默认模型与可选原生模式                                 |
+| Upstream model names                        | `models.yaml`   | 仅 `model_name`、可选 `reasoning_effort`                         |
+| OpenCode MCP servers                        | `mcp.yaml`      | stdio/HTTP 条件字段严格互斥                                      |
+| Shared `aioc` environment values            | `env.yaml`      | 非密钥；默认 `variables: {}`                                     |
+| Custom agents and model overrides           | `agents.yaml`   | 内联到 `opencode.jsonc` 的 `agent` 对象                          |
+| OpenCode plugins                            | `plugins.yaml`  | 安全 npm spec；默认 `plugins: []`                                |
+| Global AI coding tools                      | `tools.yaml`    | 全局工具唯一声明源；定义 package、executable、版本与平台 manager |
+| WezTerm user configuration                  | `wezterm.yaml`  | `ai:config` 唯一配置源；无 local overlay                         |
+| Machine-local overrides                     | `local/`        | Git ignored，合并后仍严格校验                                    |
 
 ## CONVENTIONS
 
@@ -29,6 +30,8 @@
 - Plugin 仅允许 npm package spec 或 `package-name@git+https://...`；拒绝 URL userinfo/query/hash、`file://`、本机路径和 secret literal。
 - 本机代理属于 ignored `config/local/env.yaml`，可从 `../templates/personal-overlay/env.local.example.yaml` 复制。
 - `../src/config/schema-spec.ts` 是 `wezterm.yaml` 的字段、类型和枚举值来源；`config/wezterm.yaml` 是默认值来源。`ai:config` 生成当前用户的 `.config/wezterm/wezterm.lua`。
+- `tools.yaml` 是全局 AI coding 工具的唯一声明源；`package` 用于当前全局包检测和安装，`executable` 仅记录安装后的命令 basename，二者可以不同。当前流程不通过 `executable` 探测命令。平台安装 manager 只允许 `bun`、`scoop` 或 `brew`；TypeScript 与 TypeScript Language Server 通过 Bun 全局安装。
+- `config/local/tools.yaml` 的 `tools` 数组整体替换 base 数组，不追加也不逐项合并。当前平台没有后端映射的工具不会进入检测缺失项或安装提示。
 - 空集合显式写成 `{}`。
 
 ## VALIDATION

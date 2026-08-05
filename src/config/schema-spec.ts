@@ -7,11 +7,16 @@ export const AGENT_ID_PATTERN = "^[a-z][a-z0-9_-]*$";
 export const SEMVER_PATTERN = "^\\d+\\.\\d+\\.\\d+$";
 export const HTTPS_URL_PATTERN = "^https://[^\\s]+$";
 export const HTTP_URL_PATTERN = "^https?://[^\\s]+$";
+export const TOOL_PLATFORM_PATTERN = "^(?:win32|darwin|linux)$";
+export const TOOL_PACKAGE_PATTERN = "^(?:@[a-z0-9][a-z0-9._~-]*/[a-z0-9][a-z0-9._~-]*|[a-z0-9][a-z0-9._~-]*)$";
+export const TOOL_SYSTEM_PACKAGE_PATTERN = "^[a-z0-9][a-z0-9._~-]*$";
+export const TOOL_EXECUTABLE_PATTERN = "^[A-Za-z0-9][A-Za-z0-9._-]*$";
 const NPM_PACKAGE_ID_PATTERN = "(?:@[a-z0-9][a-z0-9._~-]*/[a-z0-9][a-z0-9._~-]*|[a-z0-9][a-z0-9._~-]*)";
 const DIST_TAG_PATTERN = "[A-Za-z][A-Za-z0-9._-]*";
 const SEMVER_IDENTIFIER_PATTERN = "(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][A-Za-z0-9-]*)";
 const EXACT_SEMVER_PATTERN = `(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-${SEMVER_IDENTIFIER_PATTERN}(?:\\.${SEMVER_IDENTIFIER_PATTERN})*)?`;
 const NPM_VERSION_PATTERN = `(?:${DIST_TAG_PATTERN}|[~^]?${EXACT_SEMVER_PATTERN})`;
+const TOOL_VERSION_PATTERN = `^(?:latest|[~^]?${EXACT_SEMVER_PATTERN})$`;
 const NAMED_GIT_HTTPS_PATTERN = "git\\+https://[A-Za-z0-9.-]+(?::[0-9]+)?/[^\\s@?#]+";
 
 export type SchemaNode =
@@ -38,6 +43,7 @@ export type YamlSchemaSourceFile =
   | "env.yaml"
   | "agents.yaml"
   | "plugins.yaml"
+  | "tools.yaml"
   | "wezterm.yaml";
 
 type BaseSchemaNode = {
@@ -74,6 +80,7 @@ type ArraySchemaNode = BaseSchemaNode & {
   items: SchemaNode;
   minItems?: number;
   uniqueItems?: boolean;
+  uniqueItemsBy?: string;
 };
 
 type ObjectSchemaNode = BaseSchemaNode & {
@@ -84,6 +91,7 @@ type ObjectSchemaNode = BaseSchemaNode & {
   propertyNames?: {
     pattern: string;
   };
+  minProperties?: number;
 };
 
 export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
@@ -222,6 +230,47 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
       required: ["plugins"],
       properties: {
         plugins: stringArraySchema("Safe npm package spec or named git+https plugin spec.", pluginSpecPattern()),
+      },
+    }),
+  },
+  {
+    sourceFile: "tools.yaml",
+    schemaFileName: "tools.schema.json",
+    title: "ai-share tools.yaml",
+    root: objectSchema({
+      required: ["tools"],
+      properties: {
+        tools: {
+          type: "array",
+          uniqueItemsBy: "id",
+          items: objectSchema({
+            required: ["id", "label", "package", "executable", "required", "version", "platforms"],
+            properties: {
+              id: patternStringSchema(CONFIG_ID_PATTERN, "Stable tool id."),
+              label: stringSchema("Human-readable tool label."),
+              package: patternStringSchema(
+                TOOL_PACKAGE_PATTERN,
+                "Safe package id. Scoped npm packages are supported only for Bun platform mappings.",
+              ),
+              executable: patternStringSchema(
+                TOOL_EXECUTABLE_PATTERN,
+                "Safe executable basename checked after installation.",
+              ),
+              required: booleanSchema("Whether the tool is required by the global setup."),
+              version: patternStringSchema(TOOL_VERSION_PATTERN, "latest or a controlled exact semver version range."),
+              platforms: objectSchema({
+                propertyNames: { pattern: TOOL_PLATFORM_PATTERN },
+                minProperties: 1,
+                additionalProperties: objectSchema({
+                  required: ["manager"],
+                  properties: {
+                    manager: enumStringSchema(["bun", "scoop", "brew"], "Tool installation manager."),
+                  },
+                }),
+              }),
+            },
+          }),
+        },
       },
     }),
   },

@@ -52,6 +52,7 @@ function schemaNodeToJsonSchema(node: SchemaNode): JsonSchema {
       items: schemaNodeToJsonSchema(node.items),
       ...optionalNumber("minItems", node.minItems),
       ...optionalBoolean("uniqueItems", node.uniqueItems),
+      ...optionalString("x-uniqueItemsBy", node.uniqueItemsBy),
     };
   }
 
@@ -61,6 +62,7 @@ function schemaNodeToJsonSchema(node: SchemaNode): JsonSchema {
     ...optionalProperties(node.properties),
     ...optionalAdditionalProperties(node.additionalProperties),
     ...optionalPropertyNames(node.propertyNames),
+    ...optionalNumber("minProperties", node.minProperties),
   };
 }
 

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ai-share tools.yaml",
+  "type": "object",
+  "required": [
+    "tools"
+  ],
+  "properties": {
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "package",
+          "executable",
+          "required",
+          "version",
+          "platforms"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable tool id.",
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable tool label.",
+            "minLength": 1
+          },
+          "package": {
+            "type": "string",
+            "description": "Safe package id. Scoped npm packages are supported only for Bun platform mappings.",
+            "minLength": 1,
+            "pattern": "^(?:@[a-z0-9][a-z0-9._~-]*/[a-z0-9][a-z0-9._~-]*|[a-z0-9][a-z0-9._~-]*)$"
+          },
+          "executable": {
+            "type": "string",
+            "description": "Safe executable basename checked after installation.",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether the tool is required by the global setup."
+          },
+          "version": {
+            "type": "string",
+            "description": "latest or a controlled exact semver version range.",
+            "minLength": 1,
+            "pattern": "^(?:latest|[~^]?(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][A-Za-z0-9-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][A-Za-z0-9-]*))*)?)$"
+          },
+          "platforms": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "manager"
+              ],
+              "properties": {
+                "manager": {
+                  "type": "string",
+                  "description": "Tool installation manager.",
+                  "minLength": 1,
+                  "enum": [
+                    "bun",
+                    "scoop",
+                    "brew"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "propertyNames": {
+              "pattern": "^(?:win32|darwin|linux)$"
+            },
+            "minProperties": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "x-uniqueItemsBy": "id"
+    }
+  },
+  "additionalProperties": false
+}

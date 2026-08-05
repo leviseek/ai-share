@@ -5,17 +5,20 @@ import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { loadValidatedConfig } from "../config/load.ts";
+import { isRecord } from "../config/validators/common.ts";
+import type { ToolSource } from "../types.ts";
 import { createColor } from "./color.ts";
 import { pathExists } from "./fs.ts";
 import { argsFromArgv } from "./args.ts";
 import {
-  INSTALL_TOOLS,
   buildInstallHints,
   buildInstalledToolIds,
+  collectScoopGlobalIds,
   parseBrewCaskInstalled,
   parseBunGlobalPackages,
   parseScoopInstalled,
   requireSupportedPlatform,
+  SUPERPOWERS_PLUGIN_SPEC,
   type InstallHint,
   type InstallToolId,
 } from "./install-plan.ts";
@@ -45,7 +48,12 @@ export type InstallToolStatus = {
 };
 
 export type InstallRunResult =
-  | { ok: true; tools: readonly InstallToolStatus[]; hints: readonly InstallHint[] }
+  | {
+      ok: true;
+      tools: readonly InstallToolStatus[];
+      hints: readonly InstallHint[];
+      scoopGlobalIds: ReadonlySet<InstallToolId>;
+    }
   | { ok: false; error: unknown };
 
 export function parseInstallOptions(argv: readonly string[] = Bun.argv): InstallOptions {
@@ -72,17 +80,29 @@ export async function runInstall(
     const config = await loadValidatedConfig(paths.configDir);
     const runner = input.runner ?? spawnInstallCommand;
     const userPluginSpecs = await readUserPluginSpecs(paths.targetOpenCodeConfig);
-    const detected = await detectInstalledTools(platform, tmpdir(), runner, [
+    const configuredTools = config.tools.tools;
+    const openSpecConfigured = configuredTools.some(
+      (tool) => tool.id === "openspec" && tool.platforms[platform] !== undefined,
+    );
+    const detected = await detectInstalledTools(platform, tmpdir(), runner, configuredTools, [
       ...config.plugins.plugins,
       ...userPluginSpecs,
     ]);
-    const tools = INSTALL_TOOLS.map((tool) => ({
-      id: tool.id,
-      label: tool.label,
-      installed: detected.installedIds.has(tool.id),
-    }));
+    const tools = configuredTools
+      .filter((tool) => tool.platforms[platform])
+      .map((tool) => ({
+        id: tool.id,
+        label: tool.label,
+        installed: detected.installedIds.has(tool.id),
+      }));
+    tools.push({ id: "superpowers", label: "Superpowers", installed: detected.installedIds.has("superpowers") });
     const missingIds = new Set(tools.filter((tool) => !tool.installed).map((tool) => tool.id));
-    const hints: InstallHint[] = buildInstallHints(platform, missingIds, detected.scoopExtrasAvailable).map(
+    const hints: InstallHint[] = buildInstallHints(
+      platform,
+      configuredTools,
+      missingIds,
+      detected.scoopExtrasAvailable,
+    ).map(
       (hint): InstallHint =>
         hint.kind === "configure-superpowers"
           ? { ...hint, configPath: paths.targetOpenCodeConfig }
@@ -91,12 +111,13 @@ export async function runInstall(
             : hint,
     );
     if (
+      openSpecConfigured &&
       detected.installedIds.has("opencode") &&
       detected.installedIds.has("openspec") &&
       !(await pathExists(resolve(projectRoot, "openspec")))
     ) {
       hints.push({ kind: "configure-openspec", toolId: "openspec", command: "openspec", args: ["init"] });
-    } else if (detected.installedIds.has("opencode") && !detected.installedIds.has("openspec")) {
+    } else if (openSpecConfigured && detected.installedIds.has("opencode") && !detected.installedIds.has("openspec")) {
       hints.push({
         kind: "configure-openspec-after-install",
         toolId: "openspec",
@@ -105,6 +126,7 @@ export async function runInstall(
       });
     }
     if (
+      openSpecConfigured &&
       detected.installedIds.has("opencode") &&
       detected.installedIds.has("openspec") &&
       detected.installedIds.has("superpowers") &&
@@ -113,7 +135,7 @@ export async function runInstall(
     ) {
       hints.push({ kind: "configure-openspec-superpowers", toolId: "superpowers" });
     }
-    return { ok: true, tools, hints };
+    return { ok: true, tools, hints, scoopGlobalIds: detected.scoopGlobalIds };
   } catch (error) {
     return { ok: false, error };
   }
@@ -195,29 +217,43 @@ export function printInstallResult(result: InstallRunResult, write: (content: st
 if (import.meta.main) process.exitCode = printInstallResult(await runInstall());
 
 async function detectInstalledTools(
-  platform: "win32" | "darwin",
+  platform: "win32" | "darwin" | "linux",
   cwd: string,
   runner: InstallRunner,
+  tools: readonly ToolSource[],
   pluginSpecs: readonly string[],
-): Promise<{ installedIds: Set<InstallToolId>; scoopExtrasAvailable: boolean }> {
+): Promise<{
+  installedIds: Set<InstallToolId>;
+  scoopExtrasAvailable: boolean;
+  scoopGlobalIds: ReadonlySet<InstallToolId>;
+}> {
+  const platformTools = tools.filter((tool) => tool.platforms[platform] !== undefined);
+  const managers = new Set(
+    platformTools.flatMap((tool) => {
+      const manager = tool.platforms[platform]?.manager;
+      return manager ? [manager] : [];
+    }),
+  );
+  const scoopTools = platformTools.filter((tool) => tool.platforms[platform]?.manager === "scoop");
+  const brewTools = platformTools.filter((tool) => tool.platforms[platform]?.manager === "brew");
+  const bunPackages = new Set<string>();
   const bunCommand = {
     command: "bun",
     args: ["pm", "ls", "--global"],
     cwd,
   } satisfies InstallCommand;
-  const bunResult = await runner(bunCommand);
-  // Only `status: 1` with a missing global lockfile/package.json counts as an
-  // empty global directory; every other failure (including a missing `bun`
-  // executable) must propagate through parseBunResult.
-  const bunPackages = parseBunResult(bunResult, bunCommand);
-  const opencodeResult = await runner({ command: "opencode", args: ["--version"], cwd });
-  // A broken runtime/config can make `opencode --version` exit non-zero even
-  // though the executable is installed. `spawnSync` reports a missing command
-  // through `error`, so use that as the installation signal instead of status.
-  if (opencodeResult.status !== null && !opencodeResult.error) bunPackages.add("opencode-ai");
-  const systemPackages = new Set<string>();
+  if (managers.has("bun")) {
+    const bunResult = await runner(bunCommand);
+    // Only `status: 1` with a missing global lockfile/package.json counts as an
+    // empty global directory; every other failure (including a missing `bun`
+    // executable) must propagate through parseBunResult.
+    for (const packageName of parseBunResult(bunResult, bunCommand)) bunPackages.add(packageName);
+  }
+  const scoopPackages = new Map<string, { global: boolean }>();
+  const brewPackages = new Set<string>();
   let scoopExtrasAvailable = false;
-  if (platform === "win32") {
+  let scoopGlobalIds = new Set<InstallToolId>();
+  if (managers.has("scoop")) {
     const scoopCommand = { command: "scoop", args: ["list"], cwd } satisfies InstallCommand;
     const scoop = await runner(scoopCommand);
     if (!isMissingExecutable(scoop)) {
@@ -226,7 +262,9 @@ async function detectInstalledTools(
         scoopCommand,
         (result) => result.status === 1 && /There aren't any apps installed\.?/i.test(result.stdout),
       );
-      for (const name of parseScoopInstalled(validScoop.stdout).keys()) systemPackages.add(name);
+      const parsedScoopPackages = parseScoopInstalled(validScoop.stdout, scoopTools);
+      for (const [name, metadata] of parsedScoopPackages) scoopPackages.set(name, metadata);
+      scoopGlobalIds = collectScoopGlobalIds(parsedScoopPackages, scoopTools);
     }
     const bucketCommand = { command: "scoop", args: ["bucket", "list"], cwd } satisfies InstallCommand;
     const buckets = await runner(bucketCommand);
@@ -234,15 +272,20 @@ async function detectInstalledTools(
       scoopExtrasAvailable = stripAnsi(buckets.stdout)
         .split(/\r?\n/)
         .some((line) => /^\s*extras\s+/i.test(line));
-  } else {
+  }
+  if (managers.has("brew")) {
     const brewCommand = { command: "brew", args: ["list", "--cask", "--versions"], cwd } satisfies InstallCommand;
     const brew = await runner(brewCommand);
     if (!isMissingExecutable(brew)) {
       const validBrew = runCheckedResult(brew, brewCommand);
-      for (const name of parseBrewCaskInstalled(validBrew.stdout)) systemPackages.add(name);
+      for (const name of parseBrewCaskInstalled(validBrew.stdout, brewTools)) brewPackages.add(name);
     }
   }
-  return { installedIds: buildInstalledToolIds({ bunPackages, systemPackages, pluginSpecs }), scoopExtrasAvailable };
+  return {
+    installedIds: buildInstalledToolIds({ tools, platform, bunPackages, scoopPackages, brewPackages, pluginSpecs }),
+    scoopExtrasAvailable,
+    scoopGlobalIds,
+  };
 }
 
 function stripAnsi(value: string): string {
@@ -300,11 +343,101 @@ async function hasOpenSpecSuperpowersConfig(projectRoot: string): Promise<boolea
 async function readUserPluginSpecs(configPath: string): Promise<readonly string[]> {
   try {
     const content = await readFile(configPath, "utf8");
-    if (!/superpowers/i.test(content)) return [];
-    return ["superpowers@git+https://github.com/obra/superpowers.git"];
+    const parsed: unknown = JSON.parse(stripJsoncSyntax(content));
+    if (!isRecord(parsed) || !Array.isArray(parsed.plugin)) return [];
+    return parsed.plugin.some((spec: unknown) => spec === SUPERPOWERS_PLUGIN_SPEC) ? [SUPERPOWERS_PLUGIN_SPEC] : [];
   } catch {
     return [];
   }
+}
+
+function stripJsoncComments(content: string): string {
+  let output = "";
+  let inString = false;
+  let escaped = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const character = content[index] ?? "";
+    const next = content[index + 1] ?? "";
+
+    if (inLineComment) {
+      if (character === "\n" || character === "\r") {
+        inLineComment = false;
+        output += character;
+      }
+      continue;
+    }
+
+    if (inBlockComment) {
+      if (character === "*" && next === "/") {
+        inBlockComment = false;
+        index += 1;
+      } else if (character === "\n" || character === "\r") {
+        output += character;
+      }
+      continue;
+    }
+
+    if (inString) {
+      output += character;
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+
+    if (character === '"') {
+      inString = true;
+      output += character;
+    } else if (character === "/" && next === "/") {
+      inLineComment = true;
+      index += 1;
+    } else if (character === "/" && next === "*") {
+      inBlockComment = true;
+      index += 1;
+    } else {
+      output += character;
+    }
+  }
+
+  if (inBlockComment) throw new Error("JSONC 注释未闭合");
+  return output;
+}
+
+function stripJsoncSyntax(content: string): string {
+  const withoutComments = stripJsoncComments(content);
+  let output = "";
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < withoutComments.length; index += 1) {
+    const character = withoutComments[index] ?? "";
+    if (inString) {
+      output += character;
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+
+    if (character === '"') {
+      inString = true;
+      output += character;
+      continue;
+    }
+    if (character !== ",") {
+      output += character;
+      continue;
+    }
+
+    let nextIndex = index + 1;
+    while (/\s/.test(withoutComments[nextIndex] ?? "")) nextIndex += 1;
+    if (withoutComments[nextIndex] !== "]" && withoutComments[nextIndex] !== "}") output += character;
+  }
+
+  return output;
 }
 
 export function resolveInstallExecutable(platform: NodeJS.Platform, command: string): string {

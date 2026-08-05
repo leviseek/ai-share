@@ -21,28 +21,31 @@ src/
 
 ## WHERE TO LOOK
 
-| Need                           | Location                          | Notes                                        |
-| ------------------------------ | --------------------------------- | -------------------------------------------- |
-| End-to-end generation          | `generate-user-config.ts`         | 返回结构化结果，入口统一设置退出码           |
-| Shared generation preview      | `generation-preview.ts`           | 配置、选择、Memory 与 plan 的无副作用编排    |
-| Explainable generation         | `cli/ai-explain.ts`               | 版本化 JSON 与彩色 human 只读报告            |
-| Explain report projection      | `cli/explain-report.ts`           | 来源、排名和 plan metadata，剥离 content     |
-| Async config pipeline          | `config/load.ts`                  | base + local overlay + validation            |
-| YAML shape source              | `config/schema-spec.ts`           | JSON Schema 与运行时 shape 的单一来源        |
-| Cross-file/security validation | `config/validation.ts`            | 输入 `unknown`，成功返回 `ConfigSet`         |
-| OpenCode JSONC/instructions    | `config/builders/opencode.ts`     | 只物化选中的 Provider                        |
-| `.env` managed block           | `config/builders/env.ts`          | 保留 block 外用户内容                        |
-| Memory injection               | `config/builders/instructions.ts` | 6 个基础文件 + 最多 3 个任务结果             |
-| Ownership and migration        | `cli/generation-plan.ts`          | create/update/delete/current/collision       |
-| Transaction and rollback       | `cli/fs.ts`                       | staged write/delete promotion                |
-| Surgical clean                 | `cli/clean.ts`                    | 只清理明确受管目标                           |
-| Provider checks                | `cli/provider-check.ts`           | selected Provider `/models` 与最小 canary    |
-| Provider selection             | `cli/provider-select.ts`          | 数字索引、方向键与 Enter 的 TTY 菜单         |
-| Optional component selection   | `cli/optional-components.ts`      | 菜单 choices 构建、目标配置状态解析          |
-| WezTerm config loading         | `config/wezterm.ts`               | 读取并校验 `config/wezterm.yaml`             |
-| WezTerm Lua generation         | `config/builders/wezterm.ts`      | 生成受管 `wezterm.lua`                       |
-| WezTerm command                | `cli/ai-config.ts`                | `ai:config` 预览、选择与执行编排             |
-| WezTerm ownership and safety   | `cli/wezterm-plan.ts`             | 固定用户目标、collision、adoption 与事务写入 |
+| Need                           | Location                          | Notes                                         |
+| ------------------------------ | --------------------------------- | --------------------------------------------- |
+| End-to-end generation          | `generate-user-config.ts`         | 返回结构化结果，入口统一设置退出码            |
+| Shared generation preview      | `generation-preview.ts`           | 配置、选择、Memory 与 plan 的无副作用编排     |
+| Explainable generation         | `cli/ai-explain.ts`               | 版本化 JSON 与彩色 human 只读报告             |
+| Explain report projection      | `cli/explain-report.ts`           | 来源、排名和 plan metadata，剥离 content      |
+| Async config pipeline          | `config/load.ts`                  | base + local overlay + validation             |
+| YAML shape source              | `config/schema-spec.ts`           | JSON Schema 与运行时 shape 的单一来源         |
+| Cross-file/security validation | `config/validation.ts`            | 输入 `unknown`，成功返回 `ConfigSet`          |
+| OpenCode JSONC/instructions    | `config/builders/opencode.ts`     | 只物化选中的 Provider                         |
+| `.env` managed block           | `config/builders/env.ts`          | 保留 block 外用户内容                         |
+| Memory injection               | `config/builders/instructions.ts` | 6 个基础文件 + 最多 3 个任务结果              |
+| Ownership and migration        | `cli/generation-plan.ts`          | create/update/delete/current/collision        |
+| Transaction and rollback       | `cli/fs.ts`                       | staged write/delete promotion                 |
+| Surgical clean                 | `cli/clean.ts`                    | 只清理明确受管目标                            |
+| Provider checks                | `cli/provider-check.ts`           | selected Provider `/models` 与最小 canary     |
+| Provider selection             | `cli/provider-select.ts`          | 数字索引、方向键与 Enter 的 TTY 菜单          |
+| Optional component selection   | `cli/optional-components.ts`      | 菜单 choices 构建、目标配置状态解析           |
+| WezTerm config loading         | `config/wezterm.ts`               | 读取并校验 `config/wezterm.yaml`              |
+| WezTerm Lua generation         | `config/builders/wezterm.ts`      | 生成受管 `wezterm.lua`                        |
+| WezTerm command                | `cli/ai-config.ts`                | `ai:config` 预览、选择与执行编排              |
+| WezTerm ownership and safety   | `cli/wezterm-plan.ts`             | 固定用户目标、collision、adoption 与事务写入  |
+| Global tool validation         | `config/validators/tools.ts`      | 校验工具 ID 唯一性与 package secret 防护      |
+| Global tool install planning   | `cli/install-plan.ts`             | 按平台 manager 推导检测、安装和 hint 命令     |
+| Global tool installation       | `cli/ai-install.ts`               | 读取 `tools.yaml`，检测全局工具并输出安装提示 |
 
 ## CONVENTIONS
 
@@ -58,6 +61,7 @@ src/
 - `ai:config` 只支持 `--dry-run`、`--non-interactive`、`--force`；仅在 `win32`/`darwin` 运行，非 TTY 或显式非交互时使用 YAML 值。
 - WezTerm 输出路径必须精确匹配当前用户目录下的 `.config/wezterm/wezterm.lua`；未受管 collision 默认不写入，`--force` 只接管普通文件。
 - 不重新引入 runtime manifest 输出、workspace link 或 memory compiler/proposal。
+- `tools.yaml` 由 `cli/ai-install.ts` 消费；`ai:gen` 第一轮菜单不消费 `tools.yaml`，只管理 OpenCode plugin、agents 和 native skills。
 - secret 只以 env-var 名引用；不得读取后写入、打印或持久化真实值。
 
 ## VALIDATION

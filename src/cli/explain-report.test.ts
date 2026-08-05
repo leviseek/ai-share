@@ -86,6 +86,7 @@ function createFixture(): { root: string; env: Record<string, string | undefined
   write(join(root, "config", "env.yaml"), "variables: {}\n");
   write(join(root, "config", "agents.yaml"), "agents: {}\n");
   write(join(root, "config", "plugins.yaml"), "plugins: []\n");
+  write(join(root, "config", "tools.yaml"), "tools: []\n");
 
   return {
     root,

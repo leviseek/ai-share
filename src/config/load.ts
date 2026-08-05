@@ -9,6 +9,7 @@ const CONFIG_FILES = [
   "env.yaml",
   "agents.yaml",
   "plugins.yaml",
+  "tools.yaml",
 ] as const;
 
 export async function loadValidatedConfig(configDir: string): Promise<ConfigSet> {
@@ -23,6 +24,7 @@ export type ConfigProvenance = {
   env: Record<string, string>;
   agents: Record<string, string>;
   plugins: Record<string, string>;
+  tools: Record<string, string>;
 };
 
 export type LoadedValidatedConfig = {
@@ -33,7 +35,7 @@ export type LoadedValidatedConfig = {
 };
 
 export async function loadValidatedConfigWithTrace(configDir: string): Promise<LoadedValidatedConfig> {
-  const [global, providers, models, mcp, env, agents, plugins] = await Promise.all([
+  const [global, providers, models, mcp, env, agents, plugins, tools] = await Promise.all([
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[0]),
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[1]),
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[2]),
@@ -41,6 +43,7 @@ export async function loadValidatedConfigWithTrace(configDir: string): Promise<L
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[4]),
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[5]),
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[6]),
+    loadConfigYamlWithTrace(configDir, CONFIG_FILES[7]),
   ]);
   const result = validateConfigSet({
     global: global.value,
@@ -50,9 +53,10 @@ export async function loadValidatedConfigWithTrace(configDir: string): Promise<L
     env: env.value,
     agents: agents.value,
     plugins: plugins.value,
+    tools: tools.value,
   });
   if (!result.ok) throw new ConfigValidationError(result.errors);
-  const loaded = [global, providers, models, mcp, env, agents, plugins];
+  const loaded = [global, providers, models, mcp, env, agents, plugins, tools];
   return {
     config: result.config,
     provenance: {
@@ -63,6 +67,7 @@ export async function loadValidatedConfigWithTrace(configDir: string): Promise<L
       env: env.sources,
       agents: agents.sources,
       plugins: plugins.sources,
+      tools: tools.sources,
     },
     baseFiles: loaded.map((entry) => entry.base),
     overlays: loaded.flatMap((entry) => (entry.overlay ? [entry.overlay] : [])),
