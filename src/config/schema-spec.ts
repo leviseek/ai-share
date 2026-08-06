@@ -18,6 +18,7 @@ const EXACT_SEMVER_PATTERN = `(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9]
 const NPM_VERSION_PATTERN = `(?:${DIST_TAG_PATTERN}|[~^]?${EXACT_SEMVER_PATTERN})`;
 const TOOL_VERSION_PATTERN = `^(?:latest|[~^]?${EXACT_SEMVER_PATTERN})$`;
 const NAMED_GIT_HTTPS_PATTERN = "git\\+https://[A-Za-z0-9.-]+(?::[0-9]+)?/[^\\s@?#]+";
+export const MODALITY_VALUES = ["text", "audio", "image", "video", "pdf"] as const;
 
 export type SchemaNode =
   | StringSchemaNode
@@ -151,6 +152,20 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
         properties: {
           model_name: stringSchema("Upstream model name sent to provider."),
           reasoning_effort: enumStringSchema(["low", "medium", "high"], "OpenCode model reasoning effort."),
+          attachment: booleanSchema("Whether the model supports image/file attachments (multimodal)."),
+          modalities: objectSchema({
+            minProperties: 1,
+            properties: {
+              input: {
+                ...enumStringArraySchema(MODALITY_VALUES, "Input modalities (text/audio/image/video/pdf)."),
+                minItems: 1,
+              },
+              output: {
+                ...enumStringArraySchema(MODALITY_VALUES, "Output modalities (text/audio/image/video/pdf)."),
+                minItems: 1,
+              },
+            },
+          }),
         },
       }),
     }),
@@ -331,6 +346,14 @@ function stringArraySchema(description: string, pattern?: string): Extract<Schem
   return {
     type: "array",
     items: pattern ? patternStringSchema(pattern, description) : stringSchema(description),
+    description,
+  };
+}
+
+function enumStringArraySchema(values: readonly string[], description: string): Extract<SchemaNode, { type: "array" }> {
+  return {
+    type: "array",
+    items: enumStringSchema(values, description),
     description,
   };
 }

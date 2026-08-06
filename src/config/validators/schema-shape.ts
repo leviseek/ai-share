@@ -52,6 +52,10 @@ function validateNode(
       pushError(errors, file, path, `${displayPath(path)} 必须是数组`);
       return;
     }
+    if (node.minItems !== undefined && value.length < node.minItems) {
+      pushError(errors, file, path, `${displayPath(path)} 至少需要 ${node.minItems} 个元素`);
+      return;
+    }
     value.forEach((item, index) => validateNode(errors, file, node.items, item, `${path}[${index}]`));
     return;
   }
@@ -148,7 +152,7 @@ function validateObjectNode(
   }
 
   if (node.minProperties !== undefined && Object.keys(value).length < node.minProperties) {
-    pushError(errors, file, path, `${displayPath(path)} 至少需要一个平台配置`);
+    pushError(errors, file, path, `${displayPath(path)} 至少需要一个配置项`);
   }
 
   validateAdditionalProperties(errors, file, node, value, path);

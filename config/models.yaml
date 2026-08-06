@@ -7,6 +7,10 @@ deepseek-v4-pro:
 gpt-5.6-sol:
   model_name: gpt-5.6-sol
   reasoning_effort: high
+  attachment: true
+  modalities:
+    input: [text, image, pdf]
+    output: [text]
 
 gpt-5.6-terra:
   model_name: gpt-5.6-terra

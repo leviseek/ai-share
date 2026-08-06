@@ -82,6 +82,8 @@ function buildOpenCodeModel(modelId: string, model: ConfigSet["models"][string])
     id: model.model_name,
     name: modelId,
     ...(model.reasoning_effort ? { reasoning: true, options: { reasoningEffort: model.reasoning_effort } } : {}),
+    ...(model.attachment !== undefined ? { attachment: model.attachment } : {}),
+    ...(model.modalities ? { modalities: model.modalities } : {}),
   };
 }
 

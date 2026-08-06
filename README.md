@@ -67,7 +67,7 @@ bun run ai:help
 | ---------------------- | ---------------------------------------------------------------------------- |
 | `config/global.yaml`   | 默认 `model`、`provider` 与 OpenCode 最低版本                                |
 | `config/provider.yaml` | Provider endpoint、API Key 引用、关联模型、默认模型与原生模式                |
-| `config/models.yaml`   | 上游 `model_name` 与可选 `reasoning_effort`                                  |
+| `config/models.yaml`   | 上游 `model_name`、可选 `reasoning_effort`、`attachment` 与 `modalities`     |
 | `config/mcp.yaml`      | stdio 或 HTTP MCP server                                                     |
 | `config/env.yaml`      | `aioc` 注入的共享非密钥环境变量                                              |
 | `config/agents.yaml`   | OpenCode custom agent、模型、mode、prompt 与 reasoning 覆盖                  |

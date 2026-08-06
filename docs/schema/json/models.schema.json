@@ -22,6 +22,51 @@
           "medium",
           "high"
         ]
+      },
+      "attachment": {
+        "type": "boolean",
+        "description": "Whether the model supports image/file attachments (multimodal)."
+      },
+      "modalities": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "array",
+            "description": "Input modalities (text/audio/image/video/pdf).",
+            "items": {
+              "type": "string",
+              "description": "Input modalities (text/audio/image/video/pdf).",
+              "minLength": 1,
+              "enum": [
+                "text",
+                "audio",
+                "image",
+                "video",
+                "pdf"
+              ]
+            },
+            "minItems": 1
+          },
+          "output": {
+            "type": "array",
+            "description": "Output modalities (text/audio/image/video/pdf).",
+            "items": {
+              "type": "string",
+              "description": "Output modalities (text/audio/image/video/pdf).",
+              "minLength": 1,
+              "enum": [
+                "text",
+                "audio",
+                "image",
+                "video",
+                "pdf"
+              ]
+            },
+            "minItems": 1
+          }
+        },
+        "additionalProperties": false,
+        "minProperties": 1
       }
     },
     "additionalProperties": false

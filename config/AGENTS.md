@@ -6,18 +6,18 @@
 
 ## WHERE TO LOOK
 
-| Need                                        | File            | Notes                                                            |
-| ------------------------------------------- | --------------- | ---------------------------------------------------------------- |
-| Default model/provider and OpenCode version | `global.yaml`   | `model`、`provider` 必填                                         |
-| Provider endpoint, models, and default      | `provider.yaml` | 关联模型、默认模型与可选原生模式                                 |
-| Upstream model names                        | `models.yaml`   | 仅 `model_name`、可选 `reasoning_effort`                         |
-| OpenCode MCP servers                        | `mcp.yaml`      | stdio/HTTP 条件字段严格互斥                                      |
-| Shared `aioc` environment values            | `env.yaml`      | 非密钥；默认 `variables: {}`                                     |
-| Custom agents and model overrides           | `agents.yaml`   | 内联到 `opencode.jsonc` 的 `agent` 对象                          |
-| OpenCode plugins                            | `plugins.yaml`  | 安全 npm spec；默认 `plugins: []`                                |
-| Global AI coding tools                      | `tools.yaml`    | 全局工具唯一声明源；定义 package、executable、版本与平台 manager |
-| WezTerm user configuration                  | `wezterm.yaml`  | `ai:config` 唯一配置源；无 local overlay                         |
-| Machine-local overrides                     | `local/`        | Git ignored，合并后仍严格校验                                    |
+| Need                                        | File            | Notes                                                                |
+| ------------------------------------------- | --------------- | -------------------------------------------------------------------- |
+| Default model/provider and OpenCode version | `global.yaml`   | `model`、`provider` 必填                                             |
+| Provider endpoint, models, and default      | `provider.yaml` | 关联模型、默认模型与可选原生模式                                     |
+| Upstream model names                        | `models.yaml`   | 仅 `model_name`，可选 `reasoning_effort`、`attachment`、`modalities` |
+| OpenCode MCP servers                        | `mcp.yaml`      | stdio/HTTP 条件字段严格互斥                                          |
+| Shared `aioc` environment values            | `env.yaml`      | 非密钥；默认 `variables: {}`                                         |
+| Custom agents and model overrides           | `agents.yaml`   | 内联到 `opencode.jsonc` 的 `agent` 对象                              |
+| OpenCode plugins                            | `plugins.yaml`  | 安全 npm spec；默认 `plugins: []`                                    |
+| Global AI coding tools                      | `tools.yaml`    | 全局工具唯一声明源；定义 package、executable、版本与平台 manager     |
+| WezTerm user configuration                  | `wezterm.yaml`  | `ai:config` 唯一配置源；无 local overlay                             |
+| Machine-local overrides                     | `local/`        | Git ignored，合并后仍严格校验                                        |
 
 ## CONVENTIONS
 

@@ -342,7 +342,7 @@ describe("tool validation", () => {
     expect(validateFixture(fixture)).toContainEqual({
       file: "tools.yaml",
       path: "tools[0].platforms",
-      message: "tools[0].platforms 至少需要一个平台配置",
+      message: "tools[0].platforms 至少需要一个配置项",
     });
   });
 
@@ -355,6 +355,31 @@ describe("tool validation", () => {
       path: "tools[0].command",
       message: "tools[0].command 是未知字段",
     });
+  });
+});
+
+test("models JSON Schema constrains modality values", () => {
+  const schemas = buildYamlJsonSchemas();
+
+  expect(schemas["models.schema.json"]).toMatchObject({
+    additionalProperties: {
+      properties: {
+        attachment: { type: "boolean" },
+        modalities: {
+          minProperties: 1,
+          properties: {
+            input: {
+              minItems: 1,
+              items: { enum: ["text", "audio", "image", "video", "pdf"] },
+            },
+            output: {
+              minItems: 1,
+              items: { enum: ["text", "audio", "image", "video", "pdf"] },
+            },
+          },
+        },
+      },
+    },
   });
 });
 

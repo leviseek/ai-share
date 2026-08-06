@@ -31,6 +31,68 @@ describe("OpenCode provider generation", () => {
     });
   });
 
+  test("emits attachment flag for multimodal models", () => {
+    const config = createConfig();
+    config.models.shared = { model_name: "shared-model", reasoning_effort: "high", attachment: true };
+
+    const output = buildOpenCodeConfig(config, "compatible", "shared", [], "skills");
+
+    const provider = output.provider.compatible;
+    expect(provider && "models" in provider && provider.models.shared?.attachment).toBe(true);
+  });
+
+  test("emits explicit attachment false for models that opt out", () => {
+    const config = createConfig();
+    config.models.shared = { model_name: "shared-model", attachment: false };
+
+    const output = buildOpenCodeConfig(config, "compatible", "shared", [], "skills");
+
+    const provider = output.provider.compatible;
+    expect(provider && "models" in provider && provider.models.shared?.attachment).toBe(false);
+  });
+
+  test("emits modalities for multimodal models", () => {
+    const config = createConfig();
+    config.models.shared = {
+      model_name: "shared-model",
+      modalities: { input: ["text", "image"], output: ["text"] },
+    };
+
+    const output = buildOpenCodeConfig(config, "compatible", "shared", [], "skills");
+
+    const provider = output.provider.compatible;
+    expect(provider && "models" in provider && provider.models.shared?.modalities).toEqual({
+      input: ["text", "image"],
+      output: ["text"],
+    });
+  });
+
+  test("emits modalities with only input declared", () => {
+    const config = createConfig();
+    config.models.shared = { model_name: "shared-model", modalities: { input: ["text", "pdf"] } };
+
+    const output = buildOpenCodeConfig(config, "compatible", "shared", [], "skills");
+
+    const provider = output.provider.compatible;
+    expect(provider && "models" in provider && provider.models.shared?.modalities).toEqual({
+      input: ["text", "pdf"],
+    });
+  });
+
+  test("omits modalities when model does not declare modalities", () => {
+    const output = buildOpenCodeConfig(createConfig(), "compatible", "shared", [], "skills");
+
+    const provider = output.provider.compatible;
+    expect(provider && "models" in provider && provider.models.shared).not.toHaveProperty("modalities");
+  });
+
+  test("omits attachment flag when model does not declare multimodal input", () => {
+    const output = buildOpenCodeConfig(createConfig(), "compatible", "shared", [], "skills");
+
+    const provider = output.provider.compatible;
+    expect(provider && "models" in provider && provider.models.shared).not.toHaveProperty("attachment");
+  });
+
   test("generates native providers with a whitelist and transport options", () => {
     const config = createConfig();
     config.providers.providers.native = {

@@ -33,6 +33,11 @@ export type OpenCodeModel = {
   id: string;
   name: string;
   reasoning?: boolean;
+  attachment?: boolean;
+  modalities?: {
+    input?: readonly string[];
+    output?: readonly string[];
+  };
   options?: { reasoningEffort: "low" | "medium" | "high" };
 };
 

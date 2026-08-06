@@ -65,6 +65,11 @@ export type ModelsYaml = Record<string, ModelSource>;
 export type ModelSource = {
   model_name: string;
   reasoning_effort?: "low" | "medium" | "high";
+  attachment?: boolean;
+  modalities?: {
+    input?: readonly string[];
+    output?: readonly string[];
+  };
 };
 
 export type GlobalYaml = {
