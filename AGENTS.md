@@ -76,6 +76,7 @@ Ignored/local: `.worktrees/`, `node_modules/`, `dist/`, `.sisyphus/evidence/`, `
 - Do not run destructive Git commands, force push, amend, skip hooks, or overwrite user changes without explicit request.
 - Do not duplicate generated config back into YAML unless it is intentionally becoming source.
 - Do not expand scope for unrelated issues; record them separately.
+- Do not rely on runtime TTY state for gate/test determinism; tests invoking interactive shared functions must inject a selector or explicitly disable interaction, never depend on "the current process is not a TTY".
 
 ## COMMANDS
 
@@ -92,6 +93,8 @@ bun run typecheck
 bun run format:check
 bun run schema:gen
 ```
+
+> `bun run check` 必须可非交互运行；若在真实终端卡在交互菜单，先修根因（为测试调用点显式禁用交互或注入 selector），不得手工喂输入绕过。
 
 ## NOTES
 

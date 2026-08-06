@@ -57,7 +57,7 @@ export function shouldPromptOptional(input: {
   dryRun: boolean;
   interactiveOptionalSelection?: boolean;
 }): boolean {
-  return input.stdinIsTTY && input.stdoutIsTTY && !input.dryRun && input.interactiveOptionalSelection !== false;
+  return input.interactiveOptionalSelection === true && input.stdinIsTTY && input.stdoutIsTTY && !input.dryRun;
 }
 
 export async function buildGenerationPreview(input: {

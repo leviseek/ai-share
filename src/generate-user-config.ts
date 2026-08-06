@@ -27,6 +27,7 @@ export async function runGeneration(
     projectRoot?: string;
     providerSelector?: ProviderSelector;
     optionalSelector?: (choices: readonly InstallChoice[]) => Promise<ReadonlySet<string>>;
+    interactiveOptionalSelection?: boolean;
   } = {},
 ): Promise<GenerationRunResult> {
   let plan: GenerationPlan | undefined;
@@ -40,6 +41,9 @@ export async function runGeneration(
       ...(input.projectRoot ? { projectRoot: input.projectRoot } : {}),
       ...(input.providerSelector ? { providerSelector: input.providerSelector } : {}),
       ...(input.optionalSelector ? { optionalSelector: input.optionalSelector } : {}),
+      ...(input.interactiveOptionalSelection === undefined
+        ? {}
+        : { interactiveOptionalSelection: input.interactiveOptionalSelection }),
     });
     plan = preview.plan;
 
@@ -82,7 +86,13 @@ export function printGenerationResult(result: GenerationRunResult): number {
   return 0;
 }
 
-if (import.meta.main) process.exitCode = printGenerationResult(await runGeneration());
+if (import.meta.main) {
+  process.exitCode = printGenerationResult(
+    await runGeneration({
+      interactiveOptionalSelection: process.stdin.isTTY && process.stdout.isTTY,
+    }),
+  );
+}
 
 function printPlan(plan: GenerationPlan, dryRun: boolean): void {
   const prefix = dryRun ? "PLAN" : "APPLY";

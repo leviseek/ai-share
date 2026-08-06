@@ -58,6 +58,8 @@ src/
 - 所有验证和所有权预检完成前不得产生 OpenCode 输出副作用。
 - staging 必须同时支持 write/delete，并在任一 promote 失败时回滚。
 - Provider 菜单只在未传 `--provider` 且 stdin/stdout 为 TTY 时启用；非 TTY 必须确定性回退，不能等待输入。
+- 任何测试调用可能触发交互的共享函数（`buildGenerationPreview`、provider-select、install-select）必须满足以下任一条件，禁止依赖「当前进程不是 TTY」的环境假设：① 注入 `providerSelector`/`optionalSelector`；② 显式传 `interactiveProviderSelection: false` 且 `interactiveOptionalSelection: false`。
+- optional 交互默认 opt-in：`shouldPromptOptional` 仅当显式传 `interactiveOptionalSelection: true` 时返回 true；新调用点未传参即默认非交互。
 - `ai:config` 只支持 `--dry-run`、`--non-interactive`、`--force`；仅在 `win32`/`darwin` 运行，非 TTY 或显式非交互时使用 YAML 值。
 - WezTerm 输出路径必须精确匹配当前用户目录下的 `.config/wezterm/wezterm.lua`；未受管 collision 默认不写入，`--force` 只接管普通文件。
 - 不重新引入 runtime manifest 输出、workspace link 或 memory compiler/proposal。

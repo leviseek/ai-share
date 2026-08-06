@@ -48,6 +48,7 @@ describe("generation preview model integration", () => {
         env: fixture.env,
         projectRoot: fixture.root,
         interactiveProviderSelection: false,
+        interactiveOptionalSelection: false,
       });
 
       expect(preview.providerDecision).toEqual({ id: "codexapis", source: "global-config" });
@@ -118,6 +119,7 @@ describe("generation preview model integration", () => {
         env: fixture.env,
         projectRoot: fixture.root,
         interactiveProviderSelection: false,
+        interactiveOptionalSelection: false,
         providerSelector: () => {
           return Promise.resolve("deepseek");
         },
@@ -172,11 +174,40 @@ describe("generation preview model integration", () => {
       fixture.cleanup();
     }
   });
+
+  test("never enters the interactive install selector under a TTY when optional selection is not explicitly enabled", async () => {
+    const fixture = createFixture();
+    const stdinDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+    const stdoutDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
+    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+    try {
+      const preview = await buildGenerationPreview({
+        options: { force: false, dryRun: false },
+        env: fixture.env,
+        projectRoot: fixture.root,
+        interactiveProviderSelection: false,
+      });
+
+      expect(preview.providerDecision).toEqual({ id: "codexapis", source: "global-config" });
+      expect(preview.configJsonc).not.toContain(SUPERPOWERS_PLUGIN_SPEC);
+    } finally {
+      if (stdinDescriptor) Object.defineProperty(process.stdin, "isTTY", stdinDescriptor);
+      if (stdoutDescriptor) Object.defineProperty(process.stdout, "isTTY", stdoutDescriptor);
+      fixture.cleanup();
+    }
+  }, 2000);
 });
 
 describe("shouldPromptOptional", () => {
-  test("prompts when stdin and stdout are TTY and the run is not a dry run", () => {
-    expect(shouldPromptOptional({ stdinIsTTY: true, stdoutIsTTY: true, dryRun: false })).toBe(true);
+  test("prompts only when interactive optional selection is explicitly enabled and stdin/stdout are TTY and the run is not a dry run", () => {
+    expect(
+      shouldPromptOptional({ stdinIsTTY: true, stdoutIsTTY: true, dryRun: false, interactiveOptionalSelection: true }),
+    ).toBe(true);
+  });
+
+  test("does not prompt when optional selection is not explicitly enabled even in a TTY", () => {
+    expect(shouldPromptOptional({ stdinIsTTY: true, stdoutIsTTY: true, dryRun: false })).toBe(false);
   });
 
   test("does not prompt when optional selection is explicitly disabled even in a TTY", () => {
@@ -186,11 +217,15 @@ describe("shouldPromptOptional", () => {
   });
 
   test("does not prompt when stdin is not a TTY", () => {
-    expect(shouldPromptOptional({ stdinIsTTY: false, stdoutIsTTY: true, dryRun: false })).toBe(false);
+    expect(
+      shouldPromptOptional({ stdinIsTTY: false, stdoutIsTTY: true, dryRun: false, interactiveOptionalSelection: true }),
+    ).toBe(false);
   });
 
   test("does not prompt during a dry run", () => {
-    expect(shouldPromptOptional({ stdinIsTTY: true, stdoutIsTTY: true, dryRun: true })).toBe(false);
+    expect(
+      shouldPromptOptional({ stdinIsTTY: true, stdoutIsTTY: true, dryRun: true, interactiveOptionalSelection: true }),
+    ).toBe(false);
   });
 });
 

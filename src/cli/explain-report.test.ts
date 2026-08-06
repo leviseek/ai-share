@@ -15,6 +15,7 @@ describe("explain report model integration", () => {
         env: fixture.env,
         projectRoot: fixture.root,
         interactiveProviderSelection: false,
+        interactiveOptionalSelection: false,
       });
       const report = buildExplainReport(preview);
 
@@ -45,6 +46,7 @@ describe("explain report model integration", () => {
         env: fixture.env,
         projectRoot: fixture.root,
         interactiveProviderSelection: false,
+        interactiveOptionalSelection: false,
       });
       const report = buildExplainReport(preview);
 
