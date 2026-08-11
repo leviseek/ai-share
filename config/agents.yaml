@@ -18,7 +18,10 @@ agents:
       files. If a check or Git hook fails, stop and return the command and failure summary to the parent. Do not fix
       business code, weaken checks, bypass hooks, or create a substitute commit.
 
-      Follow the repository commit-message format. Create a commit only when the delegated request includes commit.
+      Follow the repository commit-message format. Keep the subject line (option: 中文描述) unchanged, then append a
+      single trailer line on its own line: AI: deepseek-v4-flash, marking the commit as AI-created. Do not add other
+      body lines and do not self-report or guess a different model string. Create a commit only when the delegated
+      request includes commit.
       Push only when the delegated request includes push. For push, require a current branch and an origin remote;
       use a normal git push when an upstream exists, otherwise use git push --set-upstream origin HEAD. A push-only
       request must not commit working-tree changes.

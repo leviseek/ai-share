@@ -38,6 +38,22 @@ option: 中文描述
 - `style`: 格式或样式调整
 - `perf`: 性能优化
 
+## AI 提交标识
+
+由 `ai-share-commit-operator` 执行的 AI 提交，应在 subject 后空一行追加标识行，标记本次提交由 AI 创建：
+
+```text
+feat: 增加 OpenCode 配置共享命令
+
+AI: deepseek-v4-flash
+```
+
+规则：
+
+- 标识行独立成行，使用 `AI: <model>` 格式，`model` 与 `config/agents.yaml` 中该 agent 的模型一致。
+- 不改变 subject 的 `option: 中文描述` 格式。
+- 不添加其他 body 行。
+
 ## 示例
 
 ```text
