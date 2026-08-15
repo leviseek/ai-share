@@ -136,6 +136,7 @@ export async function buildGenerationPreview(input: {
     launcherFiles: buildAiocLauncherFiles(paths),
     force: input.options.force,
     skillNames: selection.skills,
+    archify: loadedConfig.archify,
   });
   return {
     options: { ...input.options },

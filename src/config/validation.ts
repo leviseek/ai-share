@@ -9,6 +9,7 @@ import type {
   ToolsYaml,
 } from "../types.ts";
 import { isSensitiveName } from "../security/secret-patterns.ts";
+import { archifySchemaInput } from "./archify.ts";
 import type { ValidationError } from "./validators/common.ts";
 import { isRecord, isStringArray } from "./validators/common.ts";
 import { validateOpenCodeEnv } from "./validators/env.ts";
@@ -82,6 +83,7 @@ export function validateYamlConsistency(
   agentsConfig: unknown = { agents: {} },
   pluginsConfig: unknown = { plugins: [] },
   toolsConfig: unknown = { tools: [] },
+  archifyConfig: unknown = archifySchemaInput(undefined),
 ): ValidationError[] {
   const errors = validateYamlSchemaShapes({
     "global.yaml": globalConfig,
@@ -92,6 +94,7 @@ export function validateYamlConsistency(
     "agents.yaml": agentsConfig,
     "plugins.yaml": pluginsConfig,
     "tools.yaml": toolsConfig,
+    "archify.yaml": archifyConfig,
   });
 
   validateCrossFileReferences(errors, modelsConfig, providersConfig, globalConfig, agentsConfig);

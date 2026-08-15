@@ -32,6 +32,14 @@ export type ToolSource = {
 };
 export type ToolsYaml = { tools: ToolSource[] };
 
+export type ArchifyConfig = {
+  repo: string;
+  skill: string;
+  ref: string;
+  enabled: boolean;
+};
+export type ArchifyYaml = { archify: ArchifyConfig };
+
 export type AgentSource = {
   description: string;
   model?: string;
@@ -77,13 +85,3 @@ export type GlobalYaml = {
   provider: string;
   opencode_min_version?: string;
 };
-
-export interface WezTermConfig {
-  shell: "platform-native" | "wezterm-default";
-  color_scheme: "catppuccin-mocha" | "dracula" | "tokyo-night" | "wezterm-default";
-  font_size: 11 | 12 | 13;
-  window_background_opacity: 0.88 | 0.94 | 1;
-  maximize_on_startup: boolean;
-  exit_behavior: "hold" | "close" | "close-on-clean-exit";
-  scrollback_lines: 10000 | 100000 | 1000000;
-}

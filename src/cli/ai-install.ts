@@ -10,6 +10,7 @@ import type { ToolSource } from "../types.ts";
 import { createColor } from "./color.ts";
 import { pathExists } from "./fs.ts";
 import { argsFromArgv } from "./args.ts";
+import { parseJsonc } from "./jsonc.ts";
 import {
   buildInstallHints,
   buildInstalledToolIds,
@@ -343,101 +344,12 @@ async function hasOpenSpecSuperpowersConfig(projectRoot: string): Promise<boolea
 async function readUserPluginSpecs(configPath: string): Promise<readonly string[]> {
   try {
     const content = await readFile(configPath, "utf8");
-    const parsed: unknown = JSON.parse(stripJsoncSyntax(content));
+    const parsed: unknown = parseJsonc(content);
     if (!isRecord(parsed) || !Array.isArray(parsed.plugin)) return [];
     return parsed.plugin.some((spec: unknown) => spec === SUPERPOWERS_PLUGIN_SPEC) ? [SUPERPOWERS_PLUGIN_SPEC] : [];
   } catch {
     return [];
   }
-}
-
-function stripJsoncComments(content: string): string {
-  let output = "";
-  let inString = false;
-  let escaped = false;
-  let inLineComment = false;
-  let inBlockComment = false;
-
-  for (let index = 0; index < content.length; index += 1) {
-    const character = content[index] ?? "";
-    const next = content[index + 1] ?? "";
-
-    if (inLineComment) {
-      if (character === "\n" || character === "\r") {
-        inLineComment = false;
-        output += character;
-      }
-      continue;
-    }
-
-    if (inBlockComment) {
-      if (character === "*" && next === "/") {
-        inBlockComment = false;
-        index += 1;
-      } else if (character === "\n" || character === "\r") {
-        output += character;
-      }
-      continue;
-    }
-
-    if (inString) {
-      output += character;
-      if (escaped) escaped = false;
-      else if (character === "\\") escaped = true;
-      else if (character === '"') inString = false;
-      continue;
-    }
-
-    if (character === '"') {
-      inString = true;
-      output += character;
-    } else if (character === "/" && next === "/") {
-      inLineComment = true;
-      index += 1;
-    } else if (character === "/" && next === "*") {
-      inBlockComment = true;
-      index += 1;
-    } else {
-      output += character;
-    }
-  }
-
-  if (inBlockComment) throw new Error("JSONC 注释未闭合");
-  return output;
-}
-
-function stripJsoncSyntax(content: string): string {
-  const withoutComments = stripJsoncComments(content);
-  let output = "";
-  let inString = false;
-  let escaped = false;
-
-  for (let index = 0; index < withoutComments.length; index += 1) {
-    const character = withoutComments[index] ?? "";
-    if (inString) {
-      output += character;
-      if (escaped) escaped = false;
-      else if (character === "\\") escaped = true;
-      else if (character === '"') inString = false;
-      continue;
-    }
-
-    if (character === '"') {
-      inString = true;
-      output += character;
-      continue;
-    }
-    if (character !== ",") {
-      output += character;
-      continue;
-    }
-
-    let nextIndex = index + 1;
-    while (/\s/.test(withoutComments[nextIndex] ?? "")) nextIndex += 1;
-    if (withoutComments[nextIndex] !== "]" && withoutComments[nextIndex] !== "}") output += character;
-  }
-
-  return output;
 }
 
 export function resolveInstallExecutable(platform: NodeJS.Platform, command: string): string {

@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { hasManagedSkillMarker } from "./generation-plan.ts";
 import { SUPERPOWERS_PLUGIN_SPEC } from "./install-plan.ts";
+import { parseJsonc } from "./jsonc.ts";
 import type { InstallChoice } from "./install-select.ts";
 import { nativeSkillNames } from "./native-skills.ts";
 import type { GeneratorPaths } from "./paths.ts";
@@ -98,7 +99,7 @@ async function readTargetOpenCodeConfig(path: string): Promise<unknown> {
     throw new Error(`读取目标 OpenCode 配置失败：${path}（${describeError(error)}）`, { cause: error });
   }
   try {
-    return JSON.parse(stripJsoncLineComments(content));
+    return parseJsonc(content);
   } catch (error) {
     throw new Error(`目标 OpenCode 配置解析失败：${path}（${describeError(error)}）`, { cause: error });
   }
@@ -110,14 +111,6 @@ function isNotFound(error: unknown): boolean {
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function stripJsoncLineComments(content: string): string {
-  return content
-    .replaceAll("\r\n", "\n")
-    .split("\n")
-    .filter((line) => !line.trimStart().startsWith("//"))
-    .join("\n");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -2,13 +2,12 @@ import { YAML_SCHEMA_SPECS, type SchemaNode, type YamlSchemaSourceFile } from ".
 import type { ValidationError } from "./common.ts";
 import { isRecord } from "./common.ts";
 
-export type YamlSchemaInput = Record<Exclude<YamlSchemaSourceFile, "wezterm.yaml">, unknown>;
+export type YamlSchemaInput = Record<YamlSchemaSourceFile, unknown>;
 
 export function validateYamlSchemaShapes(input: YamlSchemaInput): ValidationError[] {
   const errors: ValidationError[] = [];
 
   for (const spec of YAML_SCHEMA_SPECS) {
-    if (spec.sourceFile === "wezterm.yaml") continue;
     validateNode(errors, spec.sourceFile, spec.root, input[spec.sourceFile], spec.rootDisplayPath ?? "");
   }
 

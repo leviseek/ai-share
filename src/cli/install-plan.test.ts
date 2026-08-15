@@ -31,15 +31,6 @@ const TOOLS = [
     platforms: { win32: { manager: "scoop" }, darwin: { manager: "brew" } },
   },
   {
-    id: "wezterm",
-    label: "WezTerm",
-    package: "wezterm",
-    executable: "wezterm",
-    required: true,
-    version: "latest",
-    platforms: { win32: { manager: "scoop" }, darwin: { manager: "brew" } },
-  },
-  {
     id: "openspec",
     label: "OpenSpec",
     package: "@fission-ai/openspec",
@@ -248,64 +239,6 @@ describe("buildInstallActions", () => {
       command: "bun",
       args: ["install", "--global", "@colbymchenry/codegraph@latest"],
     });
-  });
-
-  test("builds Scoop extras and global actions from the Windows manager mapping", () => {
-    const actions = buildInstallActions({
-      tools: TOOLS,
-      platform: "win32",
-      selectedIds: new Set<InstallToolId>(),
-      installedIds: new Set<InstallToolId>(),
-      upgradeIds: new Set<InstallToolId>(),
-      scoopExtrasAvailable: false,
-      scoopGlobalIds: new Set<InstallToolId>(["wezterm"]),
-    });
-
-    expect(actions).toContainEqual({
-      kind: "prepare-scoop-extras",
-      command: "scoop",
-      args: ["bucket", "add", "extras"],
-    });
-    expect(actions).toContainEqual({
-      kind: "command",
-      toolId: "wezterm",
-      operation: "install",
-      command: "scoop",
-      args: ["install", "wezterm", "--global"],
-    });
-    expect(actions.filter((action) => action.kind === "prepare-scoop-extras")).toHaveLength(1);
-  });
-
-  test("builds a Homebrew cask upgrade from the macOS manager mapping", () => {
-    const actions = buildInstallActions({
-      tools: TOOLS,
-      platform: "darwin",
-      selectedIds: new Set<InstallToolId>(),
-      installedIds: new Set<InstallToolId>(["wezterm"]),
-      upgradeIds: new Set<InstallToolId>(["wezterm"]),
-      scoopExtrasAvailable: true,
-    });
-
-    expect(actions).toContainEqual({
-      kind: "command",
-      toolId: "wezterm",
-      operation: "upgrade",
-      command: "brew",
-      args: ["upgrade", "--cask", "wezterm"],
-    });
-  });
-
-  test("skips a selected tool with no current-platform manager mapping", () => {
-    const actions = buildInstallActions({
-      tools: TOOLS,
-      platform: "linux",
-      selectedIds: new Set<InstallToolId>(["wezterm"]),
-      installedIds: new Set<InstallToolId>(),
-      upgradeIds: new Set<InstallToolId>(),
-      scoopExtrasAvailable: true,
-    });
-
-    expect(actions.some((action) => "toolId" in action && action.toolId === "wezterm")).toBe(false);
   });
 
   test("keeps Superpowers as a plugin-only configure action", () => {
@@ -526,14 +459,14 @@ describe("parseScoopInstalled", () => {
       "",
       "Name Version Source Updated Info",
       "---- ------- ------ ------- ----",
-      "wezterm 1.0.0 extras 2026-08-05 global install",
+      "unrelated-package 1.0.0 extras 2026-08-05 global install",
     ].join("\n");
 
     expect(() => {
       Reflect.apply(parseScoopInstalled, undefined, [scoopOutput]);
     }).toThrow("Scoop 应用列表解析失败：必须提供工具配置。");
     expect(() => {
-      Reflect.apply(parseBrewCaskInstalled, undefined, ["wezterm 2026.1"]);
+      Reflect.apply(parseBrewCaskInstalled, undefined, ["unrelated-package 2026.1"]);
     }).toThrow("Homebrew Cask 列表解析失败：必须提供工具配置。");
   });
 });

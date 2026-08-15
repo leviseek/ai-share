@@ -15,6 +15,7 @@ config/*.yaml + config/local/*.yaml
 
 - Bun `1.3.13`
 - OpenCode `1.18.11+`
+- Git（`ai:archify` 获取固定 revision 时使用）
 
 ```sh
 bun install --frozen-lockfile
@@ -23,7 +24,7 @@ bun run ai:help
 bun run ai:explain -- --json
 bun run ai:gen -- --dry-run
 bun run ai:gen
-bun run ai:config -- --dry-run --non-interactive
+bun run ai:archify
 ```
 
 `ai:check` 会检查仓库配置，并检测受管工具及其配置状态；`ai:help` 会根据相同的检测结果输出已安装工具的使用提示。`ai:bootstrap` 会安装依赖、检查配置并生成 OpenCode 输出：
@@ -32,18 +33,6 @@ bun run ai:config -- --dry-run --non-interactive
 bun run ai:bootstrap
 bun run ai:bootstrap -- --skip-install
 ```
-
-`ai:config` 独立生成 WezTerm 配置，不属于 `ai:bootstrap`；`ai:config`/WezTerm 用户配置流程仅支持 Windows 和 macOS。这与 `ai:check` 对全局工具检测支持 Windows、macOS 和 Linux 是不同边界。默认在 stdin 和 stdout 均为 TTY 时逐项选择配置；非 TTY 或显式使用 `--non-interactive` 时直接使用 `config/wezterm.yaml`。交互选择只对本次运行生效，不会修改 YAML。预览和写入示例：
-
-```sh
-bun run ai:config -- --dry-run
-bun run ai:config -- --non-interactive
-bun run ai:config -- --non-interactive --force
-```
-
-命令只接受 `--dry-run`、`--non-interactive` 和 `--force`。`--dry-run` 永不写入文件；如果 stdin 和 stdout 均为 TTY，仍会先运行七步交互向导，然后输出所选配置摘要和计划；非 TTY 或使用 `--non-interactive` 时直接输出 YAML 配置摘要和计划。`--force` 只在目标是未受管普通文件时显式接管，不能绕过 YAML 校验，也不能接管目录、符号链接或其他阻塞路径。
-
-输出目标固定为当前用户目录下的 `~/.config/wezterm/wezterm.lua`（Windows 使用 `HOME` 或 `USERPROFILE` 解析用户目录）。目标缺失时创建，首行精确匹配 ai-share managed header 的目标可更新，内容相同时保留；未受管文件默认报告 collision 且不写入。执行会在写入前复核目标及受控祖先，并依靠同一受控祖先下的 staging source 使已检测祖先被替换时失败而不跟随新链接。Node/Bun 的跨平台文件系统 API 不提供原子 no-follow rename，因此该边界防止误操作和已检测的并发变化，但不承诺抵御可同时重建随机事务路径的恶意同用户进程。WezTerm 会自动重载已加载的配置文件。
 
 在 Windows、macOS 或 Linux 上，可检测 AI 开发环境中的受管工具：
 
@@ -63,23 +52,23 @@ bun run ai:help
 
 ## 配置源
 
-| 文件                   | 用途                                                                         |
-| ---------------------- | ---------------------------------------------------------------------------- |
-| `config/global.yaml`   | 默认 `model`、`provider` 与 OpenCode 最低版本                                |
-| `config/provider.yaml` | Provider endpoint、API Key 引用、关联模型、默认模型与原生模式                |
-| `config/models.yaml`   | 上游 `model_name`、可选 `reasoning_effort`、`attachment` 与 `modalities`     |
-| `config/mcp.yaml`      | stdio 或 HTTP MCP server                                                     |
-| `config/env.yaml`      | `aioc` 注入的共享非密钥环境变量                                              |
-| `config/agents.yaml`   | OpenCode custom agent、模型、mode、prompt 与 reasoning 覆盖                  |
-| `config/plugins.yaml`  | OpenCode plugins；基础配置为空数组，可由本机 overlay 整体替换                |
-| `config/tools.yaml`    | 全局 AI coding 工具的唯一声明源、平台安装 manager 与版本                     |
-| `config/wezterm.yaml`  | `ai:config` 的 shell、主题、字体、透明度、退出行为、启动窗口与滚动回溯默认值 |
+| 文件                   | 用途                                                                     |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `config/archify.yaml`  | 外部 Archify skill 的仓库、固定 revision 与 ownership 开关               |
+| `config/global.yaml`   | 默认 `model`、`provider` 与 OpenCode 最低版本                            |
+| `config/provider.yaml` | Provider endpoint、API Key 引用、关联模型、默认模型与原生模式            |
+| `config/models.yaml`   | 上游 `model_name`、可选 `reasoning_effort`、`attachment` 与 `modalities` |
+| `config/mcp.yaml`      | stdio 或 HTTP MCP server                                                 |
+| `config/env.yaml`      | `aioc` 注入的共享非密钥环境变量                                          |
+| `config/agents.yaml`   | OpenCode custom agent、模型、mode、prompt 与 reasoning 覆盖              |
+| `config/plugins.yaml`  | OpenCode plugins；基础配置为空数组，可由本机 overlay 整体替换            |
+| `config/tools.yaml`    | 全局 AI coding 工具的唯一声明源、平台安装 manager 与版本                 |
 
 固定对象拒绝未知字段。API Key 只能写成 `${ENV_NAME}` 引用；生成的 OpenCode 配置会转换为 `{env:ENV_NAME}`，不会读取或持久化真实值。
 
 插件仅接受 npm package spec 或 `package-name@git+https://...`；拒绝 URL 凭据、query/hash、`file://`、本机路径和明文 secret。`ai:explain` 只展示 package ID，生成配置保留完整且已验证的 spec。
 
-OpenCode 生成器先读取 `config/*.yaml`，再深合并同名 `config/local/*.yaml`：object 深合并，数组和标量替换。该 overlay 规则不适用于 `config/wezterm.yaml`；WezTerm loader 只读取该 base file，不读取 `config/local/wezterm.yaml`。当前机器的代理等非密钥值放在被 Git 忽略的 `config/local/env.yaml`：
+OpenCode 生成器先读取 `config/*.yaml`，再深合并同名 `config/local/*.yaml`：object 深合并，数组和标量替换。当前机器的代理等非密钥值放在被 Git 忽略的 `config/local/env.yaml`：
 
 ```powershell
 New-Item -ItemType Directory -Force config/local | Out-Null
@@ -87,6 +76,8 @@ Copy-Item templates/personal-overlay/env.local.example.yaml config/local/env.yam
 ```
 
 禁止把 `HOME`、`USERPROFILE`、`PATH`、`AI_SHARE_*`、`OPENCODE_*` 或敏感变量写入 env 配置。
+
+`config/archify.yaml` 固定外部 Archify skill 的 source revision。运行 `bun run ai:archify` 或 `bun run ai:archify -- update` 时，命令先以 Git 获取固定 revision 到临时目录，再让 `skills add` 从该本地 source 安装；成功后会在 `~/.agents/skills/<skill>/` 写入 `.ai-share-managed` 和 `.ai-share-archify-ref.json`。已有未受管目标默认拒绝覆盖，只有在备份并确认接管后才使用 `bun run ai:archify -- --force`。普通 `ai:gen` 不联网下载 Archify，只在已安装时校验 ownership/revision；`enabled: false` 会在下一次生成中删除受管 Archify 目录。
 
 ## Provider 与任务选择
 
@@ -182,8 +173,6 @@ bun run schema:check
 
 `src/config/schema-spec.ts` 同时驱动 JSON Schema 与运行时 shape 校验；shareable templates 使用相同 pipeline。
 
-WezTerm 配置字段、可选值和默认值见 [`docs/schema/wezterm.md`](docs/schema/wezterm.md)。
-
 ## 诊断与质量门禁
 
 ```sh
@@ -197,7 +186,7 @@ bun run check
 
 `ai:check` 默认检查 OpenCode 版本、配置漂移、managed env、`aioc`、本地代理、memory 和 API Key env 是否存在；只有 `--online`/`--canary` 访问 Provider。`ai:help` 只输出当前已安装工具的使用提示。完整 `check` 包含 format、lint、typecheck、tests、schema、memory、skill 和配置检查。
 
-`config/tools.yaml` 是全局 AI coding 工具的唯一声明源。当前包含 OpenCode CLI、OpenCode Desktop、WezTerm、OpenSpec、CodeGraph、TypeScript 和 TypeScript Language Server。`ai:check` 会按当前平台的 `platforms` 映射检测工具；没有当前平台后端映射的条目不会显示为缺失，也不会生成安装提示。Bun 工具的安装提示使用 `bun install --global <package>@<version>`，Scoop 和 Homebrew 工具分别使用对应平台 manager 的命令。
+`config/tools.yaml` 是全局 AI coding 工具的唯一声明源。当前包含 OpenCode CLI、OpenCode Desktop、OpenSpec、CodeGraph、TypeScript 和 TypeScript Language Server。`ai:check` 会按当前平台的 `platforms` 映射检测工具；没有当前平台后端映射的条目不会显示为缺失，也不会生成安装提示。Bun 工具的安装提示使用 `bun install --global <package>@<version>`，Scoop 和 Homebrew 工具分别使用对应平台 manager 的命令。
 
 TypeScript 和 TypeScript Language Server 通过 Bun 全局安装，并不属于 `ai:gen` 第一轮生成菜单。`ai:gen` 第一轮只选择 OpenCode plugin、agents 和 native skills；全局 CLI/LSP 的安装与检测由工具安装流程负责。项目 `package.json` 的 `devDependencies` 仍只服务于 ai-share 自身开发，可以与设备级全局工具并存。
 

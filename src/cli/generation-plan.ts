@@ -1,9 +1,10 @@
 import type { Stats } from "node:fs";
 import { lstat, readFile, readdir } from "node:fs/promises";
 import { basename, resolve } from "node:path";
-import type { EnvYaml } from "../types.ts";
+import type { ArchifyYaml, EnvYaml } from "../types.ts";
 import { OPENCODE_CONFIG_GENERATED_HEADER } from "../config/builders/opencode.ts";
 import { buildOpenCodeEnvFileWithManagedBlock } from "../config/builders/env.ts";
+import { ARCHIFY_REF_FILE } from "./archify-ownership.ts";
 import { NATIVE_SKILLS } from "./native-skills.ts";
 import { pathExists, StagedFileWriter } from "./fs.ts";
 import type { GeneratorPaths } from "./paths.ts";
@@ -27,7 +28,10 @@ export type PlanReason =
   | "force-replace-blocking-path"
   | "stale-managed-skill"
   | "unmanaged-skill-preserved"
-  | "invalid-marker-preserved";
+  | "invalid-marker-preserved"
+  | "archify-not-installed"
+  | "archify-ref-drift"
+  | "archify-content-missing";
 
 export type PlannedPath = {
   path: string;
@@ -53,6 +57,7 @@ export async function buildGenerationPlan(input: {
   force: boolean;
   platform?: NodeJS.Platform;
   skillNames?: ReadonlySet<string>;
+  archify?: ArchifyYaml;
 }): Promise<GenerationPlan> {
   const plan: GenerationPlan = { actions: [], preserved: [], collisions: [] };
 
@@ -70,6 +75,9 @@ export async function buildGenerationPlan(input: {
     input.force,
     input.skillNames ?? new Set(NATIVE_SKILLS.map((skill) => skill.name)),
   );
+  if (input.archify) {
+    await planArchifySkill(plan, input.paths.targetGlobalSkillsDir, input.archify);
+  }
   await planLaunchers(plan, input.paths, input.launcherFiles, input.force, input.platform ?? process.platform);
   return plan;
 }
@@ -186,6 +194,46 @@ async function planSkills(
   const stale = await classifyStaleSkillDirs(skillsDir, currentSkillNames);
   for (const skill of stale.deletes) plan.actions.push({ kind: "delete", ...skill });
   plan.preserved.push(...stale.preserved);
+}
+
+async function planArchifySkill(plan: GenerationPlan, skillsDir: string, config: ArchifyYaml): Promise<void> {
+  const { repo, skill, ref, enabled } = config.archify;
+  const skillDir = resolve(skillsDir, skill);
+  const markerPath = resolve(skillDir, SKILL_MANAGED_MARKER);
+  const refPath = resolve(skillDir, ARCHIFY_REF_FILE);
+  const directoryStat = await lstatIfExists(skillDir);
+
+  if (!directoryStat) {
+    if (enabled) plan.preserved.push(plannedPath(skillDir, "archify-not-installed", "missing"));
+    return;
+  }
+  if (!directoryStat.isDirectory() || directoryStat.isSymbolicLink()) {
+    plan.collisions.push(plannedPath(skillDir, "blocking-path-collision", "unmanaged"));
+    return;
+  }
+
+  const ownership = await readArchifyOwnership(skillDir);
+  if (ownership.kind !== "managed") {
+    if (enabled) plan.collisions.push(plannedPath(skillDir, "unowned-collision", ownership.kind));
+    else plan.preserved.push(plannedPath(skillDir, "unmanaged-skill-preserved", ownership.kind));
+    return;
+  }
+
+  if (!enabled) {
+    plan.actions.push({ kind: "delete", path: skillDir, reason: "stale-managed-skill", ownership: "managed" });
+    return;
+  }
+
+  if (ownership.record.repo !== repo || ownership.record.skill !== skill || ownership.record.ref !== ref) {
+    plan.collisions.push(plannedPath(refPath, "archify-ref-drift", "managed"));
+    return;
+  }
+  if (!(await pathExists(resolve(skillDir, "SKILL.md")))) {
+    plan.collisions.push(plannedPath(skillDir, "archify-content-missing", "managed"));
+    return;
+  }
+  plan.preserved.push(plannedPath(markerPath, "content-current", "managed"));
+  plan.preserved.push(plannedPath(refPath, "content-current", "managed"));
 }
 
 export async function executeGenerationPlan(plan: GenerationPlan, stagingRoot: string): Promise<void> {
@@ -340,6 +388,38 @@ async function classifyStaleSkillDirs(
 
 export async function hasManagedSkillMarker(skillDir: string): Promise<boolean> {
   return (await skillMarkerOwnership(skillDir)) === "managed";
+}
+
+type ArchifyOwnership =
+  | { kind: "managed"; record: { repo: string; skill: string; ref: string } }
+  | { kind: "unmanaged" | "invalid-marker" };
+
+async function readArchifyOwnership(skillDir: string): Promise<ArchifyOwnership> {
+  const markerOwnership = await skillMarkerOwnership(skillDir);
+  if (markerOwnership !== "managed") return { kind: markerOwnership };
+  const refPath = resolve(skillDir, ARCHIFY_REF_FILE);
+  const refStat = await lstatIfExists(refPath);
+  if (!refStat || !refStat.isFile() || refStat.isSymbolicLink()) return { kind: "invalid-marker" };
+  try {
+    const value: unknown = JSON.parse(await readFile(refPath, "utf8"));
+    if (!isArchifyOwnershipRecord(value)) return { kind: "invalid-marker" };
+    return { kind: "managed", record: value };
+  } catch {
+    return { kind: "invalid-marker" };
+  }
+}
+
+function isArchifyOwnershipRecord(value: unknown): value is { repo: string; skill: string; ref: string } {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.repo === "string" &&
+    typeof record.skill === "string" &&
+    typeof record.ref === "string" &&
+    record.repo.length > 0 &&
+    record.skill.length > 0 &&
+    record.ref.length > 0
+  );
 }
 
 async function skillMarkerOwnership(skillDir: string): Promise<"managed" | "unmanaged" | "invalid-marker"> {

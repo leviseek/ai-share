@@ -8,17 +8,12 @@ export type GeneratorPaths = {
   targetOpenCodeConfig: string;
   targetOpenCodeEnv: string;
   targetOpenCodeSkillsDir: string;
+  targetGlobalSkillsDir: string;
   targetUserBinDir: string;
   targetAiocScript: string;
   targetAiocUnix: string;
   targetAiocCmd: string;
   targetAiocPowerShell: string;
-};
-
-export type WezTermPaths = {
-  homeDir: string;
-  targetWezTermConfigDir: string;
-  targetWezTermConfig: string;
 };
 
 export function buildGeneratorPaths(
@@ -42,21 +37,12 @@ export function buildGeneratorPaths(
     targetOpenCodeConfig: resolve(targetOpenCodeConfigDir, "opencode.jsonc"),
     targetOpenCodeEnv: resolve(targetOpenCodeConfigDir, ".env"),
     targetOpenCodeSkillsDir: resolve(targetOpenCodeConfigDir, "skills"),
+    targetGlobalSkillsDir: resolve(homeDir, ".agents", "skills"),
     targetUserBinDir,
     targetAiocScript: resolve(targetUserBinDir, "aioc.ts"),
     targetAiocUnix: resolve(targetUserBinDir, "aioc"),
     targetAiocCmd: resolve(targetUserBinDir, "aioc.cmd"),
     targetAiocPowerShell: resolve(targetUserBinDir, "aioc.ps1"),
-  };
-}
-
-export function buildWezTermPaths(env: Record<string, string | undefined> = Bun.env): WezTermPaths {
-  const homeDir = resolveHomeDir(env);
-  const targetWezTermConfigDir = resolve(homeDir, ".config", "wezterm");
-  return {
-    homeDir,
-    targetWezTermConfigDir,
-    targetWezTermConfig: resolve(targetWezTermConfigDir, "wezterm.lua"),
   };
 }
 

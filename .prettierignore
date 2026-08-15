@@ -6,6 +6,8 @@ target/
 .bun/
 *.tsbuildinfo
 docs/schema/json/
+# Local Archify scratch; reviewed artifacts live under docs/archify/.
+archify/
 
 bun.lock
 

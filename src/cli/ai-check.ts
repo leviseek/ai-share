@@ -2,30 +2,34 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { buildInstructionsPaths, buildOpenCodeConfig, formatOpenCodeConfigJsonc } from "../config-builders.ts";
-import { loadValidatedConfig } from "../config/load.ts";
+import { buildGenerationPreview, type GenerationPreview } from "../generation-preview.ts";
 import { argsFromArgv, hasFlag, parseOptionValue } from "./args.ts";
 import { collectConfigDiagnostics } from "./config-diagnostics.ts";
 import { renderCheckReport, type CheckItem, type CheckReport, type CheckStatus } from "./check-output.ts";
 import { summarizeLocalProxyChecks } from "./env-runtime-check.ts";
 import { checkMemoryPrivacy } from "./memory-privacy-check.ts";
-import { resolveProviderId } from "./options.ts";
-import { buildGeneratorPaths } from "./paths.ts";
 import { buildAiocLauncherFiles } from "./aioc-install.ts";
 import { checkProviderCanaries, checkProviderModels } from "./provider-check.ts";
 import { formatInstallRunResult, runInstall } from "./ai-install.ts";
-import { resolveProviderModelDecision } from "../config/provider-model.ts";
 
 const startedAt = performance.now();
 const args = argsFromArgv();
-const paths = buildGeneratorPaths();
-const config = await loadValidatedConfig(paths.configDir);
 const cliProvider = parseOptionValue(args, "--provider", { missingValue: "error" });
-const providerId = resolveProviderId({
-  ...(cliProvider ? { cliProvider } : {}),
-  ...(Bun.env.AI_SHARE_PROVIDER ? { envProvider: Bun.env.AI_SHARE_PROVIDER } : {}),
-  defaultProvider: config.global.provider,
+const cliTask = parseOptionValue(args, "--task", { missingValue: "error" });
+const preview = await buildGenerationPreview({
+  options: {
+    force: false,
+    dryRun: true,
+    ...(cliProvider ? { provider: cliProvider } : {}),
+    ...(cliTask ? { task: cliTask } : {}),
+  },
+  env: Bun.env,
+  interactiveProviderSelection: false,
+  interactiveOptionalSelection: false,
 });
+const paths = preview.paths;
+const config = preview.loadedConfig.config;
+const providerId = preview.providerDecision.id;
 const provider = config.providers.providers[providerId];
 if (!provider) throw new Error(`提供商未定义：${providerId}`);
 const providersToCheck = [
@@ -34,20 +38,16 @@ const providersToCheck = [
     (candidate) => candidate.always_include === true && candidate !== provider,
   ),
 ];
-const modelDecision = resolveProviderModelDecision(config, providerId);
 const canary = hasFlag(args, "--canary");
 const online = hasFlag(args, "--online") || canary;
 const checks: CheckItem[] = [];
-const installResult = await runInstall();
-const expectedConfig = formatOpenCodeConfigJsonc(
-  buildOpenCodeConfig(
-    config,
-    providerId,
-    modelDecision.modelId,
-    buildInstructionsPaths(paths.projectRoot),
-    paths.targetOpenCodeSkillsDir,
-  ),
-);
+const installResult = await runInstall({
+  argv: [],
+  env: Bun.env,
+  projectRoot: paths.projectRoot,
+  platform: process.platform,
+});
+const expectedConfig = preview.configJsonc;
 const diagnostics = await collectConfigDiagnostics({
   paths,
   providers: providersToCheck,
@@ -93,6 +93,7 @@ checks.push(
     "aioc 启动器当前有效。",
     "aioc 启动器缺失或漂移。",
   ),
+  buildArchifyCheck(preview),
   diagnosticCheck(
     "runtime_versions",
     diagnostics.versionResults.value.every((entry) => entry.ok),
@@ -153,6 +154,30 @@ else console.log(renderCheckReport(report, providerId, process.stdout.isTTY && p
 const outputPath = parseOptionValue(args, "--output", { missingValue: "error" });
 if (outputPath) await writeReport(outputPath, report);
 process.exitCode = report.status === "error" ? 1 : 0;
+
+function buildArchifyCheck(preview: GenerationPreview): CheckItem {
+  const archify = preview.loadedConfig.archify.archify;
+  const target = resolve(preview.paths.targetGlobalSkillsDir, archify.skill);
+  const entries = [...preview.plan.actions, ...preview.plan.preserved, ...preview.plan.collisions].filter(
+    (entry) => entry.path === target || entry.path.startsWith(`${target}${process.platform === "win32" ? "\\" : "/"}`),
+  );
+  const collision = entries.some(
+    (entry) => entry.reason === "archify-ref-drift" || entry.reason === "archify-content-missing",
+  );
+  const missing = entries.some((entry) => entry.reason === "archify-not-installed");
+  return {
+    name: "archify",
+    status: collision || missing ? "warning" : "ok",
+    summary: !archify.enabled
+      ? "Archify 已禁用。"
+      : collision
+        ? "Archify ownership 或 revision 需要修复。"
+        : missing
+          ? "Archify 尚未安装；如需使用请执行 bun run ai:archify。"
+          : "Archify ownership 当前有效。",
+    details: entries,
+  };
+}
 
 function diagnosticCheck(name: string, ok: boolean, success: string, warning: string, details?: unknown): CheckItem {
   return {

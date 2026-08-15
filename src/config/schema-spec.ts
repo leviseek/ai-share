@@ -11,6 +11,12 @@ export const TOOL_PLATFORM_PATTERN = "^(?:win32|darwin|linux)$";
 export const TOOL_PACKAGE_PATTERN = "^(?:@[a-z0-9][a-z0-9._~-]*/[a-z0-9][a-z0-9._~-]*|[a-z0-9][a-z0-9._~-]*)$";
 export const TOOL_SYSTEM_PACKAGE_PATTERN = "^[a-z0-9][a-z0-9._~-]*$";
 export const TOOL_EXECUTABLE_PATTERN = "^[A-Za-z0-9][A-Za-z0-9._-]*$";
+export const ARCHIFY_REPO_PATTERN = "^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$";
+export const ARCHIFY_SKILL_PATTERN = "^[a-z][a-z0-9_-]*$";
+export const ARCHIFY_REF_PATTERN = "^(?:[0-9a-f]{40}|[A-Za-z0-9][A-Za-z0-9._-]{0,63})$";
+export const ARCHIFY_DEFAULT_REPO = "tt-a1i/archify";
+export const ARCHIFY_DEFAULT_SKILL = "archify";
+export const ARCHIFY_DEFAULT_REF = "cffdd42eed0ebf013aa070378d94facdd3d56b10";
 const NPM_PACKAGE_ID_PATTERN = "(?:@[a-z0-9][a-z0-9._~-]*/[a-z0-9][a-z0-9._~-]*|[a-z0-9][a-z0-9._~-]*)";
 const DIST_TAG_PATTERN = "[A-Za-z][A-Za-z0-9._-]*";
 const SEMVER_IDENTIFIER_PATTERN = "(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][A-Za-z0-9-]*)";
@@ -45,7 +51,7 @@ export type YamlSchemaSourceFile =
   | "agents.yaml"
   | "plugins.yaml"
   | "tools.yaml"
-  | "wezterm.yaml";
+  | "archify.yaml";
 
 type BaseSchemaNode = {
   description?: string;
@@ -96,6 +102,25 @@ type ObjectSchemaNode = BaseSchemaNode & {
 };
 
 export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
+  {
+    sourceFile: "archify.yaml",
+    schemaFileName: "archify.schema.json",
+    title: "ai-share archify.yaml",
+    root: objectSchema({
+      required: ["archify"],
+      properties: {
+        archify: objectSchema({
+          required: ["repo", "skill", "ref", "enabled"],
+          properties: {
+            repo: patternStringSchema(ARCHIFY_REPO_PATTERN, "Archify GitHub repository slug."),
+            skill: patternStringSchema(ARCHIFY_SKILL_PATTERN, "Skill directory installed by Archify."),
+            ref: patternStringSchema(ARCHIFY_REF_PATTERN, "Pinned Archify Git revision or safe tag."),
+            enabled: booleanSchema("Whether ai-share manages the Archify skill."),
+          },
+        }),
+      },
+    }),
+  },
   {
     sourceFile: "global.yaml",
     schemaFileName: "global.schema.json",
@@ -289,37 +314,6 @@ export const YAML_SCHEMA_SPECS: readonly YamlSchemaSpec[] = [
       },
     }),
   },
-  {
-    sourceFile: "wezterm.yaml",
-    schemaFileName: "wezterm.schema.json",
-    title: "ai-share wezterm.yaml",
-    root: objectSchema({
-      required: [
-        "shell",
-        "color_scheme",
-        "font_size",
-        "window_background_opacity",
-        "maximize_on_startup",
-        "exit_behavior",
-        "scrollback_lines",
-      ],
-      properties: {
-        shell: enumStringSchema(["platform-native", "wezterm-default"], "WezTerm shell selection."),
-        color_scheme: enumStringSchema(
-          ["catppuccin-mocha", "dracula", "tokyo-night", "wezterm-default"],
-          "WezTerm color scheme selection.",
-        ),
-        font_size: enumNumberSchema([11, 12, 13], "WezTerm font size."),
-        window_background_opacity: enumNumberSchema([0.88, 0.94, 1], "WezTerm window background opacity."),
-        maximize_on_startup: booleanSchema("Whether WezTerm starts maximized."),
-        exit_behavior: enumStringSchema(
-          ["hold", "close", "close-on-clean-exit"],
-          "Behavior when the program in a WezTerm pane exits.",
-        ),
-        scrollback_lines: enumNumberSchema([10000, 100000, 1000000], "WezTerm scrollback line count."),
-      },
-    }),
-  },
 ];
 
 function stringSchema(description: string): Extract<SchemaNode, { type: "string" }> {
@@ -364,10 +358,6 @@ function objectSchema(input: Omit<ObjectSchemaNode, "type"> = {}): Extract<Schem
 
 function enumStringSchema(values: readonly string[], description: string): Extract<SchemaNode, { type: "string" }> {
   return { ...stringSchema(description), enum: values };
-}
-
-function enumNumberSchema(values: readonly number[], description: string): Extract<SchemaNode, { type: "number" }> {
-  return { type: "number", enum: values, description };
 }
 
 export function pluginSpecPattern(): string {

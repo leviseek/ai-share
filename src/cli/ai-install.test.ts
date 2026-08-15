@@ -20,7 +20,6 @@ const result = {
   tools: [
     { id: "opencode", label: "OpenCode CLI", installed: true },
     { id: "opencode-desktop", label: "OpenCode Desktop", installed: false },
-    { id: "wezterm", label: "WezTerm", installed: false },
     { id: "openspec", label: "OpenSpec", installed: true },
     { id: "superpowers", label: "Superpowers", installed: true },
     { id: "codegraph", label: "CodeGraph", installed: true },
@@ -612,17 +611,6 @@ describe("install tool detection", () => {
           "        manager: scoop",
           "      darwin:",
           "        manager: brew",
-          "  - id: wezterm",
-          "    label: WezTerm",
-          "    package: wezterm",
-          "    executable: wezterm",
-          "    required: true",
-          "    version: latest",
-          "    platforms:",
-          "      win32:",
-          "        manager: scoop",
-          "      darwin:",
-          "        manager: brew",
           "",
         ].join("\n"),
       );
@@ -647,7 +635,6 @@ describe("install tool detection", () => {
       if (!result.ok) return;
       expect(result.tools.map((tool) => tool.id)).toEqual(["opencode", "superpowers"]);
       expect(result.hints.some((hint) => "toolId" in hint && hint.toolId === "opencode-desktop")).toBe(false);
-      expect(result.hints.some((hint) => "toolId" in hint && hint.toolId === "wezterm")).toBe(false);
       expect(calls.some((call) => call.command === "scoop" || call.command === "brew")).toBe(false);
     } finally {
       fixture.cleanup();

@@ -15,6 +15,9 @@ const REASON_TEXT: Readonly<Record<PlanReason, string>> = {
   "stale-managed-skill": "已不再声明的受管 skill，将删除",
   "unmanaged-skill-preserved": "用户 skill 不属于 ai-share，保留",
   "invalid-marker-preserved": "skill marker 无效，保留并提示风险",
+  "archify-not-installed": "Archify 已启用但尚未安装，请运行 ai:archify",
+  "archify-ref-drift": "Archify 安装 revision 与配置不一致",
+  "archify-content-missing": "Archify ownership 存在但 SKILL.md 缺失",
 };
 
 export function renderExplainReport(report: ExplainReport, useColor: boolean): string {

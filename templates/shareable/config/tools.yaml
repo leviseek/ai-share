@@ -23,17 +23,6 @@ tools:
         manager: scoop
       darwin:
         manager: brew
-  - id: wezterm
-    label: WezTerm
-    package: wezterm
-    executable: wezterm
-    required: true
-    version: latest
-    platforms:
-      win32:
-        manager: scoop
-      darwin:
-        manager: brew
   - id: openspec
     label: OpenSpec
     package: "@fission-ai/openspec"

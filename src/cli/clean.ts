@@ -54,6 +54,7 @@ export async function cleanOpenCodeConfig(paths: GeneratorPaths, options: { back
     }
   }
   deletes.push(...(await managedSkillDirs(paths.targetOpenCodeSkillsDir)));
+  deletes.push(...(await managedSkillDirs(paths.targetGlobalSkillsDir)));
   for (const path of launcherPaths(paths)) {
     if (await ownedLauncherFile(path, paths)) deletes.push(path);
   }
@@ -122,7 +123,9 @@ function resolveBackupTarget(paths: GeneratorPaths, backupRoot: string, target: 
   if (configRelative !== undefined) return resolve(backupRoot, "opencode", configRelative);
   const binRelative = safeRelative(paths.targetUserBinDir, target);
   if (binRelative !== undefined) return resolve(backupRoot, "bin", binRelative);
-  throw new Error(`拒绝备份 OpenCode 配置目录和用户 bin 目录外路径：${target}`);
+  const globalSkillsRelative = safeRelative(paths.targetGlobalSkillsDir, target);
+  if (globalSkillsRelative !== undefined) return resolve(backupRoot, "global-skills", globalSkillsRelative);
+  throw new Error(`拒绝备份受管目录外路径：${target}`);
 }
 
 function safeRelative(parent: string, child: string): string | undefined {

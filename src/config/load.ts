@@ -1,3 +1,4 @@
+import { loadArchifyConfigWithTrace } from "./archify.ts";
 import { loadConfigYamlWithTrace } from "./local-overlay.ts";
 import { validateConfigSet, type ConfigSet, type ValidationError } from "./validation.ts";
 
@@ -25,17 +26,19 @@ export type ConfigProvenance = {
   agents: Record<string, string>;
   plugins: Record<string, string>;
   tools: Record<string, string>;
+  archify: Record<string, string>;
 };
 
 export type LoadedValidatedConfig = {
   config: ConfigSet;
+  archify: Awaited<ReturnType<typeof loadArchifyConfigWithTrace>>["config"];
   provenance: ConfigProvenance;
   baseFiles: string[];
   overlays: string[];
 };
 
 export async function loadValidatedConfigWithTrace(configDir: string): Promise<LoadedValidatedConfig> {
-  const [global, providers, models, mcp, env, agents, plugins, tools] = await Promise.all([
+  const [global, providers, models, mcp, env, agents, plugins, tools, archify] = await Promise.all([
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[0]),
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[1]),
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[2]),
@@ -44,6 +47,7 @@ export async function loadValidatedConfigWithTrace(configDir: string): Promise<L
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[5]),
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[6]),
     loadConfigYamlWithTrace(configDir, CONFIG_FILES[7]),
+    loadArchifyConfigWithTrace(configDir),
   ]);
   const result = validateConfigSet({
     global: global.value,
@@ -59,6 +63,7 @@ export async function loadValidatedConfigWithTrace(configDir: string): Promise<L
   const loaded = [global, providers, models, mcp, env, agents, plugins, tools];
   return {
     config: result.config,
+    archify: archify.config,
     provenance: {
       global: global.sources,
       providers: providers.sources,
@@ -68,9 +73,13 @@ export async function loadValidatedConfigWithTrace(configDir: string): Promise<L
       agents: agents.sources,
       plugins: plugins.sources,
       tools: tools.sources,
+      archify: archify.sources,
     },
-    baseFiles: loaded.map((entry) => entry.base),
-    overlays: loaded.flatMap((entry) => (entry.overlay ? [entry.overlay] : [])),
+    baseFiles: [...loaded.map((entry) => entry.base), ...(archify.base ? [archify.base] : [])],
+    overlays: [
+      ...loaded.flatMap((entry) => (entry.overlay ? [entry.overlay] : [])),
+      ...(archify.overlay ? [archify.overlay] : []),
+    ],
   };
 }
 

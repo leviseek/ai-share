@@ -29,6 +29,8 @@ omo-agent-monitor-state.json
 
 ### Local AI planning artifacts
 docs/superpowers/
+# Local Archify scratch; the reviewed candidate lives under docs/archify/.
+archify/
 .sisyphus/evidence/
 
 ### Local AI runtime state

@@ -1,6 +1,6 @@
 # config/tools.yaml Schema
 
-`tools.yaml` 是全局 AI coding 工具的唯一声明源。当前 base 配置包含 OpenCode CLI、OpenCode Desktop、WezTerm、OpenSpec、CodeGraph、TypeScript 和 TypeScript Language Server。每个条目只声明工具身份、package、安装后命令 basename、版本、必选性和平台安装 manager，不包含命令、脚本、路径、环境变量或凭据。
+`tools.yaml` 是全局 AI coding 工具的唯一声明源。当前 base 配置包含 OpenCode CLI、OpenCode Desktop、OpenSpec、CodeGraph、TypeScript 和 TypeScript Language Server。每个条目只声明工具身份、package、安装后命令 basename、版本、必选性和平台安装 manager，不包含命令、脚本、路径、环境变量或凭据。
 
 | Field                                  | Type                                            | Required | Description                                  |
 | -------------------------------------- | ----------------------------------------------- | -------- | -------------------------------------------- |

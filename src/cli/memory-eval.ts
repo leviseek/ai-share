@@ -148,6 +148,7 @@ function temporaryPaths(tempRoot: string, projectRoot: string): GeneratorPaths {
     targetOpenCodeConfig: resolve(openCodeDir, "opencode.jsonc"),
     targetOpenCodeEnv: resolve(openCodeDir, ".env"),
     targetOpenCodeSkillsDir: resolve(openCodeDir, "skills"),
+    targetGlobalSkillsDir: resolve(tempRoot, "home", ".agents", "skills"),
     targetUserBinDir: binDir,
     targetAiocScript: resolve(binDir, "aioc.ts"),
     targetAiocUnix: resolve(binDir, "aioc"),
